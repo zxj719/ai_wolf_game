@@ -43,37 +43,40 @@ const types = {
 };
 
 function reducer(state, action) {
+  const apply = (key, payload) => 
+    typeof payload === 'function' ? payload(state[key]) : payload;
+
   switch (action.type) {
     case types.SET_PHASE:
-      return { ...state, phase: action.payload };
+      return { ...state, phase: apply('phase', action.payload) };
     case types.SET_NIGHT_STEP:
-      return { ...state, nightStep: action.payload };
+      return { ...state, nightStep: apply('nightStep', action.payload) };
     case types.SET_DAY_COUNT:
-      return { ...state, dayCount: action.payload };
+      return { ...state, dayCount: apply('dayCount', action.payload) };
     case types.SET_PLAYERS:
-      return { ...state, players: action.payload };
+      return { ...state, players: apply('players', action.payload) };
     case types.SET_USER_PLAYER:
-      return { ...state, userPlayer: action.payload };
+      return { ...state, userPlayer: apply('userPlayer', action.payload) };
     case types.SET_NIGHT_DECISIONS:
-      return { ...state, nightDecisions: action.payload };
+      return { ...state, nightDecisions: apply('nightDecisions', action.payload) };
     case types.MERGE_NIGHT_DECISIONS:
       return { ...state, nightDecisions: { ...state.nightDecisions, ...action.payload } };
     case types.SET_LOGS:
-      return { ...state, logs: action.payload };
+      return { ...state, logs: apply('logs', action.payload) };
     case types.PUSH_LOG:
       return { ...state, logs: [action.payload, ...state.logs] };
     case types.SET_SEER_CHECKS:
-      return { ...state, seerChecks: action.payload };
+      return { ...state, seerChecks: apply('seerChecks', action.payload) };
     case types.SET_GUARD_HISTORY:
-      return { ...state, guardHistory: action.payload };
+      return { ...state, guardHistory: apply('guardHistory', action.payload) };
     case types.SET_WITCH_HISTORY:
-      return { ...state, witchHistory: action.payload };
+      return { ...state, witchHistory: apply('witchHistory', action.payload) };
     case types.SET_SPEECH_HISTORY:
-      return { ...state, speechHistory: action.payload };
+      return { ...state, speechHistory: apply('speechHistory', action.payload) };
     case types.SET_VOTE_HISTORY:
-      return { ...state, voteHistory: action.payload };
+      return { ...state, voteHistory: apply('voteHistory', action.payload) };
     case types.SET_DEATH_HISTORY:
-      return { ...state, deathHistory: action.payload };
+      return { ...state, deathHistory: apply('deathHistory', action.payload) };
     default:
       return state;
   }
@@ -104,11 +107,18 @@ export function useWerewolfGame(config) {
     pushLog({ text, type, speaker, id: `${Date.now()}-${Math.random()}` });
   };
 
-  const initGame = (mode = 'player') => {
-    const { TOTAL_PLAYERS, STANDARD_ROLES, ROLE_DEFINITIONS, PERSONALITIES, NAMES } = config;
-    let shuffledRoles = [...STANDARD_ROLES].sort(() => 0.5 - Math.random());
+  const initGame = (mode = 'player', customConfig = null) => {
+    const { ROLE_DEFINITIONS, PERSONALITIES, NAMES } = config;
+    
+    // Use custom config if provided, otherwise fallback to default config
+    // Assuming customConfig provides TOTAL_PLAYERS and STANDARD_ROLES
+    const activeTotalPlayers = customConfig?.TOTAL_PLAYERS || config.TOTAL_PLAYERS;
+    const activeRoles = customConfig?.STANDARD_ROLES || config.STANDARD_ROLES;
+    const setupName = customConfig?.name || "标准局";
+
+    let shuffledRoles = [...activeRoles].sort(() => 0.5 - Math.random());
     let namePool = [...NAMES].sort(() => 0.5 - Math.random());
-    const newPlayers = Array.from({ length: TOTAL_PLAYERS }, (_, i) => ({
+    const newPlayers = Array.from({ length: activeTotalPlayers }, (_, i) => ({
       id: i,
       name: mode === 'ai-only' ? namePool[i] : (i === 0 ? '你' : namePool[i]),
       role: shuffledRoles[i],
@@ -143,7 +153,15 @@ export function useWerewolfGame(config) {
       seerResult: null
     });
     setLogs([]);
-    addLog(`8人局启动！你是 [0号] ${newPlayers[0].name}，身份：【${newPlayers[0].role}】。配置：2狼2民1预1女1猎1守。`, 'system');
+    
+    // Generate role summary string
+    const roleCounts = activeRoles.reduce((acc, role) => {
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {});
+    const configStr = Object.entries(roleCounts).map(([r, c]) => `${c}${r}`).join('');
+
+    addLog(`${activeTotalPlayers}人${setupName}启动！你是 [0号] ${newPlayers[0].name}，身份：【${newPlayers[0].role}】。配置：${configStr}。`, 'system');
   };
 
   return {

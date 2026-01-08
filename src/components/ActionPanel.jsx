@@ -139,31 +139,63 @@ export function ActionPanel({
         )}
 
         {userPlayer?.role !== '女巫' && (
-          <button 
-            disabled={!selectedTarget || (userPlayer?.role === '守卫' && selectedTarget === nightDecisions.lastGuardTarget)}
-            onClick={() => {
-              let updatedDecisions = { ...nightDecisions };
-              if (nightStep === 0) {
-                updatedDecisions.guardTarget = selectedTarget;
-                mergeNightDecisions({ guardTarget: selectedTarget });
-              }
-              if (nightStep === 1) {
-                updatedDecisions.wolfTarget = selectedTarget;
-                updatedDecisions.wolfSkipKill = false;
-                mergeNightDecisions({ wolfTarget: selectedTarget, wolfSkipKill: false });
-              }
-              if (nightStep === 2) {
-                const target = getPlayer(selectedTarget);
-                const isWolf = target?.role === '狼人';
-                setSeerChecks([...seerChecks, { night: dayCount, targetId: selectedTarget, isWolf, seerId: 0 }]);
-                addLogFn(`你查验了 [${selectedTarget}号]，结果是：${isWolf ? '🐺 狼人' : '👤 好人'}`, 'info');
-              }
-              proceedNight(updatedDecisions);
-            }}
-            className="px-14 py-4 bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-600 rounded-2xl font-black text-xs uppercase hover:bg-indigo-500 transition-all"
-          >
-            Confirm Action
-          </button>
+          <div className="flex flex-col gap-2">
+            <button 
+              disabled={!selectedTarget || (userPlayer?.role === '守卫' && selectedTarget === nightDecisions.lastGuardTarget)}
+              onClick={() => {
+                let updatedDecisions = { ...nightDecisions };
+                if (nightStep === 0) {
+                  updatedDecisions.guardTarget = selectedTarget;
+                  mergeNightDecisions({ guardTarget: selectedTarget });
+                }
+                if (nightStep === 1) {
+                  updatedDecisions.wolfTarget = selectedTarget;
+                  updatedDecisions.wolfSkipKill = false;
+                  mergeNightDecisions({ wolfTarget: selectedTarget, wolfSkipKill: false });
+                }
+                if (nightStep === 2) {
+                  const target = getPlayer(selectedTarget);
+                  const isWolf = target?.role === '狼人';
+                  setSeerChecks([...seerChecks, { night: dayCount, targetId: selectedTarget, isWolf, seerId: 0 }]);
+                  addLogFn(`你查验了 [${selectedTarget}号]，结果是：${isWolf ? '🐺 狼人' : '👤 好人'}`, 'info');
+                }
+                proceedNight(updatedDecisions);
+              }}
+              className="px-14 py-4 bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-600 rounded-2xl font-black text-xs uppercase hover:bg-indigo-500 transition-all"
+            >
+              Confirm Action
+            </button>
+
+            {/* 增加"空操作"按钮：守卫空守 */}
+            {userPlayer?.role === '守卫' && (
+              <button 
+                onClick={() => {
+                  let updatedDecisions = { ...nightDecisions };
+                  updatedDecisions.guardTarget = null; // 空守
+                  mergeNightDecisions({ guardTarget: null });
+                  addLogFn(`你选择了空守`, 'info');
+                  proceedNight(updatedDecisions);
+                }}
+                className="px-8 py-2 text-zinc-400 hover:text-white underline text-[10px] transition-all"
+              >
+                选择空守 (Skip Guard)
+              </button>
+            )}
+            
+             {/* 增加"空操作"按钮：预言家空验（虽然规则上通常不允许，但用户请求了"守卫等神职"都给选项） */}
+             {userPlayer?.role === '预言家' && (
+              <button 
+                onClick={() => {
+                   // 不更新查验记录
+                   addLogFn(`你选择了不查验`, 'info');
+                   proceedNight(); // 直接下一步
+                }}
+                className="px-8 py-2 text-zinc-400 hover:text-white underline text-[10px] transition-all"
+              >
+                选择不查验 (Skip Check)
+              </button>
+            )}
+           </div>
         )}
 
         {userPlayer?.role === '女巫' && userPlayer.hasWitchPoison && selectedTarget !== null && (

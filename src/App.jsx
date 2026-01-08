@@ -19,12 +19,14 @@ const API_URL = "https://api-inference.modelscope.cn/v1/chat/completions";
 const AI_MODELS = [
   { id: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", options: { response_format: { type: "json_object" } } }, // 0
   { id: "Qwen/Qwen2.5-72B-Instruct", options: { } }, // 1
-  { id: "deepseek-ai/DeepSeek-R1-0528", options: { } }, // 2
+  { id: "deepseek-ai/DeepSeek-V3.2", options: { extra_body: { enable_thinking: true } } }, // 2
   { id: "MiniMax/MiniMax-M1-80k", options: { } }, // 3
   // 新增模型
   { id: "Qwen/Qwen3-235B-A22B", options: { extra_body: { enable_thinking: true } } }, // 4 (Thinking Model)
   { id: "Qwen/Qwen3-Coder-480B-A35B-Instruct", options: { response_format: { type: "json_object" } } }, // 5
-  { id: "Qwen/Qwen3-235B-A22B-Instruct-2507", options: { response_format: { type: "json_object" } } } // 6
+  { id: "Qwen/Qwen3-235B-A22B-Instruct-2507", options: { response_format: { type: "json_object" } } }, // 6
+  { id: "Qwen/Qwen3-235B-A22B-Thinking-2507", options: { } }, // 7
+  { id: "Qwen/Qwen2.5-32B-Instruct", options: { } } // 8 (Backup)
 ];
 
 
@@ -43,6 +45,34 @@ const STANDARD_ROLES = [
   ROLE_DEFINITIONS.SEER, ROLE_DEFINITIONS.WITCH,
   ROLE_DEFINITIONS.HUNTER, ROLE_DEFINITIONS.GUARD,
   ROLE_DEFINITIONS.VILLAGER, ROLE_DEFINITIONS.VILLAGER
+];
+
+const GAME_SETUPS = [
+  {
+    id: 'standard_8',
+    name: '8人标准局',
+    TOTAL_PLAYERS: 8,
+    STANDARD_ROLES: [
+      ROLE_DEFINITIONS.WEREWOLF, ROLE_DEFINITIONS.WEREWOLF,
+      ROLE_DEFINITIONS.SEER, ROLE_DEFINITIONS.WITCH,
+      ROLE_DEFINITIONS.HUNTER, ROLE_DEFINITIONS.GUARD,
+      ROLE_DEFINITIONS.VILLAGER, ROLE_DEFINITIONS.VILLAGER
+    ],
+    NIGHT_SEQUENCE: ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'], // Night action order
+    description: '2狼 2民 1预 1女 1猎 1守'
+  },
+  {
+    id: 'mini_6',
+    name: '6人迷你局',
+    TOTAL_PLAYERS: 6,
+    STANDARD_ROLES: [
+      ROLE_DEFINITIONS.WEREWOLF, ROLE_DEFINITIONS.WEREWOLF,
+      ROLE_DEFINITIONS.SEER, ROLE_DEFINITIONS.WITCH,
+      ROLE_DEFINITIONS.VILLAGER, ROLE_DEFINITIONS.VILLAGER
+    ],
+    NIGHT_SEQUENCE: ['WEREWOLF', 'SEER', 'WITCH'], // No Guard
+    description: '2狼 2民 1预 1女'
+  }
 ];
 
 const PERSONALITIES = [
@@ -86,15 +116,22 @@ export default function App() {
   
   const [isThinking, setIsThinking] = useState(false);
   const [gameMode, setGameMode] = useState(null); // 'player' 或 'ai-only'
+  const [selectedSetup, setSelectedSetup] = useState(GAME_SETUPS[0]);
   
   // 解决 React Strict Mode 下 Effect 执行两次导致的夜间行动重复问题
   const processingStepRef = React.useRef(-1);
+  // 记录被429的模型索引，避免重复使用
+  const disabledModelsRef = React.useRef(new Set());
   
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [userInput, setUserInput] = useState("");
   const [speakerIndex, setSpeakerIndex] = useState(-1);
   const [speakingOrder, setSpeakingOrder] = useState('left'); // 'left' or 'right'
+  const [spokenCount, setSpokenCount] = useState(0); // 记录今日已发言人数
   const [hunterShooting, setHunterShooting] = useState(null); // 猎人开枪
+
+  // Computed night sequence for current setup
+  const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
 
   // 粗暴的 JSON 清洗：尝试截取首尾大括号之间的内容，避免模型输出杂质
   const safeParseJSON = (text) => {
@@ -103,18 +140,46 @@ export default function App() {
     const first = trimmed.indexOf('{');
     const last = trimmed.lastIndexOf('}');
     if (first === -1 || last === -1 || last <= first) return null;
+    
+    const jsonString = trimmed.slice(first, last + 1);
+    
     try {
-      return JSON.parse(trimmed.slice(first, last + 1));
+      return JSON.parse(jsonString);
     } catch (err) {
-      console.warn('JSON parse failed, raw snippet:', trimmed);
-      return null;
+      // 尝试修复常见格式错误
+      try {
+        // 1. 修复像 "典型的"幻视"行为" 这样的中文内部引号 (Chinese char " Chinese char)
+        let repaired = jsonString.replace(/([\u4e00-\u9fa5])"([\u4e00-\u9fa5])/g, '$1\\"$2');
+        return JSON.parse(repaired);
+      } catch (retryErr) {
+        console.warn('JSON parse failed, raw snippet:', trimmed);
+        return null;
+      }
     }
   };
 
-  const fetchLLM = async (player, prompt, systemInstruction, retries = 3, backoff = 2000) => {
+  const fetchLLM = async (player, prompt, systemInstruction, retries = 3, backoff = 2000, forcedModelIndex = null) => {
     // 确定模型：均匀分配给所有玩家
     // 如果没有传入player（比如全局操作），默认使用第一个模型
-    const modelIndex = player ? player.id % AI_MODELS.length : 0;
+    // 如果指定了 forcedModelIndex，作为候选（但仍需检查是否禁用）
+    const defaultModelIndex = player ? player.id % AI_MODELS.length : 0;
+    let modelIndex = forcedModelIndex !== null ? forcedModelIndex : defaultModelIndex;
+
+    // 检查并跳过已禁用的模型
+    // 如果当前选择的模型在黑名单中，尝试寻找下一个可用模型
+    let attempts = 0;
+    while (disabledModelsRef.current.has(modelIndex) && attempts < AI_MODELS.length) {
+      modelIndex = (modelIndex + 1) % AI_MODELS.length;
+      attempts++;
+    }
+    
+    // 如果所有模型都被禁用，清空黑名单重试（避免死锁）
+    if (attempts >= AI_MODELS.length) {
+      console.warn("[API] 所有模型均被禁用(429)，重置黑名单。");
+      disabledModelsRef.current.clear();
+      // 保持当前的 modelIndex 继续尝试
+    }
+
     const modelConfig = AI_MODELS[modelIndex];
 
     // 处理配置选项: 模拟 OpenAI Python SDK 的 extra_body 行为
@@ -133,9 +198,7 @@ export default function App() {
       ...requestOptions
     };
     
-    // 强制增加 response_format: { type: "json_object" } 如果模型不是 MiniMax (MiniMax 对此支持较弱可能报错，Qwen3/DeepSeek通常支持)
-    // 但为了兼容性，只有明确配置了的才加，或者我们在AI_MODELS里已经配置好了。
-
+    const startTime = Date.now();
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -145,20 +208,51 @@ export default function App() {
         },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const duration = Date.now() - startTime;
+      console.log(`[API Call] Player: ${player ? player.id : 'System'}, Model: ${modelConfig.id}, Duration: ${duration}ms, Forced: ${forcedModelIndex !== null}`);
+
+      if (!response.ok) {
+        // 专门处理 429 错误 (Too Many Requests)
+        if (response.status === 429) {
+          throw new Error(`RunningModel: ${modelConfig.id} failed with 429 Too Many Requests`);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const result = await response.json();
       
-      // 某些模型（如DeepSeek R1/Qwen Thinking）可能会返回 reasoning_content (在 content 同级或 message 里)
-      // 但 OpenAI 格式通常把结果放在 choices[0].message.content
       const content = result.choices?.[0]?.message?.content;
       return safeParseJSON(content);
     } catch (error) {
       console.error(`LLM Fetch Error [Model: ${modelConfig.id}]:`, error);
+      
+      const isRateLimit = error.message.includes('429') || error.message.includes('Too Many Requests');
+
       if (retries > 0) {
-        const delay = Math.min(15000, backoff); // 最多等15秒
-        console.log(`等待${delay}ms后重试... (剩余重试次数: ${retries})`);
-        await new Promise(res => setTimeout(res, delay));
-        return fetchLLM(player, prompt, systemInstruction, retries - 1, backoff * 2);
+        let nextModelIndex = modelIndex;
+        let nextBackoff = backoff * 2;
+        let delay = Math.min(15000, backoff);
+
+        if (isRateLimit) {
+             // 永久拉黑当前模型
+             console.warn(`[429 封禁] 模型 ${modelConfig.id} 触发限流，已加入黑名单。`);
+             disabledModelsRef.current.add(modelIndex);
+
+             // 寻找下一个可用的
+             nextModelIndex = (modelIndex + 1) % AI_MODELS.length; 
+             // 下一次递归调用 fetchLLM 时会在开头自动处理 blacklist 跳过逻辑
+             
+             nextBackoff = 1000; // 重置 backoff 因为是新模型
+             delay = 500; // 0.5秒后尝试下一个
+             
+             console.warn(`[429 自动切换] 切换到索引 ${nextModelIndex} (将在执行时验证 availability)`);
+             await new Promise(res => setTimeout(res, delay));
+             return fetchLLM(player, prompt, systemInstruction, retries - 1, nextBackoff, nextModelIndex);
+        } else {
+             console.log(`等待${delay}ms后重试... (剩余重试次数: ${retries})`);
+             await new Promise(res => setTimeout(res, delay));
+             return fetchLLM(player, prompt, systemInstruction, retries - 1, backoff * 2, forcedModelIndex);
+        }
       }
       return null;
     }
@@ -234,10 +328,37 @@ export default function App() {
     return { aliveList, deadList, todaySpeeches, historySpeeches, voteInfo, deathInfo: `${lastNightInfo}; 历史死亡:${priorDeaths}`, roleInfo, dayCount };
   };
 
+
   const askAI = async (player, task, extraInfo = "") => {
     setIsThinking(true);
     const ctx = buildAIContext(player);
     
+    // 狼人杀专业术语表
+    const werewolfTerminology = `
+【狼人杀专用术语表】
+1️⃣ 发言相关：
+- 划水 (Water/Flood): 内容少、无判断、无立场。
+- 爆水/给水: 给某人强烈好人评价。
+- 踩人 (Step on): 明确怀疑某人是狼。
+- 站边 (Stand by): 明确支持某一预言家。
+- 带节奏: 引导投票方向。
+
+2️⃣ 行为逻辑：
+- 逻辑自洽 (Consistent): 前后一致。
+- 行为像狼 (Wolfy): 行为鬼祟，无正当理由。
+
+3️⃣ 身份判定：
+- 金水 (Gold Water): 预言家查验的好人。
+- 查杀 (Kill Check/Cha Sha): 预言家查验的狼人。
+- 跳 (Jump/Claim): 这轮表明身份。
+- 悍跳 (Wolf Jump): 狼人假装预言家。
+- 银水 (Silver Water): 女巫救的人（通常是好人）。
+- 冲锋狼: 积极对抗好人的狼。
+- 倒钩狼: 假装站边好人的狼。
+- 抗推位: 容易被误出的好人。
+
+请在发言中自然使用这些术语！`;
+
     // 根据身份定制策略
     let roleStrategy = '';
     const isFirstDay = dayCount === 1;
@@ -245,44 +366,57 @@ export default function App() {
     
     if (player.role === '狼人') {
       roleStrategy = `【狼人策略：撕咬与悍跳】
-你的目标是生存并放逐好人。不要复读。如果预言家查杀了你或队友，立刻反手"悍跳"，声称自己才是真预言家，并给出一份假的查验记录。利用"逻辑陷阱"：指责对方发言太像背稿子。如果局势不利，尝试穿神职衣服（如跳守卫）来保命。`;
+你的目标是生存并放逐好人。不要复读。如果预言家查杀了你或队友，立刻反手"悍跳"（声称自己是预言家），给好人发"查杀"或"金水"。指责对方"聊爆"或"背稿子"。如果局势不利，尝试穿神职衣服（如跳守卫）。`;
     } else if (player.role === '预言家') {
       if (isFirstDay) {
         roleStrategy = `【预言家策略：强硬带队-首日必跳】
-你是场上的领袖，不是建议者。发言必须霸气："我是全场唯一真预言家，昨晚查杀X号，今天全票出他，不跟我票的直接标狼！"。如果有人跟你悍跳，你要对比具体的留人逻辑，直接点出对方的破绽。不要怕死，要把信息留全。`;
+必须跳身份！霸气发言："我是全场唯一真预言家，昨晚查杀X号（或验了Y号金水）"。如果不跳，好人会迷茫。如果有狼人悍跳，对比心路历程，点出其破绽。`;
       } else {
         roleStrategy = `【预言家策略：强硬带队】
-继续报查验结果，坚定指认查到的狼人。如果之前查的狼没被投出，直接放狠话："X号已被我查杀，还不出他的都是在包狼！"。你是指挥官，不是建议者，要强势归票。`;
+继续报验人信息（金水/查杀）。如果之前的查杀没走，必须号召全票打飞。你是好人领袖，不要软弱。`;
       }
     } else if (player.role === '女巫') {
       const shouldSave = nightNum <= 2 && player.hasWitchSave;
       roleStrategy = `【女巫策略：刀口审判】
-你手里握着生杀大权。${shouldSave ? '第2晚之后，除非预言家极度危险且确定守卫没药，否则优先留解药自救。' : ''}如果解药已用，直接跳身份并公布刀口信息。如果有人穿你衣服，直接放狠话："今晚我会毒掉你，不要挑战女巫的耐性"。你要利用药位信息，点出谁在通过"空刀"或"自刀"做高身份。`;
+你掌握生杀大权。${shouldSave ? '前期通常救人（形成银水）。' : ''}如果没药了或有人对跳，直接跳身份报"银水"（昨晚救的人）或"刀口"。警告穿你衣服的狼人："今晚毒你"。`;
     } else if (player.role === '猎人') {
-      roleStrategy = `【猎人策略：以死相搏】
-你是带枪的。发言要横："我就是猎人，谁想出我尽管来，带走的一定是狼。"。你要重点观察那些发言圆滑、不敢站队的"搅屎棍"玩家，将他们列入你的枪口名单。`;
+      roleStrategy = `【猎人策略：强势压制】
+发言要横："我是猎人，全场最硬的牌"。重点关注那些"划水"或不敢站队的玩家。谁敢踩你，直接怼回去。`;
     } else if (player.role === '守卫') {
-      roleStrategy = `【守卫策略：硬核排坑】
-${nightNum === 1 ? '首晚守护预言家，' : ''}次晚必须空守或换人守（避免同守同救）。拒绝划水。作为守卫，你要"站边"。选择你认为真的预言家，并疯狂攻击对立面的追随者。利用"排除法"：分析谁更可能是狼。`;
+      roleStrategy = `【守卫策略：低调守护】
+${nightNum === 1 ? '通常守中立或预言家。' : ''}避免同守同救。不要轻易暴露身份，除非为了保真预言家。试着分析谁在"倒钩"，谁是"冲锋狼"。`;
     } else {
-      roleStrategy = `【村民策略：硬核排坑】
-拒绝划水。作为平民，你要"站边"。选择你认为真的预言家，并疯狂攻击对立面的追随者。利用"排除法"：场上神职已定，剩下的玩家里一定有狼。不要怕说错，要怕没逻辑。`;
+      roleStrategy = `【村民策略：逻辑找狼】
+不要划水！虽然无技能，但要敢于"站边"（选择相信一个预言家）。分析谁的行为"做作"、谁在"跟风"。如果不确定，可以说"先听其他玩家发言"。`;
     }
     
+
     // 硬核博弈法则
+    // 动态调整规则：如果是首日且首位发言，放宽"必须攻击"的要求，防止幻视
+    const isFirstSpeaker = isFirstDay && (!ctx.todaySpeeches || ctx.todaySpeeches.trim() === '');
+    
+    // 强制攻击规则 (仅在非首位发言时生效)
+    const attackRule = isFirstSpeaker 
+      ? '- 由于你是首个发言，尚未有人发言。你可以简单点评昨夜情况（如平安夜），或聊聊自己的身份底牌（也可以划水过）。切记：不要凭空捏造他人的发言或行为！因为还没人说话！'
+      : (player.role !== '狼人' 
+          ? '- 如果你是好人：怀疑1-2名玩家。不要开上帝视角。' 
+          : '- 如果你是狼人：制造混乱，甚至可以"倒钩"（假装帮好人说话）。');
+
     const gameTheoryRules = `
 【硬核博弈法则-必须执行】
-1. 拒绝废话：禁止使用"昨晚平安夜"、"可能是在试探"、"请解释"等外交辞令。直接进入主题。
-2. 逻辑钩子：指控他人时，必须引用具体的理由。
+1. 拒绝废话：禁止使用"昨晚平安夜"等无意义开场。
+2. 逻辑钩子：指控他人时，必须引用具体的理由（如"3号刚才划水"、"5号逻辑矛盾"）。
 3. 攻击性要求：
-   ${player.role !== '狼人' ? '- 如果你是好人：怀疑1-2名玩家。注意：除非你是预言家本人，否则你不知道谁是确定的好人（不要开上帝视角）。' : '- 如果你是狼人：通过歪曲事实、伪造直觉或反咬对方是狼来制造混乱。'}
-4. 战场意识：分析局势，但不要陈述你无法得知的"隐形信息"（如具体的解药使用情况，除非你是女巫）。
-5. 身份伪装：禁止直接说"我是好人"。
-6. 发言格式强制：包含【局势分析】+【逻辑输出】+【归票建议】。
+   ${attackRule}
+4. 战场意识：分析局势，但不要陈述你无法得知的隐形信息。
+5. 身份伪装：禁止直接说"我是好人"这种苍白的话，用逻辑证明。
+6. 发言格式：包含【局势分析】+【逻辑输出】。（村民可无【归票建议】，如不确定可说"先听发言"）。
 7. 记忆与状态约束：
-   - 只能根据【今日发言】和【投票记录】进行推理，禁止通过"读取代码"般的方式确认他人身份。
-   - 不要将未经验证的玩家称为"明好人"。
-   - 【严禁幻视】：绝对不要评价【尚未发言】的玩家的"发言内容"，因为他们还没说话！也不要因为他们还没说话就攻击其"沉默"（可能只是轮次未到）。只攻击已有发言的玩家。`;
+   - 只能根据【今日发言】和【投票记录】推理。
+   - 【严禁幻视】：绝对不要评价【尚未发言】的玩家，因为他们还没说话！只攻击已有发言的玩家。
+   ${isFirstSpeaker ? '- 特别警告：你是第一个发言的，场上除了昨夜死亡信息外是一张白纸。不要说"3号划水"之类的话，因为3号还没说话。' : ''}
+8. 术语规范：请根据【狼人杀术语表】使用专业词汇，如"金水"、"查杀"、"银水"、"悍跳"等，不要用大白话。`;
+
 
 
     const systemPrompt = `你是[${player.id}号]，身份【${player.role}】。性格:${player.personality.traits}
@@ -292,6 +426,7 @@ ${nightNum === 1 ? '首晚守护预言家，' : ''}次晚必须空守或换人�
 ${ctx.roleInfo}
 ${roleStrategy}
 ${gameTheoryRules}
+${werewolfTerminology}
 【发言规则】
 1.用序号称呼如"3号"。只能选存活玩家互动。
 2.禁止向自己提问或投票。
@@ -316,9 +451,9 @@ ${extraInfo}
   useEffect(() => { 
     if (phase === 'setup' && !gameInitializedRef.current && gameMode) {
       gameInitializedRef.current = true;
-      initGame(gameMode); 
+      initGame(gameMode, selectedSetup); 
     }
-  }, [phase, gameMode]);
+  }, [phase, gameMode, selectedSetup]);
 
   // 触发夜间 AI 行动
   useEffect(() => {
@@ -336,9 +471,9 @@ ${extraInfo}
     }
   }, [phase, nightStep]);
 
-  // --- 夜间行动：守卫 -> 狼人 -> 预言家 -> 女巫 ---
+  // --- 夜间行动：动态顺序 ---
   const handleNightActions = async () => {
-    const roleOrder = ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
+    const roleOrder = currentNightSequence;
     const currentRoleKey = roleOrder[nightStep];
     
     console.log(`[夜间行动] nightStep=${nightStep}, 当前角色=${ROLE_DEFINITIONS[currentRoleKey] || '未知'}`);
@@ -368,7 +503,7 @@ ${extraInfo}
 
     // 全AI模式：打印夜间行动提示
     if (gameMode === 'ai-only') {
-      addLog(`[${actor.id}号 ${actor.name}] 正在行动...`, 'system');
+      // addLog(`[${actor.id}号 ${actor.name}] 正在行动...`, 'system'); // 移除【正在行动】日志
     }
 
     if (currentRoleKey === 'GUARD') {
@@ -380,7 +515,8 @@ ${extraInfo}
       console.log(`[守卫AI] 开始守卫决策，存活玩家：${alivePlayers.join(',')}`);
       const res = await askAI(actor, `守卫选择。${hint}存活:${alivePlayers.join(',')}。${cannotGuard !== null ? `禁守${cannotGuard}号。` : ''}输出:{"targetId":数字或null}`);
       console.log(`[守卫AI] AI返回结果：`, res);
-      if (res && res.targetId !== cannotGuard && (res.targetId === null || players.find(p => p.id === res.targetId)?.isAlive)) {
+      // 允许 null (空守) 且如果空守，不需要检查 lastGuardTarget
+      if (res && (res.targetId === null || (res.targetId !== cannotGuard && (players.find(p => p.id === res.targetId)?.isAlive)))) {
         if (res.targetId !== null) {
           console.log(`[守卫AI] 守护目标：${res.targetId}号`);
           if (gameMode === 'ai-only') {
@@ -393,9 +529,13 @@ ${extraInfo}
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 守卫选择空守`, 'system');
           }
+          mergeNightDecisions({ guardTarget: null }); // Explicitly set to null
         }
       } else {
         console.log(`[守卫AI] AI决策无效或被过滤`);
+        // 当校验失败时，尝试用空守作为 fallback，而不是卡住
+        console.log('[守卫AI] 强制空守');
+        mergeNightDecisions({ guardTarget: null });
       }
     }
     else if (currentRoleKey === 'WEREWOLF') {
@@ -443,7 +583,11 @@ ${extraInfo}
              console.error(`[预言家AI] 无法找到目标玩家 ${res.targetId}`);
           }
         } else {
-          console.log(`[预言家AI] AI决策无效或被过滤`);
+          console.log(`[预言家AI] AI决策无效或被过滤:`, res);
+          // 视为放弃查验 (Skip Check)
+          if (gameMode === 'ai-only') {
+             addLog(`[${actor.id}号] 预言家放弃查验`, 'system');
+          }
         }
       }
     } 
@@ -471,9 +615,8 @@ ${extraInfo}
           }
           finalDecisions.witchSave = true;
           mergeNightDecisions({ witchSave: true });
-          const updatedPlayers = players.map(x => x.id === actor.id ? {...x, hasWitchSave: false} : x);
-          setPlayers(updatedPlayers);
-          setWitchHistory({ ...witchHistory, savedIds: [...witchHistory.savedIds, dyingId] });
+          // remove setPlayers here to avoid state race condition, handle in resolveNight
+          setWitchHistory(prev => ({ ...prev, savedIds: [...prev.savedIds, dyingId] })); // 修复：使用 prev
         } else if (res.usePoison !== null && actor.hasWitchPoison && !res.useSave && validPoisonTargets.includes(res.usePoison)) {
           console.log(`[女巫AI] 使用毒药毒${res.usePoison}号`);
           if (gameMode === 'ai-only') {
@@ -481,9 +624,8 @@ ${extraInfo}
           }
           finalDecisions.witchPoison = res.usePoison;
           mergeNightDecisions({ witchPoison: res.usePoison });
-          const updatedPlayers = players.map(x => x.id === actor.id ? {...x, hasWitchPoison: false} : x);
-          setPlayers(updatedPlayers);
-          setWitchHistory({ ...witchHistory, poisonedIds: [...witchHistory.poisonedIds, res.usePoison] });
+          // remove setPlayers here too
+          setWitchHistory(prev => ({ ...prev, poisonedIds: [...prev.poisonedIds, res.usePoison] })); // 修复：使用 prev
         } else {
           console.log(`[女巫AI] 不使用药水`);
           if (gameMode === 'ai-only') {
@@ -505,9 +647,10 @@ ${extraInfo}
   };
 
   const proceedNight = (decisionsOverride = null) => {
-    console.log(`[proceedNight] 当前nightStep=${nightStep}, 将要${nightStep < 3 ? '进入下一步' : '结算夜晚'}`);
+    const maxSteps = currentNightSequence.length;
+    console.log(`[proceedNight] 当前nightStep=${nightStep}, 将要${nightStep < maxSteps - 1 ? '进入下一步' : '结算夜晚'}`);
     setSelectedTarget(null);
-    if (nightStep < 3) {
+    if (nightStep < maxSteps - 1) {
       console.log(`[proceedNight] nightStep从${nightStep}变为${nightStep + 1}`);
       setNightStep(nightStep + 1);
     } else {
@@ -567,11 +710,22 @@ ${extraInfo}
     
     // 更新玩家状态
     let updatedPlayers = players.map(p => {
+      let newP = { ...p };
+      
+      // 更新女巫的药水状态
+      // 注意：这里假设场上只有一个女巫，或者所有女巫共享决策（当前逻辑是单一女巫）
+      if (p.role === ROLE_DEFINITIONS.WITCH) {
+        if (witchSave) newP.hasWitchSave = false;
+        if (witchPoison !== null) newP.hasWitchPoison = false;
+      }
+
       if (uniqueDeads.includes(p.id)) {
         const wasPoisoned = poisonedIds.includes(p.id);
-        return { ...p, isAlive: false, isPoisoned: wasPoisoned, canHunterShoot: !wasPoisoned };
+        newP.isAlive = false;
+        newP.isPoisoned = wasPoisoned;
+        newP.canHunterShoot = !wasPoisoned;
       }
-      return p;
+      return newP;
     });
     
     setPlayers(updatedPlayers);
@@ -587,11 +741,17 @@ ${extraInfo}
       seerResult: null
     });
 
+    // 检查游戏是否结束（例如屠边触发）
+    if (checkGameEnd(updatedPlayers)) {
+      setPhase('game_over');
+      return;
+    }
+
     if (uniqueDeads.length === 0) {
       addLog("天亮了，昨晚是平安夜。", "success");
       setPhase('day_announce');
       setTimeout(() => {
-        startDayDiscussion(updatedPlayers);
+        startDayDiscussion(updatedPlayers, []);
       }, 2000);
     } else {
       addLog(`天亮了，昨晚倒牌的玩家：${uniqueDeads.map(id => `[${id}号]`).join(', ')}`, "danger");
@@ -607,13 +767,13 @@ ${extraInfo}
           if (hunter.isUser && gameMode !== 'ai-only') {
             setPhase('hunter_shoot');
           } else {
-            handleAIHunterShoot(hunter, 'night');
+            handleAIHunterShoot(hunter, 'night', uniqueDeads, updatedPlayers); // Pass uniqueDeads & updatedPlayers
           }
         }, 2000);
       } else {
         // 夜晚死亡无遗言，直接进入白天讨论
         setTimeout(() => {
-          startDayDiscussion(updatedPlayers);
+          startDayDiscussion(updatedPlayers, uniqueDeads);
         }, 2000);
       }
     }
@@ -626,36 +786,66 @@ ${extraInfo}
     console.warn('handleDeathLastWords is deprecated');
   };
 
-  const startDayDiscussion = (currentPlayers) => {
+  const startDayDiscussion = (currentPlayers, nightDeads = []) => {
     setPhase('day_discussion');
     const alivePlayers = (currentPlayers || players).filter(p => p.isAlive);
-    // 根据发言顺序设置
-    if (speakingOrder === 'right') {
-      setSpeakerIndex(alivePlayers.length - 1);
+    const aliveIds = alivePlayers.map(p => p.id).sort((a,b)=>a-b);
+    
+    if (nightDeads.length > 0) {
+        // 如果昨晚有人死，从死者右手边（号码+1方向）开始发言
+        // 如果有多个死者，通常取最后一个死者或者随机，这里简化取第一个死者
+        // 规则：DeadID -> Next Alive ID (Cyclic)
+        // 找最大的死者号码，从他下一位开始（或者狼人杀常见规则：多个死者时随机死者顺位？通常是看最后一个被宣布死亡的，这里我们取 nightDeads 的最大值作为基准）
+        const deadId = Math.max(...nightDeads);
+        
+        // 找到 deadId 之后的第一个存活玩家
+        // 简单的算法：从 (deadId + 1) 开始找，直到找到一个在 aliveIds 里的
+        let startId = -1;
+        for (let i = 1; i <= TOTAL_PLAYERS; i++) {
+            const check = (deadId + i) % TOTAL_PLAYERS; // 0-7
+            if (aliveIds.includes(check)) {
+                startId = check;
+                break;
+            }
+        }
+        
+        const startIndexInAlive = alivePlayers.findIndex(p => p.id === startId);
+        setSpeakerIndex(startIndexInAlive);
+        addLog(`昨晚${deadId}号死亡，从${startId}号开始发言。`, 'system');
+        
     } else {
-      setSpeakerIndex(0);
+        // 平安夜，随机开始
+        const randomStartPlayer = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+        const startIndexInAlive = alivePlayers.findIndex(p => p.id === randomStartPlayer.id);
+        setSpeakerIndex(startIndexInAlive);
+        addLog(`平安夜，随机从${randomStartPlayer.id}号开始发言。`, 'system');
     }
+    setSpokenCount(0);
   };
 
   // 猎人开枪处理
-  const handleAIHunterShoot = async (hunter, source) => {
+  const handleAIHunterShoot = async (hunter, source, nightDeads = [], currentPlayersState = null) => {
     setIsThinking(true);
-    const aliveTargets = players.filter(p => p.isAlive && p.id !== hunter.id).map(p => p.id);
+    // Use passed state or fallback to current state (which might be stale, but better than nothing)
+    // CRITICAL: We must use the state where Hunter is ALREADY DEAD otherwise we might resurrect them or miscalculate game end
+    let currentPlayers = currentPlayersState ? [...currentPlayersState] : [...players];
+    
+    const aliveTargets = currentPlayers.filter(p => p.isAlive && p.id !== hunter.id).map(p => p.id);
     const res = await askAI(hunter, `你是猎人，选择开枪目标或不开枪。可选:${aliveTargets.join(',')}。输出:{"shoot":true/false,"targetId":数字或null}`);
     setIsThinking(false);
     
     if (res?.shoot && res.targetId !== null && aliveTargets.includes(res.targetId)) {
       addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${res.targetId}号]！`, 'danger');
-      const updatedPlayers = players.map(p => p.id === res.targetId ? { ...p, isAlive: false } : p);
-      setPlayers(updatedPlayers);
-      setDeathHistory([...deathHistory, { day: dayCount, phase: '猎人枪', playerId: res.targetId, cause: '被猎人带走' }]);
+      currentPlayers = currentPlayers.map(p => p.id === res.targetId ? { ...p, isAlive: false } : p);
+      setPlayers(currentPlayers);
+      setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: res.targetId, cause: '被猎人带走' }]);
     } else {
       addLog(`[${hunter.id}号] ${hunter.name} 是猎人，选择不开枪。`, 'info');
     }
     
     setTimeout(() => {
       setHunterShooting(null);
-      const result = checkGameEnd(updatedPlayers);
+      const result = checkGameEnd(currentPlayers);
       if (result) {
         setPhase('game_over');
         return;
@@ -664,18 +854,20 @@ ${extraInfo}
       if (source === 'vote') {
         proceedToNextNight();
       } else {
-        startDayDiscussion(players);
+        startDayDiscussion(currentPlayers, nightDeads);
       }
     }, 2000);
   };
 
   const handleUserHunterShoot = (source) => {
-    const aliveTargets = players.filter(p => p.isAlive && p.id !== userPlayer.id);
+    let currentPlayers = [...players];
+    const aliveTargets = currentPlayers.filter(p => p.isAlive && p.id !== userPlayer.id);
+    
     if (selectedTarget !== null && aliveTargets.some(p => p.id === selectedTarget)) {
       addLog(`你是猎人！开枪带走了 [${selectedTarget}号]！`, 'danger');
-      const updatedPlayers = players.map(p => p.id === selectedTarget ? { ...p, isAlive: false } : p);
-      setPlayers(updatedPlayers);
-      setDeathHistory([...deathHistory, { day: dayCount, phase: '猎人枪', playerId: selectedTarget, cause: '被猎人带走' }]);
+      currentPlayers = currentPlayers.map(p => p.id === selectedTarget ? { ...p, isAlive: false } : p);
+      setPlayers(currentPlayers);
+      setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: selectedTarget, cause: '被猎人带走' }]);
     } else {
       addLog(`你是猎人，选择不开枪。`, 'info');
     }
@@ -683,7 +875,7 @@ ${extraInfo}
     setTimeout(() => {
       setHunterShooting(null);
       setSelectedTarget(null);
-      const result = checkGameEnd(updatedPlayers);
+      const result = checkGameEnd(currentPlayers);
       if (result) {
         setPhase('game_over');
         return;
@@ -693,7 +885,7 @@ ${extraInfo}
       if (hunterShooting?.source === 'vote') {
         proceedToNextNight();
       } else {
-        startDayDiscussion(players);
+        startDayDiscussion(currentPlayers); // Use fresh players
       }
     }, 2000);
   };
@@ -701,7 +893,10 @@ ${extraInfo}
   const checkGameEnd = (currentPlayers = players) => {
     const aliveWolves = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.WEREWOLF).length;
     const aliveVillagers = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.VILLAGER).length;
-    const aliveGods = currentPlayers.filter(p => p.isAlive && !['狼人', '村民'].includes(p.role)).length;
+    const aliveGods = currentPlayers.filter(p => p.isAlive && (p.role !== '狼人' && p.role !== '村民')).length;
+    
+    console.log(`[GameCheck] Wolves: ${aliveWolves}, Villagers: ${aliveVillagers}, Gods: ${aliveGods}, Check State:`, currentPlayers.map(p => `${p.id}:${p.role[0]}:${p.isAlive?'alive':'dead'}`).join(','));
+
     const aliveGood = aliveVillagers + aliveGods;
     
     if (aliveWolves === 0) {
@@ -746,8 +941,19 @@ ${extraInfo}
       }
       
       const currentSpeaker = alivePlayers[speakerIndex];
+      
+      // 防止重复发言：检查该玩家今日是否已发言
+      // Don't modify state inside this check, just return. 
+      // Rely on the previous act (User action or AI timeout) to call moveToNextSpeaker
+      if (speechHistory.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) {
+        return;
+      }
+
       if (currentSpeaker && (!currentSpeaker.isUser || gameMode === 'ai-only')) {
         const triggerAISpeech = async () => {
+          // Double check inside async in case of race conditions
+          if (speechHistory.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) return;
+
           const aliveIds = alivePlayers.map(p => p.id);
           const speechPrompt = `白天发言。
 【必须做到】
@@ -763,7 +969,7 @@ ${extraInfo}
           const res = await askAI(currentSpeaker, speechPrompt);
           if (res?.speech) {
             addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
-            setSpeechHistory([...speechHistory, { 
+            setSpeechHistory(prev => [...prev, { 
               playerId: currentSpeaker.id, 
               name: currentSpeaker.name, 
               content: res.speech, 
@@ -779,7 +985,7 @@ ${extraInfo}
         triggerAISpeech();
       }
     }
-  }, [phase, speakerIndex, players]);
+  }, [phase, speakerIndex, players, speechHistory, dayCount]);
 
   // 用户发言
   const handleUserSpeak = () => {
@@ -792,22 +998,23 @@ ${extraInfo}
 
   const moveToNextSpeaker = () => {
     const alivePlayers = players.filter(p => p.isAlive);
-    if (speakingOrder === 'right') {
-      if (speakerIndex > 0) {
-        setSpeakerIndex(prev => prev - 1);
-      } else {
-        setSpeakerIndex(-1);
-        setPhase('day_voting');
-        addLog('全员发言结束，进入放逐投票阶段。', 'system');
-      }
+    const newSpokenCount = spokenCount + 1;
+    setSpokenCount(newSpokenCount);
+
+    if (newSpokenCount >= alivePlayers.length) {
+      setSpeakerIndex(-1);
+      setPhase('day_voting');
+      addLog('全员发言结束，进入放逐投票阶段。', 'system');
     } else {
-      if (speakerIndex < alivePlayers.length - 1) {
-        setSpeakerIndex(prev => prev + 1);
-      } else {
-        setSpeakerIndex(-1);
-        setPhase('day_voting');
-        addLog('全员发言结束，进入放逐投票阶段。', 'system');
-      }
+      // 循环逻辑：默认顺序(index+1)，若 speakingOrder='right' 则逆序(index-1)
+      const direction = speakingOrder === 'right' ? -1 : 1;
+      setSpeakerIndex(prev => {
+        let next = prev + direction;
+        // Wrap around ensuring 0 to length-1
+        if (next < 0) next = alivePlayers.length - 1;
+        if (next >= alivePlayers.length) next = 0;
+        return next;
+      });
     }
   };
 
@@ -994,6 +1201,9 @@ ${extraInfo}
     if (updatedVoteHistory.length > 0) updatedVoteHistory[updatedVoteHistory.length - 1].eliminated = outPlayer.id;
     setVoteHistory(updatedVoteHistory);
     
+    // 立即切换阶段，防止 useEffect 重复触发自动投票
+    setPhase('day_processing');
+
     handlePlayerElimination(outPlayer);
     
     setIsThinking(false);
@@ -1018,7 +1228,8 @@ ${extraInfo}
         if (outPlayer.isUser && gameMode !== 'ai-only') {
           setPhase('hunter_shoot');
         } else {
-          handleAIHunterShoot(outPlayer, 'vote');
+          // 传递 updatedPlayers 防止状态闭包导致的死人复活问题
+          handleAIHunterShoot(outPlayer, 'vote', [], updatedPlayers);
         }
       } else {
         // 非猎人直接进入下一夜
@@ -1200,13 +1411,13 @@ ${extraInfo}
 
   const getPlayer = (id) => players.find(p => p.id === id);
   const isUserTurn = () => {
-    const roles = ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
+    const roles = currentNightSequence;
     return userPlayer?.isAlive && userPlayer.role === ROLE_DEFINITIONS[roles[nightStep]];
   };
 
   // 获取当前夜间阶段的角色名
   const getCurrentNightRole = () => {
-    const roles = ['守卫', '狼人', '预言家', '女巫'];
+    const roles = currentNightSequence.map(key => ROLE_DEFINITIONS[key]);
     return roles[nightStep] || '';
   };
 
@@ -1218,7 +1429,26 @@ ${extraInfo}
           <h1 className="text-4xl font-black tracking-tighter">
             WEREWOLF <span className="text-indigo-500">PRO</span>
           </h1>
-          <h2 className="text-xl text-zinc-400">请选择游戏模式</h2>
+
+          {/* Setup Selection */}
+          <div className="flex gap-4 p-2 bg-zinc-900/50 rounded-xl">
+             {GAME_SETUPS.map(setup => (
+               <button
+                 key={setup.id}
+                 onClick={() => setSelectedSetup(setup)}
+                 className={`px-6 py-3 rounded-lg font-bold transition-all ${
+                    selectedSetup.id === setup.id 
+                    ? 'bg-indigo-600 text-white shadow-lg' 
+                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                 }`}
+               >
+                 <div className="text-lg">{setup.name}</div>
+                 <div className="text-xs opacity-70 font-normal">{setup.description}</div>
+               </button>
+             ))}
+          </div>
+
+          <h2 className="text-xl text-zinc-400">请选择开始模式</h2>
           <div className="flex gap-6">
             <button
               onClick={() => setGameMode('player')}
@@ -1234,7 +1464,7 @@ ${extraInfo}
             >
               <Brain className="w-10 h-10" />
               <span>全AI模式</span>
-              <span className="text-sm text-purple-200 font-normal">观看8位AI对战</span>
+              <span className="text-sm text-purple-200 font-normal">观看{selectedSetup.TOTAL_PLAYERS}位AI对战</span>
             </button>
           </div>
         </div>
@@ -1348,6 +1578,8 @@ ${extraInfo}
           phase={phase}
           gameMode={gameMode}
           userPlayer={userPlayer}
+          AI_MODELS={AI_MODELS} // Pass AI_MODELS for display
+          seerChecks={seerChecks}
         />
         <GameLog logs={logs} />
       </div>

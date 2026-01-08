@@ -10,6 +10,8 @@ export function PlayerCardList({
   speakerIndex,
   phase,
   gameMode,
+  seerChecks,
+  AI_MODELS = [] // Default to empty array if not passed
 }) {
   const getRoleIcon = (role) => {
     switch(role) {
@@ -43,24 +45,47 @@ export function PlayerCardList({
                   {!p.isAlive && <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center"><Skull size={24} className="text-rose-600" /></div>}
               </div>
               <span className="text-[11px] font-black">{p.name}</span>
+              
+              {/* 显示 AI 模型名称 (精简显示) */}
+              {!p.isUser && AI_MODELS.length > 0 && (
+                <div className="text-[6px] text-zinc-500 mt-0.5 truncate max-w-[80px]">
+                  {AI_MODELS[p.id % AI_MODELS.length]?.id.split('/').pop()}
+                </div>
+              )}
+
               <div className="mt-1 flex flex-wrap gap-1 justify-center">
-                {isTeammate && <span className="text-[7px] bg-rose-500 text-white px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-0.5">{getRoleIcon('狼人')} 狼友</span>}
-                {p.isUser && <span className="text-[7px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-black uppercase">You</span>}
-                {userPlayer?.role === '狼人' && p.role === '狼人' && p.id !== userPlayer.id && p.isAlive && (
-                  <span className="text-[7px] bg-rose-500 text-white px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-0.5">{getRoleIcon('狼人')} 狼人</span>
+                {/* 1. 显示用户自己的身份 */}
+                {p.isUser && (
+                  <span className="text-[7px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-0.5">
+                    {getRoleIcon(p.role)} {p.role}(你)
+                  </span>
                 )}
-                {gameMode === 'ai-only' && p.role && (
+
+                {/* 2. 如果用户是狼人，显示其他狼人队友 */}
+                {isTeammate && (
+                  <span className="text-[7px] bg-rose-500 text-white px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-0.5">
+                    {getRoleIcon('狼人')} 狼同伴
+                  </span>
+                )}
+                
+                {/* 3. 全AI模式或游戏结束显示所有身份 */}
+                {((gameMode === 'ai-only') || (phase === 'game_over')) && !p.isUser && !isTeammate && p.role && (
                   <span className="text-[7px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
                     {getRoleIcon(p.role)} {p.role}
                   </span>
                 )}
-                {gameMode !== 'ai-only' && phase === 'game_over' && !p.isAlive && p.role && !p.isUser && !isTeammate && (
-                  <span className="text-[7px] bg-zinc-700 text-zinc-400 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
-                    {getRoleIcon(p.role)} {p.role}
-                  </span>
+                
+                {/* 4. 仅显示已死亡状态 (如果上面已经显示了身份，则不必重复显示'已死亡'，但为了明确状态可以保留，或者用样式区分) */}
+                {/* 简化：如果已经显示了身份，就不显示纯文本的"已死亡"，因为头像已经变灰了。但也可以保留。 */}
+                {!p.isAlive && !((gameMode === 'ai-only') || (phase === 'game_over') || p.isUser || isTeammate) && (
+                   <span className="text-[7px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded font-bold">已死亡</span>
                 )}
-                {gameMode !== 'ai-only' && !p.isAlive && phase !== 'game_over' && !p.isUser && !isTeammate && (
-                  <span className="text-[7px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded font-bold">已死亡</span>
+
+                {/* 5. 如果用户是预言家，显示查验结果 */}
+                {userPlayer?.role === '预言家' && seerChecks.some(c => c.targetId === p.id) && (
+                  <span className={`text-[7px] text-white px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-0.5 ${seerChecks.find(c => c.targetId === p.id).isWolf ? 'bg-rose-600' : 'bg-sky-600'}`}>
+                    {seerChecks.find(c => c.targetId === p.id).isWolf ? '狼人' : '好人'}
+                  </span>
                 )}
               </div>
             </div>
