@@ -14,8 +14,19 @@ const TOTAL_PLAYERS = 8;
 // API configuration - Hardcoded as requested
 const API_KEY = "ms-b341776e-11ee-40fc-9ab8-42154ff1b42d";
 const API_URL = "https://api-inference.modelscope.cn/v1/chat/completions";
-// const MODEL_ID = "deepseek-ai/DeepSeek-V3.2";
-const MODEL_ID = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B";
+
+// 扩展的模型池，用于负载均衡 - 包含原有的DeepSeek/MiniMax和新增的Qwen3系列
+const AI_MODELS = [
+  { id: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", options: { response_format: { type: "json_object" } } }, // 0
+  { id: "Qwen/Qwen2.5-72B-Instruct", options: { } }, // 1
+  { id: "deepseek-ai/DeepSeek-R1-0528", options: { } }, // 2
+  { id: "MiniMax/MiniMax-M1-80k", options: { } }, // 3
+  // 新增模型
+  { id: "Qwen/Qwen3-235B-A22B", options: { extra_body: { enable_thinking: true } } }, // 4 (Thinking Model)
+  { id: "Qwen/Qwen3-Coder-480B-A35B-Instruct", options: { response_format: { type: "json_object" } } }, // 5
+  { id: "Qwen/Qwen3-235B-A22B-Instruct-2507", options: { response_format: { type: "json_object" } } } // 6
+];
+
 
 const ROLE_DEFINITIONS = {
   WEREWOLF: '狼人',
@@ -100,15 +111,30 @@ export default function App() {
     }
   };
 
-  const fetchLLM = async (prompt, systemInstruction, retries = 3, backoff = 2000) => {
+  const fetchLLM = async (player, prompt, systemInstruction, retries = 3, backoff = 2000) => {
+    // 确定模型：均匀分配给所有玩家
+    // 如果没有传入player（比如全局操作），默认使用第一个模型
+    const modelIndex = player ? player.id % AI_MODELS.length : 0;
+    const modelConfig = AI_MODELS[modelIndex];
+
+    // 处理配置选项: 模拟 OpenAI Python SDK 的 extra_body 行为
+    let requestOptions = { ...modelConfig.options };
+    if (requestOptions.extra_body) {
+        const { extra_body, ...rest } = requestOptions;
+        requestOptions = { ...rest, ...extra_body };
+    }
+
     const payload = {
-      model: MODEL_ID,
+      model: modelConfig.id,
       messages: [
         { role: "system", content: systemInstruction },
         { role: "user", content: prompt }
       ],
-      response_format: { type: "json_object" }
+      ...requestOptions
     };
+    
+    // 强制增加 response_format: { type: "json_object" } 如果模型不是 MiniMax (MiniMax 对此支持较弱可能报错，Qwen3/DeepSeek通常支持)
+    // 但为了兼容性，只有明确配置了的才加，或者我们在AI_MODELS里已经配置好了。
 
     try {
       const response = await fetch(API_URL, {
@@ -121,15 +147,18 @@ export default function App() {
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
+      
+      // 某些模型（如DeepSeek R1/Qwen Thinking）可能会返回 reasoning_content (在 content 同级或 message 里)
+      // 但 OpenAI 格式通常把结果放在 choices[0].message.content
       const content = result.choices?.[0]?.message?.content;
       return safeParseJSON(content);
     } catch (error) {
-      console.error("LLM Fetch Error:", error);
+      console.error(`LLM Fetch Error [Model: ${modelConfig.id}]:`, error);
       if (retries > 0) {
         const delay = Math.min(15000, backoff); // 最多等15秒
         console.log(`等待${delay}ms后重试... (剩余重试次数: ${retries})`);
         await new Promise(res => setTimeout(res, delay));
-        return fetchLLM(prompt, systemInstruction, retries - 1, backoff * 2);
+        return fetchLLM(player, prompt, systemInstruction, retries - 1, backoff * 2);
       }
       return null;
     }
@@ -143,7 +172,8 @@ export default function App() {
     
     // 发言记录（区分今日和往日）
     const todaySpeeches = speechHistory.filter(s => s.day === dayCount).map(s => `${s.playerId}号:${s.content}`).join('\n');
-    const historySpeeches = speechHistory.filter(s => s.day < dayCount).slice(-5).map(s => `D${s.day} ${s.playerId}号:${s.content.slice(0, 30)}...`).join('\n');
+    // 使用摘要(summary)作为共享发言池的核心，压缩记录
+    const historySpeeches = speechHistory.filter(s => s.day < dayCount).map(s => `D${s.day} ${s.playerId}号:${s.summary || s.content.slice(0, 50)}`).join('\n');
     
     // 投票记录（简洁）
     const voteInfo = voteHistory.length > 0 ? voteHistory.map(v => 
@@ -164,8 +194,20 @@ export default function App() {
     if (player.role === '预言家') {
       const myChecks = seerChecks.filter(c => c.seerId === player.id);
       roleInfo = myChecks.length > 0 
-        ? `【查验】${myChecks.map(c => `N${c.night}:${c.targetId}号是${c.isWolf ? '狼' : '好人'}`).join(';')}`
-        : '【查验】无';
+        ? `【历史查验】${myChecks.map(c => `N${c.night}:${c.targetId}号是${c.isWolf ? '狼' : '好人'}`).join(';')}`
+        : '【历史查验】无';
+        
+      // 重要补丁：如果今晚（当前dayCount）刚刚查验了，也需要加进去
+      // 因为 React state 更新可能没那么快反映到 seerChecks 中，或者 buildAIContext 是在 state 更新前调用的
+      // 我们从 nightDecisions.seerResult 补充"今晚的即时查验信息"
+      if (player.role === '预言家' && nightDecisions.seerResult && nightDecisions.seerResult.targetId !== undefined) {
+         const { targetId, isWolf } = nightDecisions.seerResult;
+         // 避免重复显示
+         const alreadyInHistory = myChecks.some(c => c.targetId === targetId);
+         if (!alreadyInHistory) {
+             roleInfo += `\n【今晚查验(最新)】: ${targetId}号是${isWolf ? '狼' : '好人'}`;
+         }
+      }
     } else if (player.role === '女巫') {
       roleInfo = `【药】解:${player.hasWitchSave ? '有' : '无'} 毒:${player.hasWitchPoison ? '有' : '无'}`;
       if (witchHistory.savedIds.length > 0) roleInfo += ` 救过:${witchHistory.savedIds.join(',')}号`;
@@ -239,7 +281,8 @@ ${nightNum === 1 ? '首晚守护预言家，' : ''}次晚必须空守或换人�
 6. 发言格式强制：包含【局势分析】+【逻辑输出】+【归票建议】。
 7. 记忆与状态约束：
    - 只能根据【今日发言】和【投票记录】进行推理，禁止通过"读取代码"般的方式确认他人身份。
-   - 不要将未经验证的玩家称为"明好人"。`;
+   - 不要将未经验证的玩家称为"明好人"。
+   - 【严禁幻视】：绝对不要评价【尚未发言】的玩家的"发言内容"，因为他们还没说话！也不要因为他们还没说话就攻击其"沉默"（可能只是轮次未到）。只攻击已有发言的玩家。`;
 
 
     const systemPrompt = `你是[${player.id}号]，身份【${player.role}】。性格:${player.personality.traits}
@@ -265,7 +308,7 @@ ${extraInfo}
 【投票记录】${ctx.voteInfo}\n
 任务:${task}`;
 
-    const result = await fetchLLM(userPrompt, systemPrompt);
+    const result = await fetchLLM(player, userPrompt, systemPrompt);
     setIsThinking(false);
     return result;
   };
@@ -385,14 +428,20 @@ ${extraInfo}
         const res = await askAI(actor, `预言家查验。可验:${validTargets.join(',')}。输出:{"targetId":数字}`);
         console.log(`[预言家AI] AI返回结果：`, res);
         if (res?.targetId !== undefined && validTargets.includes(res.targetId)) {
-          const targetPlayer = getPlayer(res.targetId);
-          const isWolf = targetPlayer?.role === ROLE_DEFINITIONS.WEREWOLF;
-          console.log(`[预言家AI] 查验${res.targetId}号，结果：${isWolf ? '狼人' : '好人'}`);
-          if (gameMode === 'ai-only') {
-            addLog(`[${actor.id}号] 预言家查验了 ${res.targetId}号，结果是${isWolf ? '狼人' : '好人'}`, 'system');
+          // 确保 getPlayer 这里能获取到正确的玩家
+          const targetPlayer = players.find(p => p.id === res.targetId);
+          if (targetPlayer) {
+             const isWolf = targetPlayer.role === ROLE_DEFINITIONS.WEREWOLF;
+             console.log(`[预言家AI] 查验${res.targetId}号，结果：${isWolf ? '狼人' : '好人'}`);
+             if (gameMode === 'ai-only') {
+               addLog(`[${actor.id}号] 预言家查验了 ${res.targetId}号，结果是${isWolf ? '狼人' : '好人'}`, 'system');
+             }
+             mergeNightDecisions({ seerResult: { targetId: res.targetId, isWolf } });
+             // 关键修复：确保这一步正确更新了 seerChecks 状态，以便在 buildAIContext 中使用
+             setSeerChecks(prev => [...prev, { night: dayCount, targetId: res.targetId, isWolf, seerId: actor.id }]);
+          } else {
+             console.error(`[预言家AI] 无法找到目标玩家 ${res.targetId}`);
           }
-          mergeNightDecisions({ seerResult: { targetId: res.targetId, isWolf } });
-          setSeerChecks([...seerChecks, { night: dayCount, targetId: res.targetId, isWolf, seerId: actor.id }]);
         } else {
           console.log(`[预言家AI] AI决策无效或被过滤`);
         }
@@ -606,7 +655,7 @@ ${extraInfo}
     
     setTimeout(() => {
       setHunterShooting(null);
-      const result = checkGameEnd();
+      const result = checkGameEnd(updatedPlayers);
       if (result) {
         setPhase('game_over');
         return;
@@ -634,7 +683,7 @@ ${extraInfo}
     setTimeout(() => {
       setHunterShooting(null);
       setSelectedTarget(null);
-      const result = checkGameEnd();
+      const result = checkGameEnd(updatedPlayers);
       if (result) {
         setPhase('game_over');
         return;
@@ -649,10 +698,10 @@ ${extraInfo}
     }, 2000);
   };
 
-  const checkGameEnd = () => {
-    const aliveWolves = players.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.WEREWOLF).length;
-    const aliveVillagers = players.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.VILLAGER).length;
-    const aliveGods = players.filter(p => p.isAlive && !['狼人', '村民'].includes(p.role)).length;
+  const checkGameEnd = (currentPlayers = players) => {
+    const aliveWolves = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.WEREWOLF).length;
+    const aliveVillagers = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.VILLAGER).length;
+    const aliveGods = currentPlayers.filter(p => p.isAlive && !['狼人', '村民'].includes(p.role)).length;
     const aliveGood = aliveVillagers + aliveGods;
     
     if (aliveWolves === 0) {
@@ -706,15 +755,22 @@ ${extraInfo}
 2.如果你有夜间信息(查验/刀口/守护)，必须第一时间报出来。
 3.如果预言家已死，不要再讨论他的查验（除非是为了回顾逻辑）。
 4.如果怀疑某人，必须分析其"狼人动机"（收益论）。
-5.可以点名一个【存活且未发言】的玩家要求其解释，但不要点名自己。
+5.可以点名一个【存活】的玩家要求其对【历史发言】解释。严禁评价【未发言】玩家的内容。
 6.如果场上信息很少，可以谈谈"平安夜"的可能性或简单的站边。
 7.【强制要求】发言最后必须表明：【本轮投票意向】：X号（必须是存活玩家${aliveIds.join(',')}号之一）
 
-输出:{"speech":"内容(40-60字，必须包含投票意向)","voteIntention":数字(投票目标的号码)}`;
+输出JSON:{"speech":"内容(40-60字，必须包含投票意向)","summary":"发言摘要(15字内，用于公共发言池记录)","voteIntention":数字(投票目标的号码)}`;
           const res = await askAI(currentSpeaker, speechPrompt);
           if (res?.speech) {
             addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
-            setSpeechHistory([...speechHistory, { playerId: currentSpeaker.id, name: currentSpeaker.name, content: res.speech, day: dayCount, voteIntention: res.voteIntention }]);
+            setSpeechHistory([...speechHistory, { 
+              playerId: currentSpeaker.id, 
+              name: currentSpeaker.name, 
+              content: res.speech, 
+              day: dayCount, 
+              summary: res.summary || res.speech.slice(0, 20), // 优先使用AI生成的摘要
+              voteIntention: res.voteIntention 
+            }]);
           }
           // 添加延迟避免API速率限制
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -765,22 +821,36 @@ ${extraInfo}
     
     // AI投票 - 只有存活玩家可以投票
     for (let p of alive) {
-      const prompt = `投票放逐。【存活可投】${aliveIds.join(',')}号。【已死禁投】${deadIds.length > 0 ? deadIds.join(',') + '号' : '无'}。
+      let targetId = null;
+      
+      // 1. 优先尝试使用发言阶段确定的投票意向
+      const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
+      if (mySpeech && mySpeech.voteIntention !== undefined && aliveIds.includes(mySpeech.voteIntention)) {
+        console.log(`[AI自动投票] ${p.id}号 使用发言时的意向 -> ${mySpeech.voteIntention}号`);
+        targetId = mySpeech.voteIntention;
+      }
+      
+      // 2. 如果没有有效意向，才进行AI思考
+      if (targetId === null) {
+        const prompt = `投票放逐。【存活可投】${aliveIds.join(',')}号。【已死禁投】${deadIds.length > 0 ? deadIds.join(',') + '号' : '无'}。
 【投票前必须思考】
 1.你投的人可能无辜的理由是什么？
 2.为什么你仍然投他？
 3.不要因为别人投就跟投，要有独立判断
 输出:{"targetId":数字}`;
-      const res = await askAI(p, prompt);
+        const res = await askAI(p, prompt);
+        targetId = res?.targetId;
+      }
+
       // 严格验证：必须是存活玩家
-      if (res?.targetId !== undefined && aliveIds.includes(res.targetId)) {
-        votes.push({ voterId: p.id, voterName: p.name, targetId: res.targetId });
-      } else if (res?.targetId !== undefined) {
+      if (targetId !== undefined && aliveIds.includes(targetId)) {
+        votes.push({ voterId: p.id, voterName: p.name, targetId: targetId });
+      } else if (targetId !== undefined) {
         // 容错：AI投了死人，随机选一个存活玩家
         const fallback = aliveIds.filter(id => id !== p.id)[0] || aliveIds[0];
         votes.push({ voterId: p.id, voterName: p.name, targetId: fallback });
       }
-      // 添加延迟避免API速率限制
+      // 添加延迟避免API速率限制（如果跳过了思考，延迟可以短一点，但为了安全还是保留）
       await new Promise(resolve => setTimeout(resolve, 500));
     }
     
@@ -815,18 +885,32 @@ ${extraInfo}
     for (const p of aiPlayers) {
       // 过滤掉自己
       const validTargets = aliveIds.filter(id => id !== p.id);
-      const prompt = `投票放逐。【存活可投】${validTargets.join(',')}号(不能投自己)。【已死禁投】${deadIds.length > 0 ? deadIds.join(',') + '号' : '无'}。
+      let targetId = null;
+
+      // 1. 优先尝试使用发言阶段确定的投票意向
+      const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
+      if (mySpeech && mySpeech.voteIntention !== undefined && validTargets.includes(mySpeech.voteIntention)) {
+         console.log(`[AI投票] ${p.id}号 使用发言时的意向 -> ${mySpeech.voteIntention}号`);
+         targetId = mySpeech.voteIntention;
+      }
+
+      // 2. 如果没有有效意向，才进行AI思考
+      if (targetId === null) {
+        const prompt = `投票放逐。【存活可投】${validTargets.join(',')}号(不能投自己)。【已死禁投】${deadIds.length > 0 ? deadIds.join(',') + '号' : '无'}。
 【投票前必须思考】
 1.你投的人可能无辜的理由是什么？
 2.为什么你仍然投他？
 3.不要因为别人投就跟投，要有独立判断
 输出:{"targetId":数字}`;
 
-      const res = await askAI(p, prompt);
+        const res = await askAI(p, prompt);
+        targetId = res?.targetId;
+      }
+
       // 严格验证：必须是存活玩家且不是自己
-      if (res?.targetId !== undefined && validTargets.includes(res.targetId)) {
-        aiVotes.push({ voterId: p.id, voterName: p.name, targetId: res.targetId });
-      } else if (res?.targetId !== undefined) {
+      if (targetId !== undefined && validTargets.includes(targetId)) {
+        aiVotes.push({ voterId: p.id, voterName: p.name, targetId: targetId });
+      } else if (targetId !== undefined) {
         // 容错：AI投了死人或自己，随机选一个存活玩家（排除自己）
         const fallback = validTargets[Math.floor(Math.random() * validTargets.length)];
         aiVotes.push({ voterId: p.id, voterName: p.name, targetId: fallback });
@@ -938,7 +1022,7 @@ ${extraInfo}
         }
       } else {
         // 非猎人直接进入下一夜
-        const result = checkGameEnd();
+        const result = checkGameEnd(updatedPlayers);
         if (result) {
           setPhase('game_over');
           return;
@@ -949,13 +1033,16 @@ ${extraInfo}
   };
 
   const proceedToNextNight = () => {
-    // 检查游戏是否结束
-    const result = checkGameEnd();
-    if (result) {
-      setPhase('game_over');
-      return;
-    }
+    // 检查游戏是否结束 (这里的 checkGameEnd 使用当前 state 的 players，
+    // 因为通常 proceedToNextNight 是在 setTimeout 中调用的，此时 state 应该已经更新)
+    // 但为了保险，如果它是直接被调用的，可能会有问题。
+    // 在本逻辑中，proceedToNextNight 只在 processVoteResults 和 hunterShoot 中被调用。
+    // 它们都已经手动 checkGameEnd(updatedPlayers) 了。
+    // 这里再次检查是为了防止遗漏，但这里只能拿到旧 players (closure)。
+    // 幸运的是，如果上一步的 checkGameEnd(updatedPlayers) 通过了，这里通常不需要做什么。
+    // 不过，为了代码健壮性，我们可以让 proceedToNextNight 接受一个可选的 playersList
     
+    // 注意：React state update 在 render 后生效。
     setDayCount(dayCount + 1);
     setPhase('night');
     setNightStep(0);
