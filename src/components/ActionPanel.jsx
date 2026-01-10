@@ -30,7 +30,9 @@ export function ActionPanel({
   dayCount,
   nightStep,
   isUserTurn,
-  getCurrentNightRole
+  getCurrentNightRole,
+  currentNightSequence,
+  ROLE_DEFINITIONS
 }) {
   if (type === 'game_over') {
     return (
@@ -144,16 +146,17 @@ export function ActionPanel({
               disabled={!selectedTarget || (userPlayer?.role === '守卫' && selectedTarget === nightDecisions.lastGuardTarget)}
               onClick={() => {
                 let updatedDecisions = { ...nightDecisions };
-                if (nightStep === 0) {
+                // 根据用户角色设置对应的决策，而不是硬编码nightStep
+                if (userPlayer?.role === '守卫') {
                   updatedDecisions.guardTarget = selectedTarget;
                   mergeNightDecisions({ guardTarget: selectedTarget });
                 }
-                if (nightStep === 1) {
+                if (userPlayer?.role === '狼人') {
                   updatedDecisions.wolfTarget = selectedTarget;
                   updatedDecisions.wolfSkipKill = false;
                   mergeNightDecisions({ wolfTarget: selectedTarget, wolfSkipKill: false });
                 }
-                if (nightStep === 2) {
+                if (userPlayer?.role === '预言家') {
                   const target = getPlayer(selectedTarget);
                   const isWolf = target?.role === '狼人';
                   setSeerChecks([...seerChecks, { night: dayCount, targetId: selectedTarget, isWolf, seerId: 0 }]);

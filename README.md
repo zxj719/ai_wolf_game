@@ -48,6 +48,10 @@ A modern, AI-powered Werewolf (Mafia) game web application where LLM agents play
     npm run dev
     ```
 
+## 📚 Documentation
+
+*   [Prompt Engineering Architecture](PROMPT_ENGINEERING.md): Detailed report on how we manage AI context, system prompts, and prevent hallucinations.
+
 4.  **Play**
     Open your browser and navigate to `http://localhost:5173`.
 

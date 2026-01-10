@@ -1,4 +1,4 @@
 ---
 agent: agent
 ---
-only "cmd /c npm ..." commands are supported in power shell.
+only "cmd /c npm run dev" commands are supported in power shell.
