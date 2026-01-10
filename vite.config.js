@@ -5,14 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // 生产环境移除 console.log (保留 warn 和 error)
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false,
-        pure_funcs: ['console.log'] // 只移除 console.log，保留 warn/error
-      }
-    },
+    // 使用 esbuild 压缩 (Vite 内置，无需额外安装)
+    minify: 'esbuild',
     // 代码分割优化
     rollupOptions: {
       output: {
@@ -22,6 +16,10 @@ export default defineConfig({
         }
       }
     }
+  },
+  // 生产环境移除 console.log
+  esbuild: {
+    drop: ['console', 'debugger'],
   },
   // 开发服务器配置
   server: {
