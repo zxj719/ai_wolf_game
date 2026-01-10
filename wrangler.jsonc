@@ -1,8 +1,0 @@
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "werewolf-pro",
-  "compatibility_date": "2026-01-10",
-  "assets": {
-    "directory": "./dist"
-  }
-}
