@@ -104,11 +104,36 @@ export function useDayFlow({
     setIsThinking(true);
     let currentPlayers = currentPlayersState ? [...currentPlayersState] : [...players];
     const aliveTargets = currentPlayers.filter(p => p.isAlive && p.id !== hunter.id).map(p => p.id);
-    const res = await askAI(hunter, PROMPT_ACTIONS.HUNTER_SHOOT, { aliveTargets });
+    
+    // 构建猎人上下文：查杀信息、发言摘要等帮助猎人决策
+    let hunterContext = '';
+    
+    // 查杀信息（预言家查出的狼人）
+    const wolfChecks = seerChecks.filter(c => c.isWolf && aliveTargets.includes(c.targetId));
+    if (wolfChecks.length > 0) {
+      hunterContext += `【查杀】${wolfChecks.map(c => `${c.targetId}号`).join(',')}被预言家查杀\n`;
+    }
+    
+    // 金水信息（预言家验证的好人）
+    const goodChecks = seerChecks.filter(c => !c.isWolf && aliveTargets.includes(c.targetId));
+    if (goodChecks.length > 0) {
+      hunterContext += `【金水】${goodChecks.map(c => `${c.targetId}号`).join(',')}是好人(勿带走)\n`;
+    }
+    
+    // 最近发言摘要
+    const recentSpeeches = speechHistory.filter(s => s.day === dayCount).map(s => 
+      `${s.playerId}号:${s.summary || s.content.slice(0, 30)}`
+    ).join(';');
+    if (recentSpeeches) {
+      hunterContext += `【今日发言】${recentSpeeches}\n`;
+    }
+    
+    const res = await askAI(hunter, PROMPT_ACTIONS.HUNTER_SHOOT, { aliveTargets, hunterContext });
     setIsThinking(false);
 
     if (res?.shoot && res.targetId !== null && aliveTargets.includes(res.targetId)) {
-      addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${res.targetId}号]！`, 'danger');
+      const reason = res.reason ? `(${res.reason})` : '';
+      addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${res.targetId}号]！${reason}`, 'danger');
       currentPlayers = currentPlayers.map(p => p.id === res.targetId ? { ...p, isAlive: false } : p);
       setPlayers(currentPlayers);
       setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: res.targetId, cause: '被猎人带走' }]);

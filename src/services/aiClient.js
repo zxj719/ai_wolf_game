@@ -76,8 +76,8 @@ export const fetchLLM = async (
     console.log(`[API Call] Player: ${player ? player.id : 'System'}, Model: ${modelConfig.id}, Duration: ${duration}ms, Forced: ${forcedModelIndex !== null}`);
 
     if (!response.ok) {
-      if (response.status === 429) {
-        throw new Error(`RunningModel: ${modelConfig.id} failed with 429 Too Many Requests`);
+      if (response.status === 429 || response.status === 426) {
+        throw new Error(`RunningModel: ${modelConfig.id} failed with ${response.status} ${response.status === 429 ? 'Too Many Requests' : 'Upgrade Required'}`);
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -88,34 +88,66 @@ export const fetchLLM = async (
   } catch (error) {
     console.error(`LLM Fetch Error [Model: ${modelConfig.id}]:`, error);
 
+    // 检测各种错误类型
     const isRateLimit = error.message.includes('429') || error.message.includes('Too Many Requests');
+    const isUpgradeRequired = error.message.includes('426') || error.message.includes('Upgrade Required');
+    const isNetworkError = error.message.includes('fetch') || error.message.includes('network');
+    const isHTTPError = error.message.includes('HTTP error');
+    
+    // 任何错误都需要切换模型，包括网络错误、解析错误、超时等
+    const shouldFallback = true;
 
     if (retries > 0) {
       let nextModelIndex = modelIndex;
-      let nextBackoff = backoff * 2;
-      let delay = Math.min(15000, backoff);
+      let nextBackoff = backoff;
+      let delay = 500;
 
-      if (isRateLimit) {
-        console.warn(`[429 封禁] 模型 ${modelConfig.id} 触发限流，已加入黑名单。`);
-        disabledModelsRef.current.add(modelIndex);
-        nextModelIndex = (modelIndex + 1) % AI_MODELS.length;
-        nextBackoff = 1000;
-        delay = 500;
-        console.warn(`[429 自动切换] 切换到索引 ${nextModelIndex} (将在执行时验证 availability)`);
-        await new Promise((res) => setTimeout(res, delay));
-        return fetchLLM(
-          { player, prompt, systemInstruction, retries: retries - 1, backoff: nextBackoff, forcedModelIndex: nextModelIndex },
-          { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
-        );
+      // 任何错误都立即切换模型并重试
+      const errorType = isRateLimit ? '429限流' 
+        : isUpgradeRequired ? '426不可用' 
+        : isNetworkError ? '网络错误'
+        : isHTTPError ? 'HTTP错误'
+        : '未知错误';
+      
+      console.warn(`[${errorType}] 模型 ${modelConfig.id} 遇到问题，加入黑名单。`);
+      disabledModelsRef.current.add(modelIndex);
+      
+      // 切换到下一个可用模型
+      nextModelIndex = (modelIndex + 1) % AI_MODELS.length;
+      let switchAttempts = 0;
+      while (disabledModelsRef.current.has(nextModelIndex) && switchAttempts < AI_MODELS.length) {
+        nextModelIndex = (nextModelIndex + 1) % AI_MODELS.length;
+        switchAttempts++;
       }
-
-      console.log(`等待${delay}ms后重试... (剩余重试次数: ${retries})`);
+      
+      // 如果所有模型都被禁用，清空黑名单重新开始
+      if (switchAttempts >= AI_MODELS.length) {
+        console.warn('[API] 所有模型均已失败，清空黑名单重新尝试。');
+        disabledModelsRef.current.clear();
+        nextModelIndex = (modelIndex + 1) % AI_MODELS.length;
+      }
+      
+      console.warn(`[自动切换] 切换到模型索引 ${nextModelIndex}: ${AI_MODELS[nextModelIndex]?.name || 'unknown'}`);
+      console.log(`[上下文保持] Player: ${player?.id}, 角色: ${player?.role}, 提示词和历史信息已自动传递到新模型`);
+      
       await new Promise((res) => setTimeout(res, delay));
+      
+      // 重要：传递所有原始参数（player, prompt, systemInstruction）确保上下文完整
       return fetchLLM(
-        { player, prompt, systemInstruction, retries: retries - 1, backoff: backoff * 2, forcedModelIndex },
+        { 
+          player, 
+          prompt, 
+          systemInstruction, 
+          retries: retries - 1, 
+          backoff: nextBackoff, 
+          forcedModelIndex: nextModelIndex 
+        },
         { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
       );
     }
+    
+    // 重试次数用尽
+    console.error(`[失败] 所有重试均失败，Player: ${player?.id}, 角色: ${player?.role}`);
     return null;
   }
 };

@@ -541,16 +541,24 @@ export default function App() {
 
           const aliveIds = alivePlayers.map(p => p.id);
           const res = await askAI(currentSpeaker, PROMPT_ACTIONS.DAY_SPEECH);
-          if (res?.speech) {
-            addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
-            setSpeechHistory(prev => [...prev, { 
-              playerId: currentSpeaker.id, 
-              name: currentSpeaker.name, 
-              content: res.speech, 
-              day: dayCount, 
-              summary: res.summary || res.speech.slice(0, 20), // 优先使用AI生成的摘要
-              voteIntention: res.voteIntention 
-            }]);
+          
+          if (res) {
+            // 全AI模式下展示思维链(CoT)
+            if (gameMode === 'ai-only' && res.thought) {
+               addLog(`(思考) ${res.thought}`, "chat", `[${currentSpeaker.id}号]`);
+            }
+
+            if (res.speech) {
+              addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
+              setSpeechHistory(prev => [...prev, { 
+                playerId: currentSpeaker.id, 
+                name: currentSpeaker.name, 
+                content: res.speech, 
+                day: dayCount, 
+                summary: res.summary || res.speech.slice(0, 20), // 优先使用AI生成的摘要
+                voteIntention: res.voteIntention 
+              }]);
+            }
           }
           // 添加延迟避免API速率限制
           await new Promise(resolve => setTimeout(resolve, 500));

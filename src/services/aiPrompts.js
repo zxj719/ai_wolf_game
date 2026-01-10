@@ -13,57 +13,23 @@ export const PROMPT_ACTIONS = {
     HUNTER_SHOOT: 'HUNTER_SHOOT'
 };
 
-const TERMINOLOGY = `
-【狼人杀专用术语表】
-1️⃣ 发言相关：
-- 划水: 内容少、无判断、无立场。
-- 踩人: 明确怀疑某人是狼。
-- 站边: 明确支持某一预言家。
-- 带节奏: 引导投票方向。
-
-2️⃣ 行为逻辑：
-- 行为像狼 : 行为鬼祟，无正当理由。
-- 自爆: (Wolf) 狼人公开承认身份并离场(通常用于直接进入黑夜)，不要误用于"公开跳预言家"。
-
-3️⃣ 身份判定：
-- 金水 : 预言家查验的好人。 (逻辑：若给金水的预言家为真，则金水必为好人)
-- 查杀 : 预言家查验的狼人。
-- 跳/起跳: 这轮表明身份。
-- 悍跳 : 狼人假装预言家。
-- 银水 : 女巫救的人（通常是好人）。
-- 冲锋狼: 积极对抗好人的狼。
-- 倒钩狼: 假装站边好人的狼。
-- 抗推位: 容易被误出的好人。
-
-请在发言中自然使用这些术语！禁止使用"自爆"来描述正常的"起跳"行为！`;
+const TERMINOLOGY = `【术语】划水(无内容),踩(怀疑),站边(信某预),金水/查杀(预验好/坏),悍跳(狼称预),银水(女巫救),倒钩(狼站边好人),抗推(好人被投).`;
 
 const STRATEGIES = {
-    '狼人': (isFirstDay, nightNum) => `【狼人策略：撕咬与悍跳】
-你的目标是生存并放逐好人。不要复读。如果预言家查杀了你或队友，立刻反手"悍跳"（声称自己是预言家），给好人发"查杀"或"金水"。指责对方"聊爆"或"背稿子"。如果局势不利，尝试穿神职衣服（如跳守卫）。`,
+    '狼人': (isFirstDay, nightNum) => `【狼人】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水/穿神职)。形势不利可倒钩或自爆(黑夜)。切勿复读。`,
     '预言家': (isFirstDay, nightNum) => {
         if (isFirstDay) {
-          return `【预言家策略：强硬带队-首日必跳】
-必须跳身份！霸气发言："我是全场唯一真预言家，昨晚查杀X号（或验了Y号金水）"。如果不跳，好人会迷茫。如果有狼人悍跳，对比心路历程，点出其破绽。`;
+          return `【预言家】必跳身份!报验人(金水/查杀)。强势带队，分析心路，打飞查杀。`;
         }
-        return `【预言家策略：强硬带队】
-继续报验人信息（金水/查杀）。如果之前的查杀没走，必须号召全票打飞。你是好人领袖，不要软弱。`;
+        return `【预言家】继续报验人。号召全票放逐狼人。`;
     },
     '女巫': (isFirstDay, nightNum, player) => {
         const shouldSave = nightNum <= 2 && player.hasWitchSave;
-        return `【女巫策略：刀口审判】
-你掌握生杀大权。${shouldSave ? '前期通常救人（形成银水）。' : ''}如果没药了或有人对跳，直接跳身份报"银水"（昨晚救的人）或"刀口"。警告穿你衣服的狼人："今晚毒你"。`;
+        return `【女巫】${shouldSave ? '前期救人了(银水)。' : ''}无药/有人对跳则跳身份报银水/毒亡。强势带队。`;
     },
-    '猎人': (isFirstDay, nightNum) => `【猎人策略：强势压制】
-发言要横："我是猎人，全场最硬的牌"。重点关注那些"划水"或不敢站队的玩家。谁敢踩你，直接怼回去。`,
-    '守卫': (isFirstDay, nightNum) => `【守卫策略：低调守护】
-${nightNum === 1 ? '通常守中立或预言家。' : ''}避免同守同救。不要轻易暴露身份，除非为了保真预言家。试着分析谁在"倒钩"，谁是"冲锋狼"。`,
-    '村民': (isFirstDay, nightNum) => `【村民策略：逻辑找狼】
-不要划水！虽然无技能，但要敢于"站边"（选择相信一个预言家）。
-【特别逻辑】如果你被预言家发了"金水"：
-1. 暂时倾向相信该预言家（除非有铁逻辑反驳）。
-2. 绝对不要说"如果他是真预言家，我就是狼"这种疯话！(逻辑：若他是真预，你必好人)。
-3. 不要攻击唯一保你的预言家，否则你会被当成"狼人反水"。
-分析谁的行为"做作"、谁在"跟风"。如果不确定，可以说"先听其他玩家发言"。`
+    '猎人': (isFirstDay, nightNum) => `【猎人】你是好人阵营!开枪策略:优先带走被预言家查杀/悍跳狼/行为最像狼的人。死亡时必须开枪!`,
+    '守卫': (isFirstDay, nightNum) => `【守卫】${nightNum === 1 ? '空守防同救。' : ''}防守神职/预言家。避开同守同救。低调防止被刀。`,
+    '村民': (isFirstDay, nightNum) => `【村民】敢于站边。接金水不反水。分析行为逻辑，找跟风/矛盾点。`
 };
 
 // Keep for compatibility during transition, or remove if fully migrated? 
@@ -258,7 +224,9 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
         case PROMPT_ACTIONS.DAY_SPEECH:
             return `${baseContext}
 任务:白天发言。
-输出JSON:{"speech":"内容(40-60字，必须包含投票意向)","summary":"发言摘要(15字内，用于公共发言池记录)","voteIntention":数字(投票目标的号码)}`;
+1.思考(thought):分析局势与策略(CoT)，决定投票目标。需逻辑严密。
+2.发言(speech):公开话语。若策略需要，可撒谎或隐瞒投票意向。
+输出JSON:{"thought":"(链式思考)真实分析...","speech":"(40-60字)公开内容","voteIntention":数字(真实票型)}`;
 
         case PROMPT_ACTIONS.NIGHT_GUARD:
             const { cannotGuard } = params;
@@ -297,8 +265,16 @@ ${seerConstraint || ''}
 {"reasoning":"一句话分析(如:言行一致投X，或 听了Y发言觉得更像狼改投Y)","targetId":数字}`;
 
         case PROMPT_ACTIONS.HUNTER_SHOOT:
-             const { aliveTargets } = params;
-             return `你是猎人，选择开枪目标或不开枪。可选:${aliveTargets.join(',')}。输出:{"shoot":true/false,"targetId":数字或null}`;
+             const { aliveTargets, hunterContext } = params;
+             return `你是猎人(好人阵营)，必须开枪带走一名【最可疑的狼人】！
+【存活可选】${aliveTargets.join(',')}号
+${hunterContext || ''}
+【开枪策略】
+1. 优先带走被预言家"查杀"的玩家
+2. 次选悍跳预言家(假预言家)
+3. 再选发言最像狼/划水/倒钩的玩家
+4. 绝不带走金水/银水/真预言家
+输出JSON:{"shoot":true,"targetId":数字,"reason":"一句话理由"}`;
 
         default:
             return `任务: ${actionType}`; 

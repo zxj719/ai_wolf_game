@@ -1,5 +1,6 @@
 import React from 'react';
-import { User, Brain } from 'lucide-react';
+import { User, Brain, AlertTriangle } from 'lucide-react';
+import { API_KEY } from '../config/aiConfig';
 
 export const SetupScreen = ({ 
   gameMode, 
@@ -8,11 +9,24 @@ export const SetupScreen = ({
   setSelectedSetup, 
   gameSetups 
 }) => {
+  const isApiKeyMissing = !API_KEY;
+
   return (
     <div className="flex flex-col items-center justify-center h-full gap-8">
       <h1 className="text-4xl font-black tracking-tighter">
         WEREWOLF <span className="text-indigo-500">PRO</span>
       </h1>
+
+      {/* API Key Warning */}
+      {isApiKeyMissing && (
+        <div className="flex items-center gap-3 px-6 py-4 bg-amber-900/50 border border-amber-600 rounded-xl max-w-md">
+          <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
+          <div className="text-sm">
+            <p className="font-bold text-amber-400">API Key 未配置</p>
+            <p className="text-amber-200/80">游戏需要 AI 服务。请在环境变量中设置 VITE_API_KEY。</p>
+          </div>
+        </div>
+      )}
 
       {/* Setup Selection */}
       <div className="flex gap-4 p-2 bg-zinc-900/50 rounded-xl">
@@ -36,7 +50,12 @@ export const SetupScreen = ({
       <div className="flex gap-6">
         <button
           onClick={() => setGameMode('player')}
-          className="group px-10 py-6 bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 rounded-2xl text-xl font-bold transition-all transform hover:scale-105 shadow-xl flex flex-col items-center gap-3"
+          disabled={isApiKeyMissing}
+          className={`group px-10 py-6 rounded-2xl text-xl font-bold transition-all transform shadow-xl flex flex-col items-center gap-3 ${
+            isApiKeyMissing 
+              ? 'bg-gray-700 cursor-not-allowed opacity-50' 
+              : 'bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 hover:scale-105'
+          }`}
         >
           <User className="w-10 h-10" />
           <span>玩家模式</span>
@@ -44,7 +63,12 @@ export const SetupScreen = ({
         </button>
         <button
           onClick={() => setGameMode('ai-only')}
-          className="group px-10 py-6 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 rounded-2xl text-xl font-bold transition-all transform hover:scale-105 shadow-xl flex flex-col items-center gap-3"
+          disabled={isApiKeyMissing}
+          className={`group px-10 py-6 rounded-2xl text-xl font-bold transition-all transform shadow-xl flex flex-col items-center gap-3 ${
+            isApiKeyMissing 
+              ? 'bg-gray-700 cursor-not-allowed opacity-50' 
+              : 'bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 hover:scale-105'
+          }`}
         >
           <Brain className="w-10 h-10" />
           <span>全AI模式</span>

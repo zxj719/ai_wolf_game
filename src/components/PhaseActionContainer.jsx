@@ -70,6 +70,7 @@ export const PhaseActionContainer = ({
             setUserInput={setUserInput}
             handleUserSpeak={handleUserSpeak}
             isThinking={isThinking}
+            gameMode={gameMode}
           />
         )}
 

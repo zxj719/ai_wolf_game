@@ -10,9 +10,11 @@ export function SpeechPanel({
   setUserInput,
   handleUserSpeak,
   isThinking,
+  gameMode,
 }) {
   const alive = players.filter(x => x.isAlive);
   const current = alive[speakerIndex];
+  const isUserTurn = current?.isUser && gameMode !== 'ai-only';
 
   return (
     <div>
@@ -36,7 +38,7 @@ export function SpeechPanel({
           </button>
         </div>
       </div>
-      {current?.isUser ? (
+      {isUserTurn ? (
         <div className="flex gap-4">
           <input 
             value={userInput}
