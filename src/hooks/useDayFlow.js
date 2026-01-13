@@ -36,7 +36,11 @@ export function useDayFlow({
   askAI,
   proceedToNextNightExternal // optional override from night flow
 }) {
-  const proceedToNextNight = useCallback(() => {
+  const proceedToNextNight = useCallback((clearPhaseData) => {
+    // 清空白天的发言数据
+    if (clearPhaseData) {
+      clearPhaseData();
+    }
     // 重置 nightDecisions，但保留 lastGuardTarget（用于守卫连守限制）
     mergeNightDecisions({
       wolfTarget: null,
@@ -56,9 +60,17 @@ export function useDayFlow({
   const moveToNextSpeaker = useCallback(() => {
     const alivePlayers = players.filter(p => p.isAlive);
     const newSpokenCount = spokenCount + 1;
-    setSpokenCount(newSpokenCount);
+    
+    console.log(`[moveToNextSpeaker] 当前已发言: ${spokenCount}, 存活玩家: ${alivePlayers.length}`);
+    
+    // 检查实际发言历史与计数是否匹配
+    const actualSpokenCount = speechHistory.filter(s => s.day === dayCount).length;
+    const effectiveCount = Math.max(newSpokenCount, actualSpokenCount);
+    
+    setSpokenCount(effectiveCount);
 
-    if (newSpokenCount >= alivePlayers.length) {
+    if (effectiveCount >= alivePlayers.length) {
+      console.log(`[moveToNextSpeaker] 全员发言完毕，进入投票阶段`);
       setSpeakerIndex(-1);
       setPhase('day_voting');
       addLog('全员发言结束，进入放逐投票阶段。', 'system');
@@ -68,12 +80,36 @@ export function useDayFlow({
         let next = prev + direction;
         if (next < 0) next = alivePlayers.length - 1;
         if (next >= alivePlayers.length) next = 0;
-        return next;
+        
+        // 跳过已经发言过的玩家
+        let attempts = 0;
+        while (attempts < alivePlayers.length) {
+          const nextPlayer = alivePlayers[next];
+          if (nextPlayer && !speechHistory.some(s => s.day === dayCount && s.playerId === nextPlayer.id)) {
+            console.log(`[moveToNextSpeaker] 下一个发言: ${next}号 (${nextPlayer.id}号)`);
+            return next;
+          }
+          next = next + direction;
+          if (next < 0) next = alivePlayers.length - 1;
+          if (next >= alivePlayers.length) next = 0;
+          attempts++;
+        }
+        
+        // 如果所有人都发言了，进入投票
+        console.log(`[moveToNextSpeaker] 所有人都已发言，进入投票`);
+        setSpeakerIndex(-1);
+        setPhase('day_voting');
+        addLog('全员发言结束，进入放逐投票阶段。', 'system');
+        return -1;
       });
     }
-  }, [players, spokenCount, speakingOrder, setSpeakerIndex, setPhase, addLog, setSpokenCount]);
+  }, [players, spokenCount, speakingOrder, setSpeakerIndex, setPhase, addLog, setSpokenCount, speechHistory, dayCount]);
 
-  const startDayDiscussion = useCallback((currentPlayers, nightDeads = [], TOTAL_PLAYERS) => {
+  const startDayDiscussion = useCallback((currentPlayers, nightDeads = [], TOTAL_PLAYERS, clearPhaseData) => {
+    // 清空夜晚的行动数据
+    if (clearPhaseData) {
+      clearPhaseData();
+    }
     setPhase('day_discussion');
     const alivePlayers = (currentPlayers || players).filter(p => p.isAlive);
     const aliveIds = alivePlayers.map(p => p.id).sort((a,b)=>a-b);

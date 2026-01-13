@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWerewolfGame } from './useWerewolfGame';
-import { PlayerCardList } from './components/PlayerCardList';
-import { GameLog } from './components/GameLog';
 import { SetupScreen } from './components/SetupScreen';
-import { GameHeader } from './components/GameHeader';
-import { PhaseActionContainer } from './components/PhaseActionContainer';
+import { GameArena } from './components/GameArena';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS } from './config/roles';
-import { API_KEY, API_URL, AI_MODELS } from './config/aiConfig';
+import { API_KEY, API_URL, AI_MODELS as DEFAULT_AI_MODELS, AI_PROVIDER, SILICONFLOW_FALLBACK_MODELS } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
 import { useDayFlow } from './hooks/useDayFlow';
 import { PROMPT_ACTIONS } from './services/aiPrompts';
+import { fetchSiliconFlowChatModels } from './services/aiClient';
 
 // Inline game config moved to src/config
 const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
@@ -18,6 +16,7 @@ export default function App() {
   const [gameMode, setGameMode] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState(GAME_SETUPS[0]);
   const [isThinking, setIsThinking] = useState(false);
+  const [aiModels, setAiModels] = useState(DEFAULT_AI_MODELS);
   const [hunterShooting, setHunterShooting] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [speakerIndex, setSpeakerIndex] = useState(-1);
@@ -25,7 +24,9 @@ export default function App() {
   const [spokenCount, setSpokenCount] = useState(0);
   const [userInput, setUserInput] = useState('');
   
-  const disabledModelsRef = useRef(new Set()); 
+  const disabledModelsRef = useRef(new Set());
+  const speakingLockRef = useRef(false); // 发言锁，防止并发
+  const currentDayRef = useRef(1); // 追踪当前天数 
 
   const {
     state,
@@ -42,6 +43,10 @@ export default function App() {
     setSpeechHistory,
     setVoteHistory,
     setDeathHistory,
+    setNightActionHistory,
+    addCurrentPhaseSpeech,
+    addCurrentPhaseAction,
+    clearCurrentPhaseData,
     setLogs,
     addLog,
     initGame,
@@ -67,7 +72,10 @@ export default function App() {
     witchHistory,
     speechHistory,
     voteHistory,
-    deathHistory
+    deathHistory,
+    nightActionHistory,
+    currentPhaseData,
+    gameBackground
   } = state;
 
   useEffect(() => {
@@ -75,6 +83,32 @@ export default function App() {
         initGame(gameMode, selectedSetup);
     }
   }, [gameMode, phase, selectedSetup]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProviderModels = async () => {
+      if (AI_PROVIDER !== 'siliconflow') {
+        setAiModels(DEFAULT_AI_MODELS);
+        return;
+      }
+
+      if (!API_KEY) {
+        setAiModels(SILICONFLOW_FALLBACK_MODELS);
+        return;
+      }
+
+      const remoteModels = await fetchSiliconFlowChatModels({ apiKey: API_KEY });
+      if (cancelled) return;
+
+      setAiModels(remoteModels.length > 0 ? remoteModels : SILICONFLOW_FALLBACK_MODELS);
+    };
+
+    loadProviderModels();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
 
@@ -93,7 +127,7 @@ export default function App() {
       disabledModelsRef,
       API_URL,
       API_KEY,
-      AI_MODELS
+      AI_MODELS: aiModels
     });
 
   const checkGameEnd = (currentPlayers = players) => {
@@ -168,7 +202,8 @@ export default function App() {
     isThinking,
     setIsThinking,
     checkGameEnd,
-    askAI
+    askAI,
+    clearCurrentPhaseData
   });
 
   const proceedNight = (decisionsOverride = null) => {
@@ -187,6 +222,12 @@ export default function App() {
   const resolveNight = (decisionsOverride = null) => {
     const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget } = decisionsOverride || nightDecisions;
     console.log(`[resolveNight] 夜间决策：`, { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget });
+    
+    // 保存当前夜间的所有行动到历史记录
+    if (currentPhaseData && currentPhaseData.actions && currentPhaseData.actions.length > 0) {
+      console.log(`[resolveNight] 保存${currentPhaseData.actions.length}条夜间行动到历史记录`);
+      setNightActionHistory([...nightActionHistory, ...currentPhaseData.actions]);
+    }
     
     let deadIds = [];
     let poisonedIds = [];
@@ -274,9 +315,17 @@ export default function App() {
 
     if (uniqueDeads.length === 0) {
       addLog("天亮了，昨晚是平安夜。", "success");
+      // 添加平安夜公告到行动面板（系统消息，所有人可见）
+      addCurrentPhaseAction({
+        playerId: 'system',
+        type: '公告',
+        description: '昨晚是平安夜，无人死亡',
+        night: dayCount,
+        timestamp: Date.now()
+      });
       setPhase('day_announce');
       setTimeout(() => {
-        startDayDiscussion(updatedPlayers, [], players.length);
+        startDayDiscussion(updatedPlayers, [], players.length, clearCurrentPhaseData);
       }, 2000);
     } else {
       addLog(`天亮了，昨晚倒牌的玩家：${uniqueDeads.map(id => `[${id}号]`).join(', ')}`, "danger");
@@ -298,7 +347,7 @@ export default function App() {
       } else {
         // 夜晚死亡无遗言，直接进入白天讨论
         setTimeout(() => {
-          startDayDiscussion(updatedPlayers, uniqueDeads, players.length);
+          startDayDiscussion(updatedPlayers, uniqueDeads, players.length, clearCurrentPhaseData);
         }, 2000);
       }
     }
@@ -368,8 +417,18 @@ export default function App() {
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 守卫守护了 ${res.targetId}号`, 'system');
           }
+          // 添加到当前阶段数据
+          addCurrentPhaseAction({
+            playerId: actor.id,
+            type: '守护',
+            target: res.targetId,
+            night: dayCount,
+            thought: res.thought,
+            description: `守护了 ${res.targetId}号`,
+            timestamp: Date.now()
+          });
           mergeNightDecisions({ guardTarget: res.targetId });
-          setGuardHistory([...guardHistory, { night: dayCount, targetId: res.targetId }]);
+          setGuardHistory([...guardHistory, { night: dayCount, targetId: res.targetId, thought: res.thought }]);
         } else {
           console.log(`[守卫AI] 选择空守`);
           if (gameMode === 'ai-only') {
@@ -394,6 +453,16 @@ export default function App() {
         if (gameMode === 'ai-only') {
           addLog(`[${actor.id}号] 狼人选择袭击 ${res.targetId}号`, 'system');
         }
+        // 添加到当前阶段数据
+        addCurrentPhaseAction({
+          playerId: actor.id,
+          type: '袭击',
+          target: res.targetId,
+          night: dayCount,
+          thought: res.thought,
+          description: `袭击 ${res.targetId}号`,
+          timestamp: Date.now()
+        });
         mergeNightDecisions({ wolfTarget: res.targetId, wolfSkipKill: false });
       } else {
         // AI决策无效时，随机选择一个目标，避免异常空刀导致平安夜
@@ -434,9 +503,20 @@ export default function App() {
              if (gameMode === 'ai-only') {
                addLog(`[${actor.id}号] 预言家查验了 ${res.targetId}号，结果是${isWolf ? '狼人' : '好人'}`, 'system');
              }
+             // 添加到当前阶段数据
+             addCurrentPhaseAction({
+               playerId: actor.id,
+               type: '查验',
+               target: res.targetId,
+               result: isWolf ? '狼人' : '好人',
+               night: dayCount,
+               thought: res.thought,
+               description: `查验 ${res.targetId}号，结果是${isWolf ? '狼人' : '好人'}`,
+               timestamp: Date.now()
+             });
              mergeNightDecisions({ seerResult: { targetId: res.targetId, isWolf } });
              // 关键修复：确保这一步正确更新了 seerChecks 状态，以便在 buildAIContext 中使用
-             setSeerChecks(prev => [...prev, { night: dayCount, targetId: res.targetId, isWolf, seerId: actor.id }]);
+             setSeerChecks(prev => [...prev, { night: dayCount, targetId: res.targetId, isWolf, seerId: actor.id, thought: res.thought }]);
           } else {
              console.error(`[预言家AI] 无法找到目标玩家 ${res.targetId}`);
           }
@@ -467,6 +547,16 @@ export default function App() {
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 女巫使用解药救了 ${dyingId}号`, 'system');
           }
+          // 添加到当前阶段数据
+          addCurrentPhaseAction({
+            playerId: actor.id,
+            type: '解药',
+            target: dyingId,
+            night: dayCount,
+            thought: res.thought,
+            description: `使用解药救了 ${dyingId}号`,
+            timestamp: Date.now()
+          });
           finalDecisions.witchSave = true;
           mergeNightDecisions({ witchSave: true });
           // remove setPlayers here to avoid state race condition, handle in resolveNight
@@ -476,6 +566,16 @@ export default function App() {
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 女巫使用毒药毒了 ${res.usePoison}号`, 'system');
           }
+          // 添加到当前阶段数据
+          addCurrentPhaseAction({
+            playerId: actor.id,
+            type: '毒药',
+            target: res.usePoison,
+            night: dayCount,
+            thought: res.thought,
+            description: `使用毒药毒了 ${res.usePoison}号`,
+            timestamp: Date.now()
+          });
           finalDecisions.witchPoison = res.usePoison;
           mergeNightDecisions({ witchPoison: res.usePoison });
           // remove setPlayers here too
@@ -515,6 +615,14 @@ export default function App() {
     }
   }, [phase, players]);
 
+  // 当天数变化时，重置发言锁
+  useEffect(() => {
+    if (currentDayRef.current !== dayCount) {
+      currentDayRef.current = dayCount;
+      speakingLockRef.current = false;
+    }
+  }, [dayCount]);
+
   useEffect(() => {
     if (phase === 'day_discussion' && speakerIndex !== -1) {
       const alivePlayers = players.filter(p => p.isAlive);
@@ -527,42 +635,96 @@ export default function App() {
       
       const currentSpeaker = alivePlayers[speakerIndex];
       
+      // 严格检查：如果发言锁被占用，直接返回
+      if (speakingLockRef.current) {
+        console.log(`[发言控制] 发言锁被占用，等待当前发言完成`);
+        return;
+      }
+      
       // 防止重复发言：检查该玩家今日是否已发言
-      // Don't modify state inside this check, just return. 
-      // Rely on the previous act (User action or AI timeout) to call moveToNextSpeaker
       if (speechHistory.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) {
+        console.log(`[发言控制] ${currentSpeaker.id}号已在第${dayCount}天发言，跳过`);
+        // 已经发言过了，直接进入下一个
+        moveToNextSpeaker();
         return;
       }
 
       if (currentSpeaker && (!currentSpeaker.isUser || gameMode === 'ai-only')) {
         const triggerAISpeech = async () => {
-          // Double check inside async in case of race conditions
-          if (speechHistory.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) return;
-
-          const aliveIds = alivePlayers.map(p => p.id);
-          const res = await askAI(currentSpeaker, PROMPT_ACTIONS.DAY_SPEECH);
-          
-          if (res) {
-            // 全AI模式下展示思维链(CoT)
-            if (gameMode === 'ai-only' && res.thought) {
-               addLog(`(思考) ${res.thought}`, "chat", `[${currentSpeaker.id}号]`);
-            }
-
-            if (res.speech) {
-              addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
-              setSpeechHistory(prev => [...prev, { 
-                playerId: currentSpeaker.id, 
-                name: currentSpeaker.name, 
-                content: res.speech, 
-                day: dayCount, 
-                summary: res.summary || res.speech.slice(0, 20), // 优先使用AI生成的摘要
-                voteIntention: res.voteIntention 
-              }]);
-            }
+          // 获取发言锁
+          if (speakingLockRef.current) {
+            console.log(`[发言控制] 锁已被占用，取消本次发言请求`);
+            return;
           }
-          // 添加延迟避免API速率限制
-          await new Promise(resolve => setTimeout(resolve, 500));
-          moveToNextSpeaker();
+          
+          speakingLockRef.current = true;
+          console.log(`[发言控制] ${currentSpeaker.id}号获得发言锁，开始发言`);
+          
+          try {
+            // 三重检查：在API调用前再次确认
+            if (speechHistory.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) {
+              console.log(`[发言控制] 最终检查：${currentSpeaker.id}号已发言，取消API调用`);
+              return;
+            }
+
+            const aliveIds = alivePlayers.map(p => p.id);
+            const res = await askAI(currentSpeaker, PROMPT_ACTIONS.DAY_SPEECH);
+            
+            if (res) {
+              // 再次检查，确保在API返回期间没有其他发言
+              if (speechHistory.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) {
+                console.log(`[发言控制] API返回后检查：${currentSpeaker.id}号已发言，丢弃结果`);
+                return;
+              }
+              
+              // 全AI模式下展示思维链(CoT)
+              if (gameMode === 'ai-only' && res.thought) {
+                 addLog(`(思考) ${res.thought}`, "chat", `[${currentSpeaker.id}号]`);
+              }
+
+              if (res.speech) {
+                addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
+                
+                // 添加到当前阶段数据（用于显示气泡）
+                addCurrentPhaseSpeech({
+                  playerId: currentSpeaker.id,
+                  name: currentSpeaker.name,
+                  content: res.speech,
+                  thought: res.thought,
+                  day: dayCount,
+                  timestamp: Date.now()
+                });
+                
+                setSpeechHistory(prev => {
+                  // 最后一次检查：确保不会添加重复记录
+                  if (prev.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) {
+                    console.log(`[发言控制] 添加历史前检查：${currentSpeaker.id}号已存在，跳过添加`);
+                    return prev;
+                  }
+                  console.log(`[发言控制] ${currentSpeaker.id}号成功添加发言记录`);
+                  return [...prev, { 
+                    playerId: currentSpeaker.id, 
+                    name: currentSpeaker.name, 
+                    content: res.speech,
+                    thought: res.thought, // 保存思考过程
+                    day: dayCount, 
+                    summary: res.summary || res.speech.slice(0, 20),
+                    voteIntention: res.voteIntention 
+                  }];
+                });
+              }
+            }
+            
+            // 添加延迟避免API速率限制
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (error) {
+            console.error(`[发言控制] ${currentSpeaker.id}号发言出错:`, error);
+          } finally {
+            // 释放锁并进入下一个
+            speakingLockRef.current = false;
+            console.log(`[发言控制] ${currentSpeaker.id}号释放发言锁，进入下一个`);
+            moveToNextSpeaker();
+          }
         };
         triggerAISpeech();
       }
@@ -572,10 +734,54 @@ export default function App() {
   // 用户发言
   const handleUserSpeak = () => {
     if (!userInput.trim()) return;
-    addLog(userInput, "chat", "你");
-    setSpeechHistory([...speechHistory, { playerId: 0, name: "你", content: userInput, day: dayCount }]);
-    setUserInput("");
-    moveToNextSpeaker();
+    
+    // 检查用户是否已经在当前轮次发言
+    if (speechHistory.some(s => s.day === dayCount && s.playerId === userPlayer?.id)) {
+      console.log(`[发言控制] 用户已在第${dayCount}天发言，不能重复发言`);
+      addLog('你已经在本轮发言过了！', 'warning');
+      return;
+    }
+    
+    // 获取发言锁
+    if (speakingLockRef.current) {
+      console.log(`[发言控制] 发言锁被占用，用户稍后再试`);
+      addLog('请等待当前发言结束...', 'warning');
+      return;
+    }
+    
+    speakingLockRef.current = true;
+    console.log(`[发言控制] 用户获得发言锁，开始发言`);
+    
+    try {
+      addLog(userInput, "chat", "你");
+      
+      // 添加到当前阶段数据（用于显示气泡）
+      addCurrentPhaseSpeech({
+        playerId: userPlayer?.id || 0,
+        name: "你",
+        content: userInput,
+        day: dayCount,
+        timestamp: Date.now()
+      });
+      
+      setSpeechHistory(prev => {
+        // 再次确认不会重复
+        if (prev.some(s => s.day === dayCount && s.playerId === userPlayer?.id)) {
+          return prev;
+        }
+        return [...prev, { 
+          playerId: userPlayer?.id || 0, 
+          name: "你", 
+          content: userInput, 
+          day: dayCount 
+        }];
+      });
+      setUserInput("");
+    } finally {
+      speakingLockRef.current = false;
+      console.log(`[发言控制] 用户释放发言锁`);
+      moveToNextSpeaker();
+    }
   };
 
 
@@ -742,7 +948,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col h-screen overflow-hidden p-4">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* 模式选择界面 */}
       {phase === 'setup' && !gameMode && (
         <SetupScreen 
@@ -754,68 +960,66 @@ export default function App() {
         />
       )}
 
-      {/* 游戏主界面 */}
+      {/* 游戏主界面 - 新的圆形布局 */}
       {(phase !== 'setup' || gameMode) && (
-      <>
-        <GameHeader 
+        <GameArena
+          // 游戏状态
+          players={players}
+          userPlayer={userPlayer}
           phase={phase}
           dayCount={dayCount}
+          nightStep={nightStep}
+          nightDecisions={nightDecisions}
+          speechHistory={speechHistory}
+          nightActionHistory={nightActionHistory}
+          voteHistory={voteHistory}
+          deathHistory={deathHistory}
+          seerChecks={seerChecks}
+          guardHistory={guardHistory}
+          witchHistory={witchHistory}
+          currentPhaseData={currentPhaseData}
+          gameBackground={gameBackground}
+          logs={logs}
+          
+          // 选择状态
+          selectedTarget={selectedTarget}
+          setSelectedTarget={setSelectedTarget}
+          speakerIndex={speakerIndex}
+          
+          // 控制
+          gameMode={gameMode}
           isThinking={isThinking}
-        >
-           <PhaseActionContainer 
-             phase={phase}
-             gameMode={gameMode}
-             isThinking={isThinking}
-             hunterShooting={hunterShooting}
-             selectedTarget={selectedTarget}
-             handleUserHunterShoot={handleUserHunterShoot}
-             handleAIHunterShoot={handleAIHunterShoot}
-             speakerIndex={speakerIndex}
-             players={players}
-             speakingOrder={speakingOrder}
-             setSpeakingOrder={setSpeakingOrder}
-             userInput={userInput}
-             setUserInput={setUserInput}
-             handleUserSpeak={handleUserSpeak}
-             userPlayer={userPlayer}
-             nightDecisions={nightDecisions}
-             mergeNightDecisions={mergeNightDecisions}
-             proceedNight={proceedNight}
-             setPlayers={setPlayers}
-             setUserPlayer={setUserPlayer}
-             witchHistory={witchHistory}
-             setWitchHistory={setWitchHistory}
-             getPlayer={getPlayer}
-             addLog={addLog}
-             seerChecks={seerChecks}
-             setSeerChecks={setSeerChecks}
-             dayCount={dayCount}
-             nightStep={nightStep}
-             currentNightSequence={currentNightSequence}
-             ROLE_DEFINITIONS={ROLE_DEFINITIONS}
-             getCurrentNightRole={getCurrentNightRole}
-             isUserTurn={isUserTurn}
-             handleVote={handleVote}
-             exportGameLog={exportGameLog}
-             restartGame={restartGame}
-             setSelectedTarget={setSelectedTarget}
-           />
-        </GameHeader>
-
-        <div className="max-w-6xl mx-auto w-full flex gap-6 flex-1 min-h-0">
-          <PlayerCardList 
-            players={players} 
-            selectedTarget={selectedTarget}
-            setSelectedTarget={setSelectedTarget}
-            phase={phase}
-            gameMode={gameMode}
-            userPlayer={userPlayer}
-            AI_MODELS={AI_MODELS} // Pass AI_MODELS for display
-            seerChecks={seerChecks}
-          />
-          <GameLog logs={logs} />
-        </div>
-      </>
+          
+          // 用户交互
+          speakingOrder={speakingOrder}
+          setSpeakingOrder={setSpeakingOrder}
+          userInput={userInput}
+          setUserInput={setUserInput}
+          handleUserSpeak={handleUserSpeak}
+          
+          // Action handlers
+          hunterShooting={hunterShooting}
+          handleUserHunterShoot={handleUserHunterShoot}
+          handleAIHunterShoot={handleAIHunterShoot}
+          handleVote={handleVote}
+          proceedNight={proceedNight}
+          mergeNightDecisions={mergeNightDecisions}
+          setPlayers={setPlayers}
+          setUserPlayer={setUserPlayer}
+          witchHistorySetter={setWitchHistory}
+          getPlayer={getPlayer}
+          addLog={addLog}
+          setSeerChecks={setSeerChecks}
+          currentNightSequence={currentNightSequence}
+          ROLE_DEFINITIONS={ROLE_DEFINITIONS}
+          getCurrentNightRole={getCurrentNightRole}
+          isUserTurn={isUserTurn}
+          exportGameLog={exportGameLog}
+          restartGame={restartGame}
+          
+          // AI
+          AI_MODELS={aiModels}
+        />
       )}
     </div>
   );

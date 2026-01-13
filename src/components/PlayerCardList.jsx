@@ -40,9 +40,22 @@ export function PlayerCardList({
           >
             <div className="flex flex-col items-center">
               <span className="absolute top-3 left-3 text-[10px] font-black text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">{p.id}</span>
-              <div className="w-14 h-14 rounded-full mb-2 border-2 border-white/5 flex items-center justify-center relative shadow-2xl" style={{backgroundColor: p.avatarColor}}>
-                  {p.isUser ? <User size={24}/> : <span className="text-white/20 font-black">{p.id}</span>}
-                  {!p.isAlive && <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center"><Skull size={24} className="text-rose-600" /></div>}
+              <div className="w-14 h-14 rounded-full mb-2 border-2 border-white/5 overflow-hidden relative shadow-2xl" style={{backgroundColor: p.avatarColor}}>
+                  {p.avatarUrl ? (
+                    <img 
+                      src={p.avatarUrl} 
+                      alt={p.name} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to colored circle with icon if image fails
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-white/20 font-black">${p.isUser ? '<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4.42 0-8 1.79-8 4v2h16v-2c0-2.21-3.58-4-8-4z"/></svg>' : p.id}</div>`;
+                      }}
+                    />
+                  ) : (
+                    p.isUser ? <User size={24}/> : <span className="text-white/20 font-black">{p.id}</span>
+                  )}
+                  {!p.isAlive && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Skull size={24} className="text-rose-600" /></div>}
               </div>
               <span className="text-[11px] font-black">{p.name}</span>
               

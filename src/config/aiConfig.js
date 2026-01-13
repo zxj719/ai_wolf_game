@@ -1,12 +1,27 @@
 // AI and API configuration
-// API_KEY is now loaded from environment variables for security
-// In production, set VITE_API_KEY in Cloudflare Pages environment settings
-export const API_KEY = import.meta.env.VITE_API_KEY || '';
-export const API_URL = import.meta.env.VITE_API_URL || 'https://api-inference.modelscope.cn/v1/chat/completions';
+// NOTE: Do NOT hardcode API keys in source. Use Vite env vars instead.
+//
+// Supported providers:
+// - modelscope (legacy default)
+// - siliconflow
+export const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || 'modelscope';
+
+// Provider-specific keys
+export const MODELSCOPE_API_KEY = import.meta.env.VITE_API_KEY || '';
+export const SILICONFLOW_API_KEY = import.meta.env.VITE_SILICONFLOW_API_KEY || '';
+
+// Provider-specific URLs
+export const MODELSCOPE_API_URL = import.meta.env.VITE_API_URL || 'https://api-inference.modelscope.cn/v1/chat/completions';
+export const SILICONFLOW_API_URL = import.meta.env.VITE_SILICONFLOW_API_URL || 'https://api.siliconflow.cn/v1/chat/completions';
+
+// Back-compat exports used by the app
+export const API_KEY = AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_KEY : MODELSCOPE_API_KEY;
+export const API_URL = AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_URL : MODELSCOPE_API_URL;
 
 // Warn if API key is missing (development aid)
 if (!API_KEY && typeof window !== 'undefined') {
-  console.warn('[Config] VITE_API_KEY is not set. Please check your .env file or Cloudflare Pages environment variables.');
+  const hint = AI_PROVIDER === 'siliconflow' ? 'VITE_SILICONFLOW_API_KEY' : 'VITE_API_KEY';
+  console.warn(`[Config] ${hint} is not set. Please check your env vars.`);
 }
 
 // ============================================
@@ -171,6 +186,66 @@ export const INSTRUCT_MODELS = [
     name: 'MiniMax-M1-80k',
     options: {},
     isThinking: false
+  }
+];
+
+// SiliconFlow fallback chat models.
+// The full available model set is best retrieved dynamically via GET https://api.siliconflow.cn/v1/models?sub_type=chat.
+// These are only used when SiliconFlow is selected but the model list cannot be loaded.
+export const SILICONFLOW_FALLBACK_MODELS = [
+  {
+    id: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B',
+    name: 'DeepSeek-R1-0528-Qwen3-8B',
+    options: { enable_thinking: true, thinking_budget: 4096, temperature: 0.6, top_p: 0.95 },
+    isThinking: true
+  },
+  {
+    id: 'Qwen/Qwen3-8B',
+    name: 'Qwen3-8B',
+    options: { enable_thinking: true, thinking_budget: 4096, temperature: 0.7, top_p: 0.7 },
+    isThinking: true
+  },
+  {
+    id: 'THUDM/GLM-Z1-9B-0414',
+    name: 'GLM-Z1-9B-0414',
+    options: { temperature: 0.7, top_p: 0.7 },
+    isThinking: false
+  },
+  {
+    id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
+    name: 'DeepSeek-R1-Distill-Qwen-7B',
+    options: { enable_thinking: true, thinking_budget: 4096, temperature: 0.6, top_p: 0.95 },
+    isThinking: true
+  },
+  {
+    id: 'zai-org/GLM-4.6',
+    name: 'GLM-4.6',
+    options: { temperature: 0.7, top_p: 0.7 },
+    isThinking: false
+  },
+  {
+    id: 'deepseek-ai/DeepSeek-V3.2-Exp',
+    name: 'DeepSeek-V3.2-Exp',
+    options: { temperature: 0.7, top_p: 0.7 },
+    isThinking: false
+  },
+  {
+    id: 'moonshotai/Kimi-K2-Instruct-0905',
+    name: 'Kimi-K2-Instruct',
+    options: { temperature: 0.7, top_p: 0.7 },
+    isThinking: false
+  },
+  {
+    id: 'moonshotai/Kimi-K2-Thinking',
+    name: 'Kimi-K2-Thinking',
+    options: { enable_thinking: true, thinking_budget: 4096, temperature: 0.7, top_p: 0.7 },
+    isThinking: true
+  },
+  {
+    id: 'Qwen/Qwen3-32B',
+    name: 'Qwen3-32B',
+    options: { enable_thinking: true, thinking_budget: 4096, temperature: 0.7, top_p: 0.7 },
+    isThinking: true
   }
 ];
 

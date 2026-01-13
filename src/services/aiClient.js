@@ -24,6 +24,50 @@ export const safeParseJSON = (text) => {
   }
 };
 
+const siliconflowModelToConfig = (modelId) => {
+  const lastSegment = String(modelId || '').split('/').pop() || String(modelId || '');
+  const looksLikeThinking = /thinking|reason|r1/i.test(lastSegment) || /thinking|reason|r1/i.test(String(modelId || ''));
+
+  return {
+    id: modelId,
+    name: lastSegment,
+    options: looksLikeThinking
+      ? { enable_thinking: true, thinking_budget: 4096, temperature: 0.7, top_p: 0.7 }
+      : { temperature: 0.7, top_p: 0.7 },
+    isThinking: looksLikeThinking
+  };
+};
+
+export const fetchSiliconFlowChatModels = async ({ apiKey }) => {
+  if (!apiKey) return [];
+
+  try {
+    const response = await fetch('https://api.siliconflow.cn/v1/models?sub_type=chat', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`
+      }
+    });
+
+    if (!response.ok) {
+      console.warn('[SiliconFlow] Failed to load model list:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    const ids = (data?.data || [])
+      .map((m) => m?.id)
+      .filter(Boolean);
+
+    // De-dup and convert to app config shape
+    const uniqueIds = Array.from(new Set(ids));
+    return uniqueIds.map(siliconflowModelToConfig);
+  } catch (err) {
+    console.warn('[SiliconFlow] Model list request failed:', err);
+    return [];
+  }
+};
+
 export const fetchLLM = async (
   { player, prompt, systemInstruction, retries = 3, backoff = 2000, forcedModelIndex = null },
   { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
@@ -84,7 +128,13 @@ export const fetchLLM = async (
     const result = await response.json();
 
     const content = result.choices?.[0]?.message?.content;
-    return safeParseJSON(content);
+    const parsed = safeParseJSON(content);
+    
+    if (!parsed) {
+      throw new Error('RunningModel: Invalid JSON response');
+    }
+    
+    return parsed;
   } catch (error) {
     console.error(`LLM Fetch Error [Model: ${modelConfig.id}]:`, error);
 

@@ -1,6 +1,7 @@
 // Consolidated Prompt Engineering Service
 // This module manages ALL context construction for the AI agents.
 // It separates System Prompts (Personality, Global Rules) from User Prompts (Tasks).
+// Enhanced with: Role Personas, Chain-of-Thought, Adversarial Reflection (P0 Optimization)
 
 // --- CONSTANTS ---
 export const PROMPT_ACTIONS = {
@@ -10,26 +11,211 @@ export const PROMPT_ACTIONS = {
     NIGHT_WOLF: 'NIGHT_WOLF',
     NIGHT_SEER: 'NIGHT_SEER',
     NIGHT_WITCH: 'NIGHT_WITCH',
-    HUNTER_SHOOT: 'HUNTER_SHOOT'
+    HUNTER_SHOOT: 'HUNTER_SHOOT',
+    SUMMARIZE_CONTENT: 'SUMMARIZE_CONTENT'
 };
 
 const TERMINOLOGY = `【术语】划水(无内容),踩(怀疑),站边(信某预),金水/查杀(预验好/坏),悍跳(狼称预),银水(女巫救),倒钩(狼站边好人),抗推(好人被投).`;
 
+// ============================================================
+// P0-1: 角色人格系统 (Role-Specific Persona)
+// 基于报告理论：每个角色的思考逻辑由其职能、信息量和生存压力决定
+// ============================================================
+const ROLE_PERSONAS = {
+    '狼人': {
+        archetype: '伪装大师',
+        speechStyle: '灵活多变，适应场上局势，表演自然',
+        coreGoal: '生存至最后，同时抗推好人出局',
+        thinkingDimensions: [
+            '悍跳逻辑：是否需要跳预言家？给谁发金水/查杀最有利？',
+            '深水策略：如何在平民中潜伏，发言中庸不引人注意？',
+            '倒钩战术：是否需要出卖队友换取信任？',
+            '刀法规划：根据发言抿神职身份，优先级：女巫>预言家>守卫>猎人'
+        ],
+        priorities: ['生存', '制造混乱', '保护狼队', '抗推好人'],
+        taboos: ['暴露狼队信息', '逻辑自相矛盾', '过度划水被怀疑'],
+        signalGameTips: '你可以通过给好人发"摸头金"来拉票，或给好人发"查杀"做低其身份'
+    },
+    '预言家': {
+        archetype: '真理守护者',
+        speechStyle: '强势果断，逻辑清晰，公信力至上',
+        coreGoal: '建立公信力，带领好人找出狼人',
+        thinkingDimensions: [
+            '查验逻辑：查谁能提供最大信息量？优先查焦点位或定点位',
+            '警徽流决策：如果被刀，警徽交给谁能传递最清晰的信号？',
+            '防守逻辑：面对悍跳狼的查杀，如何识别其发言中的逻辑漏洞？',
+            '心路历程：我的查验选择是否有合理的心路可以解释？'
+        ],
+        priorities: ['报验人', '建立公信力', '带节奏打狼', '安排警徽流'],
+        taboos: ['划水', '模糊表态', '投给自己发的金水', '不报查验结果'],
+        signalGameTips: '通过清晰的查验报告和合理的心路历程证明自己是真预言家'
+    },
+    '女巫': {
+        archetype: '资源管控者',
+        speechStyle: '审慎稳重，关键时刻果断出手',
+        coreGoal: '合理使用双药，最大化阵营收益',
+        thinkingDimensions: [
+            '解药逻辑：救人的期望收益是否大于保留解药的防御价值？',
+            '毒药逻辑：只有当某人逻辑完全崩坏时才考虑开毒',
+            '轮次平衡：当前轮次用药是否划算？后续还有几轮？',
+            '身份隐藏：在解药使用前，如何伪装成普通平民？'
+        ],
+        priorities: ['保护关键神职', '精准使用毒药', '隐藏身份', '关键时刻跳身份'],
+        taboos: ['首夜不救人', '盲毒好人', '过早暴露身份', '浪费解药救狼'],
+        signalGameTips: '女巫救起的人是银水，可作为身份证明；报出毒亡信息证明身份'
+    },
+    '猎人': {
+        archetype: '终极威慑者',
+        speechStyle: '坚定有力，关键时刻展示威慑',
+        coreGoal: '生存发挥威慑，死亡时带走狼人',
+        thinkingDimensions: [
+            '威慑逻辑：如何适时展示力量，既不过早暴露也不过晚起跳？',
+            '枪口准星：分析投票路径，重点关注关键轮次表现反常的玩家',
+            '临终清算：被投出或被刀时，根据全场复盘选择最像狼的目标',
+            '配合预言：优先带走被预言家查杀的玩家'
+        ],
+        priorities: ['带走狼人', '配合预言家', '保护关键信息', '威慑狼人'],
+        taboos: ['被毒死（无法开枪）', '带走好人', '过早暴露让狼积怒气'],
+        signalGameTips: '猎人的存在使狼人在投票时有所顾忌，可适当展示身份威慑'
+    },
+    '守卫': {
+        archetype: '暗夜守护者',
+        speechStyle: '低调谨慎，隐藏身份防止被刀',
+        coreGoal: '保护关键神职，打乱狼人刀法',
+        thinkingDimensions: [
+            '守护次序：首晚空守配合女巫，避免同守同救',
+            '博弈思考：狼人会刀谁？我以为狼以为我会守谁？',
+            '自守价值：守卫在场即是威慑，是否需要自守保命？',
+            '刀法预判：根据场上局势预判狼人目标'
+        ],
+        priorities: ['守护预言家', '避免同守同救', '隐藏身份', '打乱刀法'],
+        taboos: ['连守同一目标', '首夜守人导致同救', '过早暴露身份'],
+        signalGameTips: '守卫不宜过早跳身份，成功守护后可作为身份证明'
+    },
+    '村民': {
+        archetype: '逻辑基石',
+        speechStyle: '敢于站边，分析行为找狼',
+        coreGoal: '通过逻辑分析帮助阵营找出狼人',
+        thinkingDimensions: [
+            '容错率分析：通过排除法缩小狼坑',
+            '视角分析：寻找发言中"视角缺失"导致的不连贯点',
+            '表水逻辑：被怀疑时证明自己行为在闭眼视角下是合理的',
+            '站边选择：分析两个预言家的发言质量，选择站边'
+        ],
+        priorities: ['站边真预言家', '分析逻辑', '投票正确', '不被狼人带节奏'],
+        taboos: ['反水真预言家', '划水不发言', '被狼人利用', '盲目跟票'],
+        signalGameTips: '平民是好人阵营的投票主力，敢于站边和质疑是关键'
+    }
+};
+
+// 构建角色人格提示词
+export const buildPersonaPrompt = (player, gameState) => {
+    const persona = ROLE_PERSONAS[player.role] || ROLE_PERSONAS['村民'];
+    const personality = player.personality;
+
+    // 动态调整思维维度
+    const relevantDimensions = persona.thinkingDimensions.slice(0, 3).join('\n  - ');
+
+    return `
+【角色原型】${persona.archetype}
+【核心目标】${persona.coreGoal}
+【话风】${persona.speechStyle} + ${personality?.traits || '普通'}
+【思考维度】
+  - ${relevantDimensions}
+【优先级】${persona.priorities.join(' > ')}
+【禁忌】${persona.taboos.join(', ')}
+【博弈提示】${persona.signalGameTips}`;
+};
+
+// ============================================================
+// P0-2: 链式思考模板 (Chain-of-Thought)
+// 基于报告理论：强制要求AI在生成回复前进行全场逻辑复盘
+// ============================================================
+const COT_TEMPLATES = {
+    // 白天发言的链式思考
+    DAY_SPEECH: `
+【思维链要求】在发言前，必须在thought字段完成以下推理：
+
+Step1-信息整合：
+- 本轮新信息：谁跳了什么身份？谁被查验？
+- 与我相关：有人质疑我吗？有人给我发金水/查杀吗？
+
+Step2-身份推断：
+- 逐个分析存活玩家的身份概率（基于发言+投票）
+- 标记最可疑的2-3人及理由
+
+Step3-阵营评估：
+- 场上狼人数量估计（已死+存活）
+- 好人阵营当前优势/劣势
+
+Step4-策略选择：
+- 我这轮应该采取什么策略？（踩人/站边/跳身份/划水）
+- 这个策略对我的阵营有什么收益？
+
+Step5-决策输出：
+- 投票目标：X号
+- 发言重点：简述`,
+
+    // 投票的链式思考
+    DAY_VOTE: `
+【投票思维链】
+1. 回顾发言意向，是否有新信息改变判断？
+2. 分析票型：如果我投X，能否形成多数？
+3. 阵营考量：好人要集中票，狼人可考虑冲票
+4. 最终决策：投X号，理由是...`,
+
+    // 夜间行动的链式思考
+    NIGHT_ACTION: `
+【夜间决策思维链】
+1. 场上局势：存活玩家身份分析
+2. 历史信息：过往行动和结果
+3. 策略评估：本次行动的最优选择
+4. 决策输出：目标/行动`
+};
+
+export const getCOTTemplate = (actionType) => {
+    switch (actionType) {
+        case PROMPT_ACTIONS.DAY_SPEECH:
+            return COT_TEMPLATES.DAY_SPEECH;
+        case PROMPT_ACTIONS.DAY_VOTE:
+            return COT_TEMPLATES.DAY_VOTE;
+        default:
+            return COT_TEMPLATES.NIGHT_ACTION;
+    }
+};
+
+// ============================================================
+// P0-3: 对抗反思提示 (Adversarial Reflection)
+// 基于报告理论：要求AI自我质疑，修正推理偏差
+// ============================================================
+const ADVERSARIAL_REFLECTION = `
+【对抗性自检】输出前请快速验证：
+1. 反向验证：如果我的推论错了，狼人最可能的布局是？
+2. 信息盲区：我是否遗漏了某些关键发言或投票？
+3. 被利用风险：我的行动是否可能被狼人利用来带节奏？
+4. 一致性检查：我的发言是否与之前立场矛盾？
+※ 发现问题请在thought中修正后再输出speech`;
+
+export const getAdversarialReflection = () => ADVERSARIAL_REFLECTION;
+
+// ============================================================
+// 原有策略系统（保留兼容性，整合到人格系统中）
+// ============================================================
 const STRATEGIES = {
-    '狼人': (isFirstDay, nightNum) => `【狼人】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水/穿神职)。形势不利可倒钩或自爆(黑夜)。切勿复读。`,
+    '狼人': (isFirstDay, nightNum) => `【狼人策略】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水)。形势不利可倒钩或自爆。`,
     '预言家': (isFirstDay, nightNum) => {
         if (isFirstDay) {
-          return `【预言家】必跳身份!报验人(金水/查杀)。强势带队，分析心路，打飞查杀。`;
+          return `【预言家策略】必跳身份!报验人(金水/查杀)。强势带队，分析心路，打飞查杀。`;
         }
-        return `【预言家】继续报验人。号召全票放逐狼人。`;
+        return `【预言家策略】继续报验人。号召全票放逐狼人。安排警徽流。`;
     },
     '女巫': (isFirstDay, nightNum, player) => {
         const shouldSave = nightNum <= 2 && player.hasWitchSave;
-        return `【女巫】${shouldSave ? '前期救人了(银水)。' : ''}无药/有人对跳则跳身份报银水/毒亡。强势带队。`;
+        return `【女巫策略】${shouldSave ? '前期救人了(银水)。' : ''}无药/有人对跳则跳身份报银水/毒亡。`;
     },
-    '猎人': (isFirstDay, nightNum) => `【猎人】你是好人阵营!开枪策略:优先带走被预言家查杀/悍跳狼/行为最像狼的人。死亡时必须开枪!`,
-    '守卫': (isFirstDay, nightNum) => `【守卫】${nightNum === 1 ? '空守防同救。' : ''}防守神职/预言家。避开同守同救。低调防止被刀。`,
-    '村民': (isFirstDay, nightNum) => `【村民】敢于站边。接金水不反水。分析行为逻辑，找跟风/矛盾点。`
+    '猎人': (isFirstDay, nightNum) => `【猎人策略】好人阵营!开枪优先带走被查杀/悍跳狼/最像狼的人。死亡必开枪!`,
+    '守卫': (isFirstDay, nightNum) => `【守卫策略】${nightNum === 1 ? '首夜空守防同救。' : ''}防守神职/预言家。低调隐藏身份。`,
+    '村民': (isFirstDay, nightNum) => `【村民策略】敢于站边。接金水不反水。分析行为逻辑找狼。`
 };
 
 // Keep for compatibility during transition, or remove if fully migrated? 
@@ -98,12 +284,33 @@ export const buildPrivateRoleInfo = (player, gameState) => {
     return info;
 };
 
-export const buildGameTheoryRules = (isFirstSpeaker, playerRole, alivePlayerIdsString = "各存活玩家") => {
+export const buildGameTheoryRules = (isFirstSpeaker, playerRole, spokenPlayerIds = [], existingRoles = {}) => {
   const attackRule = isFirstSpeaker
     ? '- 由于你是首个发言，尚未有人发言。你可以简单点评昨夜情况（如平安夜），或聊聊自己的身份底牌（也可以划水过）。切记：不要凭空捏造他人的发言或行为！因为还没人说话！'
     : (playerRole !== '狼人'
         ? '- 如果你是好人：怀疑1-2名玩家。不要开上帝视角。'
         : '- 如果你是狼人：制造混乱，甚至可以"倒钩"（假装帮好人说话）。');
+
+  // 时序警告
+  const temporalWarning = spokenPlayerIds.length > 0
+    ? `\n   - 【时序因果】已发言玩家(按顺序): ${spokenPlayerIds.join('号,')}号。只能评价已发言玩家的内容！后发言的玩家不可能"回应"先发言的玩家，注意因果关系！`
+    : '';
+
+  // 根据场上角色动态生成规则
+  const roleSpecificRules = [];
+  if (existingRoles.hasSeer) {
+    roleSpecificRules.push('预言家可报金水/查杀');
+  }
+  if (existingRoles.hasWitch) {
+    roleSpecificRules.push('女巫可报银水(救过的人)');
+  }
+  if (existingRoles.hasGuard) {
+    roleSpecificRules.push('守卫可报守护信息');
+  }
+  if (existingRoles.hasHunter) {
+    roleSpecificRules.push('猎人死亡可开枪');
+  }
+  const rolesInGame = roleSpecificRules.length > 0 ? `\n   - 本局存在的神职: ${roleSpecificRules.join(', ')}` : '';
 
   return `
 【发言必须遵守的规则】
@@ -113,10 +320,10 @@ export const buildGameTheoryRules = (isFirstSpeaker, playerRole, alivePlayerIdsS
 4. 动机分析：怀疑某人时，必须分析其"狼人动机"（收益论）。
 5. 有效互动：可点名【存活】玩家解释【历史发言】。严禁评价【未发言】内容。
 6. 低信息应对：若信息少，可谈"平安夜"可能或简单站边。
-7. 【强制要求】：发言最后必须表明：【本轮投票意向】：X号（存活玩家${alivePlayerIdsString}号之一）。请在voteIntention字段输出该号码。
+7. 【投票意向】：如果你对某人有足够怀疑(>60%确信)，在voteIntention字段输出该号码；如果信息不足无法判断，可输出-1表示暂不表态或弃票。
 8. 记忆与状态约束：
    - 只能根据【今日发言】和【投票记录】推理。
-   - 【严禁幻视】：绝对不要评价【尚未发言】的玩家！
+   - 【严禁幻视】：绝对不要评价【尚未发言】的玩家！${temporalWarning}${rolesInGame}
    ${isFirstSpeaker ? '- 特别警告：你是首个发言，场上除死亡信息外是一张白纸。' : ''}
 9. 行为约束：
    - 【严禁自投】：不能投票给自己。
@@ -126,25 +333,78 @@ export const buildGameTheoryRules = (isFirstSpeaker, playerRole, alivePlayerIdsS
 
 // --- DATA PREPARATION ---
 
+/**
+ * 智能截断：保留关键信息
+ * 优先保留狼人杀术语和关键词
+ */
+const smartTruncate = (content, maxLength) => {
+    if (!content || content.length <= maxLength) return content;
+
+    // 关键词列表
+    const keywords = ['金水', '查杀', '狼人', '预言家', '女巫', '猎人', '守卫', '投', '怀疑', '站边', '悍跳', '银水', '好人'];
+
+    // 尝试找到包含关键词的句子片段
+    const sentences = content.split(/[。！？；,，]/);
+    let result = '';
+
+    for (const sentence of sentences) {
+        if (result.length >= maxLength) break;
+
+        const trimmed = sentence.trim();
+        if (!trimmed) continue;
+
+        // 优先选择包含关键词的句子
+        const hasKeyword = keywords.some(kw => trimmed.includes(kw));
+        if (hasKeyword || result.length === 0) {
+            if (result.length + trimmed.length + 1 <= maxLength) {
+                result += (result ? ',' : '') + trimmed;
+            } else if (result.length === 0) {
+                // 第一句太长，截断
+                result = trimmed.slice(0, maxLength - 3) + '...';
+            }
+        }
+    }
+
+    // 如果结果太短，补充内容
+    if (result.length < maxLength / 3) {
+        result = content.slice(0, maxLength - 3) + '...';
+    }
+
+    return result;
+};
+
 export const prepareGameContext = (gameState) => {
     const { players, speechHistory, voteHistory, deathHistory, dayCount, phase } = gameState;
     const alivePlayers = players.filter(p => p.isAlive);
     const aliveList = alivePlayers.map(p => `${p.id}号`).join(',');
     const deadList = players.filter(p => !p.isAlive).map(p => `${p.id}号`).join(',') || '无';
 
-    const todaySpeeches = speechHistory.filter(s => s.day === dayCount).map(s => `${s.playerId}号:${s.content}`).join('\n');
-    
-    // Improved: Keep more context for recent days (especially yesterday)
-    const historySpeeches = speechHistory.filter(s => s.day < dayCount).map(s => {
+    // 今日发言 - 添加发言序号以表示时序
+    const todaySpeechesList = speechHistory.filter(s => s.day === dayCount);
+    const todaySpeeches = todaySpeechesList.map((s, idx) =>
+        `[第${idx + 1}位发言] ${s.playerId}号:${s.content}`
+    ).join('\n');
+
+    // 记录已发言的玩家ID列表（用于时序感知）
+    const spokenPlayerIds = todaySpeechesList.map(s => s.playerId);
+
+    // 历史发言摘要：优先使用已有的summary，没有则使用智能截断
+    // 注意：真正的AI压缩在 useAI 中异步处理
+    const historySpeechesList = speechHistory.filter(s => s.day < dayCount);
+    const historySpeeches = historySpeechesList.map(s => {
         const isYesterday = s.day === dayCount - 1;
-        // If it's yesterday, use full content if summary is missing, or allow longer slice. 
-        // Summary is still preferred if available as it encapsulates the "point".
-        const content = s.summary || (isYesterday ? s.content : s.content.slice(0, 50));
+        // 优先使用已压缩的摘要
+        if (s.summary) {
+            return `D${s.day} ${s.playerId}号:${s.summary}`;
+        }
+        // 昨天的发言保留更多内容，更早的发言截断
+        const maxLen = isYesterday ? 60 : 40;
+        const content = smartTruncate(s.content, maxLen);
         return `D${s.day} ${s.playerId}号:${content}`;
     }).join('\n');
 
     const voteInfo = voteHistory.length > 0 ? voteHistory.map(v =>
-        `D${v.day}:${v.votes.map(vote => `${vote.from}->${vote.to}`).join(',')}=>${v.eliminated}号出局`
+        `D${v.day}:${v.votes.map(vote => `${vote.from}->${vote.to === -1 ? '弃票' : vote.to}`).join(',')}=>${v.eliminated !== -1 ? v.eliminated + '号出局' : '流票'}`
     ).join(';') : '无';
 
     const targetNight = phase === 'night' ? dayCount - 1 : dayCount;
@@ -160,7 +420,14 @@ export const prepareGameContext = (gameState) => {
 
     const priorDeaths = deathHistory.filter(d => d.day < targetNight || (d.day === targetNight && d.phase !== '夜'))
         .map(d => `D${d.day}${d.phase}: ${d.playerId}号${d.cause}`).join(';');
-    
+
+    // 检测场上存在的角色（用于动态调整提示词）
+    const existingRoles = new Set(players.map(p => p.role));
+    const hasGuard = existingRoles.has('守卫');
+    const hasWitch = existingRoles.has('女巫');
+    const hasHunter = existingRoles.has('猎人');
+    const hasSeer = existingRoles.has('预言家');
+
     // For buildPrivateRoleInfo compatibility
     const gameStateForRole = {
         players,
@@ -182,35 +449,218 @@ export const prepareGameContext = (gameState) => {
         dayCount,
         phase,
         aliveIdsString: alivePlayers.map(p => p.id).join(','),
-        gameStateForRole // Cached for helper
+        gameStateForRole, // Cached for helper
+        // 新增：时序和角色信息
+        spokenPlayerIds,
+        existingRoles: {
+            hasGuard,
+            hasWitch,
+            hasHunter,
+            hasSeer
+        }
     };
 };
 
 // --- PUBLIC API ---
 
-export const generateSystemPrompt = (player, gameState) => {
+/**
+ * 生成增强版System Prompt
+ * 整合：基础信息 + 角色人格 + 私有信息 + 策略 + 规则 + 对抗反思
+ */
+export const generateSystemPrompt = (player, gameState, options = {}) => {
+    const { includePersona = true, includeReflection = true } = options;
     const ctx = prepareGameContext(gameState);
     const roleInfo = buildPrivateRoleInfo(player, ctx.gameStateForRole);
     const roleStrategy = buildRoleStrategy(player, ctx.dayCount);
-    
+
     // Check if first speaker
     const isFirstSpeaker = ctx.dayCount === 1 && (!ctx.todaySpeeches || ctx.todaySpeeches.trim() === '');
-    const rules = buildGameTheoryRules(isFirstSpeaker, player.role, ctx.aliveIdsString);
+    const rules = buildGameTheoryRules(isFirstSpeaker, player.role, ctx.spokenPlayerIds || [], ctx.existingRoles || {});
 
-    return `你是[${player.id}号]，身份【${player.role}】。性格:${player.personality?.traits || '普通'}
+    // P0增强：角色人格提示词
+    const personaPrompt = includePersona ? buildPersonaPrompt(player, gameState) : '';
+
+    // P0增强：对抗反思提示词
+    const reflectionPrompt = includeReflection ? ADVERSARIAL_REFLECTION : '';
+
+    return `你是[${player.id}号]，身份【${player.role}】。
 【游戏状态】第${ctx.dayCount}天
 【你的状态】存活
 【场上存活】${ctx.aliveList}
+【已死亡】${ctx.deadList}
 ${roleInfo}
+${personaPrompt}
 ${roleStrategy}
 ${rules}
 ${TERMINOLOGY}
+${reflectionPrompt}
 输出JSON`;
 };
 
+/**
+ * 角色特定的白天发言提示词生成器
+ * 每个角色根据其身份、信息量和策略目标有不同的发言模板
+ */
+const ROLE_DAY_SPEECH_PROMPTS = {
+    '狼人': (ctx, params) => `${getBaseContext(ctx)}
+【狼人专属任务】白天发言 - 伪装/制造混乱
+
+【你的策略选项】
+1. 深水策略：发言中庸，不暴露身份，像普通平民一样分析
+2. 悍跳策略：跳预言家，发金水/查杀，但需准备好"心路历程"
+3. 倒钩策略：假装帮好人分析，实际引导错误方向
+4. 站边策略：站边假预言家或真预言家（制造混乱）
+
+【思维链】
+Step1: 分析场上谁像神职？谁在怀疑我？
+Step2: 我今天应该保守还是激进？
+Step3: 如果要发言攻击，应该踩谁？
+Step4: 我的投票意向应该指向谁（好人中最有威胁的）？
+
+输出JSON:{"thought":"狼人视角分析...","speech":"伪装后的公开发言(40-80字)","voteIntention":数字或-1}`,
+
+    '预言家': (ctx, params) => {
+        const myChecks = params.seerChecks?.filter(c => c.seerId === params.playerId) || [];
+        const checksInfo = myChecks.length > 0
+            ? myChecks.map(c => `N${c.night}:${c.targetId}号是${c.isWolf ? '【狼人】' : '【好人】'}`).join(', ')
+            : '无查验记录';
+        const goldWaters = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
+        const wolves = myChecks.filter(c => c.isWolf).map(c => c.targetId);
+
+        return `${getBaseContext(ctx)}
+【预言家专属任务】白天发言 - 报验人/带节奏
+
+【你的查验记录】${checksInfo}
+${goldWaters.length > 0 ? `【金水(好人)】${goldWaters.join(',')}号 - 绝不能投他们！` : ''}
+${wolves.length > 0 ? `【查杀(狼人)】${wolves.join(',')}号 - 必须推出！` : ''}
+
+【预言家发言要点】
+1. 第一时间报出所有查验结果
+2. 分析"心路历程"：为什么查这个人
+3. 如果有人对跳，分析其逻辑漏洞
+4. 安排警徽流（如果你可能被刀）
+5. 带领好人投票，集中火力
+
+【思维链】
+Step1: 我今天需要报什么验人？
+Step2: 场上谁在质疑我？如何反驳？
+Step3: 如何用查验结果建立我的公信力？
+Step4: 投票应该投谁？（查杀 > 可疑者，绝不投金水！）
+
+输出JSON:{"thought":"预言家视角分析...","speech":"报验人+分析(40-80字)","voteIntention":数字(不能是金水号码)}`;
+    },
+
+    '女巫': (ctx, params) => {
+        const { witchHistory, hasWitchSave, hasWitchPoison } = params;
+        const savedInfo = witchHistory?.savedIds?.length > 0 ? `救过:${witchHistory.savedIds.join(',')}号(银水)` : '';
+        const poisonedInfo = witchHistory?.poisonedIds?.length > 0 ? `毒过:${witchHistory.poisonedIds.join(',')}号` : '';
+
+        return `${getBaseContext(ctx)}
+【女巫专属任务】白天发言 - 隐藏身份/关键时刻跳
+
+【你的药水状态】解药:${hasWitchSave ? '有' : '无'} | 毒药:${hasWitchPoison ? '有' : '无'}
+${savedInfo} ${poisonedInfo}
+
+【女巫发言策略】
+1. 未跳身份前：像普通平民一样发言，不要暴露
+2. 跳身份时机：当你的银水信息能帮助好人判断时
+3. 跳身份内容：报出银水（你救过的人），证明你是真女巫
+4. 配合预言家：银水+金水可以锁定好人
+
+【思维链】
+Step1: 我需要跳身份吗？跳身份的收益是什么？
+Step2: 如果不跳，我应该像平民一样说什么？
+Step3: 我的投票应该投谁？
+
+输出JSON:{"thought":"女巫视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1}`;
+    },
+
+    '猎人': (ctx, params) => `${getBaseContext(ctx)}
+【猎人专属任务】白天发言 - 威慑狼人
+
+【猎人发言策略】
+1. 身份隐藏：通常不主动跳身份，保留威慑
+2. 适时展示：被怀疑时可以半暗示"我有身份"
+3. 跳身份时机：当需要自证或威慑狼人投票时
+4. 开枪准备：心中锁定最像狼的2-3人
+
+【思维链】
+Step1: 我需要跳身份吗？跳身份后狼人会忌惮投我
+Step2: 如果不跳，我应该像平民一样分析局势
+Step3: 谁最像狼？如果我死了应该带走谁？
+Step4: 我的投票应该投谁？
+
+输出JSON:{"thought":"猎人视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1}`,
+
+    '守卫': (ctx, params) => {
+        const { guardHistory, lastGuardTarget } = params;
+        const guardInfo = guardHistory?.length > 0
+            ? guardHistory.map(g => `N${g.night}:守${g.targetId}号`).join(',')
+            : '无守护记录';
+
+        return `${getBaseContext(ctx)}
+【守卫专属任务】白天发言 - 隐藏身份
+
+【你的守护记录】${guardInfo}
+${lastGuardTarget !== null ? `【注意】昨夜守了${lastGuardTarget}号，今晚不能连守` : ''}
+
+【守卫发言策略】
+1. 低调潜伏：守卫一般不跳身份，被刀是好事（说明守对了）
+2. 像平民：发言内容要像普通村民一样分析
+3. 跳身份时机：只有当你的守护信息能关键证明某人身份时
+4. 博弈思考：根据发言判断今晚守谁
+
+【思维链】
+Step1: 我绝对不能暴露守卫身份
+Step2: 场上谁像预言家？我今晚可能需要守他
+Step3: 像平民一样分析，我应该说什么？
+Step4: 我的投票应该投谁？
+
+输出JSON:{"thought":"守卫视角分析...","speech":"像平民的发言(40-80字)","voteIntention":数字或-1}`;
+    },
+
+    '村民': (ctx, params) => `${getBaseContext(ctx)}
+【村民专属任务】白天发言 - 站边/找狼
+
+【村民发言策略】
+1. 敢于站边：在两个预言家中选择一个相信
+2. 逻辑分析：分析发言中的破绽和动机
+3. 投票正确：跟着你相信的预言家投票
+4. 不被带节奏：狼人可能会利用你
+
+【思维链】
+Step1: 有几个人跳预言家？谁更可信？
+Step2: 场上谁的发言最可疑？理由是什么？
+Step3: 我应该站边谁？为什么？
+Step4: 我的投票应该投谁？
+
+输出JSON:{"thought":"平民视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1}`
+};
+
+/**
+ * 获取基础上下文（所有角色共用）
+ */
+const getBaseContext = (ctx) => `第${ctx.dayCount}天${ctx.phase}。
+【今日发言(不能重复)】
+${ctx.todaySpeeches || '暂无'}
+
+【历史发言摘要】
+${ctx.historySpeeches || '暂无'}
+
+【昨夜情况】${ctx.lastNightInfo}
+【历史死亡】${ctx.deathInfo.split(';')[1] || '无'}
+【投票记录】${ctx.voteInfo}
+${ctx.spokenPlayerIds?.length > 0
+    ? `\n【⚠️ 时序提醒】已发言玩家: ${ctx.spokenPlayerIds.join('号→')}号。只能评价已发言玩家！`
+    : '\n【⚠️ 时序提醒】你是第一个发言，不能评价任何人的发言！'}`;
+
 export const generateUserPrompt = (actionType, gameState, params = {}) => {
     const ctx = prepareGameContext(gameState);
-    const { players } = gameState; 
+    const { players } = gameState;
+
+    // 获取当前玩家角色（用于角色路由）
+    const currentPlayer = params.currentPlayer || players.find(p => p.id === params.playerId);
+    const playerRole = currentPlayer?.role || '村民';
 
     // Base context block included in most prompts
     const baseContext = `第${ctx.dayCount}天${ctx.phase}。
@@ -220,49 +670,102 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
 【历史死亡】${ctx.deathInfo.split(';')[1] || '无'}\n
 【投票记录】${ctx.voteInfo}\n`;
 
+    // 预先定义各类型的思维链模板，避免switch块作用域问题
+    const cotTemplate = getCOTTemplate(PROMPT_ACTIONS.DAY_SPEECH);
+    const nightCot = getCOTTemplate('NIGHT_ACTION');
+    const voteCotTemplate = getCOTTemplate(PROMPT_ACTIONS.DAY_VOTE);
+
     switch (actionType) {
         case PROMPT_ACTIONS.DAY_SPEECH:
-            return `${baseContext}
-任务:白天发言。
-1.思考(thought):分析局势与策略(CoT)，决定投票目标。需逻辑严密。
-2.发言(speech):公开话语。若策略需要，可撒谎或隐瞒投票意向。
-输出JSON:{"thought":"(链式思考)真实分析...","speech":"(40-60字)公开内容","voteIntention":数字(真实票型)}`;
+            // 使用角色特定的提示词生成器
+            const rolePromptGenerator = ROLE_DAY_SPEECH_PROMPTS[playerRole] || ROLE_DAY_SPEECH_PROMPTS['村民'];
+
+            // 构建角色特定参数
+            const roleParams = {
+                ...params,
+                playerId: currentPlayer?.id,
+                seerChecks: gameState.seerChecks || [],
+                witchHistory: gameState.witchHistory || { savedIds: [], poisonedIds: [] },
+                hasWitchSave: currentPlayer?.hasWitchSave,
+                hasWitchPoison: currentPlayer?.hasWitchPoison,
+                guardHistory: gameState.guardHistory || [],
+                lastGuardTarget: gameState.nightDecisions?.lastGuardTarget
+            };
+
+            // 返回角色特定的提示词
+            return rolePromptGenerator(ctx, roleParams);
 
         case PROMPT_ACTIONS.NIGHT_GUARD:
             const { cannotGuard } = params;
             const aliveStr = players.filter(p => p.isAlive).map(p => p.id).join(',');
-            const hint = ctx.dayCount === 1 ? '首夜建议空守避免同守同救。' : '';
-            return `守卫选择。${hint}存活:${aliveStr}。${cannotGuard !== null ? `禁守${cannotGuard}号。` : ''}输出:{"targetId":数字或null}`;
+            const guardHint = ctx.dayCount === 1 ? '【首夜策略】建议空守(null)避免同守同救触发规则。' : '';
+            return `守卫守护选择。
+${guardHint}
+【存活玩家】${aliveStr}
+${cannotGuard !== null ? `【禁止连守】不能守${cannotGuard}号(昨夜已守)` : ''}
+${nightCot}
+【守护策略】
+- 优先守护：已跳身份的预言家 > 重要神职 > 高价值好人
+- 博弈思考：狼人预判我会守谁？我该反其道还是稳守？
+输出:{"targetId":数字或null(空守),"reasoning":"一句话理由"}`;
 
         case PROMPT_ACTIONS.NIGHT_WOLF:
              const validTargets = players.filter(p => p.isAlive && p.role !== '狼人').map(p => p.id).join(',');
-             return `狼人袭击。可选:${validTargets}。输出:{"targetId":数字}`;
+             return `狼人袭击决策。
+【可袭击目标】${validTargets}
+${nightCot}
+【刀法策略】
+- 优先级：女巫(有毒药威胁) > 预言家(信息源) > 守卫(保护者) > 猎人(有枪)
+- 根据白天发言抿神职：谁像预言家？谁像女巫？谁在保护谁？
+- 考虑守卫博弈：守卫可能守谁？是否需要声东击西？
+输出:{"targetId":数字,"reasoning":"选择理由"}`;
 
         case PROMPT_ACTIONS.NIGHT_SEER:
              const { validTargets: seerTargets } = params;
-             return `预言家查验。可验:${seerTargets?.join(',') || '无'}。输出:{"targetId":数字}`;
+             return `预言家查验决策。
+【可查验目标】${seerTargets?.join(',') || '无'}
+${nightCot}
+【查验策略】
+- 查验优先级：焦点位(发言模糊/煽动性强) > 定点位(能关联多条逻辑链)
+- 信息价值：查谁能提供最大信息增量？
+- 避免浪费：不查已有明确身份倾向的玩家
+输出:{"targetId":数字,"reasoning":"查验理由"}`;
 
         case PROMPT_ACTIONS.NIGHT_WITCH:
-             const { dyingId, canSave, hasPoison } = params; 
-             const hintFirstNight = ctx.dayCount === 1 ? '首夜通常使用解药救人。' : '';
-             const extra = `${hintFirstNight}被刀:${dyingId !== null ? dyingId + '号' : '无'}。解药:${canSave ? '可用' : '无'}。毒药:${hasPoison ? '可用' : '无'}。不能同时用两药。`;
-             return `女巫决策。${extra}输出:{"useSave":true/false,"usePoison":数字或null}`;
+             const { dyingId, canSave, hasPoison } = params;
+             const witchHint = ctx.dayCount === 1 ? '【首夜策略】通常使用解药救人。⚠️ 重要：第一晚女巫可以自救（如果自己被刀）！' : '';
+             const witchInfo = `被刀:${dyingId !== null ? dyingId + '号' : '无人被刀(平安夜)'}。解药:${canSave ? '可用' : '已用/无'}。毒药:${hasPoison ? '可用' : '已用/无'}。`;
+             return `女巫用药决策。
+${witchHint}
+【当前情况】${witchInfo}
+【重要规则】不能同时使用两药！
+${nightCot}
+【用药策略】
+- 解药考量：被刀者是否为关键神职？是否可能是自刀狼？救人收益vs保留价值？
+- 毒药考量：只有高度确信某人是狼且逻辑完全崩坏时才考虑开毒
+- 风险评估：毒错好人会导致阵营崩盘
+输出:{"useSave":true/false,"usePoison":数字或null,"reasoning":"决策理由"}`;
              
         case PROMPT_ACTIONS.DAY_VOTE:
              const { validTargets: voteTargets, seerConstraint, lastVoteIntention } = params;
-             const intentionReminder = lastVoteIntention ? `你刚才在发言中表示想投 ${lastVoteIntention} 号。` : '';
-             
+             const intentionReminder = lastVoteIntention && lastVoteIntention !== -1
+                 ? `你刚才在发言中表示想投 ${lastVoteIntention} 号。`
+                 : (lastVoteIntention === -1 ? '你刚才在发言中表示暂不表态/弃票。' : '');
+
              return `投票放逐阶段。
-【存活可投】${voteTargets.join(',')}号(不能投自己)。
+【存活可投】${voteTargets.join(',')}号(不能投自己)，或选择-1弃票。
 ${intentionReminder}
 ${seerConstraint || ''}
+${voteCotTemplate}
 
 【投票逻辑推演】
-1. 回顾你的发言意向（${lastVoteIntention || '无'}），保持言行一致，除非有突发情况。
+1. 回顾你的发言意向（${lastVoteIntention === -1 ? '弃票' : lastVoteIntention || '无'}），保持言行一致，除非有突发情况。
 2. 分析场上局势，如果是好人，确保不分票；如果是狼人，计算冲票收益。
+3. 预言家注意：绝不能投给自己验过的金水！
+4. 如果信息不足无法判断，可以选择弃票(-1)，但这可能导致流票。
 
 输出JSON格式:
-{"reasoning":"一句话分析(如:言行一致投X，或 听了Y发言觉得更像狼改投Y)","targetId":数字}`;
+{"reasoning":"一句话分析(如:言行一致投X，或 听了Y发言觉得更像狼改投Y，或 信息不足选择弃票)","targetId":数字或-1}`;
 
         case PROMPT_ACTIONS.HUNTER_SHOOT:
              const { aliveTargets, hunterContext } = params;
@@ -275,6 +778,12 @@ ${hunterContext || ''}
 3. 再选发言最像狼/划水/倒钩的玩家
 4. 绝不带走金水/银水/真预言家
 输出JSON:{"shoot":true,"targetId":数字,"reason":"一句话理由"}`;
+
+        case PROMPT_ACTIONS.SUMMARIZE_CONTENT:
+             const { content, maxLength = 50 } = params;
+             return `请将以下内容精简摘要为不超过${maxLength}字的核心要点：
+"${content}"
+输出JSON:{"summary":"摘要内容"}`;
 
         default:
             return `任务: ${actionType}`; 

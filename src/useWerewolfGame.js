@@ -1,4 +1,5 @@
 import { useReducer, useRef } from 'react';
+import { generateAllPlayerAvatars, getPlaceholderAvatar, generateGameBackground } from './services/imageGenerator';
 
 const initialState = {
   phase: 'setup',
@@ -22,6 +23,15 @@ const initialState = {
   speechHistory: [],
   voteHistory: [],
   deathHistory: [],
+  // 新增：夜间行动历史，用于记录每个角色的夜间行动和思考过程
+  nightActionHistory: [],
+  // 新增：当前阶段的发言/行动（用于显示在气泡中）
+  currentPhaseData: {
+    speeches: [],
+    actions: []
+  },
+  // 游戏主题背景图像
+  gameBackground: null
 };
 
 const types = {
@@ -40,6 +50,12 @@ const types = {
   SET_SPEECH_HISTORY: 'SET_SPEECH_HISTORY',
   SET_VOTE_HISTORY: 'SET_VOTE_HISTORY',
   SET_DEATH_HISTORY: 'SET_DEATH_HISTORY',
+  SET_NIGHT_ACTION_HISTORY: 'SET_NIGHT_ACTION_HISTORY',
+  SET_CURRENT_PHASE_DATA: 'SET_CURRENT_PHASE_DATA',
+  ADD_CURRENT_PHASE_SPEECH: 'ADD_CURRENT_PHASE_SPEECH',
+  ADD_CURRENT_PHASE_ACTION: 'ADD_CURRENT_PHASE_ACTION',
+  CLEAR_CURRENT_PHASE_DATA: 'CLEAR_CURRENT_PHASE_DATA',
+  SET_GAME_BACKGROUND: 'SET_GAME_BACKGROUND',
 };
 
 function reducer(state, action) {
@@ -77,6 +93,30 @@ function reducer(state, action) {
       return { ...state, voteHistory: apply('voteHistory', action.payload) };
     case types.SET_DEATH_HISTORY:
       return { ...state, deathHistory: apply('deathHistory', action.payload) };
+    case types.SET_NIGHT_ACTION_HISTORY:
+      return { ...state, nightActionHistory: apply('nightActionHistory', action.payload) };
+    case types.SET_CURRENT_PHASE_DATA:
+      return { ...state, currentPhaseData: apply('currentPhaseData', action.payload) };
+    case types.ADD_CURRENT_PHASE_SPEECH:
+      return { 
+        ...state, 
+        currentPhaseData: { 
+          ...state.currentPhaseData, 
+          speeches: [...state.currentPhaseData.speeches, action.payload] 
+        } 
+      };
+    case types.ADD_CURRENT_PHASE_ACTION:
+      return { 
+        ...state, 
+        currentPhaseData: { 
+          ...state.currentPhaseData, 
+          actions: [...state.currentPhaseData.actions, action.payload] 
+        } 
+      };
+    case types.CLEAR_CURRENT_PHASE_DATA:
+      return { ...state, currentPhaseData: { speeches: [], actions: [] } };
+    case types.SET_GAME_BACKGROUND:
+      return { ...state, gameBackground: action.payload };
     default:
       return state;
   }
@@ -100,6 +140,12 @@ export function useWerewolfGame(config) {
   const setSpeechHistory = (value) => dispatch({ type: types.SET_SPEECH_HISTORY, payload: value });
   const setVoteHistory = (value) => dispatch({ type: types.SET_VOTE_HISTORY, payload: value });
   const setDeathHistory = (value) => dispatch({ type: types.SET_DEATH_HISTORY, payload: value });
+  const setNightActionHistory = (value) => dispatch({ type: types.SET_NIGHT_ACTION_HISTORY, payload: value });
+  const setCurrentPhaseData = (value) => dispatch({ type: types.SET_CURRENT_PHASE_DATA, payload: value });
+  const addCurrentPhaseSpeech = (value) => dispatch({ type: types.ADD_CURRENT_PHASE_SPEECH, payload: value });
+  const addCurrentPhaseAction = (value) => dispatch({ type: types.ADD_CURRENT_PHASE_ACTION, payload: value });
+  const clearCurrentPhaseData = () => dispatch({ type: types.CLEAR_CURRENT_PHASE_DATA });
+  const setGameBackground = (value) => dispatch({ type: types.SET_GAME_BACKGROUND, payload: value });
   const setLogs = (value) => dispatch({ type: types.SET_LOGS, payload: value });
   const pushLog = (value) => dispatch({ type: types.PUSH_LOG, payload: value });
 
@@ -107,7 +153,7 @@ export function useWerewolfGame(config) {
     pushLog({ text, type, speaker, id: `${Date.now()}-${Math.random()}` });
   };
 
-  const initGame = (mode = 'player', customConfig = null) => {
+  const initGame = async (mode = 'player', customConfig = null) => {
     const { ROLE_DEFINITIONS, PERSONALITIES, NAMES } = config;
     
     // Use custom config if provided, otherwise fallback to default config
@@ -118,7 +164,7 @@ export function useWerewolfGame(config) {
 
     let shuffledRoles = [...activeRoles].sort(() => 0.5 - Math.random());
     let namePool = [...NAMES].sort(() => 0.5 - Math.random());
-    const newPlayers = Array.from({ length: activeTotalPlayers }, (_, i) => ({
+    let newPlayers = Array.from({ length: activeTotalPlayers }, (_, i) => ({
       id: i,
       name: mode === 'ai-only' ? namePool[i] : (i === 0 ? '你' : namePool[i]),
       role: shuffledRoles[i],
@@ -126,12 +172,17 @@ export function useWerewolfGame(config) {
       isUser: mode === 'player' && i === 0,
       personality: (mode === 'player' && i === 0) ? { traits: '人类玩家' } : PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)],
       avatarColor: `hsl(${(i * 50) % 360}, 60%, 45%)`,
+      // 玩家模式下使用中性占位符（用户自己除外），AI模式下显示角色占位符
+      avatarUrl: mode === 'ai-only'
+        ? getPlaceholderAvatar(shuffledRoles[i])
+        : (i === 0 ? getPlaceholderAvatar('cat') : getPlaceholderAvatar('村民')),
       hasWitchSave: true,
       hasWitchPoison: true,
       canHunterShoot: true,
       isPoisoned: false
     }));
 
+    // Set initial players with placeholders
     setPlayers(newPlayers);
     setUserPlayer(mode === 'player' ? newPlayers[0] : null);
     setPhase('night');
@@ -143,6 +194,8 @@ export function useWerewolfGame(config) {
     setSpeechHistory([]);
     setVoteHistory([]);
     setDeathHistory([]);
+    setNightActionHistory([]);
+    clearCurrentPhaseData();
     setNightDecisions({
       wolfTarget: null,
       wolfSkipKill: false,
@@ -161,7 +214,36 @@ export function useWerewolfGame(config) {
     }, {});
     const configStr = Object.entries(roleCounts).map(([r, c]) => `${c}${r}`).join('');
 
-    addLog(`${activeTotalPlayers}人${setupName}启动！你是 [0号] ${newPlayers[0].name}，身份：【${newPlayers[0].role}】。配置：${configStr}。`, 'system');
+    // Different log message for AI-only vs player mode
+    if (mode === 'ai-only') {
+      addLog(`${activeTotalPlayers}人${setupName}启动！配置：${configStr}。`, 'system');
+    } else {
+      addLog(`${activeTotalPlayers}人${setupName}启动！你是 [0号] ${newPlayers[0].name}，身份：【${newPlayers[0].role}】。配置：${configStr}。`, 'system');
+    }
+    addLog(`正在生成角色头像...`, 'system');
+
+    // Generate avatars asynchronously (don't block game start)
+    generateAllPlayerAvatars(newPlayers, mode)
+      .then(playersWithAvatars => {
+        setPlayers(playersWithAvatars);
+        addLog(`头像生成完成！`, 'success');
+      })
+      .catch(err => {
+        console.error('[Game] Avatar generation failed:', err);
+        addLog(`头像生成失败，使用默认图标`, 'warning');
+      });
+
+    // Generate game background asynchronously
+    generateGameBackground()
+      .then(backgroundUrl => {
+        if (backgroundUrl) {
+          setGameBackground(backgroundUrl);
+          addLog(`背景生成完成！`, 'success');
+        }
+      })
+      .catch(err => {
+        console.error('[Game] Background generation failed:', err);
+      });
   };
 
   return {
@@ -179,6 +261,12 @@ export function useWerewolfGame(config) {
     setSpeechHistory,
     setVoteHistory,
     setDeathHistory,
+    setNightActionHistory,
+    setCurrentPhaseData,
+    addCurrentPhaseSpeech,
+    addCurrentPhaseAction,
+    clearCurrentPhaseData,
+    setGameBackground,
     setLogs,
     addLog,
     initGame,
