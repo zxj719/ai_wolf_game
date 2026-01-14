@@ -8,6 +8,11 @@ import {
   getLogicContradictions,
   generateSituationSummary
 } from '../services/ragRetrieval';
+import {
+  validateSpeech,
+  validateNightAction,
+  generateCorrectionPrompt
+} from '../services/logicValidator';
 
 export function useAI({
   players,
@@ -25,6 +30,10 @@ export function useAI({
   API_URL,
   API_KEY,
   AI_MODELS,
+  // 游戏配置（用于区分6人局/8人局等不同规则）
+  gameSetup = null,
+  // 整局夜间行动历史（用于完整的行动记录追踪）
+  nightActionHistory = [],
   // P1增强：信任与推断上下文获取函数（可选）
   getInferenceContext = null,
   // P2增强：双系统上下文获取函数（可选）
@@ -102,6 +111,8 @@ export function useAI({
     setIsThinking(true);
 
     // Construct GameState object with enhanced speech history
+    // 注意：所有历史记录（seerChecks, guardHistory, witchHistory, nightActionHistory）
+    // 都包含整局游戏的数据，而不是每天刷新
     const gameState = {
       players,
       speechHistory: enhancedSpeechHistory,
@@ -112,7 +123,11 @@ export function useAI({
       guardHistory,
       witchHistory,
       dayCount,
-      phase
+      phase,
+      // 游戏配置（用于区分6人局/8人局等不同规则）
+      gameSetup,
+      // 整局夜间行动历史（包含所有夜晚的行动记录）
+      nightActionHistory
     };
 
     // P0增强：添加RAG上下文到params
@@ -198,6 +213,71 @@ export function useAI({
         currentBlacklisted.slice(0, Math.floor(currentBlacklisted.length / 2)).forEach(idx => {
           disabledModelsRef.current.add(idx);
         });
+      }
+    }
+
+    // ============================================
+    // P0增强：逻辑剪枝验证
+    // ============================================
+    if (result) {
+      const validationContext = {
+        playerId: player.id,
+        players,
+        seerChecks,
+        lastGuardTarget: nightDecisions?.lastGuardTarget
+      };
+
+      // 根据行动类型选择验证方法
+      let validation;
+      const isNightAction = [
+        PROMPT_ACTIONS.NIGHT_WITCH,
+        PROMPT_ACTIONS.NIGHT_WOLF,
+        PROMPT_ACTIONS.NIGHT_GUARD,
+        PROMPT_ACTIONS.NIGHT_SEER
+      ].includes(actionType);
+
+      if (isNightAction) {
+        validation = validateNightAction(result, actionType, validationContext);
+      } else {
+        validation = validateSpeech(result, validationContext);
+      }
+
+      // 如果验证失败，尝试重新生成（最多重试2次）
+      if (!validation.isValid) {
+        console.warn(`⚠️ [逻辑剪枝] ${player.id}号 ${player.name} 发言违规:`, validation.violations);
+
+        const MAX_RETRIES = 2;
+        for (let retry = 0; retry < MAX_RETRIES; retry++) {
+          console.log(`🔄 [逻辑剪枝] 第${retry + 1}次重试...`);
+
+          // 生成修正提示
+          const correctionPrompt = generateCorrectionPrompt(validation.violations, validation.suggestions);
+          const correctedUserPrompt = correctionPrompt + '\n\n' + userPrompt;
+
+          // 重新请求AI
+          result = await fetchLLM(
+            { player, prompt: correctedUserPrompt, systemInstruction: systemPrompt },
+            { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
+          );
+
+          if (!result) break;
+
+          // 重新验证
+          if (isNightAction) {
+            validation = validateNightAction(result, actionType, validationContext);
+          } else {
+            validation = validateSpeech(result, validationContext);
+          }
+
+          if (validation.isValid) {
+            console.log(`✅ [逻辑剪枝] 第${retry + 1}次重试成功`);
+            break;
+          }
+        }
+
+        if (!validation.isValid) {
+          console.error(`❌ [逻辑剪枝] ${player.id}号 ${player.name} 所有重试均失败，保留最后结果`);
+        }
       }
     }
 

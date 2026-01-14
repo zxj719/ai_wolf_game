@@ -18,7 +18,8 @@ export const TRUST_DIMENSIONS = {
   LOGIC: 'logic',                 // 逻辑连贯性（发言是否自洽）
   BEHAVIOR: 'behavior',           // 行为一致性（言行是否匹配）
   EMOTION: 'emotion',             // 情绪真实度（是否有伪装痕迹）
-  ALIGNMENT: 'alignment'          // 阵营倾向（偏向好人还是狼人）
+  ALIGNMENT: 'alignment',         // 阵营倾向（偏向好人还是狼人）
+  CONSISTENCY: 'consistency'      // 逻辑严密度（发言前后是否一致，立场是否反复）
 };
 
 // 初始信任分数（中立）
@@ -33,6 +34,7 @@ const TRUST_WEIGHTS = {
   ACCUSE_VERIFIED_WOLF: 0.12,      // 指控已验证狼人
   LOGICAL_SPEECH: 0.05,            // 发言逻辑清晰
   CLAIM_VERIFIED: 0.2,             // 声称身份被验证
+  STABLE_STANCE: 0.08,             // 立场稳定
 
   // 负向信任因子
   KILL_RECEIVED: -0.3,             // 被查杀
@@ -46,7 +48,14 @@ const TRUST_WEIGHTS = {
   // 行为模式因子
   BANDWAGON_VOTE: -0.05,           // 跟风投票
   COUNTER_LOGIC: -0.1,             // 逆逻辑操作
-  EMOTIONAL_OUTBURST: -0.03        // 情绪爆发（可能是伪装）
+  EMOTIONAL_OUTBURST: -0.03,       // 情绪爆发（可能是伪装）
+
+  // 逻辑严密度因子（新增）
+  FLIP_FLOP_VOTE: -0.15,           // 投票意向反复
+  STANCE_FLIP: -0.2,               // 立场反水
+  EVALUATION_FLIP: -0.1,           // 对同一人评价反复
+  LOGIC_CHAIN_BREAK: -0.12,        // 逻辑链断裂
+  RULE_VIOLATION: -0.25            // 违反游戏基础规则（如"平安夜女巫不能救人"）
 };
 
 // ============================================================
@@ -65,7 +74,8 @@ export const createTrustProfile = (playerId) => ({
     [TRUST_DIMENSIONS.LOGIC]: INITIAL_TRUST_SCORE,
     [TRUST_DIMENSIONS.BEHAVIOR]: INITIAL_TRUST_SCORE,
     [TRUST_DIMENSIONS.EMOTION]: INITIAL_TRUST_SCORE,
-    [TRUST_DIMENSIONS.ALIGNMENT]: INITIAL_TRUST_SCORE
+    [TRUST_DIMENSIONS.ALIGNMENT]: INITIAL_TRUST_SCORE,
+    [TRUST_DIMENSIONS.CONSISTENCY]: INITIAL_TRUST_SCORE
   },
   // 证据列表
   evidence: [],
@@ -75,6 +85,13 @@ export const createTrustProfile = (playerId) => ({
   overallTrust: INITIAL_TRUST_SCORE,
   // 身份概率分布（将由贝叶斯模块更新）
   identityProbabilities: null,
+  // 逻辑严密度追踪（新增）
+  consistencyTracker: {
+    voteIntentions: [],     // 投票意向历史
+    stances: [],            // 站边历史
+    evaluations: {},        // 对其他玩家的评价历史
+    ruleViolations: []      // 规则违反记录
+  },
   // 最后更新时间
   lastUpdated: Date.now()
 });
@@ -346,7 +363,13 @@ const mapEvidenceToDimension = (evidenceType) => {
     'VOTE_GOLD_WATER': TRUST_DIMENSIONS.ALIGNMENT,
     'BANDWAGON': TRUST_DIMENSIONS.BEHAVIOR,
     'EMOTION': TRUST_DIMENSIONS.EMOTION,
-    'LOGIC_ERROR': TRUST_DIMENSIONS.LOGIC
+    'LOGIC_ERROR': TRUST_DIMENSIONS.LOGIC,
+    // 逻辑严密度相关映射（新增）
+    'FLIP_FLOP_VOTE': TRUST_DIMENSIONS.CONSISTENCY,
+    'STANCE_FLIP': TRUST_DIMENSIONS.CONSISTENCY,
+    'EVALUATION_FLIP': TRUST_DIMENSIONS.CONSISTENCY,
+    'RULE_VIOLATION': TRUST_DIMENSIONS.CONSISTENCY,
+    'STABLE_STANCE': TRUST_DIMENSIONS.CONSISTENCY
   };
   return mapping[evidenceType] || TRUST_DIMENSIONS.LOGIC;
 };
@@ -356,11 +379,12 @@ const mapEvidenceToDimension = (evidenceType) => {
  */
 const calculateOverallTrust = (scores) => {
   const weights = {
-    [TRUST_DIMENSIONS.IDENTITY]: 0.3,
-    [TRUST_DIMENSIONS.LOGIC]: 0.25,
-    [TRUST_DIMENSIONS.BEHAVIOR]: 0.2,
+    [TRUST_DIMENSIONS.IDENTITY]: 0.25,
+    [TRUST_DIMENSIONS.LOGIC]: 0.2,
+    [TRUST_DIMENSIONS.BEHAVIOR]: 0.15,
     [TRUST_DIMENSIONS.EMOTION]: 0.1,
-    [TRUST_DIMENSIONS.ALIGNMENT]: 0.15
+    [TRUST_DIMENSIONS.ALIGNMENT]: 0.1,
+    [TRUST_DIMENSIONS.CONSISTENCY]: 0.2  // 逻辑严密度权重较高
   };
 
   let total = 0;
@@ -479,6 +503,9 @@ const generateAnomalyInterpretation = (anomalies) => {
     if (a.dimension === TRUST_DIMENSIONS.LOGIC && a.deviation < 0) {
       interpretations.push('逻辑链断裂，发言存在矛盾');
     }
+    if (a.dimension === TRUST_DIMENSIONS.CONSISTENCY && a.deviation < 0) {
+      interpretations.push('逻辑混乱，立场反复摇摆，大概率狼人');
+    }
   });
 
   return interpretations.join('；');
@@ -533,4 +560,315 @@ export const generateTrustContext = (profiles, alivePlayers, selfId) => {
   }
 
   return parts.length > 0 ? parts.join('\n') : '';
+};
+
+// ============================================================
+// 逻辑严密度分析（新增）
+// ============================================================
+
+/**
+ * 分析玩家发言的逻辑严密度
+ * @param {Object} profile - 玩家信任档案
+ * @param {Object[]} speeches - 该玩家的所有发言
+ * @returns {Object} 分析结果 {score, issues, evidence}
+ */
+export const analyzeLogicConsistency = (profile, speeches) => {
+  if (!speeches || speeches.length === 0) {
+    return { score: 0.5, issues: [], evidence: [] };
+  }
+
+  const issues = [];
+  const evidence = [];
+  let score = 1.0;
+
+  const tracker = profile?.consistencyTracker || {
+    voteIntentions: [],
+    stances: [],
+    evaluations: {}
+  };
+
+  // 1. 分析投票意向变化
+  const voteIntentions = speeches
+    .filter(s => s.voteIntention !== undefined && s.voteIntention !== -1)
+    .map(s => ({ day: s.day, target: s.voteIntention, content: s.content }));
+
+  // 同一天内多次改变投票意向
+  const groupedByDay = {};
+  voteIntentions.forEach(v => {
+    if (!groupedByDay[v.day]) groupedByDay[v.day] = [];
+    groupedByDay[v.day].push(v.target);
+  });
+
+  Object.entries(groupedByDay).forEach(([day, targets]) => {
+    const uniqueTargets = [...new Set(targets)];
+    if (uniqueTargets.length >= 3) {
+      issues.push({
+        type: 'FLIP_FLOP_VOTE',
+        description: `第${day}天投票意向反复(${targets.join('→')})`,
+        severity: 'high'
+      });
+      evidence.push({
+        type: 'FLIP_FLOP_VOTE',
+        source: profile.playerId,
+        target: profile.playerId,
+        content: `投票意向反复：${targets.join('→')}`,
+        impact: TRUST_WEIGHTS.FLIP_FLOP_VOTE,
+        day: parseInt(day),
+        confidence: 0.9
+      });
+      score -= 0.15;
+    } else if (uniqueTargets.length === 2) {
+      issues.push({
+        type: 'VOTE_CHANGE',
+        description: `第${day}天改变了投票意向(${targets[0]}→${targets[targets.length - 1]})`,
+        severity: 'medium'
+      });
+      score -= 0.05;
+    }
+  });
+
+  // 2. 分析立场变化（站边）
+  const stances = speeches.map(s => ({
+    day: s.day,
+    stance: extractStanceFromContent(s.content)
+  })).filter(s => s.stance);
+
+  for (let i = 1; i < stances.length; i++) {
+    const prev = stances[i - 1];
+    const curr = stances[i];
+    if (prev.stance.supports !== curr.stance.supports && prev.stance.supports && curr.stance.supports) {
+      issues.push({
+        type: 'STANCE_FLIP',
+        description: `立场反水：从站边${prev.stance.supports}号变为站边${curr.stance.supports}号`,
+        severity: 'high'
+      });
+      evidence.push({
+        type: 'STANCE_FLIP',
+        source: profile.playerId,
+        target: profile.playerId,
+        content: `立场反水：${prev.stance.supports}号→${curr.stance.supports}号`,
+        impact: TRUST_WEIGHTS.STANCE_FLIP,
+        day: curr.day,
+        confidence: 0.85
+      });
+      score -= 0.2;
+    }
+  }
+
+  // 3. 分析对同一玩家评价的变化
+  const evaluations = {};
+  speeches.forEach(s => {
+    const evals = extractEvaluationsFromContent(s.content);
+    evals.forEach(e => {
+      if (!evaluations[e.target]) evaluations[e.target] = [];
+      evaluations[e.target].push({ day: s.day, sentiment: e.sentiment });
+    });
+  });
+
+  Object.entries(evaluations).forEach(([target, evals]) => {
+    if (evals.length >= 2) {
+      const sentiments = evals.map(e => e.sentiment);
+      const hasPositive = sentiments.includes('positive');
+      const hasNegative = sentiments.includes('negative');
+
+      if (hasPositive && hasNegative) {
+        issues.push({
+          type: 'EVALUATION_FLIP',
+          description: `对${target}号的评价前后矛盾`,
+          severity: 'medium'
+        });
+        evidence.push({
+          type: 'EVALUATION_FLIP',
+          source: profile.playerId,
+          target: parseInt(target),
+          content: `评价反复：对${target}号先${sentiments[0]}后${sentiments[sentiments.length - 1]}`,
+          impact: TRUST_WEIGHTS.EVALUATION_FLIP,
+          day: evals[evals.length - 1].day,
+          confidence: 0.7
+        });
+        score -= 0.1;
+      }
+    }
+  });
+
+  return {
+    score: Math.max(0, Math.min(1, score)),
+    issues,
+    evidence,
+    summary: generateConsistencySummary(score, issues)
+  };
+};
+
+/**
+ * 从发言内容中提取立场
+ */
+const extractStanceFromContent = (content) => {
+  if (!content) return null;
+
+  const supportPatterns = [
+    /站边(\d+)号/,
+    /相信(\d+)号.*预言家/,
+    /支持(\d+)号/,
+    /(\d+)号是真预/
+  ];
+
+  for (const pattern of supportPatterns) {
+    const match = content.match(pattern);
+    if (match) {
+      return { supports: parseInt(match[1]) };
+    }
+  }
+
+  return null;
+};
+
+/**
+ * 从发言内容中提取对其他玩家的评价
+ */
+const extractEvaluationsFromContent = (content) => {
+  if (!content) return [];
+
+  const evaluations = [];
+
+  const positivePatterns = [
+    /(\d+)号.*好人/,
+    /(\d+)号.*可信/,
+    /(\d+)号.*没问题/,
+    /相信(\d+)号/,
+    /(\d+)号.*清白/
+  ];
+
+  const negativePatterns = [
+    /(\d+)号.*狼/,
+    /(\d+)号.*可疑/,
+    /怀疑(\d+)号/,
+    /踩(\d+)号/,
+    /投(\d+)号/,
+    /(\d+)号.*有问题/
+  ];
+
+  positivePatterns.forEach(pattern => {
+    const matches = content.matchAll(new RegExp(pattern, 'g'));
+    for (const match of matches) {
+      evaluations.push({ target: match[1], sentiment: 'positive' });
+    }
+  });
+
+  negativePatterns.forEach(pattern => {
+    const matches = content.matchAll(new RegExp(pattern, 'g'));
+    for (const match of matches) {
+      evaluations.push({ target: match[1], sentiment: 'negative' });
+    }
+  });
+
+  return evaluations;
+};
+
+/**
+ * 生成逻辑严密度摘要
+ */
+const generateConsistencySummary = (score, issues) => {
+  if (score >= 0.8) {
+    return '逻辑严密，表现稳定';
+  } else if (score >= 0.6) {
+    return `逻辑基本清晰，有${issues.length}处小问题`;
+  } else if (score >= 0.4) {
+    return `逻辑混乱，发现${issues.length}处明显问题，需警惕`;
+  } else {
+    return `逻辑严重混乱(${issues.length}处问题)，大概率狼人`;
+  }
+};
+
+/**
+ * 更新玩家的逻辑严密度分数
+ * @param {Object} profile - 玩家信任档案
+ * @param {Object[]} speeches - 该玩家的所有发言
+ * @returns {Object} 更新后的档案
+ */
+export const updateConsistencyScore = (profile, speeches) => {
+  const analysis = analyzeLogicConsistency(profile, speeches);
+
+  // 更新 consistency 维度分数
+  const updatedProfile = { ...profile };
+  updatedProfile.scores[TRUST_DIMENSIONS.CONSISTENCY] = analysis.score;
+
+  // 添加新证据
+  if (analysis.evidence.length > 0) {
+    updatedProfile.evidence = [...updatedProfile.evidence, ...analysis.evidence];
+  }
+
+  // 重新计算综合分数
+  updatedProfile.overallTrust = calculateOverallTrust(updatedProfile.scores);
+  updatedProfile.lastUpdated = Date.now();
+
+  return updatedProfile;
+};
+
+/**
+ * 获取逻辑混乱的玩家列表（用于AI判断）
+ * @param {Object} profiles - 所有玩家信任档案
+ * @param {Object[]} alivePlayers - 存活玩家列表
+ * @param {number} threshold - 阈值（低于此值视为逻辑混乱）
+ * @returns {Object[]} 逻辑混乱的玩家列表
+ */
+export const getLogicallyConfusedPlayers = (profiles, alivePlayers, threshold = 0.5) => {
+  return alivePlayers
+    .filter(p => {
+      const profile = profiles[p.id];
+      return profile && profile.scores[TRUST_DIMENSIONS.CONSISTENCY] < threshold;
+    })
+    .map(p => ({
+      playerId: p.id,
+      consistencyScore: profiles[p.id].scores[TRUST_DIMENSIONS.CONSISTENCY],
+      issues: profiles[p.id].consistencyTracker?.ruleViolations || []
+    }))
+    .sort((a, b) => a.consistencyScore - b.consistencyScore);
+};
+
+/**
+ * 记录规则违反（来自logicValidator）
+ * @param {Object} profile - 玩家信任档案
+ * @param {Object} violation - 违规信息
+ * @returns {Object} 更新后的档案
+ */
+export const recordRuleViolation = (profile, violation) => {
+  const updatedProfile = { ...profile };
+
+  // 添加到规则违反记录
+  if (!updatedProfile.consistencyTracker) {
+    updatedProfile.consistencyTracker = {
+      voteIntentions: [],
+      stances: [],
+      evaluations: {},
+      ruleViolations: []
+    };
+  }
+
+  updatedProfile.consistencyTracker.ruleViolations.push({
+    ...violation,
+    timestamp: Date.now()
+  });
+
+  // 创建证据
+  const evidence = {
+    type: 'RULE_VIOLATION',
+    source: profile.playerId,
+    target: profile.playerId,
+    content: violation.description,
+    impact: TRUST_WEIGHTS.RULE_VIOLATION,
+    day: violation.day || 0,
+    confidence: 0.95
+  };
+
+  // 更新分数
+  updatedProfile.scores[TRUST_DIMENSIONS.CONSISTENCY] = Math.max(
+    0,
+    updatedProfile.scores[TRUST_DIMENSIONS.CONSISTENCY] + TRUST_WEIGHTS.RULE_VIOLATION
+  );
+
+  updatedProfile.evidence.push(evidence);
+  updatedProfile.overallTrust = calculateOverallTrust(updatedProfile.scores);
+  updatedProfile.lastUpdated = Date.now();
+
+  return updatedProfile;
 };

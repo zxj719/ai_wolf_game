@@ -13,7 +13,11 @@ import {
   updateTrustScore,
   generateTrustContext,
   getMostSuspicious,
-  getMostTrusted
+  getMostTrusted,
+  updateConsistencyScore,
+  getLogicallyConfusedPlayers,
+  recordRuleViolation,
+  TRUST_DIMENSIONS
 } from '../services/trustScoring';
 import {
   initializeIdentityDistributions,
@@ -172,7 +176,19 @@ export function useTrustInference({
       processDeath(death, player?.role);
     });
     lastProcessedDeathRef.current = deathHistory.length;
-  }, [speechHistory, voteHistory, deathHistory, players, processSpeech, processVote, processDeath]);
+
+    // 更新所有存活玩家的逻辑严密度分数
+    const profiles = getTrustProfiles();
+    players.filter(p => p.isAlive).forEach(player => {
+      const playerSpeeches = speechHistory.filter(s => s.playerId === player.id);
+      if (playerSpeeches.length > 0 && profiles[player.id]) {
+        trustProfilesRef.current[player.id] = updateConsistencyScore(
+          profiles[player.id],
+          playerSpeeches
+        );
+      }
+    });
+  }, [speechHistory, voteHistory, deathHistory, players, processSpeech, processVote, processDeath, getTrustProfiles]);
 
   // 获取综合分析上下文（用于AI提示词）
   const getInferenceContext = useCallback((selfId) => {
@@ -195,6 +211,16 @@ export function useTrustInference({
     const bayesianContext = generateBayesianContext(distributions, alivePlayers, selfId);
     if (bayesianContext) {
       parts.push(bayesianContext);
+    }
+
+    // 3. 逻辑混乱玩家分析（新增）
+    const confusedPlayers = getLogicallyConfusedPlayers(profiles, alivePlayers, 0.5);
+    if (confusedPlayers.length > 0) {
+      const confusedList = confusedPlayers.map(p => {
+        const score = (p.consistencyScore * 100).toFixed(0);
+        return `${p.playerId}号(严密度:${score}%)`;
+      }).join(', ');
+      parts.push(`【逻辑混乱警报】以下玩家发言逻辑反复，大概率狼人: ${confusedList}`);
     }
 
     return parts.length > 0 ? '\n【P1分析】\n' + parts.join('\n') : '';
@@ -309,6 +335,17 @@ export function useTrustInference({
     identityDistributions: getIdentityDistributions()
   }), [getTrustProfiles, getIdentityDistributions]);
 
+  // 记录规则违反（供 logicValidator 调用）
+  const handleRuleViolation = useCallback((playerId, violation) => {
+    const profiles = getTrustProfiles();
+    if (profiles[playerId]) {
+      trustProfilesRef.current[playerId] = recordRuleViolation(
+        profiles[playerId],
+        violation
+      );
+    }
+  }, [getTrustProfiles]);
+
   return {
     // 数据处理
     processSpeech,
@@ -341,6 +378,18 @@ export function useTrustInference({
       const distributions = getIdentityDistributions();
       const alivePlayers = players.filter(p => p.isAlive);
       return rankByWerewolfProbability(distributions, alivePlayers);
+    },
+
+    // 逻辑严密度相关（新增）
+    getLogicallyConfused: (threshold = 0.5) => {
+      const profiles = getTrustProfiles();
+      const alivePlayers = players.filter(p => p.isAlive);
+      return getLogicallyConfusedPlayers(profiles, alivePlayers, threshold);
+    },
+    handleRuleViolation,
+    getConsistencyScore: (playerId) => {
+      const profiles = getTrustProfiles();
+      return profiles[playerId]?.scores?.[TRUST_DIMENSIONS.CONSISTENCY] || 0.5;
     }
   };
 }

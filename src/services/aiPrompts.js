@@ -18,6 +18,46 @@ export const PROMPT_ACTIONS = {
 const TERMINOLOGY = `【术语】划水(无内容),踩(怀疑),站边(信某预),金水/查杀(预验好/坏),悍跳(狼称预),银水(女巫救),倒钩(狼站边好人),抗推(好人被投).`;
 
 // ============================================================
+// 局数配置辅助函数
+// 用于区分6人局/8人局/12人局等不同规则
+// ============================================================
+
+/**
+ * 判断是否是小型局（6人局）
+ * 6人局特点：无猎人、无守卫、无警徽流
+ */
+const isMiniGame = (gameSetup) => {
+  if (!gameSetup) return false;
+  return gameSetup.id === 'mini_6' || gameSetup.TOTAL_PLAYERS === 6;
+};
+
+/**
+ * 判断是否是标准局（8人局）
+ * 8人局特点：有完整神职、无警徽流
+ */
+const isStandardGame = (gameSetup) => {
+  if (!gameSetup) return true; // 默认为标准局
+  return gameSetup.id === 'standard_8' || gameSetup.TOTAL_PLAYERS === 8;
+};
+
+/**
+ * 判断是否是大型局（12人局）
+ * 12人局特点：有警徽流
+ */
+const isLargeGame = (gameSetup) => {
+  if (!gameSetup) return false;
+  return gameSetup.TOTAL_PLAYERS >= 12;
+};
+
+/**
+ * 检查游戏是否包含特定角色
+ */
+const hasRole = (gameSetup, roleName) => {
+  if (!gameSetup || !gameSetup.STANDARD_ROLES) return true; // 默认假设有
+  return gameSetup.STANDARD_ROLES.includes(roleName);
+};
+
+// ============================================================
 // P0-1: 角色人格系统 (Role-Specific Persona)
 // 基于报告理论：每个角色的思考逻辑由其职能、信息量和生存压力决定
 // ============================================================
@@ -112,9 +152,34 @@ const ROLE_PERSONAS = {
 export const buildPersonaPrompt = (player, gameState) => {
     const persona = ROLE_PERSONAS[player.role] || ROLE_PERSONAS['村民'];
     const personality = player.personality;
+    const gameSetup = gameState?.gameSetup;
 
-    // 动态调整思维维度
-    const relevantDimensions = persona.thinkingDimensions.slice(0, 3).join('\n  - ');
+    // 动态调整思维维度（根据局数配置过滤）
+    let thinkingDimensions = [...persona.thinkingDimensions];
+    let priorities = [...persona.priorities];
+
+    // 6人局/8人局：移除警徽流相关内容（警徽流是12人局的概念）
+    if (!isLargeGame(gameSetup)) {
+        thinkingDimensions = thinkingDimensions.filter(d => !d.includes('警徽'));
+        priorities = priorities.filter(p => !p.includes('警徽'));
+    }
+
+    // 6人局：移除守卫和猎人相关内容
+    if (isMiniGame(gameSetup)) {
+        thinkingDimensions = thinkingDimensions.filter(d =>
+            !d.includes('守卫') && !d.includes('猎人')
+        );
+        // 调整狼人刀法优先级描述
+        if (player.role === '狼人') {
+            thinkingDimensions = thinkingDimensions.map(d =>
+                d.includes('刀法规划')
+                    ? '刀法规划：根据发言抿神职身份，优先级：女巫>预言家>村民'
+                    : d
+            );
+        }
+    }
+
+    const relevantDimensions = thinkingDimensions.slice(0, 3).join('\n  - ');
 
     return `
 【角色原型】${persona.archetype}
@@ -122,7 +187,7 @@ export const buildPersonaPrompt = (player, gameState) => {
 【话风】${persona.speechStyle} + ${personality?.traits || '普通'}
 【思考维度】
   - ${relevantDimensions}
-【优先级】${persona.priorities.join(' > ')}
+【优先级】${priorities.join(' > ')}
 【禁忌】${persona.taboos.join(', ')}
 【博弈提示】${persona.signalGameTips}`;
 };
@@ -200,36 +265,48 @@ export const getAdversarialReflection = () => ADVERSARIAL_REFLECTION;
 
 // ============================================================
 // 原有策略系统（保留兼容性，整合到人格系统中）
+// 根据局数配置动态调整策略提示
 // ============================================================
 const STRATEGIES = {
-    '狼人': (isFirstDay, nightNum) => `【狼人策略】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水)。形势不利可倒钩或自爆。`,
-    '预言家': (isFirstDay, nightNum) => {
-        if (isFirstDay) {
-          return `【预言家策略】必跳身份!报验人(金水/查杀)。强势带队，分析心路，打飞查杀。`;
+    '狼人': (isFirstDay, nightNum, player, gameSetup) => {
+        // 6人局刀法优先级不同
+        if (isMiniGame(gameSetup)) {
+            return `【狼人策略】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水)。刀法优先级:女巫>预言家>村民。形势不利可倒钩或自爆。`;
         }
-        return `【预言家策略】继续报验人。号召全票放逐狼人。安排警徽流。`;
+        return `【狼人策略】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水)。形势不利可倒钩或自爆。`;
     },
-    '女巫': (isFirstDay, nightNum, player) => {
+    '预言家': (isFirstDay, nightNum, player, gameSetup) => {
+        // 只有12人局才有警徽流
+        const hasPolice = isLargeGame(gameSetup);
+        if (isFirstDay) {
+            return `【预言家策略】必跳身份!报验人(金水/查杀)。强势带队，分析心路，打飞查杀。`;
+        }
+        if (hasPolice) {
+            return `【预言家策略】继续报验人。号召全票放逐狼人。安排警徽流。`;
+        }
+        return `【预言家策略】继续报验人。号召全票放逐狼人。带领好人投票。`;
+    },
+    '女巫': (isFirstDay, nightNum, player, gameSetup) => {
         const shouldSave = nightNum <= 2 && player.hasWitchSave;
         return `【女巫策略】${shouldSave ? '前期救人了(银水)。' : ''}无药/有人对跳则跳身份报银水/毒亡。`;
     },
-    '猎人': (isFirstDay, nightNum) => `【猎人策略】好人阵营!开枪优先带走被查杀/悍跳狼/最像狼的人。死亡必开枪!`,
-    '守卫': (isFirstDay, nightNum) => `【守卫策略】${nightNum === 1 ? '首夜空守防同救。' : ''}防守神职/预言家。低调隐藏身份。`,
-    '村民': (isFirstDay, nightNum) => `【村民策略】敢于站边。接金水不反水。分析行为逻辑找狼。`
+    '猎人': (isFirstDay, nightNum, player, gameSetup) => `【猎人策略】好人阵营!开枪优先带走被查杀/悍跳狼/最像狼的人。死亡必开枪!`,
+    '守卫': (isFirstDay, nightNum, player, gameSetup) => `【守卫策略】${nightNum === 1 ? '首夜空守防同救。' : ''}防守神职/预言家。低调隐藏身份。`,
+    '村民': (isFirstDay, nightNum, player, gameSetup) => `【村民策略】敢于站边。接金水不反水。分析行为逻辑找狼。`
 };
 
-// Keep for compatibility during transition, or remove if fully migrated? 
-// We will export it but usage should be internal mainly. 
+// Keep for compatibility during transition, or remove if fully migrated?
+// We will export it but usage should be internal mainly.
 export const ROLE_STRATEGIES = STRATEGIES;
 
 // --- HELPER FUNCTIONS ---
 
 export const getWerewolfTerminology = () => TERMINOLOGY;
 
-export const buildRoleStrategy = (player, dayCount) => {
+export const buildRoleStrategy = (player, dayCount, gameSetup = null) => {
   const isFirstDay = dayCount === 1;
   const strategyFn = STRATEGIES[player.role] || STRATEGIES['村民'];
-  return strategyFn(isFirstDay, dayCount, player);
+  return strategyFn(isFirstDay, dayCount, player, gameSetup);
 };
 
 export const buildPrivateRoleInfo = (player, gameState) => {
@@ -284,7 +361,23 @@ export const buildPrivateRoleInfo = (player, gameState) => {
     return info;
 };
 
-export const buildGameTheoryRules = (isFirstSpeaker, playerRole, spokenPlayerIds = [], existingRoles = {}) => {
+// ============================================================
+// 核心规则常量：夜间流程与平安夜逻辑
+// ============================================================
+const CORE_GAME_RULES = `
+【核心规则 - 夜间流程】
+1. 夜间行动顺序：狼人杀人 → 女巫得知刀口并决定用药 → 守卫守护 → 预言家查验
+2. 女巫在夜间【先于结果宣告前】得知狼人刀的目标，可选择是否使用解药救人
+3. 若女巫使用解药救人，次日早上会宣告"平安夜"（无人死亡）
+4. 因此，【平安夜是女巫开药或守卫成功守护的直接证据】，而非"女巫不能救人"
+5. 女巫一晚只能使用一瓶药（解药或毒药），不能同时使用
+
+【平安夜分析要点】
+- 平安夜出现时，说明：①女巫救人了 或 ②守卫守对了 或 ③两者皆有
+- 平安夜后，女巫可以考虑跳身份报"银水"（救过的人）
+- 狼人可能利用平安夜制造混乱，声称"守卫守护成功"来转移注意力`;
+
+export const buildGameTheoryRules = (isFirstSpeaker, playerRole, spokenPlayerIds = [], existingRoles = {}, gameSetup = null) => {
   const attackRule = isFirstSpeaker
     ? '- 由于你是首个发言，尚未有人发言。你可以简单点评昨夜情况（如平安夜），或聊聊自己的身份底牌（也可以划水过）。切记：不要凭空捏造他人的发言或行为！因为还没人说话！'
     : (playerRole !== '狼人'
@@ -312,7 +405,19 @@ export const buildGameTheoryRules = (isFirstSpeaker, playerRole, spokenPlayerIds
   }
   const rolesInGame = roleSpecificRules.length > 0 ? `\n   - 本局存在的神职: ${roleSpecificRules.join(', ')}` : '';
 
+  // 根据局数生成局数提示
+  let gameTypeHint = '';
+  if (isMiniGame(gameSetup)) {
+    gameTypeHint = '\n【6人局特点】本局无猎人、无守卫。神职只有预言家和女巫，好人容错率低，需要精准找狼。';
+  } else if (isStandardGame(gameSetup)) {
+    gameTypeHint = '\n【8人局特点】本局有完整神职配置。无警徽流机制。';
+  } else if (isLargeGame(gameSetup)) {
+    gameTypeHint = '\n【大型局特点】本局有警徽流机制。预言家被刀后可将警徽传给信任的玩家。';
+  }
+
   return `
+${CORE_GAME_RULES}${gameTypeHint}
+
 【发言必须遵守的规则】
 1. 查重检查：首先检查【今日发言】，绝对不能重复别人的观点或问题。
 2. 夜间情报：如果有夜间信息(查验/刀口/守护)，必须第一时间报出来。【预言家】若验了好人，必报"X号是金水"，且【投票意向】不能投给金水！
@@ -471,11 +576,12 @@ export const generateSystemPrompt = (player, gameState, options = {}) => {
     const { includePersona = true, includeReflection = true } = options;
     const ctx = prepareGameContext(gameState);
     const roleInfo = buildPrivateRoleInfo(player, ctx.gameStateForRole);
-    const roleStrategy = buildRoleStrategy(player, ctx.dayCount);
+    const gameSetup = gameState?.gameSetup;
+    const roleStrategy = buildRoleStrategy(player, ctx.dayCount, gameSetup);
 
     // Check if first speaker
     const isFirstSpeaker = ctx.dayCount === 1 && (!ctx.todaySpeeches || ctx.todaySpeeches.trim() === '');
-    const rules = buildGameTheoryRules(isFirstSpeaker, player.role, ctx.spokenPlayerIds || [], ctx.existingRoles || {});
+    const rules = buildGameTheoryRules(isFirstSpeaker, player.role, ctx.spokenPlayerIds || [], ctx.existingRoles || {}, gameSetup);
 
     // P0增强：角色人格提示词
     const personaPrompt = includePersona ? buildPersonaPrompt(player, gameState) : '';
@@ -527,6 +633,11 @@ Step4: 我的投票意向应该指向谁（好人中最有威胁的）？
         const goldWaters = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
         const wolves = myChecks.filter(c => c.isWolf).map(c => c.targetId);
 
+        // 只有12人局才有警徽流
+        const hasPoliceFlow = isLargeGame(params.gameSetup);
+        const policeFlowPoint = hasPoliceFlow ? '\n4. 安排警徽流（如果你可能被刀）' : '';
+        const lastPointNumber = hasPoliceFlow ? '5' : '4';
+
         return `${getBaseContext(ctx)}
 【预言家专属任务】白天发言 - 报验人/带节奏
 
@@ -537,9 +648,8 @@ ${wolves.length > 0 ? `【查杀(狼人)】${wolves.join(',')}号 - 必须推出
 【预言家发言要点】
 1. 第一时间报出所有查验结果
 2. 分析"心路历程"：为什么查这个人
-3. 如果有人对跳，分析其逻辑漏洞
-4. 安排警徽流（如果你可能被刀）
-5. 带领好人投票，集中火力
+3. 如果有人对跳，分析其逻辑漏洞${policeFlowPoint}
+${lastPointNumber}. 带领好人投票，集中火力
 
 【思维链】
 Step1: 我今天需要报什么验人？
@@ -689,7 +799,9 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                 hasWitchSave: currentPlayer?.hasWitchSave,
                 hasWitchPoison: currentPlayer?.hasWitchPoison,
                 guardHistory: gameState.guardHistory || [],
-                lastGuardTarget: gameState.nightDecisions?.lastGuardTarget
+                lastGuardTarget: gameState.nightDecisions?.lastGuardTarget,
+                // 传递游戏配置用于区分6人局/8人局/12人局
+                gameSetup: gameState.gameSetup
             };
 
             // 返回角色特定的提示词
