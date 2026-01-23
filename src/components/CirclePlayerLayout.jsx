@@ -1,19 +1,17 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Send, Download, RotateCcw, AlertTriangle, Syringe, Crosshair, Vote, MinusCircle } from 'lucide-react';
 
-// 物理常量 - 调整为更轻盈柔和的泡泡效果
-const PHYSICS = {
-  CENTER_IDEAL_RADIUS: 31,       // 理想距离中心的半径（%）- 距面板一个卡片宽度
-  CENTER_SPRING_K: 0.015,        // 中心弹簧刚度（轻柔拉回）
-  CENTER_REPEL_K: 0.025,         // 中心排斥力（轻柔推开）
-  CENTER_MIN_RADIUS: 22,         // 最小允许距离中心的半径
-  NEIGHBOR_SPRING_K: 0.008,      // 相邻卡片弹簧刚度（更轻柔）
-  NEIGHBOR_IDEAL_DIST: 18,       // 相邻卡片理想间距（%）
-  CARD_REPEL_K: 0.02,            // 卡片间排斥力（轻柔）
-  CARD_MIN_DIST: 14,             // 卡片最小间距（%）
-  DAMPING: 0.96,                 // 阻尼系数（更高=更慢衰减=更飘）
-  VELOCITY_THRESHOLD: 0.005,     // 速度阈值（更低=动画更长）
-  LONG_PRESS_DURATION: 200,      // 长按触发拖拽的时间（ms）
+const clamp = (min, value, max) => Math.min(max, Math.max(min, value));
+
+const LAYOUT = {
+  RADIUS_FALLBACK: 31,
+  CARD_MIN: 56,
+  CARD_MAX: 96,
+  CARD_RATIO: 0.18,
+  PANEL_MIN: 120,
+  PANEL_MAX: 280,
+  PANEL_RATIO: 0.38,
+  GAP_MIN: 8
 };
 
 export function CirclePlayerLayout({
@@ -60,18 +58,23 @@ export function CirclePlayerLayout({
   exportGameLog,
   restartGame
 }) {
-  // 玩家卡片位置状态（用于拖拽和物理模拟）
+  const [layout, setLayout] = useState({
+    size: 0,
+    radius: 0,
+    card: 96,
+    cardHeight: 112,
+    panel: 240,
+    avatar: 48,
+    icon: 52
+  });
   const [cardPositions, setCardPositions] = useState({});
   const [draggingId, setDraggingId] = useState(null);
-  const [longPressTarget, setLongPressTarget] = useState(null); // 长按中的卡片
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const [previewPlayer, setPreviewPlayer] = useState(null);
   const containerRef = useRef(null);
-  const longPressTimerRef = useRef(null);
-
-  // 物理模拟状态
-  const velocitiesRef = useRef({}); // 每个卡片的速度 {id: {vx, vy}}
-  const physicsActiveRef = useRef(false);
-  const animationFrameRef = useRef(null);
+  const dragStateRef = useRef({ pointerId: null, activeId: null, moved: false, startX: 0, startY: 0 });
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const dragTargetRef = useRef(null);
+  const dragFrameRef = useRef(null);
 
   const getRoleIcon = (role, size = 16) => {
     switch(role) {
@@ -164,269 +167,217 @@ export function CirclePlayerLayout({
   const aliveList = players.filter(x => x.isAlive);
   const totalPlayers = players.length;
 
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateLayout = () => {
+      const rect = element.getBoundingClientRect();
+      const size = Math.min(rect.width, rect.height);
+      if (!size) return;
+
+      const gap = Math.max(LAYOUT.GAP_MIN, Math.round(size * 0.02));
+      const cardTarget = Math.round(size * LAYOUT.CARD_RATIO);
+      const cardMaxByContainer = Math.max(24, Math.floor((size - gap * 2) / 3));
+      const cardMin = Math.min(LAYOUT.CARD_MIN, cardMaxByContainer);
+      const card = clamp(cardMin, Math.min(cardTarget, cardMaxByContainer), LAYOUT.CARD_MAX);
+      const panelTarget = clamp(LAYOUT.PANEL_MIN, Math.round(size * LAYOUT.PANEL_RATIO), LAYOUT.PANEL_MAX);
+      const panelMax = size - (card * 3) - (gap * 2);
+      const panel = Math.max(0, Math.min(panelTarget, panelMax));
+      const radius = (panel / 2) + card;
+      const cardHeight = Math.round(card * 1.18);
+      const avatar = Math.round(card * 0.5);
+      const icon = clamp(32, Math.round(panel * 0.28), 64);
+
+      setLayout(prev => {
+        if (
+          prev.size === size
+          && prev.radius === radius
+          && prev.card === card
+          && prev.cardHeight === cardHeight
+          && prev.panel === panel
+          && prev.avatar === avatar
+          && prev.icon === icon
+        ) {
+          return prev;
+        }
+        return { size, radius, card, cardHeight, panel, avatar, icon };
+      });
+    };
+
+    updateLayout();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(updateLayout);
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, []);
+
   // 计算圆形布局的默认位置
   const getDefaultPosition = (index, total) => {
     const angle = (index / total) * 2 * Math.PI - Math.PI / 2;
-    const radius = PHYSICS.CENTER_IDEAL_RADIUS; // 使用物理常量保持一致
-    const x = 50 + radius * Math.cos(angle);
-    const y = 50 + radius * Math.sin(angle);
+    const radiusPercent = layout.size
+      ? (layout.radius / layout.size) * 100
+      : LAYOUT.RADIUS_FALLBACK;
+    const x = 50 + radiusPercent * Math.cos(angle);
+    const y = 50 + radiusPercent * Math.sin(angle);
     return { x, y };
   };
 
-  // 获取玩家卡片的当前位置（优先使用拖拽位置）
-  const getCardPosition = (playerId, index) => {
-    if (cardPositions[playerId]) {
-      return cardPositions[playerId];
-    }
-    return getDefaultPosition(index, totalPlayers);
+  const getPointerPercent = (clientX, clientY) => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return {
+      x: ((clientX - rect.left) / rect.width) * 100,
+      y: ((clientY - rect.top) / rect.height) * 100
+    };
   };
 
-  // 长按开始 - 触发拖拽准备
-  const handlePressStart = useCallback((e, playerId) => {
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const scheduleDragUpdate = (id, x, y) => {
+    dragTargetRef.current = { id, x, y };
+    if (dragFrameRef.current) return;
+    dragFrameRef.current = requestAnimationFrame(() => {
+      dragFrameRef.current = null;
+      const target = dragTargetRef.current;
+      if (!target) return;
+      setCardPositions(prev => ({
+        ...prev,
+        [target.id]: { x: target.x, y: target.y }
+      }));
+    });
+  };
 
-    dragStartRef.current = { x: clientX, y: clientY };
-    setLongPressTarget(playerId);
-
-    // 设置长按定时器
-    longPressTimerRef.current = setTimeout(() => {
-      setDraggingId(playerId);
-      setLongPressTarget(null);
-      // 添加震动反馈（移动端）
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, PHYSICS.LONG_PRESS_DURATION);
-  }, []);
-
-  // 长按取消（用户松开或移动）
-  const handlePressCancel = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
+  const handlePointerDown = (event, playerId, index, isAlive) => {
+    if (!isAlive) return;
+    event.preventDefault();
+    const pointer = getPointerPercent(event.clientX, event.clientY);
+    if (!pointer) return;
+    const currentPos = cardPositions[playerId] || getDefaultPosition(index, totalPlayers);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      activeId: playerId,
+      moved: false,
+      startX: pointer.x,
+      startY: pointer.y
+    };
+    dragOffsetRef.current = {
+      x: pointer.x - currentPos.x,
+      y: pointer.y - currentPos.y
+    };
+    if (event.currentTarget.setPointerCapture) {
+      event.currentTarget.setPointerCapture(event.pointerId);
     }
-    setLongPressTarget(null);
-  }, []);
+  };
 
-  // 拖拽移动
-  const handleDragMove = useCallback((e) => {
-    if (draggingId === null || !containerRef.current) return;
+  const handlePointerMove = (event) => {
+    const state = dragStateRef.current;
+    if (state.pointerId !== event.pointerId || state.activeId === null) return;
+    const pointer = getPointerPercent(event.clientX, event.clientY);
+    if (!pointer) return;
 
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = pointer.x - state.startX;
+    const dy = pointer.y - state.startY;
+    const distance = Math.hypot(dx, dy);
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const deltaX = ((clientX - dragStartRef.current.x) / rect.width) * 100;
-    const deltaY = ((clientY - dragStartRef.current.y) / rect.height) * 100;
-
-    const playerIndex = players.findIndex(p => p.id === draggingId);
-    const currentPos = cardPositions[draggingId] || getDefaultPosition(playerIndex, totalPlayers);
-
-    const newX = Math.max(5, Math.min(95, currentPos.x + deltaX));
-    const newY = Math.max(5, Math.min(95, currentPos.y + deltaY));
-
-    setCardPositions(prev => ({
-      ...prev,
-      [draggingId]: { x: newX, y: newY }
-    }));
-
-    dragStartRef.current = { x: clientX, y: clientY };
-  }, [draggingId, cardPositions, players, totalPlayers]);
-
-  // 物理模拟 - 计算力并更新位置
-  const runPhysicsStep = useCallback(() => {
-    if (draggingId !== null) {
-      // 拖拽中不运行物理模拟
-      physicsActiveRef.current = false;
+    if (!state.moved && distance < 0.6) {
       return;
     }
 
-    setCardPositions(prevPositions => {
-      const newPositions = { ...prevPositions };
-      let totalKineticEnergy = 0;
-
-      // 遍历所有玩家计算力
-      players.forEach((player, index) => {
-        const pos = newPositions[player.id] || getDefaultPosition(index, totalPlayers);
-        let velocity = velocitiesRef.current[player.id] || { vx: 0, vy: 0 };
-
-        // 计算到中心的距离
-        const dx = pos.x - 50;
-        const dy = pos.y - 50;
-        const distToCenter = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-
-        let fx = 0, fy = 0;
-
-        // 1. 中心弹簧力 - 过远拉回，过近推开
-        if (distToCenter > PHYSICS.CENTER_IDEAL_RADIUS) {
-          // 过远 - 磁铁吸引力
-          const overDist = distToCenter - PHYSICS.CENTER_IDEAL_RADIUS;
-          const forceMag = overDist * PHYSICS.CENTER_SPRING_K;
-          fx -= forceMag * Math.cos(angle);
-          fy -= forceMag * Math.sin(angle);
-        } else if (distToCenter < PHYSICS.CENTER_MIN_RADIUS) {
-          // 过近 - 弹簧推开力
-          const underDist = PHYSICS.CENTER_MIN_RADIUS - distToCenter;
-          const forceMag = underDist * PHYSICS.CENTER_REPEL_K;
-          fx += forceMag * Math.cos(angle);
-          fy += forceMag * Math.sin(angle);
-        }
-
-        // 2. 相邻卡片弹力绳约束（按编号顺序）
-        const prevIndex = (index - 1 + players.length) % players.length;
-        const nextIndex = (index + 1) % players.length;
-
-        [prevIndex, nextIndex].forEach(neighborIdx => {
-          const neighborPos = newPositions[players[neighborIdx].id] ||
-            getDefaultPosition(neighborIdx, totalPlayers);
-          const ndx = neighborPos.x - pos.x;
-          const ndy = neighborPos.y - pos.y;
-          const neighborDist = Math.sqrt(ndx * ndx + ndy * ndy);
-
-          if (neighborDist > 0.1) {
-            const idealDist = PHYSICS.NEIGHBOR_IDEAL_DIST;
-            const distDiff = neighborDist - idealDist;
-            const neighborAngle = Math.atan2(ndy, ndx);
-            const springForce = distDiff * PHYSICS.NEIGHBOR_SPRING_K;
-            fx += springForce * Math.cos(neighborAngle);
-            fy += springForce * Math.sin(neighborAngle);
-          }
-        });
-
-        // 3. 卡片间排斥力（防止重叠）
-        players.forEach((other, otherIdx) => {
-          if (other.id === player.id) return;
-          const otherPos = newPositions[other.id] || getDefaultPosition(otherIdx, totalPlayers);
-          const odx = pos.x - otherPos.x;
-          const ody = pos.y - otherPos.y;
-          const otherDist = Math.sqrt(odx * odx + ody * ody);
-
-          if (otherDist < PHYSICS.CARD_MIN_DIST && otherDist > 0.1) {
-            const repelForce = (PHYSICS.CARD_MIN_DIST - otherDist) * PHYSICS.CARD_REPEL_K;
-            const repelAngle = Math.atan2(ody, odx);
-            fx += repelForce * Math.cos(repelAngle);
-            fy += repelForce * Math.sin(repelAngle);
-          }
-        });
-
-        // 更新速度和位置
-        velocity.vx = (velocity.vx + fx) * PHYSICS.DAMPING;
-        velocity.vy = (velocity.vy + fy) * PHYSICS.DAMPING;
-
-        const newX = Math.max(8, Math.min(92, pos.x + velocity.vx));
-        const newY = Math.max(8, Math.min(92, pos.y + velocity.vy));
-
-        newPositions[player.id] = { x: newX, y: newY };
-        velocitiesRef.current[player.id] = velocity;
-
-        totalKineticEnergy += velocity.vx * velocity.vx + velocity.vy * velocity.vy;
-      });
-
-      // 检查是否应该停止模拟
-      if (totalKineticEnergy < PHYSICS.VELOCITY_THRESHOLD * players.length) {
-        physicsActiveRef.current = false;
-      } else {
-        // 继续下一帧
-        animationFrameRef.current = requestAnimationFrame(runPhysicsStep);
-      }
-
-      return newPositions;
-    });
-  }, [players, totalPlayers, draggingId]);
-
-  // 启动物理模拟
-  const startPhysics = useCallback(() => {
-    if (physicsActiveRef.current) return;
-    physicsActiveRef.current = true;
-    animationFrameRef.current = requestAnimationFrame(runPhysicsStep);
-  }, [runPhysicsStep]);
-
-  // 拖拽结束
-  const handleDragEnd = useCallback(() => {
-    // 清除长按定时器
-    handlePressCancel();
-
-    if (draggingId !== null) {
-      setDraggingId(null);
-      // 拖拽结束后启动物理模拟
-      setTimeout(() => startPhysics(), 50);
-    }
-  }, [startPhysics, draggingId, handlePressCancel]);
-
-  // 绑定全局事件（拖拽和长按取消）
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      handleDragEnd();
-    };
-
-    const handleGlobalTouchEnd = () => {
-      handleDragEnd();
-    };
-
-    // 始终监听mouseup和touchend以处理长按取消
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    window.addEventListener('touchend', handleGlobalTouchEnd);
-
-    // 只有在拖拽中才监听移动事件
-    if (draggingId !== null) {
-      window.addEventListener('mousemove', handleDragMove);
-      window.addEventListener('touchmove', handleDragMove, { passive: false });
+    if (!state.moved) {
+      state.moved = true;
+      setDraggingId(state.activeId);
     }
 
-    return () => {
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-      window.removeEventListener('touchend', handleGlobalTouchEnd);
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('touchmove', handleDragMove);
-    };
-  }, [draggingId, handleDragMove, handleDragEnd]);
-
-  // 重置所有位置和速度
-  const resetPositions = () => {
-    // 停止物理模拟
-    physicsActiveRef.current = false;
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    // 清除速度和位置
-    velocitiesRef.current = {};
-    setCardPositions({});
+    const newX = clamp(5, pointer.x - dragOffsetRef.current.x, 95);
+    const newY = clamp(5, pointer.y - dragOffsetRef.current.y, 95);
+    scheduleDragUpdate(state.activeId, newX, newY);
   };
 
-  // 组件卸载时清理动画帧
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+  const handlePointerUp = (event, playerId, isAlive) => {
+    const state = dragStateRef.current;
+    if (state.pointerId !== event.pointerId || state.activeId !== playerId) return;
+    if (event.currentTarget.releasePointerCapture) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (state.moved) {
+      const target = dragTargetRef.current;
+      if (target && target.id === playerId) {
+        setCardPositions(prev => ({
+          ...prev,
+          [playerId]: { x: target.x, y: target.y }
+        }));
       }
-    };
-  }, []);
+      setDraggingId(null);
+    } else if (isAlive) {
+      setSelectedTarget(playerId);
+    }
+
+    dragStateRef.current = { pointerId: null, activeId: null, moved: false, startX: 0, startY: 0 };
+    dragTargetRef.current = null;
+  };
+
+  const resetPositions = () => {
+    setCardPositions({});
+    setDraggingId(null);
+  };
+
+  const phaseIconSize = Math.max(18, Math.round(layout.icon * 0.6));
 
   // 获取游戏阶段显示文字
   const getPhaseText = () => {
-    if (phase === 'night') return { icon: <Moon size={28} />, text: `第${dayCount}夜`, color: 'text-indigo-400' };
-    if (phase === 'day_discussion') return { icon: <Sun size={28} />, text: `第${dayCount}天 - 讨论`, color: 'text-amber-400' };
-    if (phase === 'day_voting') return { icon: <Sun size={28} />, text: `第${dayCount}天 - 投票`, color: 'text-orange-400' };
-    if (phase === 'day_announce') return { icon: <Sun size={28} />, text: `第${dayCount}天 - 公告`, color: 'text-yellow-400' };
-    if (phase === 'hunter_shoot') return { icon: <Target size={28} />, text: '猎人开枪', color: 'text-red-400' };
+    if (phase === 'night') return { icon: <Moon size={phaseIconSize} />, text: `第${dayCount}夜`, color: 'text-indigo-400' };
+    if (phase === 'day_discussion') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 讨论`, color: 'text-amber-400' };
+    if (phase === 'day_voting') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 投票`, color: 'text-orange-400' };
+    if (phase === 'day_announce') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 公告`, color: 'text-yellow-400' };
+    if (phase === 'hunter_shoot') return { icon: <Target size={phaseIconSize} />, text: '猎人开枪', color: 'text-red-400' };
     if (phase === 'game_over') return { icon: null, text: '游戏结束', color: 'text-emerald-400' };
     return { icon: null, text: '', color: 'text-zinc-400' };
   };
 
   const phaseInfo = getPhaseText();
+  const layoutStyle = {
+    '--panel-size': `${layout.panel}px`,
+    '--card-width': `${layout.card}px`,
+    '--card-height': `${layout.cardHeight}px`,
+    '--avatar-size': `${layout.avatar}px`,
+    '--icon-size': `${layout.icon}px`
+  };
+
+  useEffect(() => {
+    if (!previewPlayer) return;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setPreviewPlayer(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewPlayer]);
+
+  useEffect(() => {
+    return () => {
+      if (dragFrameRef.current) {
+        cancelAnimationFrame(dragFrameRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full aspect-square max-w-5xl mx-auto">
+    <div ref={containerRef} className="relative w-full aspect-square max-w-5xl mx-auto" style={layoutStyle}>
       {/* 中央状态区域 - 圆形面板 */}
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-        <div className="bg-zinc-900/95 border-2 border-zinc-700 rounded-full p-6 md:p-10 shadow-2xl backdrop-blur-lg w-[16rem] h-[16rem] md:w-[20rem] md:h-[20rem] flex items-center justify-center">
+        <div className="bg-zinc-900/95 border-2 border-zinc-700 rounded-full p-3 sm:p-4 md:p-6 shadow-2xl backdrop-blur-lg w-[var(--panel-size)] h-[var(--panel-size)] flex items-center justify-center">
           <div className={`flex flex-col items-center gap-2 ${phaseInfo.color} w-full`}>
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 border-2 border-zinc-700 flex items-center justify-center shadow-xl">
+            <div className="w-[var(--icon-size)] h-[var(--icon-size)] rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 border-2 border-zinc-700 flex items-center justify-center shadow-xl">
               {phaseInfo.icon}
             </div>
-            <span className="text-base md:text-lg font-black tracking-wide leading-tight text-center">{phaseInfo.text}</span>
+            <span className="text-sm sm:text-base md:text-lg font-black tracking-wide leading-tight text-center">{phaseInfo.text}</span>
 
             {/* 发言顺序选择 */}
             {phase === 'day_discussion' && speakerIndex >= 0 && setSpeakingOrder && (
@@ -671,7 +622,6 @@ export function CirclePlayerLayout({
               </div>
             )}
 
-            {/* 重置位置按钮 */}
             {Object.keys(cardPositions).length > 0 && (
               <button
                 onClick={resetPositions}
@@ -680,69 +630,60 @@ export function CirclePlayerLayout({
                 重置卡片位置
               </button>
             )}
+
           </div>
         </div>
       </div>
 
-      {/* 圆形排列的玩家卡片 - 可拖拽 */}
+      {/* 圆形排列的玩家卡片 */}
       {players.map((p, index) => {
-        const { x, y } = getCardPosition(p.id, index);
+        const { x, y } = cardPositions[p.id] || getDefaultPosition(index, totalPlayers);
         const isTeammate = userPlayer?.role === '狼人' && p.role === '狼人' && p.id !== userPlayer.id;
         const isSpeaking = (aliveList[speakerIndex])?.id === p.id;
-        const isDragging = draggingId === p.id;
         const actionIcons = getPlayerActionIcons(p.id);
+        const isDragging = draggingId === p.id;
 
         return (
           <div
             key={p.id}
-            className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all ${isDragging ? 'z-50 scale-105' : 'z-20'}`}
+            className={`absolute transform -translate-x-1/2 -translate-y-1/2 ${isDragging ? 'z-50' : 'z-20'}`}
             style={{
               left: `${x}%`,
               top: `${y}%`,
-              transition: isDragging ? 'none' : 'all 0.3s ease-out'
+              transition: isDragging ? 'none' : 'left 0.2s ease, top 0.2s ease'
             }}
           >
-            {/* 玩家卡片 - 长按可拖拽 */}
+            {/* 玩家卡片 */}
             <div
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handlePressStart(e, p.id);
-              }}
-              onTouchStart={(e) => handlePressStart(e, p.id)}
-              onMouseUp={() => {
-                // 如果不是拖拽中，则是点击选择
-                if (draggingId !== p.id && p.isAlive) {
-                  handlePressCancel();
-                  setSelectedTarget(p.id);
-                }
-              }}
-              onTouchEnd={() => {
-                // 如果不是拖拽中，则是点击选择
-                if (draggingId !== p.id && p.isAlive && !longPressTarget) {
-                  setSelectedTarget(p.id);
-                }
-              }}
+              onPointerDown={(event) => handlePointerDown(event, p.id, index, p.isAlive)}
+              onPointerMove={handlePointerMove}
+              onPointerUp={(event) => handlePointerUp(event, p.id, p.isAlive)}
+              onPointerCancel={(event) => handlePointerUp(event, p.id, p.isAlive)}
               className={`
-                relative p-3 rounded-2xl border-2 transition-all select-none
-                w-[6.5rem] min-h-[7.5rem] flex flex-col items-center
+                relative p-2 sm:p-3 rounded-2xl border-2 transition-transform select-none touch-none
+                w-[var(--card-width)] min-h-[var(--card-height)] flex flex-col items-center
                 ${selectedTarget === p.id ? 'border-indigo-500 bg-indigo-500/20 ring-4 ring-indigo-500/30 scale-110' : 'bg-zinc-900/95 border-zinc-700'}
-                ${!p.isAlive ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer hover:border-zinc-500 hover:scale-105'}
+                ${!p.isAlive ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-grab hover:border-zinc-500 hover:scale-105'}
                 ${isSpeaking ? 'ring-2 ring-emerald-500 animate-pulse' : ''}
-                ${isDragging ? 'shadow-2xl ring-2 ring-cyan-400/50 scale-110 cursor-grabbing' : 'shadow-xl'}
-                ${longPressTarget === p.id ? 'ring-2 ring-cyan-400/30 scale-105' : ''}
+                ${isDragging ? 'shadow-2xl ring-2 ring-indigo-400/40 scale-105 cursor-grabbing' : 'shadow-xl'}
                 backdrop-blur-sm
               `}
             >
 
               {/* 玩家编号 */}
-              <span className="absolute -top-2 -left-1 text-xs font-black text-zinc-100 bg-zinc-700 px-2 py-0.5 rounded-full border border-zinc-600 leading-none shadow-lg">
+              <span className="absolute -top-2 -left-1 text-[10px] sm:text-xs font-black text-zinc-100 bg-zinc-700 px-2 py-0.5 rounded-full border border-zinc-600 leading-none shadow-lg">
                 {p.id}
               </span>
 
               {/* 头像 */}
               <div
-                className="w-12 h-12 rounded-full border-2 border-white/20 overflow-hidden relative shadow-lg mt-2"
+                className="w-[var(--avatar-size)] h-[var(--avatar-size)] rounded-full border-2 border-white/20 overflow-hidden relative shadow-lg mt-2 cursor-zoom-in"
                 style={{backgroundColor: p.avatarColor}}
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerUp={(event) => {
+                  event.stopPropagation();
+                  setPreviewPlayer(p);
+                }}
               >
                 {p.avatarUrl ? (
                   <img
@@ -766,7 +707,7 @@ export function CirclePlayerLayout({
               </div>
 
               {/* 名字 */}
-              <span className="text-xs font-bold mt-1.5 truncate w-full text-center leading-tight">{p.name}</span>
+              <span className="text-[10px] sm:text-xs font-bold mt-1.5 truncate w-full text-center leading-tight">{p.name}</span>
 
               {/* AI模型名称 */}
               {!p.isUser && AI_MODELS.length > 0 && (
@@ -807,6 +748,43 @@ export function CirclePlayerLayout({
           </div>
         );
       })}
+
+      {previewPlayer && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => setPreviewPlayer(null)}
+        >
+          <div
+            className="relative w-[min(90vw,420px)] aspect-square bg-zinc-900/95 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {previewPlayer.avatarUrl ? (
+              <img
+                src={previewPlayer.avatarUrl}
+                alt={previewPlayer.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-zinc-400"
+                style={{ backgroundColor: previewPlayer.avatarColor }}
+              >
+                <User size={48} className="text-white/60" />
+              </div>
+            )}
+            <div className="absolute bottom-0 left-0 right-0 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
+              <div className="text-sm font-bold text-zinc-100">{previewPlayer.name}</div>
+              <div className="text-[10px] text-zinc-300">{previewPlayer.role || '身份未知'}</div>
+            </div>
+            <button
+              className="absolute top-3 right-3 text-zinc-300 hover:text-white text-xs bg-zinc-800/80 px-2 py-1 rounded-full"
+              onClick={() => setPreviewPlayer(null)}
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -51,6 +51,6 @@ export const PERSONALITIES = [
   { type: 'cunning', name: '心机王', traits: '善于伪装和误导，喜欢带节奏和引导舆论。' }
 ];
 
-export const NAMES = ['阿强', '翠花', '小明', '老王', '杰克', '露西', '小红', '大刘'];
+export const NAMES = ['Harry', 'Hermione', 'Ron', 'Draco', 'Luna', 'Neville', 'Ginny', 'Snape', 'Dumbledore', 'Hagrid', 'Sirius', 'McGonagall'];
 
 export const DEFAULT_TOTAL_PLAYERS = 8;

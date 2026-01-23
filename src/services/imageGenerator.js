@@ -262,6 +262,7 @@ const generateWithSiliconFlow = async (prompt, provider) => {
  * @param {string} gameMode - Game mode: 'ai-only' or 'player'
  */
 export const generateAvatarPrompt = (player, isUserPlayer = false, gameMode = 'ai-only') => {
+  const nameHint = player?.name ? `Character named ${player.name}. ` : '';
   // 用户玩家使用猫咪头像
   if (isUserPlayer) {
     const personalityMap = {
@@ -272,7 +273,7 @@ export const generateAvatarPrompt = (player, isUserPlayer = false, gameMode = 'a
     };
 
     const personalityType = player.personality?.type || 'steady';
-    return personalityMap[personalityType] || 'A cute fluffy cat with bright eyes, digital art portrait';
+    return `${nameHint}${personalityMap[personalityType] || 'A cute fluffy cat with bright eyes, digital art portrait'}`;
   }
 
   // 玩家模式：使用中性角色头像，不透露身份
@@ -301,7 +302,7 @@ export const generateAvatarPrompt = (player, isUserPlayer = false, gameMode = 'a
     const trait = personalityTraits[personalityType] || '';
     // 使用玩家ID作为随机种子选择提示词
     const promptIndex = player.id % neutralPrompts.length;
-    return `${neutralPrompts[promptIndex]}${trait}, high quality digital art`;
+    return `${nameHint}${neutralPrompts[promptIndex]}${trait}, high quality digital art`;
   }
 
   // AI模式：使用基于角色的头像
@@ -314,7 +315,7 @@ export const generateAvatarPrompt = (player, isUserPlayer = false, gameMode = 'a
     '村民': 'A friendly villager in casual clothes, warm smile, village background, fantasy portrait'
   };
 
-  const basePrompt = rolePrompts[player.role] || 'A friendly character portrait, fantasy art style';
+  const basePrompt = `${nameHint}${rolePrompts[player.role] || 'A friendly character portrait, fantasy art style'}`;
 
   const personalityTraits = {
     'logical': ', analytical and serious expression',

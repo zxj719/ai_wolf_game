@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useWerewolfGame } from './useWerewolfGame';
 import { SetupScreen } from './components/SetupScreen';
 import { GameArena } from './components/GameArena';
+import { AuthPage } from './components/Auth';
+import { useAuth } from './contexts/AuthContext';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS } from './config/roles';
 import { API_KEY, API_URL, AI_MODELS as DEFAULT_AI_MODELS, AI_PROVIDER, SILICONFLOW_FALLBACK_MODELS } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
@@ -13,6 +15,8 @@ import { fetchSiliconFlowChatModels } from './services/aiClient';
 const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
 
 export default function App() {
+  const { user, loading: authLoading, logout } = useAuth();
+  const [isGuestMode, setIsGuestMode] = useState(false);
   const [gameMode, setGameMode] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState(GAME_SETUPS[0]);
   const [isThinking, setIsThinking] = useState(false);
@@ -127,7 +131,11 @@ export default function App() {
       disabledModelsRef,
       API_URL,
       API_KEY,
-      AI_MODELS: aiModels
+      AI_MODELS: aiModels,
+      // 游戏配置（用于区分6人局/8人局等不同规则）
+      gameSetup: selectedSetup,
+      // 整局夜间行动历史（包含所有夜晚的行动记录，而非每天刷新）
+      nightActionHistory
     });
 
   const checkGameEnd = (currentPlayers = players) => {
@@ -947,11 +955,47 @@ export default function App() {
     return roles[nightStep] || '';
   };
 
+  // 认证加载中
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-zinc-400">加载中...</div>
+      </div>
+    );
+  }
+
+  // 未登录且不是游客模式，显示登录页面
+  if (!user && !isGuestMode) {
+    return <AuthPage onGuestPlay={() => setIsGuestMode(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      {/* 用户信息栏 */}
+      {user && phase === 'setup' && !gameMode && (
+        <div className="absolute top-4 right-4 flex items-center gap-3 z-50">
+          <span className="text-zinc-400 text-sm">
+            欢迎, <span className="text-zinc-200">{user.username}</span>
+          </span>
+          <button
+            onClick={logout}
+            className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
+          >
+            登出
+          </button>
+        </div>
+      )}
+
+      {/* 游客模式提示 */}
+      {isGuestMode && !user && phase === 'setup' && !gameMode && (
+        <div className="absolute top-4 right-4 z-50">
+          <span className="text-zinc-500 text-sm">游客模式</span>
+        </div>
+      )}
+
       {/* 模式选择界面 */}
       {phase === 'setup' && !gameMode && (
-        <SetupScreen 
+        <SetupScreen
           gameMode={gameMode}
           setGameMode={setGameMode}
           selectedSetup={selectedSetup}

@@ -310,28 +310,25 @@ export const buildRoleStrategy = (player, dayCount, gameSetup = null) => {
 };
 
 export const buildPrivateRoleInfo = (player, gameState) => {
-    // Adapter for old call signature vs new simplified gameState object
-    // Old: (player, { seerChecks, nightDecisions, witchHistory, guardHistory, players, dayCount })
-    // New: (player, gameState) where gameState has all these.
-    
-    // We try to support both styles or standardize on one.
-    // The passed 'gameState' usually comes from useAI which passes a big object.
-    
+    // 注意：所有历史记录（seerChecks, guardHistory, witchHistory）都包含整局游戏的数据
+    // 这些记录在整个游戏过程中累积，而不是每天刷新
+
     // Deconstruct safe properties
     const seerChecks = gameState.seerChecks || [];
     const nightDecisions = gameState.nightDecisions || {};
     const witchHistory = gameState.witchHistory || { savedIds: [], poisonedIds: [] };
     const guardHistory = gameState.guardHistory || [];
     const players = gameState.players || [];
-    
+
     let info = '';
 
     switch (player.role) {
         case '预言家':
             const myChecks = seerChecks.filter(c => c.seerId === player.id);
+            // 整局查验记录，包含从第一夜到现在的所有查验
             info = myChecks.length > 0
-                ? `【历史查验】${myChecks.map(c => `N${c.night}:${c.targetId}号是${c.isWolf ? '狼' : '好人'}`).join(';')}`
-                : '【历史查验】无';
+                ? `【整局查验记录】${myChecks.map(c => `N${c.night}:${c.targetId}号是${c.isWolf ? '狼' : '好人'}`).join(';')}`
+                : '【整局查验记录】无';
             if (nightDecisions.seerResult?.targetId !== undefined) {
                  // Avoid duplicate if already in history?
                  if (!myChecks.some(c => c.targetId === nightDecisions.seerResult.targetId)) {
@@ -341,13 +338,15 @@ export const buildPrivateRoleInfo = (player, gameState) => {
             break;
         case '女巫':
             info = `【药】解:${player.hasWitchSave ? '有' : '无'} 毒:${player.hasWitchPoison ? '有' : '无'}`;
-            if (witchHistory.savedIds.length > 0) info += ` 救过:${witchHistory.savedIds.join(',')}号`;
-            if (witchHistory.poisonedIds.length > 0) info += ` 毒过:${witchHistory.poisonedIds.join(',')}号`;
+            // 整局用药记录
+            if (witchHistory.savedIds.length > 0) info += ` 【整局救人】${witchHistory.savedIds.join(',')}号`;
+            if (witchHistory.poisonedIds.length > 0) info += ` 【整局毒人】${witchHistory.poisonedIds.join(',')}号`;
             break;
         case '守卫':
+            // 整局守护记录
             info = guardHistory.length > 0
-                ? `【守】${guardHistory.map(g => `N${g.night}:${g.targetId}号`).join(';')}`
-                : '【守】无';
+                ? `【整局守护记录】${guardHistory.map(g => `N${g.night}:${g.targetId}号`).join(';')}`
+                : '【整局守护记录】无';
             if (nightDecisions.lastGuardTarget !== null) info += ` 禁守${nightDecisions.lastGuardTarget}号(连守)`;
             break;
         case '狼人':
@@ -526,6 +525,29 @@ export const prepareGameContext = (gameState) => {
     const priorDeaths = deathHistory.filter(d => d.day < targetNight || (d.day === targetNight && d.phase !== '夜'))
         .map(d => `D${d.day}${d.phase}: ${d.playerId}号${d.cause}`).join(';');
 
+    // 构建完整的游戏时间线（整局游戏的事件记录，而非每天刷新）
+    // 这有助于AI理解游戏的完整历史
+    const buildFullGameTimeline = () => {
+        const timeline = [];
+        for (let day = 1; day <= dayCount; day++) {
+            // 夜间死亡
+            const nightDeaths = deathHistory.filter(d => d.day === day && d.phase === '夜');
+            if (nightDeaths.length > 0) {
+                timeline.push(`N${day}:${nightDeaths.map(d => `${d.playerId}号死亡`).join(',')}`);
+            } else if (day < dayCount || (day === dayCount && phase !== 'night')) {
+                timeline.push(`N${day}:平安夜`);
+            }
+
+            // 白天投票出局
+            const dayDeaths = deathHistory.filter(d => d.day === day && (d.phase === '投票' || d.phase === '猎人枪'));
+            if (dayDeaths.length > 0) {
+                timeline.push(`D${day}:${dayDeaths.map(d => `${d.playerId}号${d.cause}`).join(',')}`);
+            }
+        }
+        return timeline.join(' → ');
+    };
+    const fullGameTimeline = buildFullGameTimeline();
+
     // 检测场上存在的角色（用于动态调整提示词）
     const existingRoles = new Set(players.map(p => p.role));
     const hasGuard = existingRoles.has('守卫');
@@ -562,7 +584,9 @@ export const prepareGameContext = (gameState) => {
             hasWitch,
             hasHunter,
             hasSeer
-        }
+        },
+        // 完整游戏时间线（整局游戏的事件记录）
+        fullGameTimeline
     };
 };
 
@@ -749,17 +773,18 @@ Step4: 我的投票应该投谁？
 
 /**
  * 获取基础上下文（所有角色共用）
+ * 注意：所有历史记录都包含整局游戏的数据，而非每天刷新
  */
 const getBaseContext = (ctx) => `第${ctx.dayCount}天${ctx.phase}。
+【整局时间线】${ctx.fullGameTimeline || '游戏刚开始'}
 【今日发言(不能重复)】
 ${ctx.todaySpeeches || '暂无'}
 
-【历史发言摘要】
+【历史发言摘要(整局)】
 ${ctx.historySpeeches || '暂无'}
 
 【昨夜情况】${ctx.lastNightInfo}
-【历史死亡】${ctx.deathInfo.split(';')[1] || '无'}
-【投票记录】${ctx.voteInfo}
+【投票记录(整局)】${ctx.voteInfo}
 ${ctx.spokenPlayerIds?.length > 0
     ? `\n【⚠️ 时序提醒】已发言玩家: ${ctx.spokenPlayerIds.join('号→')}号。只能评价已发言玩家！`
     : '\n【⚠️ 时序提醒】你是第一个发言，不能评价任何人的发言！'}`;

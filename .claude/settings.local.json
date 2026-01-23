@@ -4,7 +4,8 @@
       "Bash(wc:*)",
       "Bash(npm run build:*)",
       "Bash(npx eslint:*)",
-      "Bash(dir \"c:\\\\Users\\\\xingj\\\\Documents\\\\agent\\\\battle-web\")"
+      "Bash(dir \"c:\\\\Users\\\\xingj\\\\Documents\\\\agent\\\\battle-web\")",
+      "Bash(find:*)"
     ]
   }
 }
