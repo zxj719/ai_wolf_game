@@ -104,6 +104,117 @@ export async function authMiddleware(request, env) {
 }
 
 /**
+ * 全局 IP 限流配置
+ */
+const IP_RATE_LIMITS = {
+  // 全局请求限制：每分钟60次
+  global: { maxAttempts: 60, windowSeconds: 60 },
+  // 认证接口限制：每分钟10次
+  auth: { maxAttempts: 10, windowSeconds: 60 },
+  // 严格限制（登录/注册失败后）：每小时5次
+  strict: { maxAttempts: 5, windowSeconds: 3600 }
+};
+
+/**
+ * 全局 IP 拦截检查
+ * 返回 null 表示允许，返回 Response 表示拦截
+ */
+export async function checkGlobalIPLimit(request, env) {
+  const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+
+  // 检查是否在黑名单中
+  const blacklisted = await isIPBlacklisted(env, clientIP);
+  if (blacklisted) {
+    return errorResponse('IP blocked due to suspicious activity', 403, env, request);
+  }
+
+  // 检查全局请求频率
+  const globalCheck = await checkRateLimit(env, `global:${clientIP}`,
+    IP_RATE_LIMITS.global.maxAttempts,
+    IP_RATE_LIMITS.global.windowSeconds
+  );
+
+  if (!globalCheck.allowed) {
+    // 超过全局限制，加入临时黑名单
+    await addToBlacklist(env, clientIP, 3600); // 封禁1小时
+    return errorResponse(
+      `Too many requests. IP blocked for 1 hour.`,
+      429,
+      env,
+      request
+    );
+  }
+
+  return null;
+}
+
+/**
+ * 检查 IP 是否在黑名单中
+ */
+async function isIPBlacklisted(env, ip) {
+  if (!env.RATE_LIMIT) return false;
+
+  try {
+    const blacklisted = await env.RATE_LIMIT.get(`blacklist:${ip}`);
+    return blacklisted !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 将 IP 加入黑名单
+ */
+export async function addToBlacklist(env, ip, durationSeconds) {
+  if (!env.RATE_LIMIT) return;
+
+  try {
+    await env.RATE_LIMIT.put(`blacklist:${ip}`, JSON.stringify({
+      blockedAt: Date.now(),
+      reason: 'rate_limit_exceeded'
+    }), { expirationTtl: durationSeconds });
+  } catch (error) {
+    console.error('Failed to add to blacklist:', error);
+  }
+}
+
+/**
+ * 记录失败尝试（用于渐进式封禁）
+ */
+export async function recordFailedAttempt(env, ip) {
+  if (!env.RATE_LIMIT) return;
+
+  const key = `failed:${ip}`;
+  const now = Math.floor(Date.now() / 1000);
+
+  try {
+    const data = await env.RATE_LIMIT.get(key, 'json') || { count: 0, timestamps: [] };
+
+    // 只保留最近1小时的失败记录
+    const recentTimestamps = data.timestamps.filter(t => t > now - 3600);
+    recentTimestamps.push(now);
+
+    const failCount = recentTimestamps.length;
+
+    await env.RATE_LIMIT.put(key, JSON.stringify({
+      count: failCount,
+      timestamps: recentTimestamps
+    }), { expirationTtl: 3600 });
+
+    // 渐进式封禁
+    if (failCount >= 10) {
+      // 10次失败：封禁24小时
+      await addToBlacklist(env, ip, 86400);
+    } else if (failCount >= 5) {
+      // 5次失败：封禁1小时
+      await addToBlacklist(env, ip, 3600);
+    }
+  } catch (error) {
+    console.error('Failed to record failed attempt:', error);
+  }
+}
+
+/**
  * Rate Limiting - 使用KV存储
  * @param {string} key - 限制键（如 IP 或 email）
  * @param {number} maxAttempts - 最大尝试次数

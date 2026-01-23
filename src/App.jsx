@@ -4,6 +4,8 @@ import { SetupScreen } from './components/SetupScreen';
 import { GameArena } from './components/GameArena';
 import { AuthPage } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
+import { saveGameRecord } from './services/gameService';
+import { UserStats } from './components/UserStats';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS } from './config/roles';
 import { API_KEY, API_URL, AI_MODELS as DEFAULT_AI_MODELS, AI_PROVIDER, SILICONFLOW_FALLBACK_MODELS } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
@@ -27,7 +29,10 @@ export default function App() {
   const [speakingOrder, setSpeakingOrder] = useState('left');
   const [spokenCount, setSpokenCount] = useState(0);
   const [userInput, setUserInput] = useState('');
-  
+  const [gameResult, setGameResult] = useState(null); // 'good_win' | 'wolf_win' | null
+  const [gameStartTime, setGameStartTime] = useState(null);
+  const [showStats, setShowStats] = useState(false);
+
   const disabledModelsRef = useRef(new Set());
   const speakingLockRef = useRef(false); // 发言锁，防止并发
   const currentDayRef = useRef(1); // 追踪当前天数 
@@ -85,8 +90,34 @@ export default function App() {
   useEffect(() => {
     if (gameMode && phase === 'setup') {
         initGame(gameMode, selectedSetup);
+        setGameStartTime(Date.now());
+        setGameResult(null);
     }
   }, [gameMode, phase, selectedSetup]);
+
+  // 游戏结束时保存记录
+  useEffect(() => {
+    if (phase === 'game_over' && gameResult && userPlayer && !isGuestMode) {
+      const durationSeconds = gameStartTime
+        ? Math.floor((Date.now() - gameStartTime) / 1000)
+        : null;
+
+      // 判断用户是否获胜
+      const isWolf = userPlayer.role === ROLE_DEFINITIONS.WEREWOLF;
+      const userWon = (gameResult === 'wolf_win' && isWolf) || (gameResult === 'good_win' && !isWolf);
+
+      saveGameRecord({
+        role: userPlayer.role,
+        result: userWon ? 'win' : 'lose',
+        gameMode: gameMode,
+        durationSeconds
+      }).then(res => {
+        if (res.success) {
+          console.log('Game record saved successfully');
+        }
+      });
+    }
+  }, [phase, gameResult]);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,25 +173,29 @@ export default function App() {
     const aliveWolves = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.WEREWOLF).length;
     const aliveVillagers = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.VILLAGER).length;
     const aliveGods = currentPlayers.filter(p => p.isAlive && (p.role !== '狼人' && p.role !== '村民')).length;
-    
+
     console.log(`[GameCheck] Wolves: ${aliveWolves}, Villagers: ${aliveVillagers}, Gods: ${aliveGods}, Check State:`, currentPlayers.map(p => `${p.id}:${p.role[0]}:${p.isAlive?'alive':'dead'}`).join(','));
 
     const aliveGood = aliveVillagers + aliveGods;
-    
+
     if (aliveWolves === 0) {
       addLog("🎉 狼人全灭，好人胜利！", "success");
+      setGameResult('good_win');
       return 'good_win';
     }
     if (aliveVillagers === 0) {
       addLog("💀 村民全灭，狼人胜利（屠边）！", "danger");
+      setGameResult('wolf_win');
       return 'wolf_win';
     }
     if (aliveGods === 0) {
       addLog("💀 神职全灭，狼人胜利（屠边）！", "danger");
+      setGameResult('wolf_win');
       return 'wolf_win';
     }
     if (aliveWolves >= aliveGood) {
       addLog("💀 狼人数量大于等于好人，狼人胜利！", "danger");
+      setGameResult('wolf_win');
       return 'wolf_win';
     }
     return null;
@@ -978,6 +1013,12 @@ export default function App() {
             欢迎, <span className="text-zinc-200">{user.username}</span>
           </span>
           <button
+            onClick={() => setShowStats(true)}
+            className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors"
+          >
+            战绩
+          </button>
+          <button
             onClick={logout}
             className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
           >
@@ -985,6 +1026,9 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {/* 用户战绩弹窗 */}
+      {showStats && <UserStats onClose={() => setShowStats(false)} />}
 
       {/* 游客模式提示 */}
       {isGuestMode && !user && phase === 'setup' && !gameMode && (

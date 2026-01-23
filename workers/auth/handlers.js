@@ -11,8 +11,14 @@ import {
   checkRateLimit,
   isValidEmail,
   isValidPassword,
-  isValidUsername
+  isValidUsername,
+  recordFailedAttempt
 } from './middleware.js';
+import {
+  generateToken,
+  sendVerificationEmail,
+  sendPasswordResetEmail
+} from './email.js';
 
 /**
  * 用户注册
@@ -144,12 +150,17 @@ export async function handleLogin(request, env) {
       );
     }
 
+    // 获取客户端IP
+    const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+
     // 查找用户
     const user = await env.DB.prepare(
       'SELECT id, username, email, password_hash, email_verified FROM users WHERE email = ?'
     ).bind(email.toLowerCase()).first();
 
     if (!user) {
+      // 记录失败尝试
+      await recordFailedAttempt(env, clientIP);
       return errorResponse('Invalid email or password', 401, env, request);
     }
 
@@ -157,6 +168,8 @@ export async function handleLogin(request, env) {
     const isValid = await verifyPassword(password, user.password_hash);
 
     if (!isValid) {
+      // 记录失败尝试
+      await recordFailedAttempt(env, clientIP);
       return errorResponse('Invalid email or password', 401, env, request);
     }
 
@@ -358,4 +371,439 @@ export async function handleVerifyToken(request, env) {
       email: user.email
     }
   }, 200, env, request);
+}
+
+/**
+ * 保存游戏记录
+ * POST /api/game/record
+ */
+export async function handleSaveGameRecord(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    const body = await request.json();
+    const { role, result, gameMode, durationSeconds } = body;
+
+    // 验证输入
+    if (!role || !result || !gameMode) {
+      return errorResponse('role, result, and gameMode are required', 400, env, request);
+    }
+
+    if (!['win', 'lose'].includes(result)) {
+      return errorResponse('result must be "win" or "lose"', 400, env, request);
+    }
+
+    // 插入游戏记录
+    await env.DB.prepare(
+      `INSERT INTO game_history (user_id, role, result, game_mode, duration_seconds)
+       VALUES (?, ?, ?, ?, ?)`
+    ).bind(user.sub, role, result, gameMode, durationSeconds || null).run();
+
+    // 更新用户统计
+    const isWin = result === 'win';
+    await env.DB.prepare(
+      `UPDATE user_stats SET
+        total_games = total_games + 1,
+        wins = wins + ?,
+        losses = losses + ?,
+        win_rate = ROUND(CAST(wins + ? AS REAL) / (total_games + 1) * 100, 2)
+       WHERE user_id = ?`
+    ).bind(isWin ? 1 : 0, isWin ? 0 : 1, isWin ? 1 : 0, user.sub).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Game record saved'
+    }, 201, env, request);
+  } catch (error) {
+    console.error('Save game record error:', error);
+    return errorResponse('Failed to save game record: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 获取游戏历史
+ * GET /api/game/history?limit=20&offset=0
+ */
+export async function handleGetGameHistory(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    const url = new URL(request.url);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+
+    // 获取游戏历史
+    const history = await env.DB.prepare(
+      `SELECT id, role, result, game_mode, duration_seconds, created_at
+       FROM game_history
+       WHERE user_id = ?
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`
+    ).bind(user.sub, limit, offset).all();
+
+    // 获取总数
+    const countResult = await env.DB.prepare(
+      'SELECT COUNT(*) as total FROM game_history WHERE user_id = ?'
+    ).bind(user.sub).first();
+
+    return jsonResponse({
+      success: true,
+      history: history.results,
+      pagination: {
+        total: countResult.total,
+        limit,
+        offset,
+        hasMore: offset + limit < countResult.total
+      }
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Get game history error:', error);
+    return errorResponse('Failed to get game history: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 获取用户统计
+ * GET /api/user/stats
+ */
+export async function handleGetUserStats(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    const stats = await env.DB.prepare(
+      'SELECT total_games, wins, losses, win_rate FROM user_stats WHERE user_id = ?'
+    ).bind(user.sub).first();
+
+    // 获取角色统计
+    const roleStats = await env.DB.prepare(
+      `SELECT role,
+              COUNT(*) as games,
+              SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) as wins
+       FROM game_history
+       WHERE user_id = ?
+       GROUP BY role`
+    ).bind(user.sub).all();
+
+    // 获取最近战绩（最近10场）
+    const recentGames = await env.DB.prepare(
+      `SELECT result FROM game_history
+       WHERE user_id = ?
+       ORDER BY created_at DESC
+       LIMIT 10`
+    ).bind(user.sub).all();
+
+    return jsonResponse({
+      success: true,
+      stats: {
+        totalGames: stats?.total_games || 0,
+        wins: stats?.wins || 0,
+        losses: stats?.losses || 0,
+        winRate: stats?.win_rate || 0,
+        roleStats: roleStats.results,
+        recentResults: recentGames.results.map(g => g.result)
+      }
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    return errorResponse('Failed to get user stats: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 获取排行榜
+ * GET /api/leaderboard?limit=20
+ */
+export async function handleGetLeaderboard(request, env) {
+  try {
+    const url = new URL(request.url);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+
+    const leaderboard = await env.DB.prepare(
+      `SELECT u.username, s.total_games, s.wins, s.losses, s.win_rate
+       FROM user_stats s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.total_games >= 5
+       ORDER BY s.win_rate DESC, s.wins DESC
+       LIMIT ?`
+    ).bind(limit).all();
+
+    return jsonResponse({
+      success: true,
+      leaderboard: leaderboard.results.map((row, index) => ({
+        rank: index + 1,
+        username: row.username,
+        totalGames: row.total_games,
+        wins: row.wins,
+        losses: row.losses,
+        winRate: row.win_rate
+      }))
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    return errorResponse('Failed to get leaderboard: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 发送邮箱验证邮件
+ * POST /api/auth/send-verification
+ */
+export async function handleSendVerification(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    // Rate limiting: 每小时3次
+    const rateCheck = await checkRateLimit(env, `verify-email:${user.sub}`, 3, 3600);
+    if (!rateCheck.allowed) {
+      return errorResponse(
+        `Too many verification requests. Please try again in ${rateCheck.retryAfter} seconds.`,
+        429,
+        env,
+        request
+      );
+    }
+
+    // 检查是否已验证
+    const userRecord = await env.DB.prepare(
+      'SELECT email_verified, email, username FROM users WHERE id = ?'
+    ).bind(user.sub).first();
+
+    if (userRecord.email_verified === 1) {
+      return errorResponse('Email already verified', 400, env, request);
+    }
+
+    // 生成验证令牌
+    const token = generateToken(32);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24小时
+
+    // 删除旧的验证令牌
+    await env.DB.prepare(
+      'DELETE FROM verification_tokens WHERE user_id = ? AND type = ?'
+    ).bind(user.sub, 'email_verify').run();
+
+    // 保存新令牌
+    await env.DB.prepare(
+      `INSERT INTO verification_tokens (user_id, token, type, expires_at)
+       VALUES (?, ?, 'email_verify', ?)`
+    ).bind(user.sub, token, expiresAt).run();
+
+    // 发送邮件
+    const emailResult = await sendVerificationEmail(env, {
+      email: userRecord.email,
+      username: userRecord.username,
+      token
+    });
+
+    if (!emailResult.success) {
+      return errorResponse('Failed to send verification email', 500, env, request);
+    }
+
+    return jsonResponse({
+      success: true,
+      message: 'Verification email sent'
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Send verification error:', error);
+    return errorResponse('Failed to send verification email: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 验证邮箱
+ * POST /api/auth/verify-email
+ */
+export async function handleVerifyEmail(request, env) {
+  try {
+    const body = await request.json();
+    const { token } = body;
+
+    if (!token) {
+      return errorResponse('Token is required', 400, env, request);
+    }
+
+    // 查找令牌
+    const tokenRecord = await env.DB.prepare(
+      `SELECT user_id, expires_at FROM verification_tokens
+       WHERE token = ? AND type = 'email_verify'`
+    ).bind(token).first();
+
+    if (!tokenRecord) {
+      return errorResponse('Invalid or expired token', 400, env, request);
+    }
+
+    // 检查是否过期
+    if (new Date(tokenRecord.expires_at) < new Date()) {
+      // 删除过期令牌
+      await env.DB.prepare(
+        'DELETE FROM verification_tokens WHERE token = ?'
+      ).bind(token).run();
+      return errorResponse('Token has expired', 400, env, request);
+    }
+
+    // 更新用户邮箱验证状态
+    await env.DB.prepare(
+      'UPDATE users SET email_verified = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(tokenRecord.user_id).run();
+
+    // 删除已使用的令牌
+    await env.DB.prepare(
+      'DELETE FROM verification_tokens WHERE token = ?'
+    ).bind(token).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Email verified successfully'
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Verify email error:', error);
+    return errorResponse('Failed to verify email: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 忘记密码 - 发送重置邮件
+ * POST /api/auth/forgot-password
+ */
+export async function handleForgotPassword(request, env) {
+  try {
+    const body = await request.json();
+    const { email } = body;
+
+    if (!email) {
+      return errorResponse('Email is required', 400, env, request);
+    }
+
+    // Rate limiting: 每小时3次
+    const rateCheck = await checkRateLimit(env, `forgot-pwd:${email.toLowerCase()}`, 3, 3600);
+    if (!rateCheck.allowed) {
+      return errorResponse(
+        `Too many reset requests. Please try again in ${rateCheck.retryAfter} seconds.`,
+        429,
+        env,
+        request
+      );
+    }
+
+    // 查找用户（即使用户不存在也返回成功，防止枚举攻击）
+    const user = await env.DB.prepare(
+      'SELECT id, username, email FROM users WHERE email = ?'
+    ).bind(email.toLowerCase()).first();
+
+    if (user) {
+      // 生成重置令牌
+      const token = generateToken(32);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1小时
+
+      // 删除旧的重置令牌
+      await env.DB.prepare(
+        'DELETE FROM verification_tokens WHERE user_id = ? AND type = ?'
+      ).bind(user.id, 'password_reset').run();
+
+      // 保存新令牌
+      await env.DB.prepare(
+        `INSERT INTO verification_tokens (user_id, token, type, expires_at)
+         VALUES (?, ?, 'password_reset', ?)`
+      ).bind(user.id, token, expiresAt).run();
+
+      // 发送重置邮件
+      await sendPasswordResetEmail(env, {
+        email: user.email,
+        username: user.username,
+        token
+      });
+    }
+
+    // 无论用户是否存在都返回成功
+    return jsonResponse({
+      success: true,
+      message: 'If the email exists, a password reset link has been sent'
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return errorResponse('Failed to process request: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 重置密码
+ * POST /api/auth/reset-password
+ */
+export async function handleResetPassword(request, env) {
+  try {
+    const body = await request.json();
+    const { token, password } = body;
+
+    if (!token || !password) {
+      return errorResponse('Token and password are required', 400, env, request);
+    }
+
+    if (!isValidPassword(password)) {
+      return errorResponse(
+        'Password must be at least 8 characters with uppercase, lowercase and number',
+        400,
+        env,
+        request
+      );
+    }
+
+    // 查找令牌
+    const tokenRecord = await env.DB.prepare(
+      `SELECT user_id, expires_at FROM verification_tokens
+       WHERE token = ? AND type = 'password_reset'`
+    ).bind(token).first();
+
+    if (!tokenRecord) {
+      return errorResponse('Invalid or expired token', 400, env, request);
+    }
+
+    // 检查是否过期
+    if (new Date(tokenRecord.expires_at) < new Date()) {
+      await env.DB.prepare(
+        'DELETE FROM verification_tokens WHERE token = ?'
+      ).bind(token).run();
+      return errorResponse('Token has expired', 400, env, request);
+    }
+
+    // 哈希新密码
+    const passwordHash = await hashPassword(password);
+
+    // 更新密码
+    await env.DB.prepare(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(passwordHash, tokenRecord.user_id).run();
+
+    // 删除已使用的令牌
+    await env.DB.prepare(
+      'DELETE FROM verification_tokens WHERE token = ?'
+    ).bind(token).run();
+
+    // 删除该用户所有的密码重置令牌
+    await env.DB.prepare(
+      'DELETE FROM verification_tokens WHERE user_id = ? AND type = ?'
+    ).bind(tokenRecord.user_id, 'password_reset').run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Password reset successfully'
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return errorResponse('Failed to reset password: ' + error.message, 500, env, request);
+  }
 }

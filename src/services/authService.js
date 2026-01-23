@@ -5,13 +5,46 @@
 // API基础URL - 开发环境使用本地Workers，生产环境使用部署的Workers
 const API_BASE = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:8787';
 
+// Debug: 打印 API 配置
+console.log('[AuthService] API_BASE:', API_BASE);
+
+/**
+ * 请求超时时间（毫秒）
+ */
+const REQUEST_TIMEOUT = 30000;
+
+/**
+ * 带超时的 fetch
+ */
+async function fetchWithTimeout(url, options, timeout = REQUEST_TIMEOUT) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('请求超时，请稍后重试');
+    }
+    throw error;
+  }
+}
+
 /**
  * 通用请求方法
  */
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  console.log('[AuthService] Request:', options.method || 'GET', url);
 
   const config = {
+    mode: 'cors',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers
@@ -19,15 +52,35 @@ async function request(endpoint, options = {}) {
     ...options
   };
 
-  const response = await fetch(url, config);
+  try {
+    const response = await fetchWithTimeout(url, config);
+    console.log('[AuthService] Response status:', response.status);
 
-  const data = await response.json();
+    if (!response.ok) {
+      // 尝试解析错误响应
+      let errorMessage = `Request failed: ${response.status}`;
+      try {
+        const data = await response.json();
+        console.log('[AuthService] Error response:', data);
+        errorMessage = data.error || errorMessage;
+      } catch {
+        // 如果无法解析JSON，使用默认错误消息
+      }
+      throw new Error(errorMessage);
+    }
 
-  if (!response.ok) {
-    throw new Error(data.error || `Request failed: ${response.status}`);
+    const data = await response.json();
+    console.log('[AuthService] Success response:', data.success);
+    return data;
+  } catch (error) {
+    // 网络错误或其他fetch错误
+    if (error.name === 'TypeError') {
+      console.error('[AuthService] Network error:', endpoint, error);
+      throw new Error('网络连接失败，请检查网络或稍后重试');
+    }
+    console.error('[AuthService] API request failed:', endpoint, error);
+    throw error;
   }
-
-  return data;
 }
 
 /**
@@ -97,5 +150,44 @@ export const authService = {
       method: 'PUT',
       body: JSON.stringify(data)
     }, token);
+  },
+
+  /**
+   * 发送邮箱验证邮件
+   */
+  async sendVerificationEmail(token) {
+    return authRequest('/api/auth/send-verification', {
+      method: 'POST'
+    }, token);
+  },
+
+  /**
+   * 验证邮箱
+   */
+  async verifyEmail(verificationToken) {
+    return request('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token: verificationToken })
+    });
+  },
+
+  /**
+   * 忘记密码 - 发送重置邮件
+   */
+  async forgotPassword(email) {
+    return request('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  },
+
+  /**
+   * 重置密码
+   */
+  async resetPassword(token, password) {
+    return request('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password })
+    });
   }
 };

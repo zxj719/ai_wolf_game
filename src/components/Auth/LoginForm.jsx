@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 
-export function LoginForm({ onSwitchToRegister }) {
+export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
   const { login, error } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,9 +68,20 @@ export function LoginForm({ onSwitchToRegister }) {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                密码
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-zinc-300">
+                  密码
+                </label>
+                {onForgotPassword && (
+                  <button
+                    type="button"
+                    onClick={onForgotPassword}
+                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    忘记密码？
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
