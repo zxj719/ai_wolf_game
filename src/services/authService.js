@@ -189,5 +189,38 @@ export const authService = {
       method: 'POST',
       body: JSON.stringify({ token, password })
     });
+  },
+
+  /**
+   * 保存 ModelScope 令牌
+   */
+  async saveModelscopeToken(authToken, modelscopeToken) {
+    return authRequest('/api/user/token', {
+      method: 'PUT',
+      body: JSON.stringify({ modelscopeToken })
+    }, authToken);
+  },
+
+  /**
+   * 获取用户的 ModelScope 令牌
+   */
+  async getModelscopeToken(authToken) {
+    return authRequest('/api/user/token', { method: 'GET' }, authToken);
+  },
+
+  /**
+   * 验证 ModelScope 令牌
+   */
+  async verifyModelscopeToken(authToken) {
+    return authRequest('/api/user/verify-modelscope-token', {
+      method: 'POST'
+    }, authToken);
+  },
+
+  /**
+   * 删除 ModelScope 令牌
+   */
+  async deleteModelscopeToken(authToken) {
+    return authRequest('/api/user/token', { method: 'DELETE' }, authToken);
   }
 };

@@ -4,6 +4,7 @@ import { SetupScreen } from './components/SetupScreen';
 import { GameArena } from './components/GameArena';
 import { AuthPage } from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
+import { TokenManager } from './components/TokenManager';
 import { saveGameRecord } from './services/gameService';
 import { UserStats } from './components/UserStats';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS } from './config/roles';
@@ -17,7 +18,7 @@ import { fetchSiliconFlowChatModels } from './services/aiClient';
 const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
 
 export default function App() {
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, logout, modelscopeToken, tokenStatus, verifyModelscopeToken } = useAuth();
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [gameMode, setGameMode] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState(GAME_SETUPS[0]);
@@ -32,6 +33,7 @@ export default function App() {
   const [gameResult, setGameResult] = useState(null); // 'good_win' | 'wolf_win' | null
   const [gameStartTime, setGameStartTime] = useState(null);
   const [showStats, setShowStats] = useState(false);
+  const [showTokenManager, setShowTokenManager] = useState(false);
 
   const disabledModelsRef = useRef(new Set());
   const speakingLockRef = useRef(false); // 发言锁，防止并发
@@ -147,6 +149,9 @@ export default function App() {
 
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
 
+  // 使用用户的 ModelScope 令牌（如果有），否则使用环境变量中的默认令牌
+  const effectiveApiKey = modelscopeToken || API_KEY;
+
   const { askAI } = useAI({
       players,
       speechHistory,
@@ -161,7 +166,7 @@ export default function App() {
       setIsThinking,
       disabledModelsRef,
       API_URL,
-      API_KEY,
+      API_KEY: effectiveApiKey,
       AI_MODELS: aiModels,
       // 游戏配置（用于区分6人局/8人局等不同规则）
       gameSetup: selectedSetup,
@@ -1013,6 +1018,16 @@ export default function App() {
             欢迎, <span className="text-zinc-200">{user.username}</span>
           </span>
           <button
+            onClick={() => setShowTokenManager(true)}
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              tokenStatus.hasToken
+                ? 'bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50'
+                : 'bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-600/50'
+            }`}
+          >
+            {tokenStatus.hasToken ? '令牌已配置' : '配置令牌'}
+          </button>
+          <button
             onClick={() => setShowStats(true)}
             className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors"
           >
@@ -1030,6 +1045,17 @@ export default function App() {
       {/* 用户战绩弹窗 */}
       {showStats && <UserStats onClose={() => setShowStats(false)} />}
 
+      {/* 令牌管理弹窗 */}
+      {showTokenManager && (
+        <TokenManager
+          onClose={() => setShowTokenManager(false)}
+          onTokenSaved={() => {
+            setShowTokenManager(false);
+            verifyModelscopeToken();
+          }}
+        />
+      )}
+
       {/* 游客模式提示 */}
       {isGuestMode && !user && phase === 'setup' && !gameMode && (
         <div className="absolute top-4 right-4 z-50">
@@ -1045,6 +1071,10 @@ export default function App() {
           selectedSetup={selectedSetup}
           setSelectedSetup={setSelectedSetup}
           gameSetups={GAME_SETUPS}
+          isLoggedIn={!!user}
+          isGuestMode={isGuestMode}
+          hasModelscopeToken={tokenStatus.hasToken}
+          onConfigureToken={() => setShowTokenManager(true)}
         />
       )}
 

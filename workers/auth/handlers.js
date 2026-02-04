@@ -226,9 +226,10 @@ export async function handleGetProfile(request, env) {
       return errorResponse(error, 401, env, request);
     }
 
-    // 获取用户详细信息和统计
+    // 获取用户详细信息和统计（包含令牌状态）
     const userInfo = await env.DB.prepare(
       `SELECT u.id, u.username, u.email, u.email_verified, u.created_at, u.last_login,
+              u.modelscope_token, u.token_verified_at,
               s.total_games, s.wins, s.losses, s.win_rate
        FROM users u
        LEFT JOIN user_stats s ON u.id = s.user_id
@@ -248,6 +249,8 @@ export async function handleGetProfile(request, env) {
         emailVerified: userInfo.email_verified === 1,
         createdAt: userInfo.created_at,
         lastLogin: userInfo.last_login,
+        hasModelscopeToken: !!userInfo.modelscope_token,
+        tokenVerifiedAt: userInfo.token_verified_at,
         stats: {
           totalGames: userInfo.total_games || 0,
           wins: userInfo.wins || 0,
@@ -805,5 +808,271 @@ export async function handleResetPassword(request, env) {
   } catch (error) {
     console.error('Reset password error:', error);
     return errorResponse('Failed to reset password: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 保存/更新 ModelScope API 令牌
+ * PUT /api/user/token
+ */
+export async function handleSaveToken(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    const body = await request.json();
+    const { modelscopeToken } = body;
+
+    if (!modelscopeToken || typeof modelscopeToken !== 'string') {
+      return errorResponse('ModelScope token is required', 400, env, request);
+    }
+
+    // 基本格式验证（ModelScope 令牌通常以特定格式开头）
+    const trimmedToken = modelscopeToken.trim();
+    if (trimmedToken.length < 10) {
+      return errorResponse('Invalid token format', 400, env, request);
+    }
+
+    // 验证令牌是否有效 - 通过实际 AI 调用测试
+    const verifyResult = await verifyModelscopeToken(trimmedToken);
+
+    if (!verifyResult.valid) {
+      let errorMsg = '令牌验证失败。';
+
+      switch (verifyResult.error) {
+        case 'token_invalid':
+          errorMsg = '令牌无效或已过期，请检查后重试。';
+          break;
+        case 'account_not_verified':
+          errorMsg = '账号未完成配置。请确保已完成：1) 绑定阿里云账号 2) 完成阿里云实名认证。';
+          break;
+        case 'network_error':
+          errorMsg = '网络错误，请稍后重试。';
+          break;
+        default:
+          errorMsg = '令牌验证失败，请检查令牌是否正确，以及是否已完成阿里云绑定和实名认证。';
+      }
+
+      return errorResponse(errorMsg, 400, env, request);
+    }
+
+    // 保存令牌到数据库
+    await env.DB.prepare(
+      `UPDATE users SET
+        modelscope_token = ?,
+        token_verified_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).bind(trimmedToken, user.sub).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'ModelScope token saved successfully',
+      tokenVerifiedAt: new Date().toISOString()
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Save token error:', error);
+    return errorResponse('Failed to save token: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 验证用户的 ModelScope 令牌是否有效
+ * POST /api/user/verify-modelscope-token
+ */
+export async function handleVerifyModelscopeToken(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    // 获取用户的令牌
+    const userRecord = await env.DB.prepare(
+      'SELECT modelscope_token, token_verified_at FROM users WHERE id = ?'
+    ).bind(user.sub).first();
+
+    if (!userRecord || !userRecord.modelscope_token) {
+      return jsonResponse({
+        success: true,
+        hasToken: false,
+        isValid: false,
+        message: 'No ModelScope token configured'
+      }, 200, env, request);
+    }
+
+    // 验证令牌 - 通过实际 AI 调用
+    const verifyResult = await verifyModelscopeToken(userRecord.modelscope_token);
+
+    if (verifyResult.valid) {
+      // 更新验证时间
+      await env.DB.prepare(
+        'UPDATE users SET token_verified_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).bind(user.sub).run();
+    }
+
+    // 根据错误类型提供具体的提示信息
+    let message = verifyResult.valid ? '令牌有效，可以开始游戏！' : '令牌验证失败';
+    if (!verifyResult.valid) {
+      switch (verifyResult.error) {
+        case 'token_invalid':
+          message = '令牌无效或已过期，请更新令牌。';
+          break;
+        case 'account_not_verified':
+          message = '账号未完成配置，请完成阿里云绑定和实名认证。';
+          break;
+        case 'network_error':
+          message = '网络错误，请稍后重试验证。';
+          break;
+        default:
+          message = '令牌验证失败，请检查配置。';
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      hasToken: true,
+      isValid: verifyResult.valid,
+      errorType: verifyResult.error || null,
+      tokenVerifiedAt: verifyResult.valid ? new Date().toISOString() : userRecord.token_verified_at,
+      message
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Verify token error:', error);
+    return errorResponse('Failed to verify token: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 获取用户的 ModelScope 令牌（用于前端 AI 调用）
+ * GET /api/user/token
+ */
+export async function handleGetToken(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    const userRecord = await env.DB.prepare(
+      'SELECT modelscope_token, token_verified_at FROM users WHERE id = ?'
+    ).bind(user.sub).first();
+
+    if (!userRecord || !userRecord.modelscope_token) {
+      return jsonResponse({
+        success: true,
+        hasToken: false,
+        token: null
+      }, 200, env, request);
+    }
+
+    return jsonResponse({
+      success: true,
+      hasToken: true,
+      token: userRecord.modelscope_token,
+      tokenVerifiedAt: userRecord.token_verified_at
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Get token error:', error);
+    return errorResponse('Failed to get token: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 删除用户的 ModelScope 令牌
+ * DELETE /api/user/token
+ */
+export async function handleDeleteToken(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+
+    if (error) {
+      return errorResponse(error, 401, env, request);
+    }
+
+    await env.DB.prepare(
+      `UPDATE users SET
+        modelscope_token = NULL,
+        token_verified_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).bind(user.sub).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Token deleted successfully'
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Delete token error:', error);
+    return errorResponse('Failed to delete token: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 验证 ModelScope 令牌是否有效
+ * 通过实际调用 AI 模型来测试令牌
+ *
+ * 注意：仅有令牌还不够，用户还需要：
+ * 1. 绑定阿里云账号: https://modelscope.cn/docs/accounts/aliyun-binding-and-authorization
+ * 2. 完成实名认证: https://help.aliyun.com/zh/account/account-verification-overview
+ */
+async function verifyModelscopeToken(token) {
+  try {
+    // 使用实际的 AI 调用来验证令牌是否真正可用
+    // 这能检测到：令牌有效 + 阿里云绑定 + 实名认证 都完成
+    const response = await fetch('https://api-inference.modelscope.cn/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'qwen/Qwen2.5-Coder-32B-Instruct',
+        messages: [
+          { role: 'user', content: 'Hi' }
+        ],
+        max_tokens: 5,  // 使用最小 token 数以减少消耗
+        stream: false
+      })
+    });
+
+    // 检查响应状态
+    if (response.status === 401 || response.status === 403) {
+      // 令牌无效或无权限
+      return { valid: false, error: 'token_invalid' };
+    }
+
+    if (response.status === 402) {
+      // 需要付费或未完成认证
+      return { valid: false, error: 'account_not_verified' };
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Token verification failed:', response.status, errorText);
+
+      // 检查错误信息来判断具体原因
+      if (errorText.includes('实名') || errorText.includes('认证') || errorText.includes('verify') || errorText.includes('aliyun')) {
+        return { valid: false, error: 'account_not_verified' };
+      }
+
+      return { valid: false, error: 'api_error' };
+    }
+
+    // 尝试解析响应，确保 AI 调用真正成功
+    const data = await response.json();
+    if (data.choices && data.choices.length > 0) {
+      return { valid: true };
+    }
+
+    return { valid: false, error: 'invalid_response' };
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return { valid: false, error: 'network_error' };
   }
 }

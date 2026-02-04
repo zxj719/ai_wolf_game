@@ -17,7 +17,11 @@ import {
   handleSendVerification,
   handleVerifyEmail,
   handleForgotPassword,
-  handleResetPassword
+  handleResetPassword,
+  handleSaveToken,
+  handleVerifyModelscopeToken,
+  handleGetToken,
+  handleDeleteToken
 } from './handlers.js';
 
 export default {
@@ -83,6 +87,23 @@ export default {
 
       if (path === '/api/user/stats' && request.method === 'GET') {
         return handleGetUserStats(request, env);
+      }
+
+      // ModelScope 令牌相关
+      if (path === '/api/user/token' && request.method === 'PUT') {
+        return handleSaveToken(request, env);
+      }
+
+      if (path === '/api/user/token' && request.method === 'GET') {
+        return handleGetToken(request, env);
+      }
+
+      if (path === '/api/user/token' && request.method === 'DELETE') {
+        return handleDeleteToken(request, env);
+      }
+
+      if (path === '/api/user/verify-modelscope-token' && request.method === 'POST') {
+        return handleVerifyModelscopeToken(request, env);
       }
 
       // 游戏相关
