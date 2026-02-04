@@ -3,6 +3,7 @@ import { useWerewolfGame } from './useWerewolfGame';
 import { SetupScreen } from './components/SetupScreen';
 import { GameArena } from './components/GameArena';
 import { AuthPage } from './components/Auth';
+import { Dashboard } from './components/Dashboard';
 import { useAuth } from './contexts/AuthContext';
 import { TokenManager } from './components/TokenManager';
 import { saveGameRecord } from './services/gameService';
@@ -20,6 +21,7 @@ const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
 export default function App() {
   const { user, loading: authLoading, logout, modelscopeToken, tokenStatus, verifyModelscopeToken } = useAuth();
   const [isGuestMode, setIsGuestMode] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(true); // 登录后默认显示仪表盘
   const [gameMode, setGameMode] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState(GAME_SETUPS[0]);
   const [isThinking, setIsThinking] = useState(false);
@@ -61,6 +63,8 @@ export default function App() {
     setLogs,
     addLog,
     initGame,
+    processedVoteDayRef,
+    gameInitializedRef,
   } = useWerewolfGame({
     ROLE_DEFINITIONS, 
     STANDARD_ROLES, 
@@ -841,6 +845,10 @@ export default function App() {
     setGameMode(null);
     setLogs([]);
     setPhase('setup');
+    // 登录用户返回仪表盘，游客模式留在游戏选择页
+    if (user && !isGuestMode) {
+      setShowDashboard(true);
+    }
   };
 
   // 导出游戏日志
@@ -1009,14 +1017,30 @@ export default function App() {
     return <AuthPage onGuestPlay={() => setIsGuestMode(true)} />;
   }
 
+  // 已登录用户显示仪表盘（非游客模式，且未进入游戏）
+  if (user && !isGuestMode && showDashboard && phase === 'setup' && !gameMode) {
+    return (
+      <Dashboard
+        onEnterGame={() => setShowDashboard(false)}
+        onLogout={logout}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* 用户信息栏 */}
-      {user && phase === 'setup' && !gameMode && (
+      {/* 用户信息栏 - 仅在游戏设置界面显示（游客模式或从仪表盘进入） */}
+      {user && phase === 'setup' && !gameMode && !showDashboard && (
         <div className="absolute top-4 right-4 flex items-center gap-3 z-50">
           <span className="text-zinc-400 text-sm">
             欢迎, <span className="text-zinc-200">{user.username}</span>
           </span>
+          <button
+            onClick={() => setShowDashboard(true)}
+            className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
+          >
+            返回主页
+          </button>
           <button
             onClick={() => setShowTokenManager(true)}
             className={`px-3 py-1 text-sm rounded transition-colors ${
