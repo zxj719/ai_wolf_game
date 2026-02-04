@@ -1,12 +1,13 @@
+import { API_BASE, buildApiUrl } from './apiBase';
+
 /**
  * 认证API服务封装
  */
 
 // API基础URL - 开发环境使用本地Workers，生产环境使用部署的Workers
-const API_BASE = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:8787';
 
 // Debug: 打印 API 配置
-console.log('[AuthService] API_BASE:', API_BASE);
+console.log('[AuthService] API_BASE:', API_BASE || '(same-origin)');
 
 /**
  * 请求超时时间（毫秒）
@@ -40,7 +41,7 @@ async function fetchWithTimeout(url, options, timeout = REQUEST_TIMEOUT) {
  * 通用请求方法
  */
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
+  const url = buildApiUrl(endpoint);
   console.log('[AuthService] Request:', options.method || 'GET', url);
 
   const config = {

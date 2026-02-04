@@ -3,8 +3,7 @@
  */
 
 import { getToken } from '../utils/authToken';
-
-const API_BASE = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:8787';
+import { buildApiUrl } from './apiBase';
 
 /**
  * 获取带认证的请求头
@@ -33,7 +32,7 @@ export async function saveGameRecord(gameData) {
   }
 
   try {
-    const response = await fetch(`${API_BASE}/api/game/record`, {
+    const response = await fetch(buildApiUrl('/api/game/record'), {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(gameData)
@@ -54,7 +53,7 @@ export async function saveGameRecord(gameData) {
 export async function getGameHistory(limit = 20, offset = 0) {
   try {
     const response = await fetch(
-      `${API_BASE}/api/game/history?limit=${limit}&offset=${offset}`,
+      buildApiUrl(`/api/game/history?limit=${limit}&offset=${offset}`),
       {
         method: 'GET',
         headers: getAuthHeaders()
@@ -73,7 +72,7 @@ export async function getGameHistory(limit = 20, offset = 0) {
  */
 export async function getUserStats() {
   try {
-    const response = await fetch(`${API_BASE}/api/user/stats`, {
+    const response = await fetch(buildApiUrl('/api/user/stats'), {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -91,7 +90,7 @@ export async function getUserStats() {
  */
 export async function getLeaderboard(limit = 20) {
   try {
-    const response = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}`, {
+    const response = await fetch(buildApiUrl(`/api/leaderboard?limit=${limit}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
