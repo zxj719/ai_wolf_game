@@ -1,14 +1,34 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc:*)",
-      "Bash(npm run build:*)",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run preview)",
+      "Bash(npm run deploy)",
+      "Bash(npx wrangler:*)",
       "Bash(npx eslint:*)",
-      "Bash(dir \"c:\\\\Users\\\\xingj\\\\Documents\\\\agent\\\\battle-web\")",
-      "Bash(find:*)",
-      "Bash(git push)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
       "Bash(git pull:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(ls:*)",
+      "Bash(dir:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(pwd)"
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "c:\\Users\\xingj\\Documents\\agent\\battle-web\\.claude"
     ]
   },
   "outputStyle": "Explanatory"
