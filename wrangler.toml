@@ -5,8 +5,8 @@ compatibility_date = "2026-01-10"
 # D1 数据库绑定
 [[d1_databases]]
 binding = "DB"
-database_name = "wolfgame_db"
-database_id = "your-database-id-here"  # 需要替换为实际的数据库 ID
+database_name = "wolfgame-db"
+database_id = "f54315ad-c129-41e4-a23d-82463488d315"
 
 # 开发环境配置
 [dev]
