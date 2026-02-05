@@ -217,4 +217,24 @@ export const PERSONALITIES = [
 
 export const NAMES = ['Harry', 'Hermione', 'Ron', 'Draco', 'Luna', 'Neville', 'Ginny', 'Snape', 'Dumbledore', 'Hagrid', 'Sirius', 'McGonagall'];
 
+// 胜利模式配置
+export const VICTORY_MODES = {
+  EDGE: {
+    id: 'edge',
+    name: '屠边模式',
+    description: '杀光所有村民或所有神职，狼人胜利',
+    wolfWinConditions: ['村民全灭', '神职全灭', '狼人数量≥好人'],
+    goodWinCondition: '狼人全灭'
+  },
+  TOWN: {
+    id: 'town',
+    name: '屠城模式',
+    description: '杀光所有好人（村民+神职），狼人胜利',
+    wolfWinConditions: ['所有好人全灭', '狼人数量≥好人'],
+    goodWinCondition: '狼人全灭'
+  }
+};
+
+export const DEFAULT_VICTORY_MODE = 'edge';
+
 export const DEFAULT_TOTAL_PLAYERS = 8;

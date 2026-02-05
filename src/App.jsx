@@ -9,7 +9,7 @@ import { TokenManager } from './components/TokenManager';
 import { saveGameRecord } from './services/gameService';
 import { authService } from './services/authService';
 import { UserStats } from './components/UserStats';
-import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS, DEFAULT_CUSTOM_SELECTIONS } from './config/roles';
+import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS, DEFAULT_CUSTOM_SELECTIONS, DEFAULT_VICTORY_MODE } from './config/roles';
 import { API_KEY, API_URL, AI_MODELS as DEFAULT_AI_MODELS, AI_PROVIDER, SILICONFLOW_FALLBACK_MODELS } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
 import { useDayFlow } from './hooks/useDayFlow';
@@ -39,6 +39,7 @@ export default function App() {
   const [showTokenManager, setShowTokenManager] = useState(false);
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [customRoleSelections, setCustomRoleSelections] = useState(DEFAULT_CUSTOM_SELECTIONS);
+  const [victoryMode, setVictoryMode] = useState(DEFAULT_VICTORY_MODE); // 'edge' | 'town'
 
   const disabledModelsRef = useRef(new Set());
   const speakingLockRef = useRef(false); // 发言锁，防止并发
@@ -225,7 +226,9 @@ export default function App() {
       // 整局夜间行动历史（包含所有夜晚的行动记录，而非每天刷新）
       nightActionHistory,
       // 模型追踪回调
-      onModelUsed: updatePlayerModel
+      onModelUsed: updatePlayerModel,
+      // 胜利模式
+      victoryMode
     });
 
   const checkGameEnd = (currentPlayers = players) => {
@@ -233,25 +236,40 @@ export default function App() {
     const aliveVillagers = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.VILLAGER).length;
     const aliveGods = currentPlayers.filter(p => p.isAlive && (p.role !== '狼人' && p.role !== '村民')).length;
 
-    console.log(`[GameCheck] Wolves: ${aliveWolves}, Villagers: ${aliveVillagers}, Gods: ${aliveGods}, Check State:`, currentPlayers.map(p => `${p.id}:${p.role[0]}:${p.isAlive?'alive':'dead'}`).join(','));
+    console.log(`[GameCheck] Mode: ${victoryMode}, Wolves: ${aliveWolves}, Villagers: ${aliveVillagers}, Gods: ${aliveGods}, Check State:`, currentPlayers.map(p => `${p.id}:${p.role[0]}:${p.isAlive?'alive':'dead'}`).join(','));
 
     const aliveGood = aliveVillagers + aliveGods;
 
+    // 好人胜利条件（两种模式相同）：狼人全灭
     if (aliveWolves === 0) {
       addLog("🎉 狼人全灭，好人胜利！", "success");
       setGameResult('good_win');
       return 'good_win';
     }
-    if (aliveVillagers === 0) {
-      addLog("💀 村民全灭，狼人胜利（屠边）！", "danger");
-      setGameResult('wolf_win');
-      return 'wolf_win';
+
+    // 狼人胜利条件：根据模式不同
+    if (victoryMode === 'edge') {
+      // 屠边模式：村民全灭或神职全灭
+      if (aliveVillagers === 0) {
+        addLog("💀 村民全灭，狼人胜利（屠边）！", "danger");
+        setGameResult('wolf_win');
+        return 'wolf_win';
+      }
+      if (aliveGods === 0) {
+        addLog("💀 神职全灭，狼人胜利（屠边）！", "danger");
+        setGameResult('wolf_win');
+        return 'wolf_win';
+      }
+    } else if (victoryMode === 'town') {
+      // 屠城模式：所有好人（村民+神职）全灭
+      if (aliveGood === 0) {
+        addLog("💀 好人全灭，狼人胜利（屠城）！", "danger");
+        setGameResult('wolf_win');
+        return 'wolf_win';
+      }
     }
-    if (aliveGods === 0) {
-      addLog("💀 神职全灭，狼人胜利（屠边）！", "danger");
-      setGameResult('wolf_win');
-      return 'wolf_win';
-    }
+
+    // 通用条件：狼人数量 >= 好人数量
     if (aliveWolves >= aliveGood) {
       addLog("💀 狼人数量大于等于好人，狼人胜利！", "danger");
       setGameResult('wolf_win');
@@ -809,14 +827,15 @@ export default function App() {
                     return prev;
                   }
                   console.log(`[发言控制] ${currentSpeaker.id}号成功添加发言记录`);
-                  return [...prev, { 
-                    playerId: currentSpeaker.id, 
-                    name: currentSpeaker.name, 
+                  return [...prev, {
+                    playerId: currentSpeaker.id,
+                    name: currentSpeaker.name,
                     content: res.speech,
                     thought: res.thought, // 保存思考过程
-                    day: dayCount, 
+                    identity_table: res.identity_table, // 保存身份推理表
+                    day: dayCount,
                     summary: res.summary || res.speech.slice(0, 20),
-                    voteIntention: res.voteIntention 
+                    voteIntention: res.voteIntention
                   }];
                 });
               }
@@ -938,7 +957,7 @@ export default function App() {
     }
     logContent += `\n`;
     
-    // 发言记录
+    // 发言记录（包含AI思考过程）
     logContent += `【发言记录】\n`;
     logContent += `----------------------------------------\n`;
     if (speechHistory.length === 0) {
@@ -953,6 +972,14 @@ export default function App() {
         const player = players.find(p => p.id === s.playerId);
         const role = player?.role || '未知';
         logContent += `[${s.playerId}号 ${s.name} (${role})]: ${s.content}\n`;
+        // 添加AI思考过程
+        if (s.thought) {
+          logContent += `  💭 思考过程: ${s.thought}\n`;
+        }
+        // 添加投票意向
+        if (s.voteIntention !== undefined && s.voteIntention !== null) {
+          logContent += `  🗳️ 投票意向: ${s.voteIntention === -1 ? '弃票' : s.voteIntention + '号'}\n`;
+        }
       });
     }
     logContent += `\n`;
@@ -1023,9 +1050,33 @@ export default function App() {
       }
     }
     logContent += `\n`;
-    
+
+    // AI 身份推理表（最终状态）
+    logContent += `【AI 身份推理表】\n`;
+    logContent += `----------------------------------------\n`;
+    const lastIdentityTables = {};
+    speechHistory.forEach(s => {
+      if (s.identity_table) {
+        lastIdentityTables[s.playerId] = { table: s.identity_table, day: s.day };
+      }
+    });
+    if (Object.keys(lastIdentityTables).length === 0) {
+      logContent += `无推理表记录\n`;
+    } else {
+      Object.entries(lastIdentityTables).forEach(([playerId, data]) => {
+        const player = players.find(p => p.id === parseInt(playerId));
+        logContent += `\n${playerId}号 ${player?.name || ''} (${player?.role || '未知'}) 的推理表 (第${data.day}天):\n`;
+        Object.entries(data.table).forEach(([targetId, info]) => {
+          const target = players.find(p => p.id === parseInt(targetId));
+          logContent += `  → ${targetId}号 ${target?.name || ''}: ${info.suspect || '未知'} (置信度:${info.confidence || 0}%) - ${info.reason || '无'}\n`;
+        });
+      });
+    }
+    logContent += `\n`;
+
     // 游戏结果
     logContent += `========================================\n`;
+    logContent += `胜利模式: ${victoryMode === 'edge' ? '屠边模式' : '屠城模式'}\n`;
     const aliveWolves = players.filter(p => p.isAlive && p.role === '狼人').length;
     if (aliveWolves === 0) {
       logContent += `游戏结果: 好人阵营胜利！\n`;
@@ -1159,6 +1210,8 @@ export default function App() {
           customRoleSelections={customRoleSelections}
           setCustomRoleSelections={setCustomRoleSelections}
           onBuildCustomSetup={setSelectedSetup}
+          victoryMode={victoryMode}
+          setVictoryMode={setVictoryMode}
         />
       )}
 

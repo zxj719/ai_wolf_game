@@ -1,7 +1,7 @@
-import { User, Brain, AlertTriangle, Key, ExternalLink, Settings } from 'lucide-react';
+import { User, Brain, AlertTriangle, Key, ExternalLink, Settings, Swords, Shield } from 'lucide-react';
 import { API_KEY } from '../config/aiConfig';
 import { RoleSelector } from './RoleSelector';
-import { validateRoleConfig, generateDescription, generateNightSequence, buildRolesArray, DEFAULT_CUSTOM_SELECTIONS } from '../config/roles';
+import { validateRoleConfig, generateDescription, generateNightSequence, buildRolesArray, DEFAULT_CUSTOM_SELECTIONS, VICTORY_MODES, DEFAULT_VICTORY_MODE } from '../config/roles';
 
 export const SetupScreen = ({
   gameMode,
@@ -19,7 +19,10 @@ export const SetupScreen = ({
   setIsCustomMode = () => {},
   customRoleSelections = DEFAULT_CUSTOM_SELECTIONS,
   setCustomRoleSelections = () => {},
-  onBuildCustomSetup = null
+  onBuildCustomSetup = null,
+  // 胜利模式属性
+  victoryMode = DEFAULT_VICTORY_MODE,
+  setVictoryMode = () => {}
 }) => {
   // 需要配置令牌的情况：已登录用户没有配置令牌且环境变量也没有
   const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
@@ -161,6 +164,41 @@ export const SetupScreen = ({
           validation={customValidation}
         />
       )}
+
+      {/* 胜利模式选择 */}
+      <div className="flex flex-col items-center gap-3">
+        <h2 className="text-lg text-zinc-400">胜利条件</h2>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setVictoryMode('edge')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all ${
+              victoryMode === 'edge'
+                ? 'bg-red-600 text-white shadow-lg shadow-red-900/30'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+            }`}
+          >
+            <Swords size={18} />
+            <div className="text-left">
+              <div className="font-bold">{VICTORY_MODES.EDGE.name}</div>
+              <div className="text-xs opacity-80">{VICTORY_MODES.EDGE.description}</div>
+            </div>
+          </button>
+          <button
+            onClick={() => setVictoryMode('town')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all ${
+              victoryMode === 'town'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+            }`}
+          >
+            <Shield size={18} />
+            <div className="text-left">
+              <div className="font-bold">{VICTORY_MODES.TOWN.name}</div>
+              <div className="text-xs opacity-80">{VICTORY_MODES.TOWN.description}</div>
+            </div>
+          </button>
+        </div>
+      </div>
 
       <h2 className="text-xl text-zinc-400">请选择开始模式</h2>
       <div className="flex gap-6">

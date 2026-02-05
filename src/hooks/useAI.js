@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { fetchLLM } from '../services/aiClient';
 import { generateSystemPrompt, generateUserPrompt, PROMPT_ACTIONS } from '../services/aiPrompts';
 import { enhanceSpeechHistory } from '../services/ragSchema';
@@ -39,8 +39,12 @@ export function useAI({
   // P2增强：双系统上下文获取函数（可选）
   getDualSystemContext = null,
   // 模型追踪回调函数
-  onModelUsed = null
+  onModelUsed = null,
+  // 胜利模式
+  victoryMode = 'edge'
 }) {
+  // 身份推理表存储：每个玩家的推理表
+  const identityTablesRef = useRef({});
 
   // P0增强：增强版发言历史（添加逻辑断言等结构化信息）
   const enhancedSpeechHistory = useMemo(() => {
@@ -151,7 +155,13 @@ export function useAI({
       playerId: player.id
     };
 
-    const systemPrompt = generateSystemPrompt(player, gameState);
+    // 获取该玩家之前的身份推理表
+    const previousIdentityTable = identityTablesRef.current[player.id] || null;
+
+    const systemPrompt = generateSystemPrompt(player, gameState, {
+      victoryMode,
+      previousIdentityTable
+    });
     // 将所有增强上下文附加到用户提示词
     // generateUserPrompt 现在会根据玩家角色路由到不同的提示词模板
     let userPrompt = generateUserPrompt(actionType, gameState, enhancedParams);
@@ -316,13 +326,20 @@ export function useAI({
         onModelUsed(player.id, result._modelInfo.modelId, result._modelInfo.modelName);
         console.log(`📊 [模型追踪] ${player.id}号使用模型: ${result._modelInfo.modelName}`);
       }
+
+      // 更新身份推理表（如果AI返回了推理表）
+      if (result.identity_table) {
+        identityTablesRef.current[player.id] = result.identity_table;
+        console.log('%c🔍 身份推理表更新:', 'color: #f472b6; font-weight: bold;');
+        console.log(result.identity_table);
+      }
     } else {
       console.warn(`❌ [AI响应] ${player.id}号 ${player.name} - 无有效响应`);
     }
 
     setIsThinking(false);
     return result;
-  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext, onModelUsed]);
+  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext, onModelUsed, victoryMode]);
 
   /**
    * P0增强：获取局势摘要

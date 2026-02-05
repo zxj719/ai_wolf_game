@@ -2,6 +2,51 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-02-05] 屠边/屠城模式 + AI身份推理表 + 思考过程记录
+
+### Bug 修复
+- **AI 模型排行榜网络错误**
+  - 问题：排行榜显示"网络错误，请稍后重试"
+  - 原因：数据库迁移 `002_add_model_stats.sql` 未执行，`ai_model_stats` 表不存在
+  - 修复：执行数据库迁移创建表和索引
+
+### 新功能
+- **屠边/屠城胜利模式选择**
+  - 屠边模式（默认）：狼人杀光所有村民或所有神职即可胜利
+  - 屠城模式：狼人必须杀光所有好人（村民+神职）才能胜利
+  - 在设置界面添加模式选择 UI
+  - 根据模式动态调整 AI 提示词和策略建议
+
+- **AI 身份推理表系统**
+  - 每个 AI 维护自己的身份推理表（`identity_table`）
+  - 记录对每个玩家的身份猜测、置信度（0-100%）和推理依据
+  - AI 基于排除法和行为分析进行推理
+  - 推理表在每次发言后更新，实现持续的身份追踪
+
+- **AI 思考过程记录**
+  - 发言历史中保存 AI 的 `thought`（思考过程）和 `identity_table`（推理表）
+  - 导出的 txt 记录文件现在包含：
+    - 💭 思考过程：AI 内部的分析和推理
+    - 🗳️ 投票意向：AI 的投票目标
+    - 📊 身份推理表：每个 AI 对场上玩家身份的最终判断
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/config/roles.js` | 修改 | 新增 `VICTORY_MODES` 胜利模式配置 |
+| `src/components/SetupScreen.jsx` | 修改 | 添加胜利模式选择 UI |
+| `src/App.jsx` | 修改 | 添加 `victoryMode` 状态，修改 `checkGameEnd` 和导出函数 |
+| `src/services/aiPrompts.js` | 修改 | 添加 `VICTORY_MODE_PROMPTS`、`IDENTITY_TABLE_PROMPT`，修改输出格式 |
+| `src/hooks/useAI.js` | 修改 | 添加 `identityTablesRef` 存储推理表，传递 `victoryMode` |
+| `migrations/002_add_model_stats.sql` | 执行 | 创建 `ai_model_stats` 和 `game_model_usage` 表 |
+
+### 技术细节
+- 身份推理表格式：`{"玩家号": {"suspect": "角色猜测", "confidence": 0-100, "reason": "推理依据"}}`
+- 胜利条件判断在 `checkGameEnd` 函数中根据 `victoryMode` 动态切换
+- AI 提示词根据角色阵营显示不同的胜利目标和策略建议
+
+---
+
 ## [2026-02-05] 自定义角色选择功能
 
 ### 新功能

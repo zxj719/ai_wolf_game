@@ -18,6 +18,49 @@ export const PROMPT_ACTIONS = {
 const TERMINOLOGY = `【术语】划水(无内容),踩(怀疑),站边(信某预),金水/查杀(预验好/坏),悍跳(狼称预),银水(女巫救),倒钩(狼站边好人),抗推(好人被投).`;
 
 // ============================================================
+// 胜利模式配置
+// ============================================================
+const VICTORY_MODE_PROMPTS = {
+  'edge': {
+    name: '屠边模式',
+    wolfGoal: '杀光所有村民或所有神职即可胜利',
+    goodGoal: '杀光所有狼人才能胜利',
+    wolfStrategy: '优先集中攻击一个阵营（村民或神职），速战速决',
+    goodStrategy: '保护弱势阵营，避免被屠边'
+  },
+  'town': {
+    name: '屠城模式',
+    wolfGoal: '必须杀光所有好人（村民+神职）才能胜利',
+    goodGoal: '杀光所有狼人才能胜利',
+    wolfStrategy: '需要更长时间，要更加谨慎伪装，逐个击破',
+    goodStrategy: '有更多容错空间，即使损失部分神职或村民也能继续'
+  }
+};
+
+// ============================================================
+// 身份推理表系统 (Identity Inference Table)
+// AI 通过排除法维护对每个玩家身份的推测
+// ============================================================
+const IDENTITY_TABLE_PROMPT = `
+【身份推理表说明】
+你需要维护一个身份推理表，记录你对每个玩家身份的判断。
+格式: {"玩家号码": {"suspect": "角色猜测", "confidence": 0-100, "reason": "推理依据"}}
+
+推理方法：
+1. 排除法：根据已确认的身份排除可能性
+2. 行为分析：发言风格、投票倾向、夜间结果
+3. 逻辑推断：谁的发言有矛盾？谁在引导错误方向？
+4. 阵营判断：先判断好人/狼人，再细分角色
+
+置信度参考：
+- 90-100: 基本确定（如自己验过、明确跳身份）
+- 70-89: 高度怀疑（多个证据指向）
+- 50-69: 中度怀疑（有一定依据）
+- 30-49: 轻度怀疑（信息不足）
+- 0-29: 基本排除（可能是好人）
+`;
+
+// ============================================================
 // 局数配置辅助函数
 // 用于区分6人局/8人局/12人局等不同规则
 // ============================================================
@@ -697,10 +740,10 @@ export const prepareGameContext = (gameState) => {
 
 /**
  * 生成增强版System Prompt
- * 整合：基础信息 + 角色人格 + 私有信息 + 策略 + 规则 + 对抗反思
+ * 整合：基础信息 + 角色人格 + 私有信息 + 策略 + 规则 + 对抗反思 + 胜利模式 + 身份推理表
  */
 export const generateSystemPrompt = (player, gameState, options = {}) => {
-    const { includePersona = true, includeReflection = true } = options;
+    const { includePersona = true, includeReflection = true, victoryMode = 'edge', previousIdentityTable = null } = options;
     const ctx = prepareGameContext(gameState);
     const roleInfo = buildPrivateRoleInfo(player, ctx.gameStateForRole);
     const gameSetup = gameState?.gameSetup;
@@ -716,18 +759,32 @@ export const generateSystemPrompt = (player, gameState, options = {}) => {
     // P0增强：对抗反思提示词
     const reflectionPrompt = includeReflection ? ADVERSARIAL_REFLECTION : '';
 
+    // 胜利模式信息
+    const victoryModeInfo = VICTORY_MODE_PROMPTS[victoryMode] || VICTORY_MODE_PROMPTS['edge'];
+    const isWolf = player.role === '狼人';
+    const victoryPrompt = `【胜利条件 - ${victoryModeInfo.name}】
+${isWolf ? `狼人目标: ${victoryModeInfo.wolfGoal}` : `好人目标: ${victoryModeInfo.goodGoal}`}
+策略提示: ${isWolf ? victoryModeInfo.wolfStrategy : victoryModeInfo.goodStrategy}`;
+
+    // 身份推理表提示
+    const identityTablePrompt = previousIdentityTable
+        ? `\n【你之前的身份推理表】\n${JSON.stringify(previousIdentityTable, null, 2)}\n请根据新信息更新推理表。`
+        : IDENTITY_TABLE_PROMPT;
+
     return `你是[${player.id}号]，身份【${player.role}】。
 【游戏状态】第${ctx.dayCount}天
 【你的状态】存活
 【场上存活】${ctx.aliveList}
 【已死亡】${ctx.deadList}
+${victoryPrompt}
 ${roleInfo}
 ${personaPrompt}
 ${roleStrategy}
 ${rules}
 ${TERMINOLOGY}
+${identityTablePrompt}
 ${reflectionPrompt}
-输出JSON`;
+输出JSON（必须包含identity_table字段记录你的身份推理）`;
 };
 
 /**
@@ -750,7 +807,7 @@ Step2: 我今天应该保守还是激进？
 Step3: 如果要发言攻击，应该踩谁？
 Step4: 我的投票意向应该指向谁（好人中最有威胁的）？
 
-输出JSON:{"thought":"狼人视角分析...","speech":"伪装后的公开发言(40-80字)","voteIntention":数字或-1}`,
+输出JSON:{"thought":"狼人视角分析...","speech":"伪装后的公开发言(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色猜测","confidence":0-100,"reason":"推理依据"}}}`,
 
     '预言家': (ctx, params) => {
         const myChecks = params.seerChecks?.filter(c => c.seerId === params.playerId) || [];
@@ -784,7 +841,7 @@ Step2: 场上谁在质疑我？如何反驳？
 Step3: 如何用查验结果建立我的公信力？
 Step4: 投票应该投谁？（查杀 > 可疑者，绝不投金水！）
 
-输出JSON:{"thought":"预言家视角分析...","speech":"报验人+分析(40-80字)","voteIntention":数字(不能是金水号码)}`;
+输出JSON:{"thought":"预言家视角分析...","speech":"报验人+分析(40-80字)","voteIntention":数字(不能是金水号码),"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
     },
 
     '女巫': (ctx, params) => {
@@ -809,7 +866,7 @@ Step1: 我需要跳身份吗？跳身份的收益是什么？
 Step2: 如果不跳，我应该像平民一样说什么？
 Step3: 我的投票应该投谁？
 
-输出JSON:{"thought":"女巫视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1}`;
+输出JSON:{"thought":"女巫视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
     },
 
     '猎人': (ctx, params) => `${getBaseContext(ctx)}
@@ -827,7 +884,7 @@ Step2: 如果不跳，我应该像平民一样分析局势
 Step3: 谁最像狼？如果我死了应该带走谁？
 Step4: 我的投票应该投谁？
 
-输出JSON:{"thought":"猎人视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1}`,
+输出JSON:{"thought":"猎人视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`,
 
     '守卫': (ctx, params) => {
         const { guardHistory, lastGuardTarget } = params;
@@ -853,7 +910,7 @@ Step2: 场上谁像预言家？我今晚可能需要守他
 Step3: 像平民一样分析，我应该说什么？
 Step4: 我的投票应该投谁？
 
-输出JSON:{"thought":"守卫视角分析...","speech":"像平民的发言(40-80字)","voteIntention":数字或-1}`;
+输出JSON:{"thought":"守卫视角分析...","speech":"像平民的发言(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
     },
 
     '村民': (ctx, params) => `${getBaseContext(ctx)}
@@ -871,7 +928,7 @@ Step2: 场上谁的发言最可疑？理由是什么？
 Step3: 我应该站边谁？为什么？
 Step4: 我的投票应该投谁？
 
-输出JSON:{"thought":"平民视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1}`
+输出JSON:{"thought":"平民视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`
 };
 
 /**
