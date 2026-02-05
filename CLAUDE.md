@@ -175,3 +175,44 @@ user_stats: user_id, total_games, wins, losses, win_rate
 - 游戏日志: 控制台搜索 `[夜间行动]`、`[发言控制]`
 - AI 调用: 搜索 `[狼人AI]`、`[预言家AI]` 等
 - 后端日志: `wrangler tail` 查看 Workers 日志
+
+## 开发工作流程
+
+每次完成功能修改后，请按以下步骤操作：
+
+### 1. 验证构建
+```bash
+npm run build
+```
+确保没有编译错误。
+
+### 2. 记录变更
+在 `CHANGELOG.md` 顶部添加变更记录，格式：
+```markdown
+## [YYYY-MM-DD] 功能名称
+
+### 新功能
+- **功能标题**: 功能描述
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `path/to/file.js` | 新建/修改/删除 | 变更说明 |
+
+### 技术细节
+- 实现要点说明
+```
+
+### 3. 提交并推送到 GitHub
+```bash
+git add -A
+git commit -m "feat: 简短描述"
+git push origin main
+```
+
+### 提交信息规范
+- `feat:` 新功能
+- `fix:` Bug 修复
+- `docs:` 文档更新
+- `refactor:` 代码重构
+- `style:` 样式调整

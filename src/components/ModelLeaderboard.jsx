@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, TrendingUp, Award, Activity } from 'lucide-react';
-import { getModelLeaderboard } from '../services/authService';
+import { authService } from '../services/authService';
 
 export function ModelLeaderboard() {
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -29,7 +29,7 @@ export function ModelLeaderboard() {
         options.role = selectedRole;
       }
 
-      const response = await getModelLeaderboard(options);
+      const response = await authService.getModelLeaderboard(options);
 
       if (response.success) {
         setLeaderboardData(response.data || []);

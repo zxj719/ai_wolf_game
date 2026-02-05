@@ -7,9 +7,9 @@ import { Dashboard } from './components/Dashboard';
 import { useAuth } from './contexts/AuthContext';
 import { TokenManager } from './components/TokenManager';
 import { saveGameRecord } from './services/gameService';
-import { submitModelStats } from './services/authService';
+import { authService } from './services/authService';
 import { UserStats } from './components/UserStats';
-import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS } from './config/roles';
+import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS, DEFAULT_CUSTOM_SELECTIONS } from './config/roles';
 import { API_KEY, API_URL, AI_MODELS as DEFAULT_AI_MODELS, AI_PROVIDER, SILICONFLOW_FALLBACK_MODELS } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
 import { useDayFlow } from './hooks/useDayFlow';
@@ -37,6 +37,8 @@ export default function App() {
   const [gameStartTime, setGameStartTime] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showTokenManager, setShowTokenManager] = useState(false);
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [customRoleSelections, setCustomRoleSelections] = useState(DEFAULT_CUSTOM_SELECTIONS);
 
   const disabledModelsRef = useRef(new Set());
   const speakingLockRef = useRef(false); // 发言锁，防止并发
@@ -151,7 +153,7 @@ export default function App() {
           .filter(Boolean);
 
         if (playerStats.length > 0) {
-          submitModelStats({
+          authService.submitModelStats({
             gameSessionId: modelUsage.gameSessionId,
             gameMode: gameMode,
             durationSeconds,
@@ -1152,6 +1154,11 @@ export default function App() {
           isGuestMode={isGuestMode}
           hasModelscopeToken={tokenStatus.hasToken}
           onConfigureToken={() => setShowTokenManager(true)}
+          isCustomMode={isCustomMode}
+          setIsCustomMode={setIsCustomMode}
+          customRoleSelections={customRoleSelections}
+          setCustomRoleSelections={setCustomRoleSelections}
+          onBuildCustomSetup={setSelectedSetup}
         />
       )}
 

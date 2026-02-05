@@ -1,6 +1,7 @@
-import React from 'react';
-import { User, Brain, AlertTriangle, Key, ExternalLink } from 'lucide-react';
+import { User, Brain, AlertTriangle, Key, ExternalLink, Settings } from 'lucide-react';
 import { API_KEY } from '../config/aiConfig';
+import { RoleSelector } from './RoleSelector';
+import { validateRoleConfig, generateDescription, generateNightSequence, buildRolesArray, DEFAULT_CUSTOM_SELECTIONS } from '../config/roles';
 
 export const SetupScreen = ({
   gameMode,
@@ -8,17 +9,66 @@ export const SetupScreen = ({
   selectedSetup,
   setSelectedSetup,
   gameSetups,
-  // 新增：令牌相关属性
+  // 令牌相关属性
   isLoggedIn = false,
   isGuestMode = false,
   hasModelscopeToken = false,
-  onConfigureToken = null
+  onConfigureToken = null,
+  // 自定义模式属性
+  isCustomMode = false,
+  setIsCustomMode = () => {},
+  customRoleSelections = DEFAULT_CUSTOM_SELECTIONS,
+  setCustomRoleSelections = () => {},
+  onBuildCustomSetup = null
 }) => {
   // 需要配置令牌的情况：已登录用户没有配置令牌且环境变量也没有
   const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
 
-  // 是否可以开始游戏：游客可以直接玩（使用环境变量），登录用户必须配置令牌
-  const canStartGame = isGuestMode ? !!API_KEY : (hasModelscopeToken || !!API_KEY);
+  // 自定义模式验证
+  const customValidation = validateRoleConfig(customRoleSelections);
+
+  // 当前有效的配置（用于显示人数）
+  const effectiveSetup = isCustomMode
+    ? {
+        ...selectedSetup,
+        TOTAL_PLAYERS: customValidation.total,
+        description: generateDescription(customRoleSelections)
+      }
+    : selectedSetup;
+
+  // 是否可以开始游戏
+  const hasApiAccess = isGuestMode ? !!API_KEY : (hasModelscopeToken || !!API_KEY);
+  const canStartGame = hasApiAccess && (!isCustomMode || customValidation.isValid);
+
+  // 处理选择预设模式
+  const handleSelectPreset = (setup) => {
+    setSelectedSetup(setup);
+    setIsCustomMode(false);
+  };
+
+  // 处理选择自定义模式
+  const handleSelectCustom = () => {
+    setIsCustomMode(true);
+  };
+
+  // 处理开始游戏
+  const handleStartGame = (mode) => {
+    if (isCustomMode && onBuildCustomSetup) {
+      // 构建自定义配置并开始
+      const rolesArray = buildRolesArray(customRoleSelections);
+      const customSetup = {
+        id: 'custom',
+        name: '自定义局',
+        TOTAL_PLAYERS: rolesArray.length,
+        STANDARD_ROLES: rolesArray,
+        NIGHT_SEQUENCE: generateNightSequence(customRoleSelections),
+        description: generateDescription(customRoleSelections),
+        isCustom: true
+      };
+      onBuildCustomSetup(customSetup);
+    }
+    setGameMode(mode);
+  };
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-8">
@@ -69,14 +119,14 @@ export const SetupScreen = ({
       )}
 
       {/* Setup Selection */}
-      <div className="flex gap-4 p-2 bg-zinc-900/50 rounded-xl">
+      <div className="flex gap-4 p-2 bg-zinc-900/50 rounded-xl flex-wrap justify-center">
          {gameSetups.map(setup => (
            <button
              key={setup.id}
-             onClick={() => setSelectedSetup(setup)}
+             onClick={() => handleSelectPreset(setup)}
              className={`px-6 py-3 rounded-lg font-bold transition-all ${
-                selectedSetup.id === setup.id 
-                ? 'bg-indigo-600 text-white shadow-lg' 
+                !isCustomMode && selectedSetup.id === setup.id
+                ? 'bg-indigo-600 text-white shadow-lg'
                 : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
              }`}
            >
@@ -84,12 +134,38 @@ export const SetupScreen = ({
              <div className="text-xs opacity-70 font-normal">{setup.description}</div>
            </button>
          ))}
+         {/* 自定义按钮 */}
+         <button
+           onClick={handleSelectCustom}
+           className={`px-6 py-3 rounded-lg font-bold transition-all ${
+              isCustomMode
+              ? 'bg-indigo-600 text-white shadow-lg'
+              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+           }`}
+         >
+           <div className="text-lg flex items-center gap-2">
+             <Settings size={18} />
+             自定义
+           </div>
+           <div className="text-xs opacity-70 font-normal">
+             {isCustomMode ? generateDescription(customRoleSelections) : '自由配置角色'}
+           </div>
+         </button>
       </div>
+
+      {/* 自定义角色选择器 */}
+      {isCustomMode && (
+        <RoleSelector
+          selections={customRoleSelections}
+          onChange={setCustomRoleSelections}
+          validation={customValidation}
+        />
+      )}
 
       <h2 className="text-xl text-zinc-400">请选择开始模式</h2>
       <div className="flex gap-6">
         <button
-          onClick={() => setGameMode('player')}
+          onClick={() => handleStartGame('player')}
           disabled={!canStartGame}
           className={`group px-10 py-6 rounded-2xl text-xl font-bold transition-all transform shadow-xl flex flex-col items-center gap-3 ${
             !canStartGame
@@ -102,7 +178,7 @@ export const SetupScreen = ({
           <span className="text-sm text-green-200 font-normal">您将扮演一名玩家</span>
         </button>
         <button
-          onClick={() => setGameMode('ai-only')}
+          onClick={() => handleStartGame('ai-only')}
           disabled={!canStartGame}
           className={`group px-10 py-6 rounded-2xl text-xl font-bold transition-all transform shadow-xl flex flex-col items-center gap-3 ${
             !canStartGame
@@ -112,7 +188,7 @@ export const SetupScreen = ({
         >
           <Brain className="w-10 h-10" />
           <span>全AI模式</span>
-          <span className="text-sm text-purple-200 font-normal">观看{selectedSetup.TOTAL_PLAYERS}位AI对战</span>
+          <span className="text-sm text-purple-200 font-normal">观看{effectiveSetup.TOTAL_PLAYERS}位AI对战</span>
         </button>
       </div>
     </div>
