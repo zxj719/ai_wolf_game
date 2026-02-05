@@ -2,6 +2,111 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-02-05] AI 模型排行榜系统 + 游戏逻辑优化
+
+### 新功能
+- **AI 模型排行榜系统**
+  - 添加数据库表追踪每个 AI 模型在不同角色下的表现统计
+  - 实现等概率随机模型选择机制，确保公平竞争
+  - 游戏结束时自动上报模型使用数据和结果
+  - 新增后端 API 端点：
+    - `POST /api/model-stats` - 提交模型游戏统计
+    - `GET /api/model-leaderboard` - 获取模型排行榜（支持按角色筛选和排序）
+  - 新增前端排行榜组件 `ModelLeaderboard.jsx`
+    - 显示模型胜率、总场次、胜负记录
+    - 支持按角色筛选和多种排序方式（胜率/总场次/胜场）
+    - 所有注册用户可见，集成到 Dashboard 主页
+
+### 优化改进
+- **AI 模型调用优化**
+  - 修改 AI 客户端从基于玩家 ID 的轮询改为真随机选择
+  - 添加模型使用追踪，每次 AI 调用记录使用的模型信息
+  - 游戏状态新增 `modelUsage` 字段追踪整局游戏的模型使用
+
+- **游戏逻辑改进**
+  - 修复玩家模式下投票记录不显示问题
+  - 添加身份推理系统，AI 可根据游戏配置推断角色身份
+    - 示例："只有1号跳预言家，大概率是真预言家（本局只有1个预言家）"
+  - 白天投票增加思考过程记录，显示投票原因
+  - 优化投票流程为并行执行，大幅减少等待时间
+  - 女巫策略调整为基于推理而非"上帝视角"
+    - 不再直接告知好人/狼人剩余数量
+    - 引导女巫通过时间线、历史死亡、查验记录自己推断局势
+
+### 数据库变更
+**迁移文件**: `migrations/002_add_model_stats.sql`
+
+新增表：
+1. **ai_model_stats** - AI 模型统计聚合表
+   ```sql
+   CREATE TABLE ai_model_stats (
+     id INTEGER PRIMARY KEY,
+     model_id TEXT NOT NULL,
+     model_name TEXT NOT NULL,
+     role TEXT NOT NULL,
+     total_games INTEGER DEFAULT 0,
+     wins INTEGER DEFAULT 0,
+     losses INTEGER DEFAULT 0,
+     win_rate REAL DEFAULT 0.0,
+     created_at TIMESTAMP,
+     updated_at TIMESTAMP,
+     UNIQUE(model_id, role)
+   );
+   ```
+
+2. **game_model_usage** - 游戏模型使用记录表
+   ```sql
+   CREATE TABLE game_model_usage (
+     id INTEGER PRIMARY KEY,
+     game_session_id TEXT NOT NULL,
+     player_id INTEGER NOT NULL,
+     role TEXT NOT NULL,
+     model_id TEXT NOT NULL,
+     model_name TEXT NOT NULL,
+     result TEXT CHECK(result IN ('win', 'lose')),
+     game_mode TEXT NOT NULL,
+     duration_seconds INTEGER,
+     created_at TIMESTAMP
+   );
+   ```
+
+### 修改文件列表
+**前端**:
+- `src/services/aiClient.js` - 随机模型选择和信息追踪
+- `src/hooks/useAI.js` - 模型使用回调
+- `src/useWerewolfGame.js` - 模型追踪状态管理
+- `src/App.jsx` - 游戏结束时上报统计
+- `src/services/authService.js` - 新增 API 调用方法
+- `src/components/ModelLeaderboard.jsx` - **新增**排行榜组件
+- `src/components/Dashboard.jsx` - 集成排行榜组件
+- `src/hooks/useDayFlow.js` - 优化投票逻辑为并行执行
+- `src/services/aiPrompts.js` - 添加身份推理和女巫推理引导
+
+**后端**:
+- `workers/auth/handlers.js` - 新增统计处理逻辑
+- `workers/auth/index.js` - 新增路由
+
+### 部署命令
+```bash
+# 应用数据库迁移
+npx wrangler d1 execute wolfgame-db --remote --file=migrations/002_add_model_stats.sql
+
+# 构建并部署
+npm run build
+npm run deploy
+```
+
+### 验证命令
+```bash
+# 查看新表结构
+npx wrangler d1 execute wolfgame-db --remote --command "SELECT sql FROM sqlite_master WHERE type='table' AND name IN ('ai_model_stats', 'game_model_usage');"
+
+# 查看排行榜数据
+npx wrangler d1 execute wolfgame-db --remote --command "SELECT * FROM ai_model_stats ORDER BY win_rate DESC LIMIT 10;"
+```
+
+---
+
 ## [2026-02-04] 修复 Cloudflare 部署和令牌验证功能
 
 ### 问题描述

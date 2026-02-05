@@ -21,7 +21,9 @@ import {
   handleSaveToken,
   handleVerifyModelscopeToken,
   handleGetToken,
-  handleDeleteToken
+  handleDeleteToken,
+  handleSubmitModelStats,
+  handleGetModelLeaderboard
 } from './handlers.js';
 
 export default {
@@ -118,6 +120,15 @@ export default {
       // 排行榜（公开接口）
       if (path === '/api/leaderboard' && request.method === 'GET') {
         return handleGetLeaderboard(request, env);
+      }
+
+      // AI 模型统计（公开接口）
+      if (path === '/api/model-stats' && request.method === 'POST') {
+        return handleSubmitModelStats(request, env);
+      }
+
+      if (path === '/api/model-leaderboard' && request.method === 'GET') {
+        return handleGetModelLeaderboard(request, env);
       }
 
       // 健康检查

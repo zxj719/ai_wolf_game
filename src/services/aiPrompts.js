@@ -477,11 +477,112 @@ const smartTruncate = (content, maxLength) => {
     return result;
 };
 
+/**
+ * 统计场上的身份声明情况（用于身份推理）
+ */
+const analyzeIdentityClaims = (speechHistory, gameSetup) => {
+    const claims = {
+        seer: [], // 跳预言家的玩家
+        witch: [], // 跳女巫的玩家
+        hunter: [], // 跳猎人的玩家
+        guard: [], // 跳守卫的玩家
+    };
+
+    // 分析所有发言，寻找身份声明
+    speechHistory.forEach(speech => {
+        const content = speech.content?.toLowerCase() || '';
+        const playerId = speech.playerId;
+
+        // 检测预言家声明（关键词：查验、金水、查杀、预言家）
+        if (content.includes('查验') || content.includes('金水') || content.includes('查杀') ||
+            content.includes('我是预言家') || content.includes('预言家')) {
+            if (!claims.seer.includes(playerId)) {
+                claims.seer.push(playerId);
+            }
+        }
+
+        // 检测女巫声明（关键词：解药、毒药、银水、女巫）
+        if (content.includes('解药') || content.includes('毒药') || content.includes('银水') ||
+            content.includes('我是女巫') || content.includes('女巫')) {
+            if (!claims.witch.includes(playerId)) {
+                claims.witch.push(playerId);
+            }
+        }
+
+        // 检测猎人声明（关键词：开枪、带走、猎人）
+        if (content.includes('开枪') || content.includes('带走') || content.includes('我是猎人') ||
+            content.includes('猎人')) {
+            if (!claims.hunter.includes(playerId)) {
+                claims.hunter.push(playerId);
+            }
+        }
+
+        // 检测守卫声明（关键词：守护、守卫）
+        if (content.includes('守护') || content.includes('我是守卫') || content.includes('守卫')) {
+            if (!claims.guard.includes(playerId)) {
+                claims.guard.push(playerId);
+            }
+        }
+    });
+
+    // 根据游戏配置生成推理提示
+    const hints = [];
+    const gameRoles = gameSetup?.STANDARD_ROLES || [];
+    const seerCount = gameRoles.filter(r => r === '预言家').length;
+    const witchCount = gameRoles.filter(r => r === '女巫').length;
+    const hunterCount = gameRoles.filter(r => r === '猎人').length;
+    const guardCount = gameRoles.filter(r => r === '守卫').length;
+
+    // 预言家推理
+    if (claims.seer.length > 0) {
+        if (claims.seer.length === 1 && seerCount === 1) {
+            hints.push(`⚠️ 只有${claims.seer[0]}号跳预言家，大概率是真预言家（本局只有1个预言家）`);
+        } else if (claims.seer.length > seerCount) {
+            hints.push(`⚠️ ${claims.seer.join(',')}号跳预言家，但本局只有${seerCount}个预言家，必有悍跳狼`);
+        }
+    }
+
+    // 女巫推理
+    if (claims.witch.length > 0) {
+        if (claims.witch.length === 1 && witchCount === 1) {
+            hints.push(`⚠️ 只有${claims.witch[0]}号跳女巫，大概率是真女巫（本局只有1个女巫）`);
+        } else if (claims.witch.length > witchCount) {
+            hints.push(`⚠️ ${claims.witch.join(',')}号跳女巫，但本局只有${witchCount}个女巫，必有假跳`);
+        }
+    }
+
+    // 猎人推理
+    if (claims.hunter.length > 0 && hunterCount > 0) {
+        if (claims.hunter.length === 1 && hunterCount === 1) {
+            hints.push(`⚠️ 只有${claims.hunter[0]}号跳猎人，大概率是真猎人（本局只有1个猎人）`);
+        } else if (claims.hunter.length > hunterCount) {
+            hints.push(`⚠️ ${claims.hunter.join(',')}号跳猎人，但本局只有${hunterCount}个猎人，必有假跳`);
+        }
+    }
+
+    // 守卫推理
+    if (claims.guard.length > 0 && guardCount > 0) {
+        if (claims.guard.length === 1 && guardCount === 1) {
+            hints.push(`⚠️ 只有${claims.guard[0]}号跳守卫，大概率是真守卫（本局只有1个守卫）`);
+        } else if (claims.guard.length > guardCount) {
+            hints.push(`⚠️ ${claims.guard.join(',')}号跳守卫，但本局只有${guardCount}个守卫，必有假跳`);
+        }
+    }
+
+    return {
+        claims,
+        hints: hints.length > 0 ? '\n【身份推理】\n' + hints.join('\n') : ''
+    };
+};
+
 export const prepareGameContext = (gameState) => {
-    const { players, speechHistory, voteHistory, deathHistory, dayCount, phase } = gameState;
+    const { players, speechHistory, voteHistory, deathHistory, dayCount, phase, gameSetup } = gameState;
     const alivePlayers = players.filter(p => p.isAlive);
     const aliveList = alivePlayers.map(p => `${p.id}号`).join(',');
     const deadList = players.filter(p => !p.isAlive).map(p => `${p.id}号`).join(',') || '无';
+
+    // 分析身份声明情况
+    const identityAnalysis = analyzeIdentityClaims(speechHistory, gameSetup);
 
     // 今日发言 - 添加发言序号以表示时序
     const todaySpeechesList = speechHistory.filter(s => s.day === dayCount);
@@ -586,7 +687,9 @@ export const prepareGameContext = (gameState) => {
             hasSeer
         },
         // 完整游戏时间线（整局游戏的事件记录）
-        fullGameTimeline
+        fullGameTimeline,
+        // 身份推理信息
+        identityAnalysis
     };
 };
 
@@ -784,7 +887,7 @@ ${ctx.todaySpeeches || '暂无'}
 ${ctx.historySpeeches || '暂无'}
 
 【昨夜情况】${ctx.lastNightInfo}
-【投票记录(整局)】${ctx.voteInfo}
+【投票记录(整局)】${ctx.voteInfo}${ctx.identityAnalysis?.hints || ''}
 ${ctx.spokenPlayerIds?.length > 0
     ? `\n【⚠️ 时序提醒】已发言玩家: ${ctx.spokenPlayerIds.join('号→')}号。只能评价已发言玩家！`
     : '\n【⚠️ 时序提醒】你是第一个发言，不能评价任何人的发言！'}`;
@@ -869,20 +972,37 @@ ${nightCot}
 输出:{"targetId":数字,"reasoning":"查验理由"}`;
 
         case PROMPT_ACTIONS.NIGHT_WITCH:
-             const { dyingId, canSave, hasPoison } = params;
+             const { dyingId, canSave, hasPoison, witchId } = params;
              const witchHint = ctx.dayCount === 1 ? '【首夜策略】通常使用解药救人。⚠️ 重要：第一晚女巫可以自救（如果自己被刀）！' : '';
              const witchInfo = `被刀:${dyingId !== null ? dyingId + '号' : '无人被刀(平安夜)'}。解药:${canSave ? '可用' : '已用/无'}。毒药:${hasPoison ? '可用' : '已用/无'}。`;
+
+             // 构建临界情况引导（不直接告知数量，引导推理）
+             const criticalGuidance = `\n\n⚠️【临界情况推理】
+请根据以下信息自己推断当前局势：
+1. 回顾【整局时间线】和【历史死亡】，推断目前存活的好人和狼人大概各有多少
+2. 结合预言家的查验记录（金水/查杀），缩小推断范围
+3. 判断：如果${dyingId === witchId ? '你死了' : '不救人'}，明天好人是否还占优势？
+4. 判断：如果再死一个好人，是否会导致好人数≤狼人数（直接输）？
+
+【临界决策思维链】
+- 如果推断出"再死一个好人就会输"：
+  → 第1步：如果你被刀，必须自救！
+  → 第2步：如果预感下一晚你会被刀且你有毒药，必须开毒！选择你最怀疑的狼人
+- 如果推断出"好人还有优势"：
+  → 按照常规策略，谨慎使用毒药`;
+
              return `女巫用药决策。
 ${witchHint}
 【当前情况】${witchInfo}
-【重要规则】不能同时使用两药！
+【重要规则】不能同时使用两药！${criticalGuidance}
 ${nightCot}
 【用药策略】
 - 解药考量：被刀者是否为关键神职？是否可能是自刀狼？救人收益vs保留价值？
 - 毒药考量：只有高度确信某人是狼且逻辑完全崩坏时才考虑开毒
 - 风险评估：毒错好人会导致阵营崩盘
-输出:{"useSave":true/false,"usePoison":数字或null,"reasoning":"决策理由"}`;
-             
+- 临界决策：在危急时刻，保守会导致失败，必须果断出手
+输出:{"useSave":true/false,"usePoison":数字或null,"reasoning":"决策理由(必须包含你的推断：当前大概还剩X好人Y狼人)"}`;
+
         case PROMPT_ACTIONS.DAY_VOTE:
              const { validTargets: voteTargets, seerConstraint, lastVoteIntention } = params;
              const intentionReminder = lastVoteIntention && lastVoteIntention !== -1

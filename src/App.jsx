@@ -7,6 +7,7 @@ import { Dashboard } from './components/Dashboard';
 import { useAuth } from './contexts/AuthContext';
 import { TokenManager } from './components/TokenManager';
 import { saveGameRecord } from './services/gameService';
+import { submitModelStats } from './services/authService';
 import { UserStats } from './components/UserStats';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS } from './config/roles';
 import { API_KEY, API_URL, AI_MODELS as DEFAULT_AI_MODELS, AI_PROVIDER, SILICONFLOW_FALLBACK_MODELS } from './config/aiConfig';
@@ -65,6 +66,7 @@ export default function App() {
     initGame,
     processedVoteDayRef,
     gameInitializedRef,
+    updatePlayerModel,
   } = useWerewolfGame({
     ROLE_DEFINITIONS, 
     STANDARD_ROLES, 
@@ -90,7 +92,8 @@ export default function App() {
     deathHistory,
     nightActionHistory,
     currentPhaseData,
-    gameBackground
+    gameBackground,
+    modelUsage
   } = state;
 
   useEffect(() => {
@@ -103,27 +106,70 @@ export default function App() {
 
   // 游戏结束时保存记录
   useEffect(() => {
-    if (phase === 'game_over' && gameResult && userPlayer && !isGuestMode) {
+    if (phase === 'game_over' && gameResult) {
       const durationSeconds = gameStartTime
         ? Math.floor((Date.now() - gameStartTime) / 1000)
         : null;
 
-      // 判断用户是否获胜
-      const isWolf = userPlayer.role === ROLE_DEFINITIONS.WEREWOLF;
-      const userWon = (gameResult === 'wolf_win' && isWolf) || (gameResult === 'good_win' && !isWolf);
+      // 保存用户游戏记录（仅玩家模式且非游客）
+      if (userPlayer && !isGuestMode) {
+        const isWolf = userPlayer.role === ROLE_DEFINITIONS.WEREWOLF;
+        const userWon = (gameResult === 'wolf_win' && isWolf) || (gameResult === 'good_win' && !isWolf);
 
-      saveGameRecord({
-        role: userPlayer.role,
-        result: userWon ? 'win' : 'lose',
-        gameMode: gameMode,
-        durationSeconds
-      }).then(res => {
-        if (res.success) {
-          console.log('Game record saved successfully');
+        saveGameRecord({
+          role: userPlayer.role,
+          result: userWon ? 'win' : 'lose',
+          gameMode: gameMode,
+          durationSeconds
+        }).then(res => {
+          if (res.success) {
+            console.log('Game record saved successfully');
+          }
+        });
+      }
+
+      // 提交 AI 模型统计（所有模式都提交）
+      if (modelUsage?.gameSessionId && Object.keys(modelUsage.playerModels).length > 0) {
+        const playerStats = players
+          .filter(p => !p.isUser) // 只统计AI玩家
+          .map(p => {
+            const modelInfo = modelUsage.playerModels[p.id];
+            if (!modelInfo) return null;
+
+            // 判断该玩家是否获胜
+            const isWolf = p.role === ROLE_DEFINITIONS.WEREWOLF;
+            const won = (gameResult === 'wolf_win' && isWolf) || (gameResult === 'good_win' && !isWolf);
+
+            return {
+              playerId: p.id,
+              role: p.role,
+              modelId: modelInfo.modelId,
+              modelName: modelInfo.modelName,
+              result: won ? 'win' : 'lose'
+            };
+          })
+          .filter(Boolean);
+
+        if (playerStats.length > 0) {
+          submitModelStats({
+            gameSessionId: modelUsage.gameSessionId,
+            gameMode: gameMode,
+            durationSeconds,
+            result: gameResult,
+            players: playerStats
+          }).then(res => {
+            if (res.success) {
+              console.log('✅ [模型统计] 已上报', playerStats.length, '个AI玩家的数据');
+            } else {
+              console.warn('⚠️ [模型统计] 上报失败:', res.error);
+            }
+          }).catch(err => {
+            console.error('❌ [模型统计] 上报错误:', err);
+          });
         }
-      });
+      }
     }
-  }, [phase, gameResult]);
+  }, [phase, gameResult, modelUsage, players, userPlayer, isGuestMode, gameMode, gameStartTime]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,7 +221,9 @@ export default function App() {
       // 游戏配置（用于区分6人局/8人局等不同规则）
       gameSetup: selectedSetup,
       // 整局夜间行动历史（包含所有夜晚的行动记录，而非每天刷新）
-      nightActionHistory
+      nightActionHistory,
+      // 模型追踪回调
+      onModelUsed: updatePlayerModel
     });
 
   const checkGameEnd = (currentPlayers = players) => {
@@ -585,9 +633,14 @@ export default function App() {
       const dyingId = nightDecisions.wolfTarget;
       const canSave = actor.hasWitchSave && dyingId !== null && (dyingId !== actor.id || dayCount === 1);
       const validPoisonTargets = players.filter(p => p.isAlive && p.id !== dyingId).map(p => p.id);
-      
+
       console.log(`[女巫AI] 开始女巫决策，被刀：${dyingId}，解药：${canSave}，毒药：${actor.hasWitchPoison}`);
-      const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_WITCH, { dyingId, canSave, hasPoison: actor.hasWitchPoison });
+      const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_WITCH, {
+        dyingId,
+        canSave,
+        hasPoison: actor.hasWitchPoison,
+        witchId: actor.id
+      });
       console.log(`[女巫AI] AI返回结果：`, res);
       
       // 构建完整的夜间决策对象

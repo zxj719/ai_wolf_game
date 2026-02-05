@@ -31,7 +31,12 @@ const initialState = {
     actions: []
   },
   // 游戏主题背景图像
-  gameBackground: null
+  gameBackground: null,
+  // AI模型使用追踪（用于排行榜统计）
+  modelUsage: {
+    gameSessionId: null,  // 游戏会话ID
+    playerModels: {}      // { playerId: { modelId, modelName } }
+  }
 };
 
 const types = {
@@ -56,6 +61,8 @@ const types = {
   ADD_CURRENT_PHASE_ACTION: 'ADD_CURRENT_PHASE_ACTION',
   CLEAR_CURRENT_PHASE_DATA: 'CLEAR_CURRENT_PHASE_DATA',
   SET_GAME_BACKGROUND: 'SET_GAME_BACKGROUND',
+  SET_MODEL_USAGE: 'SET_MODEL_USAGE',
+  UPDATE_PLAYER_MODEL: 'UPDATE_PLAYER_MODEL',
 };
 
 function reducer(state, action) {
@@ -117,6 +124,22 @@ function reducer(state, action) {
       return { ...state, currentPhaseData: { speeches: [], actions: [] } };
     case types.SET_GAME_BACKGROUND:
       return { ...state, gameBackground: action.payload };
+    case types.SET_MODEL_USAGE:
+      return { ...state, modelUsage: apply('modelUsage', action.payload) };
+    case types.UPDATE_PLAYER_MODEL:
+      return {
+        ...state,
+        modelUsage: {
+          ...state.modelUsage,
+          playerModels: {
+            ...state.modelUsage.playerModels,
+            [action.payload.playerId]: {
+              modelId: action.payload.modelId,
+              modelName: action.payload.modelName
+            }
+          }
+        }
+      };
     default:
       return state;
   }
@@ -148,6 +171,11 @@ export function useWerewolfGame(config) {
   const setGameBackground = (value) => dispatch({ type: types.SET_GAME_BACKGROUND, payload: value });
   const setLogs = (value) => dispatch({ type: types.SET_LOGS, payload: value });
   const pushLog = (value) => dispatch({ type: types.PUSH_LOG, payload: value });
+  const setModelUsage = (value) => dispatch({ type: types.SET_MODEL_USAGE, payload: value });
+  const updatePlayerModel = (playerId, modelId, modelName) => dispatch({
+    type: types.UPDATE_PLAYER_MODEL,
+    payload: { playerId, modelId, modelName }
+  });
 
   const addLog = (text, type = 'info', speaker = null) => {
     pushLog({ text, type, speaker, id: `${Date.now()}-${Math.random()}` });
@@ -206,6 +234,11 @@ export function useWerewolfGame(config) {
       seerResult: null
     });
     setLogs([]);
+    // 初始化模型使用追踪（生成唯一游戏会话ID）
+    setModelUsage({
+      gameSessionId: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      playerModels: {}
+    });
     
     // Generate role summary string
     const roleCounts = activeRoles.reduce((acc, role) => {
@@ -272,5 +305,7 @@ export function useWerewolfGame(config) {
     initGame,
     processedVoteDayRef,
     gameInitializedRef,
+    setModelUsage,
+    updatePlayerModel,
   };
 }

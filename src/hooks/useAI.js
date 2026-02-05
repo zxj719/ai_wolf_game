@@ -37,7 +37,9 @@ export function useAI({
   // P1增强：信任与推断上下文获取函数（可选）
   getInferenceContext = null,
   // P2增强：双系统上下文获取函数（可选）
-  getDualSystemContext = null
+  getDualSystemContext = null,
+  // 模型追踪回调函数
+  onModelUsed = null
 }) {
 
   // P0增强：增强版发言历史（添加逻辑断言等结构化信息）
@@ -308,13 +310,19 @@ export function useAI({
       }
       console.log('%c📦 完整响应:', 'color: #94a3b8;', result);
       console.groupEnd();
+
+      // 追踪模型使用（如果提供了回调）
+      if (onModelUsed && result._modelInfo) {
+        onModelUsed(player.id, result._modelInfo.modelId, result._modelInfo.modelName);
+        console.log(`📊 [模型追踪] ${player.id}号使用模型: ${result._modelInfo.modelName}`);
+      }
     } else {
       console.warn(`❌ [AI响应] ${player.id}号 ${player.name} - 无有效响应`);
     }
 
     setIsThinking(false);
     return result;
-  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext]);
+  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext, onModelUsed]);
 
   /**
    * P0增强：获取局势摘要

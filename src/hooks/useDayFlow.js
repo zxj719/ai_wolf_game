@@ -226,15 +226,19 @@ export function useDayFlow({
     const alive = players.filter(p => p.isAlive);
     const aliveIds = alive.map(p => p.id);
     const deadIds = players.filter(p => !p.isAlive).map(p => p.id);
-    let votes = [];
 
-    for (let p of alive) {
+    // 并行投票：所有AI同时做决策
+    const votePromises = alive.map(async (p) => {
       let targetId = null;
+      let reasoning = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
+
+      // 优先使用发言意向
       if (mySpeech && mySpeech.voteIntention !== undefined && aliveIds.includes(mySpeech.voteIntention)) {
         targetId = mySpeech.voteIntention;
-      }
-      if (targetId === null) {
+        reasoning = '遵循发言意向';
+      } else {
+        // 需要AI决策
         let seerConstraint = '';
         if (p.role === '预言家') {
           const myChecks = seerChecks.filter(c => c.seerId === p.id);
@@ -243,19 +247,27 @@ export function useDayFlow({
             seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】除非有极强的反逻辑证据。`;
           }
         }
-        
+
         const validVoteTargets = aliveIds.filter(id => id !== p.id);
         const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets: validVoteTargets, seerConstraint });
         targetId = res?.targetId;
+        reasoning = res?.reasoning || '';
       }
+
+      // 构建投票对象
       if (targetId !== undefined && aliveIds.includes(targetId)) {
-        votes.push({ voterId: p.id, voterName: p.name, targetId });
+        return { voterId: p.id, voterName: p.name, targetId, reasoning };
       } else if (targetId !== undefined) {
         const fallback = aliveIds.filter(id => id !== p.id)[0] || aliveIds[0];
-        votes.push({ voterId: p.id, voterName: p.name, targetId: fallback });
+        return { voterId: p.id, voterName: p.name, targetId: fallback, reasoning: reasoning || '备用选择' };
       }
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
+      return null;
+    });
+
+    // 等待所有投票完成
+    const voteResults = await Promise.all(votePromises);
+    const votes = voteResults.filter(v => v !== null);
+
     processVoteResults(votes, aliveIds);
   }, [askAI, players, speechHistory, dayCount, seerChecks, setIsThinking]);
 
@@ -266,7 +278,10 @@ export function useDayFlow({
     }, {});
 
     addLog('--- 投票记录 ---', 'system');
-    votes.forEach(v => addLog(`[${v.voterId}号] 投给 -> [${v.targetId}号]`, 'info'));
+    votes.forEach(v => {
+      const reasonText = v.reasoning ? ` (${v.reasoning})` : '';
+      addLog(`[${v.voterId}号] 投给 -> [${v.targetId}号]${reasonText}`, 'info');
+    });
 
     if (Object.keys(counts).length === 0) {
       addLog('无人投票，平安日。', 'info');
@@ -345,17 +360,31 @@ export function useDayFlow({
     const alive = players.filter(p => p.isAlive);
     const aliveIds = alive.map(p => p.id);
     const deadIds = players.filter(p => !p.isAlive).map(p => p.id);
-    const userVote = players.find(p => p.id === 0)?.isAlive ? { voterId: 0, voterName: '你', targetId: selectedTarget } : null;
+
+    // 找到用户玩家（isUser标记）
+    const userPlayerObj = players.find(p => p.isUser);
+    const userVote = userPlayerObj?.isAlive ? {
+      voterId: userPlayerObj.id,
+      voterName: userPlayerObj.name,
+      targetId: selectedTarget,
+      reasoning: '玩家选择'
+    } : null;
+
     const aiPlayers = alive.filter(p => !p.isUser);
-    const aiVotes = [];
-    for (const p of aiPlayers) {
+
+    // 并行投票：所有AI同时做决策
+    const aiVotePromises = aiPlayers.map(async (p) => {
       const validTargets = aliveIds.filter(id => id !== p.id);
       let targetId = null;
+      let reasoning = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
+
+      // 优先使用发言意向
       if (mySpeech && mySpeech.voteIntention !== undefined && validTargets.includes(mySpeech.voteIntention)) {
         targetId = mySpeech.voteIntention;
-      }
-      if (targetId === null) {
+        reasoning = '遵循发言意向';
+      } else {
+        // 需要AI决策
         let seerConstraint = '';
         if (p.role === '预言家') {
           const myChecks = seerChecks.filter(c => c.seerId === p.id);
@@ -364,21 +393,29 @@ export function useDayFlow({
             seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】`;
           }
         }
-        
+
         const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets, seerConstraint });
         targetId = res?.targetId;
+        reasoning = res?.reasoning || '';
       }
+
+      // 构建投票对象
       if (targetId !== undefined && validTargets.includes(targetId)) {
-        aiVotes.push({ voterId: p.id, voterName: p.name, targetId });
+        return { voterId: p.id, voterName: p.name, targetId, reasoning };
       } else if (targetId !== undefined) {
         const fallback = validTargets[Math.floor(Math.random() * validTargets.length)];
-        aiVotes.push({ voterId: p.id, voterName: p.name, targetId: fallback });
+        return { voterId: p.id, voterName: p.name, targetId: fallback, reasoning: reasoning || '备用选择' };
       }
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
+      return null;
+    });
+
+    // 等待所有AI投票完成
+    const aiVoteResults = await Promise.all(aiVotePromises);
+    const aiVotes = aiVoteResults.filter(v => v !== null);
+
     const votes = userVote ? [userVote, ...aiVotes] : aiVotes;
     processVoteResults(votes, aliveIds);
-  }, [selectedTarget, players, addLog, setIsThinking, speechHistory, dayCount, seerChecks, processVoteResults]);
+  }, [selectedTarget, players, addLog, setIsThinking, speechHistory, dayCount, seerChecks, processVoteResults, askAI]);
 
   return {
     startDayDiscussion,

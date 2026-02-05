@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { TokenManager } from './TokenManager';
 import { UserStats } from './UserStats';
+import { ModelLeaderboard } from './ModelLeaderboard';
 import {
   Gamepad2,
   BookOpen,
@@ -200,6 +201,11 @@ export function Dashboard({ onEnterGame, onLogout }) {
               </a>
             </div>
           </div>
+        </div>
+
+        {/* AI 模型排行榜 */}
+        <div className="mt-8">
+          <ModelLeaderboard />
         </div>
 
         {/* 更多功能区（未来扩展） */}

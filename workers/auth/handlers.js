@@ -1076,3 +1076,169 @@ async function verifyModelscopeToken(token) {
     return { valid: false, error: 'network_error' };
   }
 }
+
+/**
+ * 提交 AI 模型游戏统计
+ * POST /api/model-stats
+ *
+ * 请求体：
+ * {
+ *   gameSessionId: string,
+ *   gameMode: string,
+ *   durationSeconds: number,
+ *   result: 'good_win' | 'wolf_win',
+ *   players: [{
+ *     playerId: number,
+ *     role: string,
+ *     modelId: string,
+ *     modelName: string,
+ *     result: 'win' | 'lose'
+ *   }]
+ * }
+ */
+export async function handleSubmitModelStats(request, env) {
+  try {
+    const body = await request.json();
+    const { gameSessionId, gameMode, durationSeconds, result, players } = body;
+
+    // 验证必填字段
+    if (!gameSessionId || !gameMode || !result || !Array.isArray(players) || players.length === 0) {
+      return errorResponse('Invalid request: missing required fields', 400, env, request);
+    }
+
+    const db = env.DB;
+
+    // 开始事务处理
+    const currentTime = new Date().toISOString();
+
+    // 1. 插入游戏模型使用记录
+    const insertStmt = db.prepare(`
+      INSERT INTO game_model_usage
+      (game_session_id, player_id, role, model_id, model_name, result, game_mode, duration_seconds, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const player of players) {
+      try {
+        await insertStmt.bind(
+          gameSessionId,
+          player.playerId,
+          player.role,
+          player.modelId,
+          player.modelName,
+          player.result,
+          gameMode,
+          durationSeconds,
+          currentTime
+        ).run();
+      } catch (err) {
+        console.error('Failed to insert game_model_usage:', err);
+        // 继续处理其他玩家
+      }
+    }
+
+    // 2. 更新或插入 ai_model_stats 聚合表
+    for (const player of players) {
+      try {
+        // 检查是否存在记录
+        const existing = await db.prepare(`
+          SELECT id, total_games, wins, losses FROM ai_model_stats
+          WHERE model_id = ? AND role = ?
+        `).bind(player.modelId, player.role).first();
+
+        if (existing) {
+          // 更新现有记录
+          const newTotalGames = existing.total_games + 1;
+          const newWins = existing.wins + (player.result === 'win' ? 1 : 0);
+          const newLosses = existing.losses + (player.result === 'lose' ? 1 : 0);
+          const newWinRate = newWins / newTotalGames;
+
+          await db.prepare(`
+            UPDATE ai_model_stats
+            SET total_games = ?, wins = ?, losses = ?, win_rate = ?, updated_at = ?
+            WHERE id = ?
+          `).bind(newTotalGames, newWins, newLosses, newWinRate, currentTime, existing.id).run();
+        } else {
+          // 插入新记录
+          const totalGames = 1;
+          const wins = player.result === 'win' ? 1 : 0;
+          const losses = player.result === 'lose' ? 1 : 0;
+          const winRate = wins / totalGames;
+
+          await db.prepare(`
+            INSERT INTO ai_model_stats
+            (model_id, model_name, role, total_games, wins, losses, win_rate, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            player.modelId,
+            player.modelName,
+            player.role,
+            totalGames,
+            wins,
+            losses,
+            winRate,
+            currentTime,
+            currentTime
+          ).run();
+        }
+      } catch (err) {
+        console.error('Failed to update ai_model_stats:', err);
+        // 继续处理其他玩家
+      }
+    }
+
+    return jsonResponse({ success: true, message: 'Model stats submitted successfully' });
+  } catch (error) {
+    console.error('Error in handleSubmitModelStats:', error);
+    return errorResponse('Failed to submit model stats', 500, env, request);
+  }
+}
+
+/**
+ * 获取 AI 模型排行榜
+ * GET /api/model-leaderboard?role=狼人&sortBy=winRate&limit=50
+ */
+export async function handleGetModelLeaderboard(request, env) {
+  try {
+    const url = new URL(request.url);
+    const role = url.searchParams.get('role');
+    const sortBy = url.searchParams.get('sortBy') || 'winRate';
+    const limit = parseInt(url.searchParams.get('limit') || '100', 10);
+
+    const db = env.DB;
+
+    // 构建查询
+    let query = 'SELECT * FROM ai_model_stats';
+    const params = [];
+
+    if (role) {
+      query += ' WHERE role = ?';
+      params.push(role);
+    }
+
+    // 排序
+    const validSortFields = {
+      winRate: 'win_rate DESC',
+      totalGames: 'total_games DESC',
+      wins: 'wins DESC'
+    };
+    const orderBy = validSortFields[sortBy] || 'win_rate DESC';
+    query += ` ORDER BY ${orderBy}`;
+
+    // 限制数量
+    query += ' LIMIT ?';
+    params.push(limit);
+
+    const stmt = db.prepare(query);
+    const result = await stmt.bind(...params).all();
+
+    return jsonResponse({
+      success: true,
+      data: result.results || [],
+      count: result.results?.length || 0
+    });
+  } catch (error) {
+    console.error('Error in handleGetModelLeaderboard:', error);
+    return errorResponse('Failed to get model leaderboard', 500, env, request);
+  }
+}

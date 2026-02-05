@@ -72,8 +72,12 @@ export const fetchLLM = async (
   { player, prompt, systemInstruction, retries = 3, backoff = 2000, forcedModelIndex = null },
   { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
 ) => {
-  const defaultModelIndex = player ? player.id % AI_MODELS.length : 0;
-  let modelIndex = forcedModelIndex !== null ? forcedModelIndex : defaultModelIndex;
+  // 等概率选择模型（随机）而不是基于玩家ID
+  // 这样可以确保每个模型都有相同的机会被选中
+  const defaultModelIndex = forcedModelIndex !== null
+    ? forcedModelIndex
+    : Math.floor(Math.random() * AI_MODELS.length);
+  let modelIndex = defaultModelIndex;
 
   // Skip blacklisted models
   let attempts = 0;
@@ -129,12 +133,20 @@ export const fetchLLM = async (
 
     const content = result.choices?.[0]?.message?.content;
     const parsed = safeParseJSON(content);
-    
+
     if (!parsed) {
       throw new Error('RunningModel: Invalid JSON response');
     }
-    
-    return parsed;
+
+    // 返回解析结果 + 模型信息（用于统计）
+    return {
+      ...parsed,
+      _modelInfo: {
+        modelId: modelConfig.id,
+        modelName: modelConfig.name,
+        modelIndex: modelIndex
+      }
+    };
   } catch (error) {
     console.error(`LLM Fetch Error [Model: ${modelConfig.id}]:`, error);
 
