@@ -94,6 +94,26 @@ export const THINKING_MODELS = [
     },
     isThinking: true
   },
+  // 智谱 GLM-4.7 Flash - 快速推理模型
+  {
+    id: 'ZhipuAI/GLM-4.7-Flash',
+    name: 'GLM-4.7-Flash',
+    options: {
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    isThinking: true
+  },
+  // 智谱 GLM-4.7 - 标准推理模型
+  {
+    id: 'ZhipuAI/GLM-4.7',
+    name: 'GLM-4.7',
+    options: {
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    isThinking: true
+  },
   // DeepSeek R1 蒸馏版
   { 
     id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B', 

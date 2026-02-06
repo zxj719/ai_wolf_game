@@ -51,7 +51,12 @@ const VICTORY_MODE_PROMPTS = {
 const IDENTITY_TABLE_PROMPT = `
 【身份推理表说明】
 你需要维护一个身份推理表，记录你对每个玩家身份的判断。
-格式: {"玩家号码": {"suspect": "角色猜测", "confidence": 0-100, "reason": "推理依据"}}
+格式: {"玩家号数字": {"suspect": "角色全名", "confidence": 0-100, "reason": "推理依据"}}
+示例: {"0": {"suspect":"狼人","confidence":80,"reason":"..."}}
+硬性要求:
+1) identity_table 的 key 必须是纯数字字符串（不要写“0号/1号”）
+2) identity_table 的 suspect 必须是【本局角色配置】里存在的“角色全名”
+3) 不要用“好人/坏人/平民/神职”等泛称来当作角色
 
 推理方法：
 1. 排除法：根据已确认的身份排除可能性
@@ -421,20 +426,64 @@ export const buildPrivateRoleInfo = (player, gameState) => {
 };
 
 // ============================================================
-// 核心规则常量：夜间流程与平安夜逻辑
+// 核心规则生成：夜间流程与平安夜逻辑（渐进式披露）
 // ============================================================
-const CORE_GAME_RULES = `
-【核心规则 - 夜间流程】
-1. 夜间行动顺序：狼人杀人 → 女巫得知刀口并决定用药 → 守卫守护 → 预言家查验
+/**
+ * 构建核心游戏规则 - 根据存在的角色动态生成
+ * 渐进式披露：没有的角色不会被提及
+ * @param {Object} existingRoles - 存在的角色标志
+ * @returns {string} 动态生成的规则字符串
+ */
+const buildCoreGameRules = (existingRoles = {}) => {
+  const { hasWitch, hasGuard } = existingRoles;
+
+  // 构建夜间行动顺序 - 只包含存在的角色
+  const actionOrder = ['狼人杀人'];
+  if (hasWitch) actionOrder.push('女巫得知刀口并决定用药');
+  if (hasGuard) actionOrder.push('守卫守护');
+  actionOrder.push('预言家查验');
+
+  // 构建平安夜原因列表 - 只包含存在的角色
+  const peacefulReasons = [];
+  if (hasWitch) peacefulReasons.push('女巫救人了');
+  if (hasGuard) peacefulReasons.push('守卫守对了');
+
+  // 女巫相关规则
+  const witchRules = hasWitch ? `
 2. 女巫在夜间【先于结果宣告前】得知狼人刀的目标，可选择是否使用解药救人
 3. 若女巫使用解药救人，次日早上会宣告"平安夜"（无人死亡）
-4. 因此，【平安夜是女巫开药或守卫成功守护的直接证据】，而非"女巫不能救人"
-5. 女巫一晚只能使用一瓶药（解药或毒药），不能同时使用
+4. 女巫一晚只能使用一瓶药（解药或毒药），不能同时使用` : '';
 
-【平安夜分析要点】
-- 平安夜出现时，说明：①女巫救人了 或 ②守卫守对了 或 ③两者皆有
-- 平安夜后，女巫可以考虑跳身份报"银水"（救过的人）
-- 狼人可能利用平安夜制造混乱，声称"守卫守护成功"来转移注意力`;
+  // 平安夜分析要点 - 根据存在角色动态生成
+  let peacefulNightAnalysis = '';
+  if (peacefulReasons.length > 0) {
+    const reasonsText = peacefulReasons.map((r, i) => `${String.fromCharCode(9312 + i)}${r}`).join(' 或 ');
+    peacefulNightAnalysis = `\n【平安夜分析要点】
+- 平安夜出现时，说明：${reasonsText}${peacefulReasons.length > 1 ? ' 或两者皆有' : ''}`;
+
+    if (hasWitch) {
+      peacefulNightAnalysis += `\n- 平安夜后，女巫可以考虑跳身份报"银水"（救过的人）`;
+    }
+    if (hasWitch && hasGuard) {
+      peacefulNightAnalysis += `\n- 狼人可能利用平安夜制造混乱，声称"守卫守护成功"来转移注意力`;
+    }
+  }
+
+  // 平安夜逻辑结论 - 根据存在角色调整
+  let peacefulConclusion = '';
+  if (hasWitch && hasGuard) {
+    peacefulConclusion = '因此，【平安夜是女巫开药或守卫成功守护的直接证据】，而非"女巫不能救人"';
+  } else if (hasWitch) {
+    peacefulConclusion = '因此，【平安夜是女巫开药救人的直接证据】，而非"女巫不能救人"';
+  } else if (hasGuard) {
+    peacefulConclusion = '因此，【平安夜是守卫成功守护的直接证据】';
+  }
+
+  return `
+【核心规则 - 夜间流程】
+1. 夜间行动顺序：${actionOrder.join(' → ')}${witchRules}
+${peacefulConclusion ? `5. ${peacefulConclusion}` : ''}${peacefulNightAnalysis}`;
+};
 
 export const buildGameTheoryRules = (isFirstSpeaker, playerRole, spokenPlayerIds = [], existingRoles = {}, gameSetup = null) => {
   const attackRule = isFirstSpeaker
@@ -475,7 +524,7 @@ export const buildGameTheoryRules = (isFirstSpeaker, playerRole, spokenPlayerIds
   }
 
   return `
-${CORE_GAME_RULES}${gameTypeHint}
+${buildCoreGameRules(existingRoles)}${gameTypeHint}
 
 【发言必须遵守的规则】
 1. 查重检查：首先检查【今日发言】，绝对不能重复别人的观点或问题。
@@ -756,6 +805,25 @@ export const prepareGameContext = (gameState) => {
 // --- PUBLIC API ---
 
 /**
+ * 构建【本局角色配置】提示（用于约束 identity_table，避免输出不存在的角色）
+ */
+const buildRolePoolConstraintPrompt = (gameSetup) => {
+  const roles = gameSetup?.STANDARD_ROLES;
+  if (!Array.isArray(roles) || roles.length === 0) return '';
+
+  const roleCounts = roles.reduce((acc, role) => {
+    acc[role] = (acc[role] || 0) + 1;
+    return acc;
+  }, {});
+
+  const roleList = Object.keys(roleCounts);
+  const summary = roleList.map(role => `${role}x${roleCounts[role]}`).join('，');
+
+  return `【本局角色配置】${summary}
+【硬性约束】identity_table 的 suspect 只能从以下角色中选择：${roleList.join('、')}（不得出现本局不存在的角色名；不得用“好人/坏人/平民/神职”等泛称代替角色）`;
+};
+
+/**
  * 生成增强版System Prompt
  * 整合：基础信息 + 角色人格 + 私有信息 + 策略 + 规则 + 对抗反思 + 胜利模式 + 身份推理表
  */
@@ -783,6 +851,8 @@ export const generateSystemPrompt = (player, gameState, options = {}) => {
 ${isWolf ? `狼人目标: ${victoryModeInfo.wolfGoal}` : `好人目标: ${victoryModeInfo.goodGoal}`}
 策略提示: ${isWolf ? victoryModeInfo.wolfStrategy : victoryModeInfo.goodStrategy}`;
 
+    const rolePoolConstraintPrompt = buildRolePoolConstraintPrompt(gameSetup);
+
     // 身份推理表提示
     const identityTablePrompt = previousIdentityTable
         ? `\n【你之前的身份推理表】\n${JSON.stringify(previousIdentityTable, null, 2)}\n请根据新信息更新推理表。`
@@ -793,6 +863,7 @@ ${isWolf ? `狼人目标: ${victoryModeInfo.wolfGoal}` : `好人目标: ${victor
 【你的状态】存活
 【场上存活】${ctx.aliveList}
 【已死亡】${ctx.deadList}
+${rolePoolConstraintPrompt}
 ${victoryPrompt}
 ${roleInfo}
 ${personaPrompt}

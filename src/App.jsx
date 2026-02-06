@@ -37,11 +37,11 @@ export default function App() {
   const [gameStartTime, setGameStartTime] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showTokenManager, setShowTokenManager] = useState(false);
-  const [isCustomMode, setIsCustomMode] = useState(false);
   const [customRoleSelections, setCustomRoleSelections] = useState(DEFAULT_CUSTOM_SELECTIONS);
   const [victoryMode, setVictoryMode] = useState(DEFAULT_VICTORY_MODE); // 'edge' | 'town'
 
   const disabledModelsRef = useRef(new Set());
+  const nightDecisionsRef = useRef(null);
   const speakingLockRef = useRef(false); // 发言锁，防止并发
   const currentDayRef = useRef(1); // 追踪当前天数 
 
@@ -70,8 +70,8 @@ export default function App() {
     processedVoteDayRef,
     gameInitializedRef,
     updatePlayerModel,
-    // 任务1：猎人延迟开枪
-    setPendingHunterShoot,
+    // 更新行动结果
+    updateActionResult,
   } = useWerewolfGame({
     ROLE_DEFINITIONS, 
     STANDARD_ROLES, 
@@ -99,9 +99,10 @@ export default function App() {
     currentPhaseData,
     gameBackground,
     modelUsage,
-    // 任务1：猎人延迟开枪
-    pendingHunterShoot
   } = state;
+
+  // Keep latest night decisions accessible from stale timers/closures.
+  nightDecisionsRef.current = nightDecisions;
 
   // 页面关闭时立即结束对战，停止所有API调用
   useEffect(() => {
@@ -235,28 +236,6 @@ export default function App() {
     };
   }, []);
 
-  // 任务1：处理白天猎人开枪（延迟开枪机制）
-  useEffect(() => {
-    if (phase === 'day_discussion' && pendingHunterShoot) {
-      const hunter = players.find(p => p.id === pendingHunterShoot.hunterId);
-      if (hunter) {
-        addLog(`[${hunter.id}号] ${hunter.name} 是猎人，现在开枪！`, 'warning');
-        // 延迟一点让玩家看到公告
-        setTimeout(() => {
-          setHunterShooting({ ...hunter, source: 'night', chainDepth: pendingHunterShoot.chainDepth || 0 });
-          if (hunter.isUser && gameMode !== 'ai-only') {
-            setPhase('hunter_shoot');
-          } else {
-            // AI猎人开枪 - 传递 chainDepth 用于连锁开枪检测
-            handleAIHunterShoot(hunter, 'night', [], players, pendingHunterShoot.chainDepth || 0);
-          }
-        }, 1500);
-      }
-      // 清除待处理的猎人开枪
-      setPendingHunterShoot(null);
-    }
-  }, [phase, pendingHunterShoot]);
-
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
 
   // 使用用户的 ModelScope 令牌（如果有），否则使用环境变量中的默认令牌
@@ -352,6 +331,7 @@ export default function App() {
     setPlayers,
     gameMode,
     addLog,
+    addCurrentPhaseAction,
     ROLE_DEFINITIONS,
     setPhase,
     setNightStep,
@@ -404,7 +384,7 @@ export default function App() {
   };
 
   const resolveNight = (decisionsOverride = null) => {
-    const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget } = decisionsOverride || nightDecisions;
+    const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget } = decisionsOverride || nightDecisionsRef.current || nightDecisions;
     console.log(`[resolveNight] 夜间决策：`, { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget });
     // 注意：夜间行动现在由 ADD_CURRENT_PHASE_ACTION reducer 自动保存到 nightActionHistory
 
@@ -416,20 +396,27 @@ export default function App() {
     if (wolfTarget !== null && !wolfSkipKill) {
       const isGuarded = guardTarget === wolfTarget;
       const isBothGuardedAndSaved = isGuarded && witchSave;
-      
+
       console.log(`[resolveNight] 狼刀${wolfTarget}号，守卫守${guardTarget}号，女巫救${witchSave}，守护=${isGuarded}，同守同救=${isBothGuardedAndSaved}`);
-      
+
       if (isBothGuardedAndSaved) {
         deadIds.push(wolfTarget);
         deathReasons[wolfTarget] = '同守同救';
         addLog(`[${wolfTarget}号] 触发同守同救规则！`, 'warning');
         console.log(`[resolveNight] ${wolfTarget}号同守同救死亡`);
+        // 更新袭击行动结果：同守同救仍死亡
+        updateActionResult(dayCount, '袭击', null, 'success', '同守同救');
       } else if (!isGuarded && !witchSave) {
         deadIds.push(wolfTarget);
         deathReasons[wolfTarget] = '被狼人杀害';
         console.log(`[resolveNight] ${wolfTarget}号被狼人杀害`);
+        // 更新袭击行动结果：成功击杀
+        updateActionResult(dayCount, '袭击', null, 'success', '击杀成功');
       } else {
         console.log(`[resolveNight] ${wolfTarget}号存活（守护=${isGuarded}，女巫救=${witchSave}）`);
+        // 更新袭击行动结果：被救/被守护
+        const savedBy = isGuarded ? '被守护' : '被女巫救';
+        updateActionResult(dayCount, '袭击', null, 'failed', savedBy);
       }
     }
 
@@ -451,7 +438,7 @@ export default function App() {
         playerId: id, 
         cause: deathReasons[id] || '死亡' 
     }));
-    setDeathHistory([...deathHistory, ...deathRecords]);
+    setDeathHistory(prev => [...prev, ...deathRecords]);
     
     // 更新玩家状态
     let updatedPlayers = players.map(p => {
@@ -502,40 +489,37 @@ export default function App() {
         night: dayCount,
         timestamp: Date.now()
       });
-      setPhase('day_announce');
+      setPhase('day_resolution');
       setTimeout(() => {
         startDayDiscussion(updatedPlayers, [], players.length, clearCurrentPhaseData);
       }, 2000);
     } else {
       addLog(`天亮了，昨晚倒牌的玩家：${uniqueDeads.map(id => `[${id}号]`).join(', ')}`, "danger");
-      setPhase('day_announce');
+      setPhase('day_resolution');
 
       // 夜晚死亡无遗言，但猎人可以开枪
       const hunter = uniqueDeads.map(id => updatedPlayers.find(p => p.id === id))
         .find(p => p && p.role === ROLE_DEFINITIONS.HUNTER && p.canHunterShoot);
 
       if (hunter) {
-        // 任务1：检查好人是否占多数
-        const goodMajority = isGoodMajority(updatedPlayers);
+        // 结算阶段：先处理猎人开枪（含连锁），再进入白天讨论
+        setTimeout(() => {
+          setHunterShooting({
+            ...hunter,
+            source: 'night',
+            flowSource: 'night',
+            nightDeads: uniqueDeads,
+            chainDepth: 0
+          });
 
-        if (goodMajority) {
-          // 好人占多数：延迟到白天开枪
-          addLog(`[${hunter.id}号] ${hunter.name} 是猎人，将在白天宣布死讯后开枪！`, 'warning');
-          setPendingHunterShoot({ hunterId: hunter.id, source: 'night', chainDepth: 0 });
-          setTimeout(() => {
-            startDayDiscussion(updatedPlayers, uniqueDeads, players.length, clearCurrentPhaseData);
-          }, 2000);
-        } else {
-          // 狼人占多数或平：立即开枪（保持原有逻辑）
-          setTimeout(() => {
-            setHunterShooting({ ...hunter, source: 'night' });
-            if (hunter.isUser && gameMode !== 'ai-only') {
-              setPhase('hunter_shoot');
-            } else {
-              handleAIHunterShoot(hunter, 'night', uniqueDeads, updatedPlayers);
-            }
-          }, 2000);
-        }
+          if (hunter.isUser && gameMode !== 'ai-only') {
+            setPhase('hunter_shoot');
+            return;
+          }
+
+          // AI猎人开枪：在结算态内完成（开枪结束后由 useDayFlow 自动进入讨论）
+          handleAIHunterShoot(hunter, 'night', uniqueDeads, updatedPlayers, 0, 'night');
+        }, 2000);
       } else {
         // 夜晚死亡无遗言，直接进入白天讨论
         setTimeout(() => {
@@ -665,6 +649,16 @@ export default function App() {
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 狼人选择袭击 ${fallbackTarget}号`, 'system');
           }
+          // 添加到当前阶段数据（避免随机兜底时缺失行动记录）
+          addCurrentPhaseAction({
+            playerId: actor.id,
+            type: '袭击',
+            target: fallbackTarget,
+            night: dayCount,
+            thought: res?.thought,
+            description: `袭击 ${fallbackTarget}号 (随机)`,
+            timestamp: Date.now()
+          });
           mergeNightDecisions({ wolfTarget: fallbackTarget, wolfSkipKill: false });
         } else {
           // 理论上不应该发生 - 必须有可袭击目标
@@ -1267,15 +1261,10 @@ export default function App() {
         <SetupScreen
           gameMode={gameMode}
           setGameMode={setGameMode}
-          selectedSetup={selectedSetup}
-          setSelectedSetup={setSelectedSetup}
-          gameSetups={GAME_SETUPS}
           isLoggedIn={!!user}
           isGuestMode={isGuestMode}
           hasModelscopeToken={tokenStatus.hasToken}
           onConfigureToken={() => setShowTokenManager(true)}
-          isCustomMode={isCustomMode}
-          setIsCustomMode={setIsCustomMode}
           customRoleSelections={customRoleSelections}
           setCustomRoleSelections={setCustomRoleSelections}
           onBuildCustomSetup={setSelectedSetup}
@@ -1304,6 +1293,7 @@ export default function App() {
           currentPhaseData={currentPhaseData}
           gameBackground={gameBackground}
           logs={logs}
+          modelUsage={modelUsage}
           
           // 选择状态
           selectedTarget={selectedTarget}

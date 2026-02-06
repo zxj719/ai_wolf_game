@@ -47,6 +47,7 @@ export function CirclePlayerLayout({
   setWitchHistory,
   guardHistory = [],
   nightActionHistory = [],
+  modelUsage = null,
   getPlayer,
   addLog,
   setSeerChecks,
@@ -94,52 +95,86 @@ export function CirclePlayerLayout({
     const isPlayerMode = gameMode !== 'ai-only' && phase !== 'game_over';
     const isUserAction = userPlayer?.id === playerId;
 
-    // 夜间行动 - 从 nightActionHistory 获取
-    // 玩家模式下只显示用户自己的夜间行动
-    if (!isPlayerMode || isUserAction) {
-      nightActionHistory.forEach((action, idx) => {
-        if (action.playerId === playerId) {
-          const night = action.night;
-          switch (action.type) {
-            case '袭击':
-              icons.push(
-                <span key={`kill-${idx}`} className="inline-flex items-center gap-0.5 text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded" title={`N${night} 袭击 ${action.target}号`}>
-                  <Crosshair size={12} /><span className="text-[10px] font-bold">{action.target}</span>
-                </span>
-              );
-              break;
-            case '查验':
-              icons.push(
-                <span key={`check-${idx}`} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded ${action.result === '狼人' ? 'text-rose-400 bg-rose-500/20' : 'text-emerald-400 bg-emerald-500/20'}`} title={`N${night} 查验 ${action.target}号 = ${action.result}`}>
-                  <Eye size={12} /><span className="text-[10px] font-bold">{action.target}</span>
-                </span>
-              );
-              break;
-            case '解药':
-              icons.push(
-                <span key={`save-${idx}`} className="inline-flex items-center gap-0.5 text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded" title={`N${night} 救 ${action.target}号`}>
-                  <Syringe size={12} /><span className="text-[10px] font-bold">{action.target}</span>
-                </span>
-              );
-              break;
-            case '毒药':
-              icons.push(
-                <span key={`poison-${idx}`} className="inline-flex items-center gap-0.5 text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded" title={`N${night} 毒 ${action.target}号`}>
-                  <FlaskConical size={12} /><span className="text-[10px] font-bold">{action.target}</span>
-                </span>
-              );
-              break;
-            case '守护':
-              icons.push(
-                <span key={`guard-${idx}`} className="inline-flex items-center gap-0.5 text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded" title={`N${night} 守护 ${action.target}号`}>
-                  <Shield size={12} /><span className="text-[10px] font-bold">{action.target}</span>
-                </span>
-              );
-              break;
-          }
-        }
-      });
-    }
+    // 行动 - 从 nightActionHistory 获取（包含少量白天公开行动：如猎人开枪）
+    nightActionHistory.forEach((action, idx) => {
+      if (action.playerId !== playerId) return;
+
+      const isPublicAction = action.type === '猎人开枪';
+      if (isPlayerMode && !isUserAction && !isPublicAction) return;
+
+      const phaseLabel = action.night !== undefined && action.night !== null
+        ? `N${action.night}`
+        : (action.day !== undefined && action.day !== null ? `D${action.day}` : '');
+
+      switch (action.type) {
+        case '猎人开枪':
+          icons.push(
+            <span
+              key={`hunter-${idx}`}
+              className="inline-flex items-center gap-0.5 text-orange-400 bg-orange-500/20 px-1.5 py-0.5 rounded"
+              title={`${phaseLabel} 开枪 ${action.target}号`}
+            >
+              <Target size={12} /><span className="text-[10px] font-bold">{action.target}</span>
+            </span>
+          );
+          break;
+        case '袭击':
+          icons.push(
+            <span
+              key={`kill-${idx}`}
+              className="inline-flex items-center gap-0.5 text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded"
+              title={`${phaseLabel} 袭击 ${action.target}号`}
+            >
+              <Crosshair size={12} /><span className="text-[10px] font-bold">{action.target}</span>
+            </span>
+          );
+          break;
+        case '查验':
+          icons.push(
+            <span
+              key={`check-${idx}`}
+              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded ${action.result === '狼人' ? 'text-rose-400 bg-rose-500/20' : 'text-emerald-400 bg-emerald-500/20'}`}
+              title={`${phaseLabel} 查验 ${action.target}号 = ${action.result}`}
+            >
+              <Eye size={12} /><span className="text-[10px] font-bold">{action.target}</span>
+            </span>
+          );
+          break;
+        case '解药':
+          icons.push(
+            <span
+              key={`save-${idx}`}
+              className="inline-flex items-center gap-0.5 text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded"
+              title={`${phaseLabel} 救 ${action.target}号`}
+            >
+              <Syringe size={12} /><span className="text-[10px] font-bold">{action.target}</span>
+            </span>
+          );
+          break;
+        case '毒药':
+          icons.push(
+            <span
+              key={`poison-${idx}`}
+              className="inline-flex items-center gap-0.5 text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded"
+              title={`${phaseLabel} 毒 ${action.target}号`}
+            >
+              <FlaskConical size={12} /><span className="text-[10px] font-bold">{action.target}</span>
+            </span>
+          );
+          break;
+        case '守护':
+          icons.push(
+            <span
+              key={`guard-${idx}`}
+              className="inline-flex items-center gap-0.5 text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded"
+              title={`${phaseLabel} 守护 ${action.target}号`}
+            >
+              <Shield size={12} /><span className="text-[10px] font-bold">{action.target}</span>
+            </span>
+          );
+          break;
+      }
+    });
 
     // 白天投票 - 始终显示所有玩家的投票（公开信息）
     voteHistory.forEach((dayVote, dayIdx) => {
@@ -335,12 +370,25 @@ export function CirclePlayerLayout({
     if (phase === 'day_discussion') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 讨论`, color: 'text-amber-400' };
     if (phase === 'day_voting') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 投票`, color: 'text-orange-400' };
     if (phase === 'day_announce') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 公告`, color: 'text-yellow-400' };
+    if (phase === 'day_resolution') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 结算`, color: 'text-yellow-400' };
     if (phase === 'hunter_shoot') return { icon: <Target size={phaseIconSize} />, text: '猎人开枪', color: 'text-red-400' };
-    if (phase === 'game_over') return { icon: null, text: '游戏结束', color: 'text-emerald-400' };
+    if (phase === 'game_over') {
+      const aliveWolves = players.filter(p => p.isAlive && p.role === '狼人').length;
+      const goodWin = aliveWolves === 0;
+      return {
+        icon: goodWin ? <Sun size={phaseIconSize} /> : <Skull size={phaseIconSize} />,
+        text: goodWin ? '好人胜利' : '坏人胜利',
+        color: goodWin ? 'text-emerald-400' : 'text-rose-400'
+      };
+    }
     return { icon: null, text: '', color: 'text-zinc-400' };
   };
 
   const phaseInfo = getPhaseText();
+  const aliveWolves = players.filter(p => p.isAlive && p.role === '狼人').length;
+  const gameOverWinner = aliveWolves === 0
+    ? { text: '好人胜利！', color: 'text-emerald-400' }
+    : { text: '坏人胜利！', color: 'text-rose-400' };
   const layoutStyle = {
     '--panel-size': `${layout.panel}px`,
     '--card-width': `${layout.card}px`,
@@ -581,7 +629,12 @@ export function CirclePlayerLayout({
                   {hunterShooting.id}号 可带走一人
                 </p>
                 <button
-                  onClick={handleUserHunterShoot}
+                  onClick={() => handleUserHunterShoot(
+                    hunterShooting?.source,
+                    hunterShooting?.nightDeads,
+                    hunterShooting?.flowSource,
+                    hunterShooting?.chainDepth
+                  )}
                   className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-orange-600 hover:bg-orange-500' : 'bg-zinc-700 hover:bg-zinc-600'}`}
                 >
                   {selectedTarget !== null ? `开枪${selectedTarget}号` : '不开枪'}
@@ -592,6 +645,7 @@ export function CirclePlayerLayout({
             {/* 游戏结束 */}
             {phase === 'game_over' && (
               <div className="w-full mt-2 text-center space-y-2">
+                <p className={`text-sm font-black tracking-wide ${gameOverWinner.color}`}>{gameOverWinner.text}</p>
                 <h2 className="text-lg font-black uppercase tracking-widest text-amber-400">Game Over</h2>
                 <p className="text-[10px] text-zinc-400">查看历史记录</p>
                 <div className="flex gap-2 justify-center">
@@ -631,6 +685,10 @@ export function CirclePlayerLayout({
         const isSpeaking = (aliveList[speakerIndex])?.id === p.id;
         const actionIcons = getPlayerActionIcons(p.id);
         const isDragging = draggingId === p.id;
+        const modelInfo = modelUsage?.playerModels?.[p.id];
+        const modelLabel = modelInfo?.modelName
+          || modelInfo?.modelId?.split('/')?.pop()
+          || AI_MODELS[p.id % AI_MODELS.length]?.id?.split('/')?.pop();
 
         return (
           <div
@@ -699,9 +757,9 @@ export function CirclePlayerLayout({
               <span className="text-[10px] sm:text-xs font-bold mt-1.5 truncate w-full text-center leading-tight">{p.name}</span>
 
               {/* AI模型名称 */}
-              {!p.isUser && AI_MODELS.length > 0 && (
+              {!p.isUser && modelLabel && (
                 <div className="text-[8px] text-zinc-500 mt-0.5 truncate w-full text-center leading-tight px-1">
-                  {AI_MODELS[p.id % AI_MODELS.length]?.id?.split('/').pop()?.slice(0, 12)}
+                  {String(modelLabel).slice(0, 18)}
                 </div>
               )}
 

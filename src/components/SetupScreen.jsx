@@ -1,4 +1,4 @@
-import { User, Brain, AlertTriangle, Key, ExternalLink, Settings, Swords, Shield } from 'lucide-react';
+import { User, Brain, AlertTriangle, Key, ExternalLink, Swords, Shield } from 'lucide-react';
 import { API_KEY } from '../config/aiConfig';
 import { RoleSelector } from './RoleSelector';
 import { validateRoleConfig, generateDescription, generateNightSequence, buildRolesArray, DEFAULT_CUSTOM_SELECTIONS, VICTORY_MODES, DEFAULT_VICTORY_MODE } from '../config/roles';
@@ -6,17 +6,11 @@ import { validateRoleConfig, generateDescription, generateNightSequence, buildRo
 export const SetupScreen = ({
   gameMode,
   setGameMode,
-  selectedSetup,
-  setSelectedSetup,
-  gameSetups,
   // 令牌相关属性
   isLoggedIn = false,
   isGuestMode = false,
   hasModelscopeToken = false,
   onConfigureToken = null,
-  // 自定义模式属性
-  isCustomMode = false,
-  setIsCustomMode = () => {},
   customRoleSelections = DEFAULT_CUSTOM_SELECTIONS,
   setCustomRoleSelections = () => {},
   onBuildCustomSetup = null,
@@ -30,34 +24,14 @@ export const SetupScreen = ({
   // 自定义模式验证
   const customValidation = validateRoleConfig(customRoleSelections);
 
-  // 当前有效的配置（用于显示人数）
-  const effectiveSetup = isCustomMode
-    ? {
-        ...selectedSetup,
-        TOTAL_PLAYERS: customValidation.total,
-        description: generateDescription(customRoleSelections)
-      }
-    : selectedSetup;
-
   // 是否可以开始游戏
   const hasApiAccess = isGuestMode ? !!API_KEY : (hasModelscopeToken || !!API_KEY);
-  const canStartGame = hasApiAccess && (!isCustomMode || customValidation.isValid);
-
-  // 处理选择预设模式
-  const handleSelectPreset = (setup) => {
-    setSelectedSetup(setup);
-    setIsCustomMode(false);
-  };
-
-  // 处理选择自定义模式
-  const handleSelectCustom = () => {
-    setIsCustomMode(true);
-  };
+  const canStartGame = hasApiAccess && customValidation.isValid;
 
   // 处理开始游戏
   const handleStartGame = (mode) => {
-    if (isCustomMode && onBuildCustomSetup) {
-      // 构建自定义配置并开始
+    // 自定义（唯一模式）：开局前基于当前选择构建 setup
+    if (onBuildCustomSetup) {
       const rolesArray = buildRolesArray(customRoleSelections);
       const customSetup = {
         id: 'custom',
@@ -121,49 +95,26 @@ export const SetupScreen = ({
         </div>
       )}
 
-      {/* Setup Selection */}
-      <div className="flex gap-4 p-2 bg-zinc-900/50 rounded-xl flex-wrap justify-center">
-         {gameSetups.map(setup => (
-           <button
-             key={setup.id}
-             onClick={() => handleSelectPreset(setup)}
-             className={`px-6 py-3 rounded-lg font-bold transition-all ${
-                !isCustomMode && selectedSetup.id === setup.id
-                ? 'bg-indigo-600 text-white shadow-lg'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-             }`}
-           >
-             <div className="text-lg">{setup.name}</div>
-             <div className="text-xs opacity-70 font-normal">{setup.description}</div>
-           </button>
-         ))}
-         {/* 自定义按钮 */}
-         <button
-           onClick={handleSelectCustom}
-           className={`px-6 py-3 rounded-lg font-bold transition-all ${
-              isCustomMode
-              ? 'bg-indigo-600 text-white shadow-lg'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-           }`}
-         >
-           <div className="text-lg flex items-center gap-2">
-             <Settings size={18} />
-             自定义
-           </div>
-           <div className="text-xs opacity-70 font-normal">
-             {isCustomMode ? generateDescription(customRoleSelections) : '自由配置角色'}
-           </div>
-         </button>
+      {/* 自定义模式说明 */}
+      <div className="w-full max-w-2xl px-4">
+        <div className="flex items-start gap-3 px-6 py-4 bg-zinc-900/50 border border-zinc-700 rounded-xl">
+          <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm flex-1">
+            <p className="font-bold text-zinc-200">关于响应速度与稳定性</p>
+            <p className="text-zinc-400 mt-1">
+              这是一个调用免费算力平台的大模型狼人杀游戏。部分模型会排队或响应较慢，偶尔也可能掉线/超时。
+              游戏过程中请耐心等待；如长时间无响应，可稍后重试或重新开始一局。
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* 自定义角色选择器 */}
-      {isCustomMode && (
-        <RoleSelector
-          selections={customRoleSelections}
-          onChange={setCustomRoleSelections}
-          validation={customValidation}
-        />
-      )}
+      <RoleSelector
+        selections={customRoleSelections}
+        onChange={setCustomRoleSelections}
+        validation={customValidation}
+      />
 
       {/* 胜利模式选择 */}
       <div className="flex flex-col items-center gap-3">
@@ -226,7 +177,7 @@ export const SetupScreen = ({
         >
           <Brain className="w-10 h-10" />
           <span>全AI模式</span>
-          <span className="text-sm text-purple-200 font-normal">观看{effectiveSetup.TOTAL_PLAYERS}位AI对战</span>
+          <span className="text-sm text-purple-200 font-normal">观看{customValidation.total}位AI对战</span>
         </button>
       </div>
     </div>

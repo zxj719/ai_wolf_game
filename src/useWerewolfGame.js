@@ -68,6 +68,8 @@ const types = {
   UPDATE_PLAYER_MODEL: 'UPDATE_PLAYER_MODEL',
   // 任务1：猎人延迟开枪状态
   SET_PENDING_HUNTER_SHOOT: 'SET_PENDING_HUNTER_SHOOT',
+  // 更新夜间行动结果（用于显示袭击是否成功）
+  UPDATE_ACTION_RESULT: 'UPDATE_ACTION_RESULT',
 };
 
 function reducer(state, action) {
@@ -119,14 +121,16 @@ function reducer(state, action) {
       };
     case types.ADD_CURRENT_PHASE_ACTION:
       // 同时添加到 currentPhaseData 和 nightActionHistory，确保持久化
+      // 注意：nightActionHistory 虽然命名为“夜间行动”，但也会用于持久化少量白天公开行动（如猎人开枪）
+      // 通过 payload.persist = true 控制是否持久化到 nightActionHistory
       return {
         ...state,
         currentPhaseData: {
           ...state.currentPhaseData,
           actions: [...state.currentPhaseData.actions, action.payload]
         },
-        // 只有夜间行动（有 night 属性）才添加到 nightActionHistory
-        nightActionHistory: action.payload.night
+        // 只有夜间行动（有 night 属性）或明确要求持久化的行动才添加到 nightActionHistory
+        nightActionHistory: (action.payload.night !== undefined && action.payload.night !== null) || action.payload.persist
           ? [...state.nightActionHistory, action.payload]
           : state.nightActionHistory
       };
@@ -153,6 +157,42 @@ function reducer(state, action) {
     // 任务1：猎人延迟开枪
     case types.SET_PENDING_HUNTER_SHOOT:
       return { ...state, pendingHunterShoot: action.payload };
+    // 更新夜间行动结果（如袭击成功/失败）
+    case types.UPDATE_ACTION_RESULT: {
+      const { night, type, playerId, result, resultDescription } = action.payload;
+      // 匹配函数：playerId 为 null 时只匹配 night 和 type
+      const matches = (a) => a.night === night && a.type === type && (playerId === null || a.playerId === playerId);
+      // 更新 nightActionHistory 中匹配的行动
+      const updatedHistory = state.nightActionHistory.map(a => {
+        if (matches(a)) {
+          return {
+            ...a,
+            result,
+            description: `${a.description} → ${resultDescription}`
+          };
+        }
+        return a;
+      });
+      // 同时更新 currentPhaseData.actions
+      const updatedActions = state.currentPhaseData.actions.map(a => {
+        if (matches(a)) {
+          return {
+            ...a,
+            result,
+            description: `${a.description} → ${resultDescription}`
+          };
+        }
+        return a;
+      });
+      return {
+        ...state,
+        nightActionHistory: updatedHistory,
+        currentPhaseData: {
+          ...state.currentPhaseData,
+          actions: updatedActions
+        }
+      };
+    }
     default:
       return state;
   }
@@ -191,6 +231,11 @@ export function useWerewolfGame(config) {
   });
   // 任务1：猎人延迟开枪
   const setPendingHunterShoot = (value) => dispatch({ type: types.SET_PENDING_HUNTER_SHOOT, payload: value });
+  // 更新夜间行动结果（如袭击成功/失败）
+  const updateActionResult = (night, type, playerId, result, resultDescription) => dispatch({
+    type: types.UPDATE_ACTION_RESULT,
+    payload: { night, type, playerId, result, resultDescription }
+  });
 
   const addLog = (text, type = 'info', speaker = null) => {
     pushLog({ text, type, speaker, id: `${Date.now()}-${Math.random()}` });
@@ -324,5 +369,7 @@ export function useWerewolfGame(config) {
     updatePlayerModel,
     // 任务1：猎人延迟开枪
     setPendingHunterShoot,
+    // 更新行动结果
+    updateActionResult,
   };
 }

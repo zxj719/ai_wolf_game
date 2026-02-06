@@ -1,0 +1,22 @@
+# Codex CLI project overrides
+# Loaded when running Codex inside this repo (after you "trust" the project).
+#
+# Goal: match the repo's Claude Code conventions (more explanatory output,
+# safe-by-default command execution) while keeping config lightweight.
+
+# Prefer clear, step-by-step explanations during refactors/bugfixes.
+model_personality = "pragmatic"
+model_reasoning_effort = "high"
+model_verbosity = "high"
+
+# Safer defaults for tool execution in this repo.
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+# Keep web search off by default; enable per-session via `codex --search`.
+web_search = "disabled"
+
+# Windows quality-of-life
+[features]
+powershell_utf8 = true
+

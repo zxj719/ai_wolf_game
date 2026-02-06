@@ -23,6 +23,7 @@ export function GameArena({
   currentPhaseData,
   gameBackground,
   logs,
+  modelUsage,
 
   // 选择状态
   selectedTarget,
@@ -104,13 +105,14 @@ export function GameArena({
     const historicalActions = nightActionHistory || [];
     const currentActions = currentPhaseData?.actions || [];
 
-    // 去重：以 playerId + night + type + target 为唯一标识
+    // 去重：以 playerId + (night/day) + type + target 为唯一标识
     const seen = new Set();
     const allActions = [];
 
     // 先添加历史记录
     historicalActions.forEach(a => {
-      const key = `${a.playerId}-${a.night}-${a.type}-${a.target}`;
+      const phaseKey = a.night !== undefined && a.night !== null ? `N${a.night}` : `D${a.day ?? ''}`;
+      const key = `${a.playerId}-${phaseKey}-${a.type}-${a.target ?? ''}`;
       if (!seen.has(key)) {
         seen.add(key);
         allActions.push(a);
@@ -119,7 +121,8 @@ export function GameArena({
 
     // 再添加当前阶段的实时数据（可能尚未写入历史）
     currentActions.forEach(a => {
-      const key = `${a.playerId}-${a.night}-${a.type}-${a.target}`;
+      const phaseKey = a.night !== undefined && a.night !== null ? `N${a.night}` : `D${a.day ?? ''}`;
+      const key = `${a.playerId}-${phaseKey}-${a.type}-${a.target ?? ''}`;
       if (!seen.has(key)) {
         seen.add(key);
         allActions.push(a);
@@ -150,8 +153,12 @@ export function GameArena({
     // 按时间线排序：先按日/夜顺序，再按时间戳
     return allActions.sort((a, b) => {
       // 计算排序权重：夜N对应2N-1，日N对应2N
-      const aOrder = a.night ? (a.night * 2 - 1) : (a.day * 2);
-      const bOrder = b.night ? (b.night * 2 - 1) : (b.day * 2);
+      const aOrder = a.night !== undefined && a.night !== null
+        ? (a.night * 2 - 1)
+        : ((a.day ?? 1) * 2);
+      const bOrder = b.night !== undefined && b.night !== null
+        ? (b.night * 2 - 1)
+        : ((b.day ?? 1) * 2);
       if (aOrder !== bOrder) return aOrder - bOrder;
       return (a.timestamp || 0) - (b.timestamp || 0);
     });
@@ -299,6 +306,7 @@ export function GameArena({
               setWitchHistory={witchHistorySetter}
               guardHistory={guardHistory}
               nightActionHistory={nightActionHistory}
+              modelUsage={modelUsage}
               getPlayer={getPlayer}
               addLog={addLog}
               setSeerChecks={setSeerChecks}

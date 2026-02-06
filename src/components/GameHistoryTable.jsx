@@ -131,6 +131,16 @@ export function GameHistoryTable({
     return actions.length > 0 ? actions : null;
   };
 
+  // 获取玩家在某一天的公开行动（如：猎人开枪）
+  const getDayActions = (playerId, day) => {
+    return nightActionHistory?.filter(
+      a => a.playerId === playerId
+        && a.day === day
+        && (a.night === undefined || a.night === null)
+        && a.type === '猎人开枪'
+    ) || [];
+  };
+
   // 获取玩家在某一天的发言
   const getDaySpeech = (playerId, day) => {
     return speechHistory.filter(s => s.playerId === playerId && s.day === day);
@@ -147,7 +157,20 @@ export function GameHistoryTable({
   const renderThought = (thought, cellKey, isExpanded, playerId) => {
     // 检查是否应该显示该玩家的思考内容
     if (!thought || !shouldShowThought(playerId)) return null;
-    const shouldCollapse = thought.length > 50;
+
+    const thoughtText = typeof thought === 'string'
+      ? thought
+      : (() => {
+          try {
+            return JSON.stringify(thought);
+          } catch {
+            return String(thought);
+          }
+        })();
+
+    if (!thoughtText) return null;
+
+    const shouldCollapse = thoughtText.length > 50;
 
     return (
       <div className={`${isExpanded ? '' : 'line-clamp-2'}`}>
@@ -155,7 +178,7 @@ export function GameHistoryTable({
           <Brain size={8} className="text-purple-400" />
           <span className="text-[7px] text-purple-400">思考</span>
         </div>
-        <p className="text-[8px] text-zinc-400 italic">{thought}</p>
+        <p className="text-[8px] text-zinc-400 italic">{thoughtText}</p>
         {shouldCollapse && (
           <button
             onClick={(e) => { e.stopPropagation(); toggleCell(cellKey); }}
@@ -196,14 +219,26 @@ export function GameHistoryTable({
   const renderDaySpeech = (playerId, day, cellKey, isExpanded) => {
     const speeches = getDaySpeech(playerId, day);
     const vote = getDayVote(playerId, day);
-    const death = deathHistory.find(d => d.playerId === playerId && d.day === day && d.phase === '白天');
+    const dayActions = getDayActions(playerId, day);
+    const death = deathHistory.find(d =>
+      d.playerId === playerId
+        && d.day === day
+        && (d.phase === '投票' || d.phase === '猎人枪')
+    );
 
-    if (speeches.length === 0 && !vote && !death) {
+    if (speeches.length === 0 && dayActions.length === 0 && !vote && !death) {
       return <span className="text-zinc-600 text-[10px]">-</span>;
     }
 
     return (
       <div className="space-y-2">
+        {dayActions.map((action, idx) => (
+          <div key={`day-action-${idx}`} className="bg-orange-900/20 rounded-lg p-1.5">
+            <span className="text-[8px] text-orange-400 font-bold">{action.type}</span>
+            {action.target !== undefined && <span className="text-[8px] text-zinc-400"> → {action.target}号</span>}
+            {renderThought(action.thought, `${cellKey}-action-thought-${idx}`, isExpanded, playerId)}
+          </div>
+        ))}
         {speeches.map((speech, idx) => (
           <div key={idx} className="bg-amber-900/20 rounded-lg p-2">
             {renderThought(speech.thought, `${cellKey}-thought-${idx}`, isExpanded, playerId)}

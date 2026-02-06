@@ -13,6 +13,7 @@ import {
   validateNightAction,
   generateCorrectionPrompt
 } from '../services/logicValidator';
+import { sanitizeIdentityTable } from '../services/identityTableSanitizer';
 
 export function useAI({
   players,
@@ -297,6 +298,14 @@ export function useAI({
     // 输出AI响应结果 - 包含思考过程
     // ============================================
     if (result) {
+      // 强制修正 identity_table，避免出现“本局不存在的角色”等幻觉
+      if (result.identity_table) {
+        const sanitized = sanitizeIdentityTable(result.identity_table, { players, gameSetup });
+        if (sanitized.changed) {
+          result = { ...result, identity_table: sanitized.identityTable };
+        }
+      }
+
       console.group(`✅ [AI响应] ${player.id}号 ${player.name} (${player.role}) - ${actionType}`);
       if (result.thought || result.reasoning) {
         console.log('%c💭 AI思考过程:', 'color: #c084fc; font-weight: bold;');

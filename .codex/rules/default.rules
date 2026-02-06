@@ -1,0 +1,61 @@
+# battle-web Codex rules
+#
+# These rules mirror the intent of `.claude/settings.local.json`:
+# allow common repo maintenance commands if/when they need escalation.
+#
+# Notes:
+# - Rules are mainly consulted for commands outside the active sandbox policy.
+# - We still keep patterns narrow to avoid accidentally allowing destructive ops.
+
+# -----------------------------
+# Node / Vite scripts
+# -----------------------------
+prefix_rule(
+  pattern=[["npm", "npm.cmd"], "run", ["dev", "build", "preview", "deploy"]],
+  decision="allow",
+  justification="Common frontend scripts for this repo (Vite dev/build/preview/deploy).",
+  match=[
+    "npm run dev",
+    "npm run build",
+    "npm.cmd run build",
+  ],
+)
+
+# -----------------------------
+# Cloudflare Wrangler
+# -----------------------------
+prefix_rule(
+  pattern=[["npx", "npx.cmd"], "wrangler"],
+  decision="allow",
+  justification="Cloudflare Workers/D1 management for deployment and ops.",
+  match=[
+    "npx wrangler deploy --assets ./dist",
+  ],
+)
+
+# -----------------------------
+# Linting
+# -----------------------------
+prefix_rule(
+  pattern=[["npx", "npx.cmd"], "eslint"],
+  decision="allow",
+  justification="Linting commands.",
+  match=[
+    "npx eslint .",
+  ],
+)
+
+# -----------------------------
+# Git (common)
+# -----------------------------
+prefix_rule(pattern=["git", "status"], decision="allow", justification="Check working tree status.")
+prefix_rule(pattern=["git", "diff"], decision="allow", justification="Inspect diffs.")
+prefix_rule(pattern=["git", "log"], decision="allow", justification="Inspect history.")
+prefix_rule(pattern=["git", "add"], decision="allow", justification="Stage changes.")
+prefix_rule(pattern=["git", "commit"], decision="allow", justification="Create commits.")
+prefix_rule(pattern=["git", "push"], decision="allow", justification="Push commits.")
+prefix_rule(pattern=["git", "pull"], decision="allow", justification="Pull updates.")
+prefix_rule(pattern=["git", "stash"], decision="allow", justification="Stash changes.")
+prefix_rule(pattern=["git", "branch"], decision="allow", justification="Branch operations.")
+prefix_rule(pattern=["git", "checkout"], decision="allow", justification="Checkout branches/paths.")
+

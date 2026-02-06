@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { MessageCircle, Brain, Moon, Sun, ChevronDown, ChevronUp, Swords, Eye, Shield, FlaskConical, Activity, MessageSquare, Vote } from 'lucide-react';
+import { MessageCircle, Brain, Moon, Sun, ChevronDown, ChevronUp, Swords, Eye, Shield, FlaskConical, Activity, MessageSquare, Vote, Target } from 'lucide-react';
 
 // 获取行动类型图标
 const getActionIcon = (type) => {
@@ -9,6 +9,7 @@ const getActionIcon = (type) => {
     case '守护': return <Shield size={12} className="text-blue-400" />;
     case '解药':
     case '毒药': return <FlaskConical size={12} className="text-emerald-400" />;
+    case '猎人开枪': return <Target size={12} className="text-orange-400" />;
     case '投票结果': return <Vote size={12} className="text-amber-400" />;
     case '公告': return <MessageCircle size={12} className="text-emerald-400" />;
     default: return <Moon size={12} className="text-indigo-400" />;
@@ -331,7 +332,8 @@ export function SidePanels({
         if (action.playerId === 'system') return true;
         // 用户自己的行动始终显示
         if (action.playerId === userPlayer?.id) return true;
-        // 公开信息：投票结果、猎人开枪（这些在白天公开）
+        // 公开信息：猎人开枪（白天公开）
+        if (action.type === '猎人开枪') return true;
         // 夜间其他角色的行动不显示
         return false;
       })

@@ -29,3 +29,12 @@ npm-debug.log*
 
 # Wrangler local state
 .wrangler/
+
+# Codex CLI (project config lives in `.codex/`, but runtime state should not be committed)
+.codex/auth.json
+.codex/history.jsonl
+.codex/models_cache.json
+.codex/sessions/
+.codex/tmp/
+.codex/logs/
+.codex/.personality_migration

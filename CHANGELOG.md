@@ -2,6 +2,55 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-02-06] 自定义模式独占 + 天亮结算阶段 + AI 逻辑约束 + Codex 项目配置
+
+### 新功能
+
+- **自定义局成为唯一模式**
+  - 移除 6/8 人预设局，仅保留自定义配置（角色数/夜晚顺序自动生成）
+  - 设置界面增加“免费算力平台”提示（慢/掉线/需耐心等待）
+
+- **新增 `day_resolution` 结算阶段**
+  - 夜晚结束后先进入结算阶段，支持猎人连锁开枪完整结算后再开始白天讨论
+
+- **AI 模型与推理表增强**
+  - 角色卡显示每名 AI 实际使用的模型（自动 fallback 后也会更新）
+  - `identity_table` 增加 role pool 硬约束 + 本地清洗，避免推理出本局不存在的身份
+  - 新增 GLM-4.7 / GLM-4.7-Flash 作为可选模型
+
+### Bug 修复
+
+- **猎人行动记录缺失/错归夜晚**
+  - 猎人开枪记录持久化为白天行动，导出与历史表可正确显示
+
+- **历史表渲染崩溃**
+  - 修复 thought/identity_table 为对象导致的 React 渲染错误（统一 stringify）
+
+### 工具与文档
+
+- **新增 Codex 项目配套文件**
+  - 增加 `AGENTS.md`、`.codex/` 规则/配置与 `.agents/skills/*`（对齐 `.claude/commands/*` 工作流）
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/config/roles.js` | 修改 | 移除 6/8 人预设，仅保留自定义 setup |
+| `src/components/SetupScreen.jsx` | 修改 | 自定义-only UI + 免费算力平台提示 |
+| `src/components/CirclePlayerLayout.jsx` | 修改 | Game Over 显示胜负；角色卡显示实际模型 |
+| `src/App.jsx` | 修改 | 固定使用自定义 setup；移除预设切换状态 |
+| `src/hooks/useDayFlow.js` | 修改 | 猎人连锁开枪结算；行动记录持久化 |
+| `src/hooks/useAI.js` | 修改 | `identity_table` 清洗 + 模型追踪回调 |
+| `src/services/identityTableSanitizer.js` | 新建 | 基于角色池的 `identity_table` 纠偏 |
+| `src/services/aiPrompts.js` | 修改 | role pool 约束提示 |
+| `src/config/aiConfig.js` | 修改 | 增加 GLM-4.7/Flash 模型 |
+| `src/components/GameHistoryTable.jsx` | 修改 | thought/object 安全渲染 |
+| `AGENTS.md` | 新建 | Codex 项目指南 |
+| `.codex/` | 新建 | Codex 项目配置与 rules |
+| `.agents/skills/*` | 新建 | Codex skills（对齐 Claude commands） |
+| `.gitignore` | 修改 | 忽略 Codex 运行态文件 |
+
+---
+
 ## [2026-02-06] 游戏规则强制执行 + 页面关闭处理 + 数据库头像系统
 
 ### 新功能
