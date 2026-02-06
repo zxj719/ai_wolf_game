@@ -14,7 +14,7 @@ import { API_KEY, API_URL, AI_MODELS as DEFAULT_AI_MODELS, AI_PROVIDER, SILICONF
 import { useAI } from './hooks/useAI';
 import { useDayFlow } from './hooks/useDayFlow';
 import { PROMPT_ACTIONS } from './services/aiPrompts';
-import { fetchSiliconFlowChatModels } from './services/aiClient';
+import { fetchSiliconFlowChatModels, abortAllRequests, resetAbortController } from './services/aiClient';
 
 // Inline game config moved to src/config
 const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
@@ -103,8 +103,39 @@ export default function App() {
     pendingHunterShoot
   } = state;
 
+  // 页面关闭时立即结束对战，停止所有API调用
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // 取消所有正在进行的API请求
+      abortAllRequests();
+      console.log('[App] 页面即将关闭，已取消所有API请求');
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && phase !== 'setup' && phase !== 'game_over') {
+        // 页面被隐藏（切换标签页、最小化等），取消API请求
+        abortAllRequests();
+        console.log('[App] 页面隐藏，已取消所有API请求');
+      } else if (document.visibilityState === 'visible' && phase !== 'setup' && phase !== 'game_over') {
+        // 页面恢复可见时，重置 AbortController（如果游戏还在进行）
+        resetAbortController();
+        console.log('[App] 页面恢复可见，已重置AbortController');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [phase]);
+
+  // 游戏开始时重置 AbortController
   useEffect(() => {
     if (gameMode && phase === 'setup') {
+        resetAbortController();
         initGame(gameMode, selectedSetup);
         setGameStartTime(Date.now());
         setGameResult(null);
@@ -375,13 +406,8 @@ export default function App() {
   const resolveNight = (decisionsOverride = null) => {
     const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget } = decisionsOverride || nightDecisions;
     console.log(`[resolveNight] 夜间决策：`, { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget });
-    
-    // 保存当前夜间的所有行动到历史记录
-    if (currentPhaseData && currentPhaseData.actions && currentPhaseData.actions.length > 0) {
-      console.log(`[resolveNight] 保存${currentPhaseData.actions.length}条夜间行动到历史记录`);
-      setNightActionHistory([...nightActionHistory, ...currentPhaseData.actions]);
-    }
-    
+    // 注意：夜间行动现在由 ADD_CURRENT_PHASE_ACTION reducer 自动保存到 nightActionHistory
+
     let deadIds = [];
     let poisonedIds = [];
     let deathReasons = {};
@@ -641,11 +667,8 @@ export default function App() {
           }
           mergeNightDecisions({ wolfTarget: fallbackTarget, wolfSkipKill: false });
         } else {
-          console.log(`[狼人AI] 没有可选目标，狼人空刀`);
-          if (gameMode === 'ai-only') {
-            addLog(`[${actor.id}号] 狼人选择空刀`, 'system');
-          }
-          mergeNightDecisions({ wolfSkipKill: true });
+          // 理论上不应该发生 - 必须有可袭击目标
+          console.error(`[狼人AI] 错误：没有可袭击目标，这不应该发生！`);
         }
       }
     } 

@@ -85,11 +85,12 @@ export const getHunterShootPrompt = (params) => {
     strategies.push('绝不带走确认的好人');
   }
 
-  return `你是猎人(好人阵营)，必须开枪带走一名【最可疑的狼人】！
+  return `你是猎人(好人阵营)，死亡时必须开枪带走一名玩家！
+【重要规则】猎人死亡时必须开枪，不能选择不开枪！你必须从下方目标中选择一个带走。
 【存活可选】${aliveTargets.join(',')}号
 ${hunterContext || ''}
 
-【开枪策略】
+【开枪策略】优先带走最可疑的狼人
 ${strategies.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
 【思维链】
@@ -97,7 +98,7 @@ ${strategies.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 2. 带走谁对好人阵营收益最大？
 3. 有没有确认的好人需要排除？
 
-输出JSON:{"shoot":true,"targetId":数字,"reason":"一句话理由","thought":"开枪决策思考"}`;
+输出JSON:{"shoot":true,"targetId":必须是数字(从存活可选中选择),"reason":"一句话理由","thought":"开枪决策思考"}`;
 };
 
 /**

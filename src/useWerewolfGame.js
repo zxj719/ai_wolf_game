@@ -1,5 +1,6 @@
 import { useReducer, useRef } from 'react';
-import { generateAllPlayerAvatars, getPlaceholderAvatar, generateGameBackground } from './services/imageGenerator';
+import { getPlaceholderAvatar, generateGameBackground } from './services/imageGenerator';
+import { assignPlayerAvatars } from './services/avatarService';
 
 const initialState = {
   phase: 'setup',
@@ -117,12 +118,17 @@ function reducer(state, action) {
         } 
       };
     case types.ADD_CURRENT_PHASE_ACTION:
-      return { 
-        ...state, 
-        currentPhaseData: { 
-          ...state.currentPhaseData, 
-          actions: [...state.currentPhaseData.actions, action.payload] 
-        } 
+      // 同时添加到 currentPhaseData 和 nightActionHistory，确保持久化
+      return {
+        ...state,
+        currentPhaseData: {
+          ...state.currentPhaseData,
+          actions: [...state.currentPhaseData.actions, action.payload]
+        },
+        // 只有夜间行动（有 night 属性）才添加到 nightActionHistory
+        nightActionHistory: action.payload.night
+          ? [...state.nightActionHistory, action.payload]
+          : state.nightActionHistory
       };
     case types.CLEAR_CURRENT_PHASE_DATA:
       return { ...state, currentPhaseData: { speeches: [], actions: [] } };
@@ -262,16 +268,16 @@ export function useWerewolfGame(config) {
     } else {
       addLog(`${activeTotalPlayers}人${setupName}启动！你是 [0号] ${newPlayers[0].name}，身份：【${newPlayers[0].role}】。配置：${configStr}。`, 'system');
     }
-    addLog(`正在生成角色头像...`, 'system');
+    addLog(`正在加载角色头像...`, 'system');
 
-    // Generate avatars asynchronously (don't block game start)
-    generateAllPlayerAvatars(newPlayers, mode)
+    // 从数据库获取预生成头像（不再动态生成）
+    assignPlayerAvatars(newPlayers, mode)
       .then(playersWithAvatars => {
         setPlayers(playersWithAvatars);
-        addLog(`头像生成完成！`, 'success');
+        addLog(`头像加载完成！`, 'success');
       })
       .catch(err => {
-        console.error('[Game] Avatar generation failed:', err);
+        console.error('[Game] Avatar loading failed:', err);
         addLog(`头像生成失败，使用默认图标`, 'warning');
       });
 

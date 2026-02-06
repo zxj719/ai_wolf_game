@@ -2,6 +2,100 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-02-06] 游戏规则强制执行 + 页面关闭处理 + 数据库头像系统
+
+### 新功能
+
+- **页面关闭时终止对战**
+  - 添加全局 AbortController 管理 API 请求
+  - 页面关闭/隐藏时自动取消所有进行中的 API 调用
+  - 页面恢复可见时重置 AbortController
+
+- **狼人禁止空刀**
+  - AI 提示词明确强制 "狼人每晚必须袭击一名玩家"
+  - 后端逻辑：AI 返回无效时随机选择目标
+  - 移除 UI 中的 "空刀" 按钮
+
+- **猎人必须开枪**
+  - AI 提示词明确 "猎人死亡时必须开枪"（毒死除外）
+  - 后端逻辑：AI 返回无效时随机选择目标
+  - UI 禁用未选择目标时的开枪按钮
+
+- **数据库头像系统**
+  - 新建 `avatars` 表存储预生成头像
+  - 添加 `/api/avatars` 和 `/api/avatars/batch` API
+  - 前端 `avatarService.js` 从数据库获取头像
+  - 创建 `scripts/generateAvatars.js` 生成脚本
+
+- **AI 模型排行榜数据库**
+  - 新建 `game_model_usage` 表记录每局模型使用
+  - 新建 `ai_model_stats` 表聚合模型胜率统计
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/services/aiClient.js` | 修改 | 添加 AbortController 管理 |
+| `src/App.jsx` | 修改 | 添加页面关闭/可见性处理 |
+| `src/services/rolePrompts/werewolf.js` | 修改 | 添加禁止空刀规则 |
+| `src/services/rolePrompts/hunter.js` | 修改 | 添加必须开枪规则 |
+| `src/services/aiPrompts.js` | 修改 | 同步更新猎人提示词 |
+| `src/hooks/useDayFlow.js` | 修改 | 强制狼人/猎人有效选择 |
+| `src/hooks/useNightFlow.js` | 修改 | 强制狼人有效选择 |
+| `src/components/ActionPanel.jsx` | 修改 | 移除空刀按钮，禁用无目标开枪 |
+| `src/components/CirclePlayerLayout.jsx` | 修改 | 移除空刀按钮 |
+| `src/services/rolePrompts/witch.js` | 修改 | 移除 "狼人空刀" 描述 |
+| `src/services/avatarService.js` | 新建 | 头像服务（从数据库获取） |
+| `src/useWerewolfGame.js` | 修改 | 使用 assignPlayerAvatars |
+| `workers/auth/handlers.js` | 修改 | 添加头像 API 处理函数 |
+| `workers/auth/index.js` | 修改 | 添加头像 API 路由 |
+| `schema.sql` | 修改 | 添加 avatars、game_model_usage、ai_model_stats 表 |
+| `scripts/generateAvatars.js` | 新建 | 头像生成脚本 |
+
+### 数据库迁移
+```sql
+-- 预生成头像表
+CREATE TABLE IF NOT EXISTS avatars (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  personality TEXT,
+  image_url TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(name, role, personality)
+);
+
+-- AI 模型游戏使用记录表
+CREATE TABLE IF NOT EXISTS game_model_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  game_session_id TEXT NOT NULL,
+  player_id INTEGER NOT NULL,
+  role TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  result TEXT CHECK(result IN ('win', 'lose')) NOT NULL,
+  game_mode TEXT NOT NULL,
+  duration_seconds INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AI 模型统计聚合表
+CREATE TABLE IF NOT EXISTS ai_model_stats (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  model_id TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  total_games INTEGER DEFAULT 0,
+  wins INTEGER DEFAULT 0,
+  losses INTEGER DEFAULT 0,
+  win_rate REAL DEFAULT 0.0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(model_id, role)
+);
+```
+
+---
+
 ## [2026-02-06] 猎人延迟开枪 + 行动板持久化 + 提示词渐进式披露
 
 ### 新功能

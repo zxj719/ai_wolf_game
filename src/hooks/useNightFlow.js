@@ -194,16 +194,24 @@ export function useNightFlow({
 
   /**
    * 执行狼人AI行动
+   * 狼人必须选择一个目标，不能空刀
    */
   const executeWolfAction = useCallback(async (actor) => {
     const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_WOLF);
     const targetId = res?.targetId;
+    const validTargets = players.filter(p => p.isAlive && p.role !== '狼人').map(p => p.id);
+
     if (targetId !== null && players.some(p => p.id === targetId && p.isAlive && p.role !== '狼人')) {
       mergeNightDecisions({ wolfTarget: targetId });
       addLog(`狼人完成了今夜的行动...`, 'danger');
+    } else if (validTargets.length > 0) {
+      // AI决策无效，随机选择一个目标（狼人不得空刀）
+      const fallbackTarget = validTargets[Math.floor(Math.random() * validTargets.length)];
+      console.log(`[狼人AI] AI决策无效，随机选择目标：${fallbackTarget}号`);
+      mergeNightDecisions({ wolfTarget: fallbackTarget });
+      addLog(`狼人完成了今夜的行动...`, 'danger');
     } else {
-      mergeNightDecisions({ wolfSkipKill: true });
-      addLog(`狼人选择空刀。`, 'info');
+      console.error(`[狼人AI] 错误：没有可袭击目标！`);
     }
   }, [askAI, players, mergeNightDecisions, addLog]);
 

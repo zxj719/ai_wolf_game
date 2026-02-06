@@ -23,7 +23,9 @@ import {
   handleGetToken,
   handleDeleteToken,
   handleSubmitModelStats,
-  handleGetModelLeaderboard
+  handleGetModelLeaderboard,
+  handleGetAvatars,
+  handleGetAvatarsBatch
 } from './handlers.js';
 
 export default {
@@ -129,6 +131,15 @@ export default {
 
       if (path === '/api/model-leaderboard' && request.method === 'GET') {
         return handleGetModelLeaderboard(request, env);
+      }
+
+      // 头像相关（公开接口）
+      if (path === '/api/avatars' && request.method === 'GET') {
+        return handleGetAvatars(request, env);
+      }
+
+      if (path === '/api/avatars/batch' && request.method === 'POST') {
+        return handleGetAvatarsBatch(request, env);
       }
 
       // 健康检查

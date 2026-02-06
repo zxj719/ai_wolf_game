@@ -79,7 +79,7 @@ export const getWitchNightActionPrompt = (params) => {
   // 构建死亡信息
   const dyingInfo = dyingPlayerId !== null
     ? `【狼刀目标】${dyingPlayerId}号正在死亡，你可以使用解药救他`
-    : '【狼刀结果】今晚无人被刀（可能是守卫守对了或狼人空刀）';
+    : '【狼刀结果】今晚无人被刀（守卫成功守护了目标）';
 
   return `女巫用药决策。
 ${dyingInfo}

@@ -68,10 +68,42 @@ export const fetchSiliconFlowChatModels = async ({ apiKey }) => {
   }
 };
 
+// 全局 AbortController，用于在页面关闭时取消所有请求
+let globalAbortController = null;
+
+/**
+ * 获取或创建全局 AbortController
+ */
+export const getAbortController = () => {
+  if (!globalAbortController) {
+    globalAbortController = new AbortController();
+  }
+  return globalAbortController;
+};
+
+/**
+ * 取消所有正在进行的 API 请求
+ */
+export const abortAllRequests = () => {
+  if (globalAbortController) {
+    globalAbortController.abort();
+    globalAbortController = null;
+  }
+};
+
+/**
+ * 重置 AbortController（用于新游戏）
+ */
+export const resetAbortController = () => {
+  globalAbortController = new AbortController();
+};
+
 export const fetchLLM = async (
-  { player, prompt, systemInstruction, retries = 3, backoff = 2000, forcedModelIndex = null },
+  { player, prompt, systemInstruction, retries = 3, backoff = 2000, forcedModelIndex = null, signal = null },
   { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
 ) => {
+  // 使用传入的 signal 或全局 controller 的 signal
+  const abortSignal = signal || getAbortController().signal;
   // 等概率选择模型（随机）而不是基于玩家ID
   // 这样可以确保每个模型都有相同的机会被选中
   const defaultModelIndex = forcedModelIndex !== null
@@ -117,7 +149,8 @@ export const fetchLLM = async (
         'Content-Type': 'application/json',
         Authorization: `Bearer ${API_KEY}`
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: abortSignal
     });
 
     const duration = Date.now() - startTime;
@@ -148,6 +181,12 @@ export const fetchLLM = async (
       }
     };
   } catch (error) {
+    // 检测是否是用户主动取消（页面关闭）
+    if (error.name === 'AbortError') {
+      console.log(`[API] 请求被取消 (Player: ${player?.id})`);
+      return null;
+    }
+
     console.error(`LLM Fetch Error [Model: ${modelConfig.id}]:`, error);
 
     // 检测各种错误类型
@@ -155,7 +194,7 @@ export const fetchLLM = async (
     const isUpgradeRequired = error.message.includes('426') || error.message.includes('Upgrade Required');
     const isNetworkError = error.message.includes('fetch') || error.message.includes('network');
     const isHTTPError = error.message.includes('HTTP error');
-    
+
     // 任何错误都需要切换模型，包括网络错误、解析错误、超时等
     const shouldFallback = true;
 
@@ -196,13 +235,14 @@ export const fetchLLM = async (
       
       // 重要：传递所有原始参数（player, prompt, systemInstruction）确保上下文完整
       return fetchLLM(
-        { 
-          player, 
-          prompt, 
-          systemInstruction, 
-          retries: retries - 1, 
-          backoff: nextBackoff, 
-          forcedModelIndex: nextModelIndex 
+        {
+          player,
+          prompt,
+          systemInstruction,
+          retries: retries - 1,
+          backoff: nextBackoff,
+          forcedModelIndex: nextModelIndex,
+          signal: abortSignal
         },
         { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
       );

@@ -177,17 +177,29 @@ export function useDayFlow({
     setIsThinking(false);
 
     let targetPlayer = null;
-    if (res?.shoot && res.targetId !== null && aliveTargets.includes(res.targetId)) {
-      const reason = res.reason ? `(${res.reason})` : '';
-      addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${res.targetId}号]！${reason}`, 'danger');
+    let targetId = null;
+
+    // 猎人必须开枪（除非没有可开枪目标）
+    if (res?.targetId !== null && aliveTargets.includes(res.targetId)) {
+      targetId = res.targetId;
+    } else if (aliveTargets.length > 0) {
+      // AI决策无效时，随机选择一个目标（猎人必须开枪）
+      targetId = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
+      console.log(`[猎人AI] AI决策无效，随机选择开枪目标：${targetId}号`);
+    }
+
+    if (targetId !== null) {
+      const reason = res?.reason ? `(${res.reason})` : '';
+      addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${targetId}号]！${reason}`, 'danger');
 
       // 找到被带走的玩家
-      targetPlayer = currentPlayers.find(p => p.id === res.targetId);
-      currentPlayers = currentPlayers.map(p => p.id === res.targetId ? { ...p, isAlive: false } : p);
+      targetPlayer = currentPlayers.find(p => p.id === targetId);
+      currentPlayers = currentPlayers.map(p => p.id === targetId ? { ...p, isAlive: false } : p);
       setPlayers(currentPlayers);
-      setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: res.targetId, cause: '被猎人带走' }]);
+      setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: targetId, cause: '被猎人带走' }]);
     } else {
-      addLog(`[${hunter.id}号] ${hunter.name} 是猎人，选择不开枪。`, 'info');
+      // 理论上不应该发生 - 必须有可开枪目标
+      console.error(`[猎人AI] 错误：没有可开枪目标！`);
     }
 
     // 任务1：检查连锁开枪 - 被带走的玩家如果也是猎人且能开枪
@@ -223,13 +235,19 @@ export function useDayFlow({
     let currentPlayers = [...players];
     const aliveTargets = currentPlayers.filter(p => p.isAlive && p.id !== userPlayer.id);
 
-    if (selectedTarget !== null && aliveTargets.some(p => p.id === selectedTarget)) {
+    // 猎人必须开枪（除非没有目标）
+    if (selectedTarget === null || !aliveTargets.some(p => p.id === selectedTarget)) {
+      if (aliveTargets.length > 0) {
+        addLog(`猎人必须选择一个目标开枪！`, 'warning');
+        return; // 不继续，强制用户选择
+      }
+      // 没有可选目标时才允许不开枪
+      console.error(`[猎人] 没有可开枪目标！`);
+    } else {
       addLog(`你是猎人！开枪带走了 [${selectedTarget}号]！`, 'danger');
       currentPlayers = currentPlayers.map(p => p.id === selectedTarget ? { ...p, isAlive: false } : p);
       setPlayers(currentPlayers);
       setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: selectedTarget, cause: '被猎人带走' }]);
-    } else {
-      addLog(`你是猎人，选择不开枪。`, 'info');
     }
 
     setTimeout(() => {

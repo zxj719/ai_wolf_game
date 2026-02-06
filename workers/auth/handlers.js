@@ -1242,3 +1242,113 @@ export async function handleGetModelLeaderboard(request, env) {
     return errorResponse('Failed to get model leaderboard', 500, env, request);
   }
 }
+
+/**
+ * 获取预生成的头像
+ * GET /api/avatars?names=Harry,Hermione&role=狼人
+ *
+ * 参数：
+ * - names: 逗号分隔的名称列表（必填）
+ * - role: 角色类型，可选，不传则返回所有角色的头像
+ */
+export async function handleGetAvatars(request, env) {
+  try {
+    const url = new URL(request.url);
+    const namesParam = url.searchParams.get('names');
+    const role = url.searchParams.get('role');
+
+    if (!namesParam) {
+      return errorResponse('Names parameter is required', 400, env, request);
+    }
+
+    const names = namesParam.split(',').map(n => n.trim()).filter(Boolean);
+
+    if (names.length === 0) {
+      return errorResponse('At least one name is required', 400, env, request);
+    }
+
+    const db = env.DB;
+
+    // 构建查询
+    const placeholders = names.map(() => '?').join(',');
+    let query = `SELECT name, role, personality, image_url FROM avatars WHERE name IN (${placeholders})`;
+    const params = [...names];
+
+    if (role) {
+      query += ' AND role = ?';
+      params.push(role);
+    }
+
+    const stmt = db.prepare(query);
+    const result = await stmt.bind(...params).all();
+
+    // 转换为 { name: { role: imageUrl } } 格式便于前端使用
+    const avatarMap = {};
+    for (const row of (result.results || [])) {
+      if (!avatarMap[row.name]) {
+        avatarMap[row.name] = {};
+      }
+      avatarMap[row.name][row.role] = row.image_url;
+    }
+
+    return jsonResponse({
+      success: true,
+      avatars: avatarMap,
+      count: result.results?.length || 0
+    });
+  } catch (error) {
+    console.error('Error in handleGetAvatars:', error);
+    return errorResponse('Failed to get avatars', 500, env, request);
+  }
+}
+
+/**
+ * 批量获取头像（用于游戏开始时）
+ * POST /api/avatars/batch
+ *
+ * Body: { players: [{ name: 'Harry', role: '狼人' }, ...] }
+ */
+export async function handleGetAvatarsBatch(request, env) {
+  try {
+    const body = await request.json();
+    const { players } = body;
+
+    if (!Array.isArray(players) || players.length === 0) {
+      return errorResponse('Players array is required', 400, env, request);
+    }
+
+    const db = env.DB;
+    const avatars = {};
+
+    // 为每个玩家查询头像
+    for (const player of players) {
+      const { name, role } = player;
+      if (!name) continue;
+
+      // 优先查找完全匹配的头像
+      let result = await db.prepare(
+        'SELECT image_url FROM avatars WHERE name = ? AND role = ? LIMIT 1'
+      ).bind(name, role || 'neutral').first();
+
+      // 如果没找到，尝试查找该名称的任意角色头像
+      if (!result) {
+        result = await db.prepare(
+          'SELECT image_url FROM avatars WHERE name = ? LIMIT 1'
+        ).bind(name).first();
+      }
+
+      if (result) {
+        avatars[name] = result.image_url;
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      avatars,
+      count: Object.keys(avatars).length
+    });
+  } catch (error) {
+    console.error('Error in handleGetAvatarsBatch:', error);
+    return errorResponse('Failed to get avatars batch', 500, env, request);
+  }
+}

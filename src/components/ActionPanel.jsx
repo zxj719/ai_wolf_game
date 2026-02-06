@@ -62,14 +62,15 @@ export function ActionPanel({
     return (
       <div className="text-center">
         <h2 className="text-lg font-black mb-2 uppercase tracking-widest text-orange-400">🔫 猎人开枪</h2>
-        <p className="text-sm text-zinc-400 mb-4">{hunterInfo} 可以选择带走一名玩家</p>
-        <p className="text-[10px] text-zinc-500 mb-6">选择一个目标开枪，或直接确认不开枪</p>
+        <p className="text-sm text-zinc-400 mb-4">{hunterInfo} 必须选择带走一名玩家</p>
+        <p className="text-[10px] text-zinc-500 mb-6">点击头像选择目标，猎人死亡时必须开枪！</p>
         <div className="flex gap-4 justify-center">
-          <button 
+          <button
             onClick={handleUserHunterShoot}
-            className={`px-10 py-4 rounded-2xl font-black text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-orange-600 hover:bg-orange-500' : 'bg-zinc-700 hover:bg-zinc-600'}`}
+            disabled={selectedTarget === null}
+            className={`px-10 py-4 rounded-2xl font-black text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-orange-600 hover:bg-orange-500' : 'bg-zinc-700 cursor-not-allowed opacity-50'}`}
           >
-            {selectedTarget !== null ? `开枪 [${selectedTarget}号]` : '不开枪'}
+            {selectedTarget !== null ? `开枪 [${selectedTarget}号]` : '请选择目标'}
           </button>
         </div>
       </div>
@@ -88,20 +89,7 @@ export function ActionPanel({
           </p>
         )}
 
-        {userPlayer?.role === '狼人' && (
-          <div className="mb-4">
-            <button 
-              onClick={() => {
-                const updated = { ...nightDecisions, wolfSkipKill: true, wolfTarget: null };
-                mergeNightDecisions({ wolfSkipKill: true, wolfTarget: null });
-                proceedNight(updated);
-              }}
-              className="text-[10px] text-zinc-400 underline hover:text-zinc-300"
-            >
-              选择空刀（不杀人）
-            </button>
-          </div>
-        )}
+        {/* 狼人必须选择目标，不允许空刀 */}
 
         {userPlayer?.role === '女巫' && (
           <div className="mb-4 text-left bg-zinc-800/50 p-4 rounded-xl text-[11px]">

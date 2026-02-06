@@ -478,18 +478,7 @@ export function CirclePlayerLayout({
                   </p>
                 )}
 
-                {userPlayer?.role === '狼人' && (
-                  <button
-                    onClick={() => {
-                      const updated = { ...nightDecisions, wolfSkipKill: true, wolfTarget: null };
-                      mergeNightDecisions({ wolfSkipKill: true, wolfTarget: null });
-                      proceedNight(updated);
-                    }}
-                    className="text-[10px] text-zinc-400 underline hover:text-zinc-300"
-                  >
-                    选择空刀
-                  </button>
-                )}
+                {/* 狼人必须选择目标，不允许空刀 */}
 
                 {userPlayer?.role === '女巫' ? (
                   <div className="text-left bg-zinc-800/50 p-2 rounded-lg text-[10px] space-y-2">

@@ -102,6 +102,7 @@ export const getWerewolfNightActionPrompt = (params) => {
   }
 
   return `狼人袭击决策。
+【重要规则】狼人每晚必须袭击一名玩家，不能空刀！你必须从下方目标中选择一个。
 【可袭击目标】${validTargets.join(',')}号
 【狼队友】${teammates?.length > 0 ? teammates.join(',') + '号' : '仅你一狼'}
 ${nightContext || ''}
@@ -114,7 +115,7 @@ ${strategyHints.length > 0 ? '【策略提示】\n- ' + strategyHints.join('\n- 
 2. 今晚刀谁收益最大？
 3. 狼队需要保护谁？
 
-输出JSON:{"targetId":数字,"reasoning":"选择理由","thought":"刀法思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+输出JSON:{"targetId":必须是数字(从可袭击目标中选择),"reasoning":"选择理由","thought":"刀法思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
 };
 
 /**
