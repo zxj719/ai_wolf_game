@@ -4,12 +4,12 @@ import { authService } from '../services/authService';
 
 export function ModelLeaderboard() {
   const [leaderboardData, setLeaderboardData] = useState([]);
-  const [selectedRole, setSelectedRole] = useState('all');
+  const [selectedRole, setSelectedRole] = useState('狼人');
   const [sortBy, setSortBy] = useState('winRate');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const roles = ['all', '狼人', '村民', '预言家', '女巫', '猎人', '守卫'];
+  const roles = ['狼人', '村民', '预言家', '女巫', '猎人', '守卫'];
 
   useEffect(() => {
     loadLeaderboard();
@@ -25,9 +25,7 @@ export function ModelLeaderboard() {
         limit: 50
       };
 
-      if (selectedRole !== 'all') {
-        options.role = selectedRole;
-      }
+      options.role = selectedRole;
 
       const response = await authService.getModelLeaderboard(options);
 
@@ -76,7 +74,7 @@ export function ModelLeaderboard() {
           >
             {roles.map(role => (
               <option key={role} value={role}>
-                {role === 'all' ? '全部角色' : role}
+                {role}
               </option>
             ))}
           </select>

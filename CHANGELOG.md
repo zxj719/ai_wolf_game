@@ -9,12 +9,15 @@
   - Worker 非 `/api/*` 请求现在走静态资源并回退到 `/index.html`
 - **Changelog 中文乱码**
   - 统一为 UTF-8 编码，中文正常显示
+- **AI 模型排行榜筛选过长**
+  - 移除“全部角色”选项
 
 ### 文件变更
 | 文件 | 操作 | 说明 |
 |------|------|------|
 | `workers/auth/index.js` | 修改 | 非 API 路由静态资源与 SPA 回退 |
 | `CHANGELOG.md` | 修改 | UTF-8 编码修复 |
+| `src/components/ModelLeaderboard.jsx` | 修改 | 移除“全部角色”筛选 |
 
 ## [2026-02-06] 页面路由管理 + 退出即停机制
 
