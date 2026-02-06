@@ -41,7 +41,17 @@ src/
 │   └── ...
 ├── services/
 │   ├── aiClient.js        # AI API 客户端
-│   ├── aiPrompts.js       # AI 提示词模板
+│   ├── aiPrompts.js       # AI 提示词模板（主文件）
+│   ├── promptFactory.js   # 渐进式披露提示词工厂
+│   ├── rolePrompts/       # 角色提示词模块（渐进式披露架构）
+│   │   ├── index.js       # 导出聚合器
+│   │   ├── baseRules.js   # 通用规则
+│   │   ├── werewolf.js    # 狼人提示词
+│   │   ├── seer.js        # 预言家提示词
+│   │   ├── witch.js       # 女巫提示词
+│   │   ├── hunter.js      # 猎人提示词
+│   │   ├── guard.js       # 守卫提示词
+│   │   └── villager.js    # 村民提示词
 │   ├── authService.js     # 认证服务
 │   └── ...
 ├── config/
@@ -76,7 +86,9 @@ site/                      # 静态博客页面
 
 | 文件 | 职责 |
 |------|------|
-| `src/services/aiPrompts.js` | 所有 AI 提示词模板 |
+| `src/services/aiPrompts.js` | AI 提示词主文件（使用渐进式披露架构） |
+| `src/services/promptFactory.js` | 渐进式披露提示词工厂 |
+| `src/services/rolePrompts/*.js` | 各角色独立提示词模块 |
 | `src/services/aiClient.js` | API 调用实现 |
 | `src/config/aiConfig.js` | API 端点和模型列表 |
 | `src/hooks/useAI.js` | AI 调用 Hook（构建上下文） |
@@ -108,8 +120,22 @@ site/                      # 静态博客页面
 - 仪表盘: `src/components/Dashboard.jsx`
 
 ### 4. 修改 AI 行为
-- 提示词模板: `src/services/aiPrompts.js`
+- 提示词模板: `src/services/aiPrompts.js`（主入口）
+- 角色专属提示词: `src/services/rolePrompts/*.js`（渐进式披露）
+- 渐进式披露工厂: `src/services/promptFactory.js`
 - 上下文构建: `src/hooks/useAI.js` 的 `buildAIContext`
+
+### 5. 修改特定角色的提示词
+每个角色有独立模块，使用**渐进式披露**架构：
+- 修改狼人提示词: `src/services/rolePrompts/werewolf.js`
+- 修改预言家提示词: `src/services/rolePrompts/seer.js`
+- 条件化内容通过 `existingRoles` 参数控制（没有的角色不会被提及）
+
+### 6. 修改猎人开枪逻辑
+- 开枪触发: `src/App.jsx` 的 `resolveNight` 函数
+- AI开枪决策: `src/hooks/useDayFlow.js` 的 `handleAIHunterShoot`
+- 延迟开枪状态: `pendingHunterShoot` in `useWerewolfGame.js`
+- 好人多数时延迟到白天开枪，支持连锁开枪（最大3层）
 
 ## 代码规范
 
@@ -163,12 +189,39 @@ user_stats: user_id, total_games, wins, losses, win_rate
 | `JWT_SECRET` | JWT 签名密钥 | Workers Secret |
 | `RESEND_API_KEY` | 邮件服务 | Workers Secret |
 
+## 渐进式披露架构
+
+提示词系统采用**渐进式披露**架构，确保AI只接收与当前游戏配置相关的信息：
+
+### 核心原则
+- **条件化内容**: 没有女巫的游戏不会提及女巫相关规则
+- **角色分装**: 每个角色有独立模块，便于维护
+- **动态生成**: 根据 `existingRoles` 和 `gameSetup` 动态调整提示内容
+
+### 关键函数
+- `detectExistingRoles(players)`: 检测游戏中存在的角色
+- `buildConditionalRules(existingRoles, gameSetup)`: 构建条件化规则
+- `getRoleModule(role)`: 获取角色提示词模块
+
+### 示例
+```javascript
+// 守卫首夜策略根据有无女巫调整
+if (existingRoles.hasWitch) {
+  // 有女巫：提醒同守同救风险
+  hint = '建议空守避免同守同救';
+} else {
+  // 无女巫：可直接守护
+  hint = '可直接守护关键目标';
+}
+```
+
 ## 注意事项
 
 1. **令牌验证**: 使用实际 AI 调用验证，不只检查格式
 2. **CORS**: 后端已配置，前端直接调用即可
 3. **游客模式**: 使用环境变量中的 API 令牌
 4. **游戏状态**: 复杂的状态机，修改前理解流程
+5. **猎人开枪**: 好人多数时延迟到白天，支持连锁开枪
 
 ## 调试技巧
 

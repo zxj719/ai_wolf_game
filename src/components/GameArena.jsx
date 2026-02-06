@@ -126,7 +126,35 @@ export function GameArena({
       }
     });
 
-    return allActions;
+    // 添加投票历史记录（任务2：行动板持久化）
+    if (voteHistory && voteHistory.length > 0) {
+      voteHistory.forEach(v => {
+        const voteKey = `system-vote-day${v.day}`;
+        if (!seen.has(voteKey)) {
+          seen.add(voteKey);
+          allActions.push({
+            playerId: 'system',
+            type: '投票结果',
+            description: v.eliminated !== null
+              ? `第${v.day}天投票: ${v.eliminated}号出局`
+              : `第${v.day}天投票: 流票`,
+            day: v.day,
+            phase: '投票',
+            timestamp: Date.now(),
+            votes: v.votes
+          });
+        }
+      });
+    }
+
+    // 按时间线排序：先按日/夜顺序，再按时间戳
+    return allActions.sort((a, b) => {
+      // 计算排序权重：夜N对应2N-1，日N对应2N
+      const aOrder = a.night ? (a.night * 2 - 1) : (a.day * 2);
+      const bOrder = b.night ? (b.night * 2 - 1) : (b.day * 2);
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return (a.timestamp || 0) - (b.timestamp || 0);
+    });
   };
 
   // 获取游戏背景样式

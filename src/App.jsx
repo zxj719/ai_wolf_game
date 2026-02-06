@@ -70,6 +70,8 @@ export default function App() {
     processedVoteDayRef,
     gameInitializedRef,
     updatePlayerModel,
+    // 任务1：猎人延迟开枪
+    setPendingHunterShoot,
   } = useWerewolfGame({
     ROLE_DEFINITIONS, 
     STANDARD_ROLES, 
@@ -96,7 +98,9 @@ export default function App() {
     nightActionHistory,
     currentPhaseData,
     gameBackground,
-    modelUsage
+    modelUsage,
+    // 任务1：猎人延迟开枪
+    pendingHunterShoot
   } = state;
 
   useEffect(() => {
@@ -199,6 +203,28 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // 任务1：处理白天猎人开枪（延迟开枪机制）
+  useEffect(() => {
+    if (phase === 'day_discussion' && pendingHunterShoot) {
+      const hunter = players.find(p => p.id === pendingHunterShoot.hunterId);
+      if (hunter) {
+        addLog(`[${hunter.id}号] ${hunter.name} 是猎人，现在开枪！`, 'warning');
+        // 延迟一点让玩家看到公告
+        setTimeout(() => {
+          setHunterShooting({ ...hunter, source: 'night', chainDepth: pendingHunterShoot.chainDepth || 0 });
+          if (hunter.isUser && gameMode !== 'ai-only') {
+            setPhase('hunter_shoot');
+          } else {
+            // AI猎人开枪 - 传递 chainDepth 用于连锁开枪检测
+            handleAIHunterShoot(hunter, 'night', [], players, pendingHunterShoot.chainDepth || 0);
+          }
+        }, 1500);
+      }
+      // 清除待处理的猎人开枪
+      setPendingHunterShoot(null);
+    }
+  }, [phase, pendingHunterShoot]);
 
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
 
@@ -339,6 +365,13 @@ export default function App() {
     }
   };
 
+  // 任务1：判断好人是否占多数
+  const isGoodMajority = (currentPlayers) => {
+    const aliveWolves = currentPlayers.filter(p => p.isAlive && p.role === ROLE_DEFINITIONS.WEREWOLF).length;
+    const aliveGood = currentPlayers.filter(p => p.isAlive && p.role !== ROLE_DEFINITIONS.WEREWOLF).length;
+    return aliveGood > aliveWolves;
+  };
+
   const resolveNight = (decisionsOverride = null) => {
     const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget } = decisionsOverride || nightDecisions;
     console.log(`[resolveNight] 夜间决策：`, { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget });
@@ -450,20 +483,33 @@ export default function App() {
     } else {
       addLog(`天亮了，昨晚倒牌的玩家：${uniqueDeads.map(id => `[${id}号]`).join(', ')}`, "danger");
       setPhase('day_announce');
-      
+
       // 夜晚死亡无遗言，但猎人可以开枪
       const hunter = uniqueDeads.map(id => updatedPlayers.find(p => p.id === id))
         .find(p => p && p.role === ROLE_DEFINITIONS.HUNTER && p.canHunterShoot);
-      
+
       if (hunter) {
-        setTimeout(() => {
-          setHunterShooting({ ...hunter, source: 'night' });
-          if (hunter.isUser && gameMode !== 'ai-only') {
-            setPhase('hunter_shoot');
-          } else {
-            handleAIHunterShoot(hunter, 'night', uniqueDeads, updatedPlayers); // Pass uniqueDeads & updatedPlayers
-          }
-        }, 2000);
+        // 任务1：检查好人是否占多数
+        const goodMajority = isGoodMajority(updatedPlayers);
+
+        if (goodMajority) {
+          // 好人占多数：延迟到白天开枪
+          addLog(`[${hunter.id}号] ${hunter.name} 是猎人，将在白天宣布死讯后开枪！`, 'warning');
+          setPendingHunterShoot({ hunterId: hunter.id, source: 'night', chainDepth: 0 });
+          setTimeout(() => {
+            startDayDiscussion(updatedPlayers, uniqueDeads, players.length, clearCurrentPhaseData);
+          }, 2000);
+        } else {
+          // 狼人占多数或平：立即开枪（保持原有逻辑）
+          setTimeout(() => {
+            setHunterShooting({ ...hunter, source: 'night' });
+            if (hunter.isUser && gameMode !== 'ai-only') {
+              setPhase('hunter_shoot');
+            } else {
+              handleAIHunterShoot(hunter, 'night', uniqueDeads, updatedPlayers);
+            }
+          }, 2000);
+        }
       } else {
         // 夜晚死亡无遗言，直接进入白天讨论
         setTimeout(() => {

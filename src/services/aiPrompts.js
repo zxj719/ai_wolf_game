@@ -2,6 +2,13 @@
 // This module manages ALL context construction for the AI agents.
 // It separates System Prompts (Personality, Global Rules) from User Prompts (Tasks).
 // Enhanced with: Role Personas, Chain-of-Thought, Adversarial Reflection (P0 Optimization)
+// P1 Enhancement: Progressive Disclosure - Role-specific modules with conditional content
+
+// 导入渐进式披露架构
+import {
+    detectExistingRoles,
+    getRoleModule
+} from './rolePrompts';
 
 // --- CONSTANTS ---
 export const PROMPT_ACTIONS = {
@@ -192,10 +199,20 @@ const ROLE_PERSONAS = {
 };
 
 // 构建角色人格提示词
+// P1增强：使用渐进式披露架构，根据游戏配置动态调整内容
 export const buildPersonaPrompt = (player, gameState) => {
+    const gameSetup = gameState?.gameSetup;
+    const existingRoles = detectExistingRoles(gameState?.players || []);
+
+    // 尝试使用新的渐进式披露模块
+    const roleModule = getRoleModule(player.role);
+    if (roleModule && roleModule.buildPersonaPrompt) {
+        return roleModule.buildPersonaPrompt(player, existingRoles, gameSetup);
+    }
+
+    // 降级到原有逻辑（向后兼容）
     const persona = ROLE_PERSONAS[player.role] || ROLE_PERSONAS['村民'];
     const personality = player.personality;
-    const gameSetup = gameState?.gameSetup;
 
     // 动态调整思维维度（根据局数配置过滤）
     let thinkingDimensions = [...persona.thinkingDimensions];
@@ -995,7 +1012,16 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
         case PROMPT_ACTIONS.NIGHT_GUARD:
             const { cannotGuard } = params;
             const aliveStr = players.filter(p => p.isAlive).map(p => p.id).join(',');
-            const guardHint = ctx.dayCount === 1 ? '【首夜策略】建议空守(null)避免同守同救触发规则。' : '';
+            // P1渐进式披露：根据有无女巫调整首夜策略
+            const guardExistingRoles = detectExistingRoles(players);
+            let guardHint = '';
+            if (ctx.dayCount === 1) {
+                if (guardExistingRoles.hasWitch) {
+                    guardHint = '【首夜策略】建议空守(null)避免同守同救触发规则。女巫首夜可能救人，你守护同一目标会导致目标死亡！';
+                } else {
+                    guardHint = '【首夜策略】没有女巫，不存在同守同救风险。可以直接守护你认为最关键的目标。';
+                }
+            }
             return `守卫守护选择。
 ${guardHint}
 【存活玩家】${aliveStr}
@@ -1004,18 +1030,33 @@ ${nightCot}
 【守护策略】
 - 优先守护：已跳身份的预言家 > 重要神职 > 高价值好人
 - 博弈思考：狼人预判我会守谁？我该反其道还是稳守？
-输出:{"targetId":数字或null(空守),"reasoning":"一句话理由"}`;
+输出:{"targetId":数字或null(空守),"reasoning":"一句话理由","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
 
         case PROMPT_ACTIONS.NIGHT_WOLF:
              const validTargets = players.filter(p => p.isAlive && p.role !== '狼人').map(p => p.id).join(',');
+             // P1渐进式披露：根据存在的角色动态生成刀法优先级
+             const wolfExistingRoles = detectExistingRoles(players);
+             const wolfPriorities = [];
+             if (wolfExistingRoles.hasWitch) wolfPriorities.push('女巫(有毒药威胁)');
+             if (wolfExistingRoles.hasSeer) wolfPriorities.push('预言家(信息源)');
+             if (wolfExistingRoles.hasGuard) wolfPriorities.push('守卫(保护者)');
+             if (wolfExistingRoles.hasHunter) wolfPriorities.push('猎人(有枪)');
+             wolfPriorities.push('村民');
+             const wolfPriorityStr = wolfPriorities.join(' > ');
+
+             // 根据存在的角色生成策略提示
+             const wolfStrategyHints = ['根据白天发言抿神职：谁像预言家？谁像女巫？谁在保护谁？'];
+             if (wolfExistingRoles.hasGuard) {
+                 wolfStrategyHints.push('考虑守卫博弈：守卫可能守谁？是否需要声东击西？');
+             }
+
              return `狼人袭击决策。
 【可袭击目标】${validTargets}
 ${nightCot}
 【刀法策略】
-- 优先级：女巫(有毒药威胁) > 预言家(信息源) > 守卫(保护者) > 猎人(有枪)
-- 根据白天发言抿神职：谁像预言家？谁像女巫？谁在保护谁？
-- 考虑守卫博弈：守卫可能守谁？是否需要声东击西？
-输出:{"targetId":数字,"reasoning":"选择理由"}`;
+- 优先级：${wolfPriorityStr}
+${wolfStrategyHints.map(h => `- ${h}`).join('\n')}
+输出:{"targetId":数字,"reasoning":"选择理由","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
 
         case PROMPT_ACTIONS.NIGHT_SEER:
              const { validTargets: seerTargets } = params;
@@ -1083,14 +1124,25 @@ ${voteCotTemplate}
 
         case PROMPT_ACTIONS.HUNTER_SHOOT:
              const { aliveTargets, hunterContext } = params;
+             // P1渐进式披露：根据存在的角色动态生成开枪策略
+             const hunterExistingRoles = detectExistingRoles(players);
+             const hunterStrategies = [];
+             if (hunterExistingRoles.hasSeer) {
+                 hunterStrategies.push('优先带走被预言家"查杀"的玩家');
+             }
+             hunterStrategies.push('次选悍跳预言家(假预言家)');
+             hunterStrategies.push('再选发言最像狼/划水/倒钩的玩家');
+             if (hunterExistingRoles.hasSeer) {
+                 hunterStrategies.push('绝不带走金水/银水/真预言家');
+             } else {
+                 hunterStrategies.push('绝不带走确认的好人');
+             }
+
              return `你是猎人(好人阵营)，必须开枪带走一名【最可疑的狼人】！
 【存活可选】${aliveTargets.join(',')}号
 ${hunterContext || ''}
 【开枪策略】
-1. 优先带走被预言家"查杀"的玩家
-2. 次选悍跳预言家(假预言家)
-3. 再选发言最像狼/划水/倒钩的玩家
-4. 绝不带走金水/银水/真预言家
+${hunterStrategies.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 输出JSON:{"shoot":true,"targetId":数字,"reason":"一句话理由"}`;
 
         case PROMPT_ACTIONS.SUMMARIZE_CONTENT:

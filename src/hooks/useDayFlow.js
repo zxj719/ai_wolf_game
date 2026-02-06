@@ -136,45 +136,69 @@ export function useDayFlow({
     setSpokenCount(0);
   }, [addLog, players, setSpeakerIndex, setSpokenCount, setPhase]);
 
-  const handleAIHunterShoot = useCallback(async (hunter, source, nightDeads = [], currentPlayersState = null) => {
+  // 任务1：支持连锁开枪的猎人AI开枪函数
+  // chainDepth: 连锁深度，防止无限循环（最大3层）
+  const handleAIHunterShoot = useCallback(async (hunter, source, nightDeads = [], currentPlayersState = null, chainDepth = 0) => {
+    // 防止无限连锁（最大3层）
+    if (chainDepth > 3) {
+      addLog(`连锁开枪达到上限，停止。`, 'warning');
+      setHunterShooting(null);
+      return;
+    }
+
     setIsThinking(true);
     let currentPlayers = currentPlayersState ? [...currentPlayersState] : [...players];
     const aliveTargets = currentPlayers.filter(p => p.isAlive && p.id !== hunter.id).map(p => p.id);
-    
+
     // 构建猎人上下文：查杀信息、发言摘要等帮助猎人决策
     let hunterContext = '';
-    
+
     // 查杀信息（预言家查出的狼人）
     const wolfChecks = seerChecks.filter(c => c.isWolf && aliveTargets.includes(c.targetId));
     if (wolfChecks.length > 0) {
       hunterContext += `【查杀】${wolfChecks.map(c => `${c.targetId}号`).join(',')}被预言家查杀\n`;
     }
-    
+
     // 金水信息（预言家验证的好人）
     const goodChecks = seerChecks.filter(c => !c.isWolf && aliveTargets.includes(c.targetId));
     if (goodChecks.length > 0) {
       hunterContext += `【金水】${goodChecks.map(c => `${c.targetId}号`).join(',')}是好人(勿带走)\n`;
     }
-    
+
     // 最近发言摘要
-    const recentSpeeches = speechHistory.filter(s => s.day === dayCount).map(s => 
+    const recentSpeeches = speechHistory.filter(s => s.day === dayCount).map(s =>
       `${s.playerId}号:${s.summary || s.content.slice(0, 30)}`
     ).join(';');
     if (recentSpeeches) {
       hunterContext += `【今日发言】${recentSpeeches}\n`;
     }
-    
+
     const res = await askAI(hunter, PROMPT_ACTIONS.HUNTER_SHOOT, { aliveTargets, hunterContext });
     setIsThinking(false);
 
+    let targetPlayer = null;
     if (res?.shoot && res.targetId !== null && aliveTargets.includes(res.targetId)) {
       const reason = res.reason ? `(${res.reason})` : '';
       addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${res.targetId}号]！${reason}`, 'danger');
+
+      // 找到被带走的玩家
+      targetPlayer = currentPlayers.find(p => p.id === res.targetId);
       currentPlayers = currentPlayers.map(p => p.id === res.targetId ? { ...p, isAlive: false } : p);
       setPlayers(currentPlayers);
       setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: res.targetId, cause: '被猎人带走' }]);
     } else {
       addLog(`[${hunter.id}号] ${hunter.name} 是猎人，选择不开枪。`, 'info');
+    }
+
+    // 任务1：检查连锁开枪 - 被带走的玩家如果也是猎人且能开枪
+    if (targetPlayer && targetPlayer.role === ROLE_DEFINITIONS.HUNTER && targetPlayer.canHunterShoot) {
+      addLog(`[${targetPlayer.id}号] ${targetPlayer.name} 也是猎人！触发连锁开枪！`, 'warning');
+      setTimeout(() => {
+        setHunterShooting({ ...targetPlayer, source: 'chain', chainDepth: chainDepth + 1 });
+        // 递归调用，增加连锁深度
+        handleAIHunterShoot(targetPlayer, 'chain', nightDeads, currentPlayers, chainDepth + 1);
+      }, 1500);
+      return; // 不继续后续流程，等待连锁完成
     }
 
     setTimeout(() => {
@@ -186,11 +210,14 @@ export function useDayFlow({
       }
       if (source === 'vote') {
         (proceedToNextNightExternal || proceedToNextNight)();
+      } else if (source === 'chain') {
+        // 连锁开枪结束后，继续白天讨论
+        startDayDiscussion(currentPlayers, nightDeads, players.length);
       } else {
         startDayDiscussion(currentPlayers, nightDeads, players.length);
       }
     }, 2000);
-  }, [askAI, setIsThinking, players, addLog, setPlayers, setDeathHistory, dayCount, checkGameEnd, setPhase, setHunterShooting, proceedToNextNightExternal, startDayDiscussion]);
+  }, [askAI, setIsThinking, players, addLog, setPlayers, setDeathHistory, dayCount, checkGameEnd, setPhase, setHunterShooting, proceedToNextNightExternal, startDayDiscussion, seerChecks, speechHistory, ROLE_DEFINITIONS]);
 
   const handleUserHunterShoot = useCallback((source) => {
     let currentPlayers = [...players];

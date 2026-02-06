@@ -36,7 +36,9 @@ const initialState = {
   modelUsage: {
     gameSessionId: null,  // 游戏会话ID
     playerModels: {}      // { playerId: { modelId, modelName } }
-  }
+  },
+  // 任务1：待处理的猎人开枪（延迟到白天）
+  pendingHunterShoot: null  // { hunterId, source: 'night', chainDepth: 0 }
 };
 
 const types = {
@@ -63,6 +65,8 @@ const types = {
   SET_GAME_BACKGROUND: 'SET_GAME_BACKGROUND',
   SET_MODEL_USAGE: 'SET_MODEL_USAGE',
   UPDATE_PLAYER_MODEL: 'UPDATE_PLAYER_MODEL',
+  // 任务1：猎人延迟开枪状态
+  SET_PENDING_HUNTER_SHOOT: 'SET_PENDING_HUNTER_SHOOT',
 };
 
 function reducer(state, action) {
@@ -140,6 +144,9 @@ function reducer(state, action) {
           }
         }
       };
+    // 任务1：猎人延迟开枪
+    case types.SET_PENDING_HUNTER_SHOOT:
+      return { ...state, pendingHunterShoot: action.payload };
     default:
       return state;
   }
@@ -176,6 +183,8 @@ export function useWerewolfGame(config) {
     type: types.UPDATE_PLAYER_MODEL,
     payload: { playerId, modelId, modelName }
   });
+  // 任务1：猎人延迟开枪
+  const setPendingHunterShoot = (value) => dispatch({ type: types.SET_PENDING_HUNTER_SHOOT, payload: value });
 
   const addLog = (text, type = 'info', speaker = null) => {
     pushLog({ text, type, speaker, id: `${Date.now()}-${Math.random()}` });
@@ -307,5 +316,7 @@ export function useWerewolfGame(config) {
     gameInitializedRef,
     setModelUsage,
     updatePlayerModel,
+    // 任务1：猎人延迟开枪
+    setPendingHunterShoot,
   };
 }

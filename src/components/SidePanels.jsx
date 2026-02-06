@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Brain, Moon, Sun, ChevronDown, ChevronUp, Swords, Eye, Shield, FlaskConical, Activity, MessageSquare } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { MessageCircle, Brain, Moon, Sun, ChevronDown, ChevronUp, Swords, Eye, Shield, FlaskConical, Activity, MessageSquare, Vote } from 'lucide-react';
 
 // 获取行动类型图标
 const getActionIcon = (type) => {
@@ -9,6 +9,8 @@ const getActionIcon = (type) => {
     case '守护': return <Shield size={12} className="text-blue-400" />;
     case '解药':
     case '毒药': return <FlaskConical size={12} className="text-emerald-400" />;
+    case '投票结果': return <Vote size={12} className="text-amber-400" />;
+    case '公告': return <MessageCircle size={12} className="text-emerald-400" />;
     default: return <Moon size={12} className="text-indigo-400" />;
   }
 };
@@ -119,6 +121,37 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  // 按日/夜分组消息（任务2：行动板持久化）
+  const groupedMessages = useMemo(() => {
+    const groups = {};
+
+    messages.forEach(msg => {
+      // 获取日/夜标识
+      const dayNight = msg.data.night
+        ? `N${msg.data.night}`
+        : (msg.data.day ? `D${msg.data.day}` : 'D1');
+
+      if (!groups[dayNight]) {
+        groups[dayNight] = [];
+      }
+      groups[dayNight].push(msg);
+    });
+
+    // 按时间顺序排序：N1 < D1 < N2 < D2 ...
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      const aIsNight = a.startsWith('N');
+      const bIsNight = b.startsWith('N');
+      const aNum = parseInt(a.slice(1));
+      const bNum = parseInt(b.slice(1));
+      // 夜N对应2N-1，日N对应2N
+      const aOrder = aIsNight ? (aNum * 2 - 1) : (aNum * 2);
+      const bOrder = bIsNight ? (bNum * 2 - 1) : (bNum * 2);
+      return aOrder - bOrder;
+    });
+
+    return { groups, sortedKeys };
+  }, [messages]);
+
   // 监听窗口大小变化，小屏幕自动折叠
   useEffect(() => {
     const handleResize = () => {
@@ -211,18 +244,47 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
             暂无记录
           </div>
         ) : (
-          /* 反转数组以实现最新消息在上 */
-          [...messages].reverse().map((msg, idx) => (
-            <MessageItem
-              key={`${msg.playerId}-${messages.length - 1 - idx}`}
-              data={msg.data}
-              type={msg.type}
-              playerName={msg.playerName}
-              playerId={msg.playerId}
-              isNight={phase === 'night'}
-              showThought={showThought}
-              timestamp={msg.timestamp}
-            />
+          /* 按日/夜分组显示，最新的组在上 */
+          [...groupedMessages.sortedKeys].reverse().map(dayNight => (
+            <div key={dayNight} className="mb-3">
+              {/* 分组标题 */}
+              <div className={`
+                sticky top-0 z-10 px-2 py-1.5 mb-2 rounded-lg
+                text-[10px] font-bold flex items-center gap-1.5
+                ${dayNight.startsWith('N')
+                  ? 'bg-indigo-900/60 text-indigo-300 border border-indigo-700/50'
+                  : 'bg-amber-900/40 text-amber-300 border border-amber-700/50'}
+                backdrop-blur-sm
+              `}>
+                {dayNight.startsWith('N') ? (
+                  <>
+                    <Moon size={10} />
+                    <span>第{dayNight.slice(1)}夜</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun size={10} />
+                    <span>第{dayNight.slice(1)}天</span>
+                  </>
+                )}
+                <span className="text-zinc-500 ml-1">({groupedMessages.groups[dayNight].length})</span>
+              </div>
+              {/* 该组内的消息 */}
+              <div className="space-y-2">
+                {[...groupedMessages.groups[dayNight]].reverse().map((msg, idx) => (
+                  <MessageItem
+                    key={`${dayNight}-${msg.playerId}-${idx}`}
+                    data={msg.data}
+                    type={msg.type}
+                    playerName={msg.playerName}
+                    playerId={msg.playerId}
+                    isNight={dayNight.startsWith('N')}
+                    showThought={showThought}
+                    timestamp={msg.timestamp}
+                  />
+                ))}
+              </div>
+            </div>
           ))
         )}
       </div>
