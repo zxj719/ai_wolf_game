@@ -11,6 +11,8 @@
   - 统一为 UTF-8 编码，中文正常显示
 - **AI 模型排行榜筛选过长**
   - 移除“全部角色”选项
+- **部署失败：_redirects 无限循环**
+  - 移除 `public/_redirects`，改由 Worker 负责 SPA 回退
 
 ### 文件变更
 | 文件 | 操作 | 说明 |
@@ -18,6 +20,7 @@
 | `workers/auth/index.js` | 修改 | 非 API 路由静态资源与 SPA 回退 |
 | `CHANGELOG.md` | 修改 | UTF-8 编码修复 |
 | `src/components/ModelLeaderboard.jsx` | 修改 | 移除“全部角色”筛选 |
+| `public/_redirects` | 删除 | 避免 Cloudflare _redirects 规则循环 |
 
 ## [2026-02-06] 页面路由管理 + 退出即停机制
 
