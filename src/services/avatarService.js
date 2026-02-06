@@ -50,6 +50,12 @@ export async function fetchAvatarsBatch(players) {
 export async function assignPlayerAvatars(players, gameMode) {
   console.log('[AvatarService] 开始分配头像...');
 
+  const allHaveAvatars = players.every(player => !!player.avatarUrl);
+  if (allHaveAvatars) {
+    console.log('[AvatarService] 已存在头像，保留开局头像');
+    return players;
+  }
+
   // 1. 尝试从数据库获取头像
   const avatarsFromDB = await fetchAvatarsBatch(
     players.map(p => ({ name: p.name, role: p.role }))
@@ -57,6 +63,10 @@ export async function assignPlayerAvatars(players, gameMode) {
 
   // 2. 为每个玩家分配头像
   const playersWithAvatars = players.map(player => {
+    if (player.avatarUrl) {
+      return player;
+    }
+
     // 优先使用数据库头像
     if (avatarsFromDB[player.name]) {
       return {

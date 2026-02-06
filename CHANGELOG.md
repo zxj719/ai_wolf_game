@@ -13,6 +13,8 @@
   - 移除“全部角色”选项
 - **部署失败：_redirects 无限循环**
   - 移除 `public/_redirects`，改由 Worker 负责 SPA 回退
+- **头像被数据库覆盖**
+  - 已有开局头像时不再从数据库覆盖
 
 ### 文件变更
 | 文件 | 操作 | 说明 |
@@ -21,6 +23,7 @@
 | `CHANGELOG.md` | 修改 | UTF-8 编码修复 |
 | `src/components/ModelLeaderboard.jsx` | 修改 | 移除“全部角色”筛选 |
 | `public/_redirects` | 删除 | 避免 Cloudflare _redirects 规则循环 |
+| `src/services/avatarService.js` | 修改 | 保留开局头像，不再覆盖 |
 
 ## [2026-02-06] 页面路由管理 + 退出即停机制
 
