@@ -101,10 +101,10 @@ export const SetupScreen = ({
           <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
           <div className="text-sm flex-1">
             <p className="font-bold text-zinc-200">关于响应速度与稳定性</p>
-            <p className="text-zinc-400 mt-1">
-              这是一个调用免费算力平台的大模型狼人杀游戏。部分模型会排队或响应较慢，偶尔也可能掉线/超时。
-              游戏过程中请耐心等待；如长时间无响应，可稍后重试或重新开始一局。
-            </p>
+              <p className="text-zinc-400 mt-1">
+                这是一个调用免费算力平台的大模型狼人杀游戏。部分模型会排队或响应较慢，偶尔也可能掉线/超时。
+              游戏过程中请耐心等待。
+              </p>
           </div>
         </div>
       </div>
