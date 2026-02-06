@@ -31,15 +31,7 @@ const ROUTES = {
 };
 
 const AUTH_ROUTES = new Set([ROUTES.LOGIN, ROUTES.RESET, ROUTES.VERIFY]);
-const KNOWN_ROUTES = new Set([
-  ROUTES.LOGIN,
-  ROUTES.RESET,
-  ROUTES.VERIFY,
-  ROUTES.HOME,
-  ROUTES.CUSTOM,
-  ROUTES.PLAY,
-  ROUTES.SITES
-]);
+const APP_ROUTES = new Set([ROUTES.HOME, ROUTES.SITES, ROUTES.CUSTOM, ROUTES.PLAY]);
 
 const normalizePath = (path = '') => {
   const trimmed = path.replace(/\/+$/, '');
@@ -72,7 +64,6 @@ export default function App() {
   const speakingLockRef = useRef(false); // 发言锁，防止并发
   const currentDayRef = useRef(1); // 追踪当前天数 
   const gameActiveRef = useRef(false);
-  const wasGameActiveRef = useRef(false);
 
   const navigate = useCallback((path, { replace = false } = {}) => {
     const nextPath = normalizePath(path);
@@ -162,15 +153,17 @@ export default function App() {
   const isPlayRoute = normalizedPath === ROUTES.PLAY;
   const isSitesRoute = normalizedPath === ROUTES.SITES;
   const isGameActive = phase !== 'setup' || !!gameMode;
+  const isAuthed = !!user || isGuestMode;
 
   // Keep latest night decisions accessible from stale timers/closures.
   nightDecisionsRef.current = nightDecisions;
 
-  const resetGameState = useCallback(() => {
+  const endGame = useCallback(() => {
     gameActiveRef.current = false;
     abortAllRequests();
     processedVoteDayRef.current = -1;
     gameInitializedRef.current = false;
+    currentDayRef.current = 1;
     setGameMode(null);
     setLogs([]);
     setPhase('setup');
@@ -181,10 +174,13 @@ export default function App() {
     setSelectedTarget(null);
     setSpeakerIndex(-1);
     setSpokenCount(0);
+    setSpeakingOrder('left');
     setUserInput('');
     setIsThinking(false);
     setGameResult(null);
     setGameStartTime(null);
+    setShowStats(false);
+    setShowTokenManager(false);
   }, [
     clearCurrentPhaseData,
     setDayCount,
@@ -198,7 +194,10 @@ export default function App() {
     setPhase,
     setSelectedTarget,
     setSpeakerIndex,
+    setSpeakingOrder,
     setSpokenCount,
+    setShowStats,
+    setShowTokenManager,
     setUserInput
   ]);
 
@@ -216,65 +215,42 @@ export default function App() {
     if (authLoading) return;
 
     if (normalizedPath === '/') {
-      const defaultPath = user && !isGuestMode ? ROUTES.HOME : ROUTES.LOGIN;
-      navigate(defaultPath, { replace: true });
+      navigate(isAuthed ? ROUTES.HOME : ROUTES.LOGIN, { replace: true });
       return;
     }
 
-    if (!KNOWN_ROUTES.has(normalizedPath)) {
-      const fallback = user && !isGuestMode ? ROUTES.HOME : ROUTES.LOGIN;
-      navigate(fallback, { replace: true });
-      return;
-    }
-
-    if (!user && !isGuestMode) {
-      if (!isAuthRoute) {
-        navigate(ROUTES.LOGIN, { replace: true });
-      }
-      return;
-    }
-
-    if (user && !isGuestMode && isAuthRoute) {
-      navigate(ROUTES.HOME, { replace: true });
-      return;
-    }
-
-    if (isGuestMode && !user && (isHomeRoute || isSitesRoute)) {
+    if (!isAuthed && !isAuthRoute) {
       navigate(ROUTES.LOGIN, { replace: true });
       return;
     }
 
-    if (!isGameActive && isPlayRoute) {
-      const fallback = user || isGuestMode ? ROUTES.CUSTOM : ROUTES.LOGIN;
-      navigate(fallback, { replace: true });
-    }
-  }, [
-    authLoading,
-    isAuthRoute,
-    isGameActive,
-    isGuestMode,
-    isHomeRoute,
-    isPlayRoute,
-    isSitesRoute,
-    navigate,
-    normalizedPath,
-    user
-  ]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    const wasActive = wasGameActiveRef.current;
-    wasGameActiveRef.current = isGameActive;
-
-    if (!wasActive && isGameActive) {
-      navigate(ROUTES.PLAY);
+    if (isAuthed && isAuthRoute) {
+      navigate(ROUTES.HOME, { replace: true });
       return;
     }
 
-    if (wasActive && isGameActive && !isPlayRoute) {
-      resetGameState();
+    if (isAuthed && !isAuthRoute && !APP_ROUTES.has(normalizedPath)) {
+      navigate(ROUTES.HOME, { replace: true });
     }
-  }, [authLoading, isGameActive, isPlayRoute, navigate, resetGameState]);
+  }, [authLoading, isAuthRoute, isAuthed, navigate, normalizedPath]);
+
+  useEffect(() => {
+    if ((isHomeRoute || isSitesRoute) && (gameMode || phase !== 'setup')) {
+      endGame();
+    }
+  }, [isHomeRoute, isSitesRoute, gameMode, phase, endGame]);
+
+  useEffect(() => {
+    if (gameMode && isCustomRoute) {
+      navigate(ROUTES.PLAY, { replace: true });
+    }
+  }, [gameMode, isCustomRoute, navigate]);
+
+  useEffect(() => {
+    if (!gameMode && isPlayRoute) {
+      navigate(ROUTES.CUSTOM, { replace: true });
+    }
+  }, [gameMode, isPlayRoute, navigate]);
 
   // 页面关闭时立即结束对战，停止所有API调用
   useEffect(() => {
@@ -1169,19 +1145,8 @@ export default function App() {
 
   // 重新开始游戏
   const restartGame = () => {
-    resetGameState();
-    navigate(ROUTES.CUSTOM);
-  };
-
-  const exitToHome = () => {
-    resetGameState();
-    navigate(ROUTES.HOME);
-  };
-
-  const exitToLogin = () => {
-    resetGameState();
-    setIsGuestMode(false);
-    navigate(ROUTES.LOGIN);
+    endGame();
+    navigate(ROUTES.CUSTOM, { replace: true });
   };
 
   // 导出游戏日志
@@ -1368,16 +1333,36 @@ export default function App() {
     return roles[nightStep] || '';
   };
 
-  const exitLabel = isGuestMode && !user ? '返回登录' : '返回首页';
-  const exitHandler = isGuestMode && !user ? exitToLogin : exitToHome;
-  const handleGuestPlay = () => {
+  const handleGuestPlay = useCallback(() => {
     setIsGuestMode(true);
-    navigate(ROUTES.CUSTOM);
-  };
-  const handleLogout = () => {
-    logout();
+    navigate(ROUTES.HOME, { replace: true });
+  }, [navigate]);
+
+  const handleGuestExitToLogin = useCallback(() => {
+    endGame();
+    setIsGuestMode(false);
     navigate(ROUTES.LOGIN, { replace: true });
-  };
+  }, [endGame, navigate]);
+
+  const handleLogout = useCallback(async () => {
+    endGame();
+    await logout();
+    setIsGuestMode(false);
+    navigate(ROUTES.LOGIN, { replace: true });
+  }, [endGame, logout, navigate]);
+
+  const handleExitToHome = useCallback(() => {
+    endGame();
+    navigate(ROUTES.HOME, { replace: true });
+  }, [endGame, navigate]);
+
+  const handleEnterWolfgame = useCallback(() => {
+    navigate(ROUTES.CUSTOM);
+  }, [navigate]);
+
+  const handleEnterSites = useCallback(() => {
+    navigate(ROUTES.SITES);
+  }, [navigate]);
 
   // 认证加载中
   if (authLoading) {
@@ -1388,58 +1373,87 @@ export default function App() {
     );
   }
 
-  if (isAuthRoute) {
+  if (!isAuthed) {
     return <AuthPage onGuestPlay={handleGuestPlay} />;
   }
 
   if (isHomeRoute) {
     return (
       <Dashboard
-        onEnterGame={() => navigate(ROUTES.CUSTOM)}
-        onEnterSites={() => navigate(ROUTES.SITES)}
+        onEnterWolfgame={handleEnterWolfgame}
+        onEnterSites={handleEnterSites}
         onLogout={handleLogout}
+        isGuestMode={isGuestMode}
+        onLogin={handleGuestExitToLogin}
       />
     );
   }
 
   if (isSitesRoute) {
-    return (
-      <SitesPage
-        onReturnHome={exitToHome}
-        returnLabel="返回首页"
-      />
-    );
+    return <SitesPage onBack={handleExitToHome} />;
+  }
+
+  if (!isCustomRoute && !isPlayRoute) {
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* 用户信息栏 - 仅在游戏设置界面显示（游客模式或从仪表盘进入） */}
-      {user && isCustomRoute && (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 relative">
+      {isCustomRoute && (
         <div className="absolute top-4 right-4 flex items-center gap-3 z-50">
-          <span className="text-zinc-400 text-sm">
-            欢迎, <span className="text-zinc-200">{user.username}</span>
-          </span>
+          {isGuestMode && !user && (
+            <span className="text-zinc-500 text-sm">游客模式</span>
+          )}
           <button
-            onClick={() => setShowTokenManager(true)}
-            className={`px-3 py-1 text-sm rounded transition-colors ${
-              tokenStatus.hasToken
-                ? 'bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50'
-                : 'bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-600/50'
-            }`}
-          >
-            {tokenStatus.hasToken ? '令牌已配置' : '配置令牌'}
-          </button>
-          <button
-            onClick={() => setShowStats(true)}
-            className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors"
-          >
-            战绩
-          </button>
-          <button
-            onClick={handleLogout}
+            onClick={handleExitToHome}
             className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
           >
-            登出
+            返回主页
+          </button>
+          {!isGuestMode && user && (
+            <>
+              <button
+                onClick={() => setShowTokenManager(true)}
+                className={`px-3 py-1 text-sm rounded transition-colors ${
+                  tokenStatus.hasToken
+                    ? 'bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50'
+                    : 'bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-600/50'
+                }`}
+              >
+                {tokenStatus.hasToken ? '令牌已配置' : '配置令牌'}
+              </button>
+              <button
+                onClick={() => setShowStats(true)}
+                className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors"
+              >
+                战绩
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
+              >
+                登出
+              </button>
+            </>
+          )}
+          {isGuestMode && (
+            <button
+              onClick={handleGuestExitToLogin}
+              className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
+            >
+              登录
+            </button>
+          )}
+        </div>
+      )}
+
+      {isPlayRoute && (
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={handleExitToHome}
+            className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
+          >
+            结束并返回主页
           </button>
         </div>
       )}
@@ -1458,13 +1472,6 @@ export default function App() {
         />
       )}
 
-      {/* 游客模式提示 */}
-      {isGuestMode && !user && isCustomRoute && (
-        <div className="absolute top-4 right-4 z-50">
-          <span className="text-zinc-500 text-sm">游客模式</span>
-        </div>
-      )}
-
       {/* 模式选择界面 */}
       {isCustomRoute && phase === 'setup' && !gameMode && (
         <SetupScreen
@@ -1479,8 +1486,6 @@ export default function App() {
           onBuildCustomSetup={setSelectedSetup}
           victoryMode={victoryMode}
           setVictoryMode={setVictoryMode}
-          onExit={exitHandler}
-          exitLabel={exitLabel}
         />
       )}
 
@@ -1541,8 +1546,6 @@ export default function App() {
           isUserTurn={isUserTurn}
           exportGameLog={exportGameLog}
           restartGame={restartGame}
-          onExit={exitHandler}
-          exitLabel={exitLabel}
           
           // AI
           AI_MODELS={aiModels}

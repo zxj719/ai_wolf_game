@@ -908,6 +908,20 @@ export async function handleVerifyModelscopeToken(request, env) {
     // 验证令牌 - 通过实际 AI 调用
     const verifyResult = await verifyModelscopeToken(userRecord.modelscope_token);
 
+    // 当令牌确认不可用时，自动清空用户令牌
+    const shouldClearToken = ['token_invalid', 'account_not_verified'].includes(verifyResult.error);
+    let tokenCleared = false;
+    if (!verifyResult.valid && shouldClearToken) {
+      await env.DB.prepare(
+        `UPDATE users SET
+          modelscope_token = NULL,
+          token_verified_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`
+      ).bind(user.sub).run();
+      tokenCleared = true;
+    }
+
     if (verifyResult.valid) {
       // 更新验证时间
       await env.DB.prepare(
@@ -933,12 +947,17 @@ export async function handleVerifyModelscopeToken(request, env) {
       }
     }
 
+    if (tokenCleared) {
+      message = `${message}（已自动清空令牌）`;
+    }
+
     return jsonResponse({
       success: true,
-      hasToken: true,
+      hasToken: tokenCleared ? false : true,
       isValid: verifyResult.valid,
       errorType: verifyResult.error || null,
-      tokenVerifiedAt: verifyResult.valid ? new Date().toISOString() : userRecord.token_verified_at,
+      tokenCleared,
+      tokenVerifiedAt: verifyResult.valid ? new Date().toISOString() : (tokenCleared ? null : userRecord.token_verified_at),
       message
     }, 200, env, request);
   } catch (error) {

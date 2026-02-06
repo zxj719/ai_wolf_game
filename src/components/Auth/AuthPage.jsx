@@ -37,7 +37,8 @@ export function AuthPage({ onGuestPlay }) {
 
   const handleBackToLogin = () => {
     // 清除URL参数
-    window.history.replaceState({}, '', window.location.pathname.replace(/\/(reset-password|verify-email)/, ''));
+    window.history.replaceState({}, '', '/login');
+    window.dispatchEvent(new PopStateEvent('popstate'));
     setView('login');
     setResetToken(null);
     setVerifyToken(null);

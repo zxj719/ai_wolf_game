@@ -4,9 +4,7 @@
  */
 
 import { getPlaceholderAvatar } from './imageGenerator';
-
-// API 基础 URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://werewolf-auth.xingj.workers.dev';
+import { buildApiUrl } from './apiBase';
 
 /**
  * 批量获取玩家头像
@@ -15,7 +13,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://werewolf-auth.xing
  */
 export async function fetchAvatarsBatch(players) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/avatars/batch`, {
+    const response = await fetch(buildApiUrl('/api/avatars/batch'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -93,7 +91,7 @@ export async function assignPlayerAvatars(players, gameMode) {
  */
 export async function fetchSingleAvatar(name, role) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/avatars?names=${encodeURIComponent(name)}&role=${encodeURIComponent(role)}`);
+    const response = await fetch(buildApiUrl(`/api/avatars?names=${encodeURIComponent(name)}&role=${encodeURIComponent(role)}`));
 
     if (!response.ok) {
       return getPlaceholderAvatar(role);

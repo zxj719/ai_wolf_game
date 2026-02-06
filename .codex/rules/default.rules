@@ -6,6 +6,11 @@
 # Notes:
 # - Rules are mainly consulted for commands outside the active sandbox policy.
 # - We still keep patterns narrow to avoid accidentally allowing destructive ops.
+#
+# Deployment invariant:
+# - Canonical domain is https://zhaxiaoji.com
+# - API base must point to https://zhaxiaoji.com/api/*
+# - Avoid any *.workers.dev endpoints to keep D1 bindings unique and debugable.
 
 # -----------------------------
 # Node / Vite scripts

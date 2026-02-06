@@ -3,6 +3,8 @@
  */
 
 const ALGORITHM = 'HS256';
+// Set to false to make login tokens never expire.
+const ENABLE_JWT_EXPIRY = false;
 const TOKEN_EXPIRY_HOURS = 24;
 
 /**
@@ -54,9 +56,12 @@ export async function signToken(payload, secret) {
   const now = Math.floor(Date.now() / 1000);
   const tokenPayload = {
     ...payload,
-    iat: now,
-    exp: now + TOKEN_EXPIRY_HOURS * 60 * 60
+    iat: now
   };
+
+  if (ENABLE_JWT_EXPIRY) {
+    tokenPayload.exp = now + TOKEN_EXPIRY_HOURS * 60 * 60;
+  }
 
   const encoder = new TextEncoder();
   const headerB64 = base64urlEncode(encoder.encode(JSON.stringify(header)));
@@ -110,9 +115,11 @@ export async function verifyToken(token, secret) {
     const payload = JSON.parse(decoder.decode(payloadBytes));
 
     // 检查过期时间
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) {
-      return null;
+    if (ENABLE_JWT_EXPIRY && payload.exp) {
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp < now) {
+        return null;
+      }
     }
 
     return payload;

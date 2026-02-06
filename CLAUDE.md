@@ -10,6 +10,12 @@
 - ModelScope API 令牌管理
 - 个人博客系统
 
+## 域名与数据库唯一性（必须遵守）
+
+- **唯一域名**：线上统一使用 `https://zhaxiaoji.com`
+- **API Base**：前端 `VITE_AUTH_API_URL` 必须指向 `https://zhaxiaoji.com`（或同域）
+- **禁止**使用任何 `*.workers.dev` 作为线上 API 入口，确保 D1 绑定唯一且明确
+
 ## 技术栈速查
 
 | 层级 | 技术 |

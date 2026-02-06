@@ -206,8 +206,10 @@ export function AuthProvider({ children }) {
           verifiedAt: response.tokenVerifiedAt
         });
 
-        // 如果令牌有效，获取完整令牌
-        if (response.isValid) {
+        if (response.tokenCleared || !response.hasToken) {
+          setModelscopeToken(null);
+        } else if (response.isValid) {
+          // 如果令牌有效，获取完整令牌
           const tokenResponse = await authService.getModelscopeToken(authToken);
           if (tokenResponse.success && tokenResponse.token) {
             setModelscopeToken(tokenResponse.token);
