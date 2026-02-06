@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cloudflare Workers 认证API入口
  */
 
@@ -32,6 +32,11 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
+
+    const isApiRequest = path.startsWith('/api/');
+    if (!isApiRequest) {
+      return serveStaticAsset(request, env);
+    }
 
     // 处理CORS预检请求
     const corsResponse = handleCors(request, env);
@@ -160,3 +165,24 @@ export default {
     }
   }
 };
+
+async function serveStaticAsset(request, env) {
+  if (!env.ASSETS) {
+    return new Response('Not found', { status: 404 });
+  }
+
+  const assetResponse = await env.ASSETS.fetch(request);
+  if (assetResponse.status !== 404) {
+    return assetResponse;
+  }
+
+  const url = new URL(request.url);
+  const lastSegment = url.pathname.split('/').pop() || '';
+  const hasExtension = lastSegment.includes('.');
+  if (hasExtension) {
+    return assetResponse;
+  }
+
+  const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
+  return env.ASSETS.fetch(fallbackRequest);
+}
