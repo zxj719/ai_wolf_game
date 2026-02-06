@@ -36,9 +36,11 @@ export function useDayFlow({
   checkGameEnd,
   askAI,
   clearCurrentPhaseData,
-  proceedToNextNightExternal // optional override from night flow
+  proceedToNextNightExternal, // optional override from night flow
+  gameActiveRef
 }) {
   const proceedToNextNight = useCallback((clearPhaseData) => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     // 清空白天的发言数据
     if (clearPhaseData) {
       clearPhaseData();
@@ -57,9 +59,10 @@ export function useDayFlow({
     setPhase('night');
     setNightStep(0);
     addLog(`进入第 ${dayCount + 1} 夜...`, 'system');
-  }, [addLog, dayCount, setDayCount, setPhase, setNightStep, mergeNightDecisions]);
+  }, [addLog, dayCount, gameActiveRef, mergeNightDecisions, setDayCount, setNightStep, setPhase]);
 
   const moveToNextSpeaker = useCallback(() => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     const alivePlayers = players.filter(p => p.isAlive);
     const newSpokenCount = spokenCount + 1;
     
@@ -105,9 +108,10 @@ export function useDayFlow({
         return -1;
       });
     }
-  }, [players, spokenCount, speakingOrder, setSpeakerIndex, setPhase, addLog, setSpokenCount, speechHistory, dayCount]);
+  }, [addLog, dayCount, gameActiveRef, players, speakingOrder, speechHistory, spokenCount, setPhase, setSpeakerIndex, setSpokenCount]);
 
   const startDayDiscussion = useCallback((currentPlayers, nightDeads = [], TOTAL_PLAYERS, clearPhaseData) => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     // 清空夜晚的行动数据
     if (clearPhaseData) {
       clearPhaseData();
@@ -136,11 +140,15 @@ export function useDayFlow({
       addLog(`平安夜，随机从${randomStartPlayer.id}号开始发言。`, 'system');
     }
     setSpokenCount(0);
-  }, [addLog, players, setSpeakerIndex, setSpokenCount, setPhase]);
+  }, [addLog, gameActiveRef, players, setPhase, setSpeakerIndex, setSpokenCount]);
 
   // 任务1：支持连锁开枪的猎人AI开枪函数
   // chainDepth: 连锁深度，防止无限循环（最大3层）
   const handleAIHunterShoot = useCallback(async (hunter, source, nightDeads = [], currentPlayersState = null, chainDepth = 0, flowSource = null) => {
+    if (gameActiveRef && !gameActiveRef.current) {
+      setHunterShooting(null);
+      return;
+    }
     const normalizedSource = typeof source === 'string' ? source : null;
     const normalizedFlowSource = typeof flowSource === 'string' ? flowSource : normalizedSource;
 
@@ -192,6 +200,10 @@ export function useDayFlow({
     }
 
     const res = await askAI(hunter, PROMPT_ACTIONS.HUNTER_SHOOT, { aliveTargets, hunterContext });
+    if (gameActiveRef && !gameActiveRef.current) {
+      setIsThinking(false);
+      return;
+    }
     setIsThinking(false);
 
     let targetPlayer = null;
@@ -245,6 +257,7 @@ export function useDayFlow({
       } else {
       addLog(`[${targetPlayer.id}号] ${targetPlayer.name} 也是猎人！触发连锁开枪！`, 'warning');
       setTimeout(() => {
+        if (gameActiveRef && !gameActiveRef.current) return;
         // 如果连锁猎人是用户玩家，则进入用户选择阶段
         if (targetPlayer.isUser && gameMode !== 'ai-only') {
           setHunterShooting({
@@ -267,6 +280,7 @@ export function useDayFlow({
     }
 
     setTimeout(() => {
+      if (gameActiveRef && !gameActiveRef.current) return;
       setHunterShooting(null);
       const result = checkGameEnd(currentPlayers);
       if (result) {
@@ -279,9 +293,10 @@ export function useDayFlow({
         startDayDiscussion(currentPlayers, nightDeads, players.length, clearCurrentPhaseData);
       }
     }, 2000);
-  }, [askAI, setIsThinking, players, addLog, addCurrentPhaseAction, setPlayers, setDeathHistory, dayCount, checkGameEnd, setPhase, setHunterShooting, proceedToNextNightExternal, startDayDiscussion, seerChecks, speechHistory, ROLE_DEFINITIONS, gameMode, clearCurrentPhaseData]);
+  }, [addCurrentPhaseAction, addLog, askAI, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, players, proceedToNextNightExternal, ROLE_DEFINITIONS, seerChecks, setDeathHistory, setHunterShooting, setIsThinking, setPhase, setPlayers, speechHistory, startDayDiscussion]);
 
   const handleUserHunterShoot = useCallback((source, nightDeads = [], flowSource = null, chainDepth = 0) => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     let currentPlayers = [...players];
     const aliveTargets = currentPlayers.filter(p => p.isAlive && p.id !== userPlayer.id);
     const normalizedSource = typeof source === 'string' ? source : null;
@@ -328,6 +343,7 @@ export function useDayFlow({
       ) {
         addLog(`[${targetPlayer.id}号] ${targetPlayer.name} 也是猎人！触发连锁开枪！`, 'warning');
         setTimeout(() => {
+          if (gameActiveRef && !gameActiveRef.current) return;
           setSelectedTarget(null);
 
           // 用户是唯一玩家：若连锁猎人是用户，则继续等待用户操作；否则交给AI
@@ -352,6 +368,7 @@ export function useDayFlow({
     }
 
     setTimeout(() => {
+      if (gameActiveRef && !gameActiveRef.current) return;
       setHunterShooting(null);
       setSelectedTarget(null);
       const result = checkGameEnd(currentPlayers);
@@ -365,9 +382,10 @@ export function useDayFlow({
         startDayDiscussion(currentPlayers, nightDeads, players.length, clearCurrentPhaseData);
       }
     }, 2000);
-  }, [players, userPlayer, selectedTarget, addLog, addCurrentPhaseAction, setPlayers, setDeathHistory, dayCount, checkGameEnd, setPhase, setHunterShooting, setSelectedTarget, startDayDiscussion, proceedToNextNightExternal, clearCurrentPhaseData, ROLE_DEFINITIONS.HUNTER, gameMode, handleAIHunterShoot]);
+  }, [addCurrentPhaseAction, addLog, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, selectedTarget, setDeathHistory, setHunterShooting, setPhase, setPlayers, setSelectedTarget, startDayDiscussion, userPlayer]);
 
   const handleAutoVote = useCallback(async () => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     setIsThinking(true);
     const alive = players.filter(p => p.isAlive);
     const aliveIds = alive.map(p => p.id);
@@ -415,9 +433,10 @@ export function useDayFlow({
     const votes = voteResults.filter(v => v !== null);
 
     processVoteResults(votes, aliveIds);
-  }, [askAI, players, speechHistory, dayCount, seerChecks, setIsThinking]);
+  }, [askAI, dayCount, gameActiveRef, players, seerChecks, setIsThinking, speechHistory]);
 
   const processVoteResults = useCallback((votes, aliveIds) => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     const counts = votes.reduce((acc, v) => {
       acc[v.targetId] = (acc[v.targetId] || 0) + 1;
       return acc;
@@ -468,15 +487,17 @@ export function useDayFlow({
     handlePlayerElimination(outPlayer);
     setIsThinking(false);
     setSelectedTarget(null);
-  }, [addLog, players, voteHistory, dayCount, setVoteHistory, checkGameEnd, setPhase, setIsThinking, setSelectedTarget]);
+  }, [addLog, checkGameEnd, dayCount, gameActiveRef, players, setIsThinking, setPhase, setSelectedTarget, setVoteHistory, voteHistory]);
 
   const handlePlayerElimination = useCallback((outPlayer) => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     const updatedPlayers = players.map(p => p.id === outPlayer.id ? { ...p, isAlive: false } : p);
     setPlayers(updatedPlayers);
     setDeathHistory(prev => [...prev, { day: dayCount, phase: '投票', playerId: outPlayer.id, cause: '被公投出局' }]);
     const isHunter = outPlayer.role === ROLE_DEFINITIONS.HUNTER && outPlayer.canHunterShoot;
 
     setTimeout(() => {
+      if (gameActiveRef && !gameActiveRef.current) return;
       if (isHunter) {
         setHunterShooting({ ...outPlayer, source: 'vote' });
         if (outPlayer.isUser && gameMode !== 'ai-only') {
@@ -493,9 +514,10 @@ export function useDayFlow({
         (proceedToNextNightExternal || proceedToNextNight)();
       }
     }, 2000);
-  }, [players, setPlayers, deathHistory, setDeathHistory, dayCount, ROLE_DEFINITIONS.HUNTER, setHunterShooting, gameMode, setPhase, handleAIHunterShoot, checkGameEnd, proceedToNextNightExternal]);
+  }, [checkGameEnd, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, setDeathHistory, setHunterShooting, setPhase, setPlayers]);
 
   const handleVote = useCallback(async () => {
+    if (gameActiveRef && !gameActiveRef.current) return;
     if (selectedTarget === null || isThinking) return;
     const targetPlayer = players.find(p => p.id === selectedTarget);
     if (!targetPlayer?.isAlive) {
@@ -561,7 +583,7 @@ export function useDayFlow({
 
     const votes = userVote ? [userVote, ...aiVotes] : aiVotes;
     processVoteResults(votes, aliveIds);
-  }, [selectedTarget, players, addLog, setIsThinking, speechHistory, dayCount, seerChecks, processVoteResults, askAI]);
+  }, [addLog, askAI, dayCount, gameActiveRef, players, processVoteResults, seerChecks, selectedTarget, setIsThinking, speechHistory]);
 
   return {
     startDayDiscussion,

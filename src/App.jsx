@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useWerewolfGame } from './useWerewolfGame';
 import { SetupScreen } from './components/SetupScreen';
 import { GameArena } from './components/GameArena';
 import { AuthPage } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
+import { SitesPage } from './components/SitesPage';
 import { useAuth } from './contexts/AuthContext';
 import { TokenManager } from './components/TokenManager';
 import { saveGameRecord } from './services/gameService';
@@ -19,10 +20,36 @@ import { fetchSiliconFlowChatModels, abortAllRequests, resetAbortController } fr
 // Inline game config moved to src/config
 const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
 
+const ROUTES = {
+  LOGIN: '/login',
+  HOME: '/home',
+  CUSTOM: '/wolfgame/custom',
+  PLAY: '/wolfgame/play',
+  SITES: '/sites',
+  RESET: '/reset-password',
+  VERIFY: '/verify-email'
+};
+
+const AUTH_ROUTES = new Set([ROUTES.LOGIN, ROUTES.RESET, ROUTES.VERIFY]);
+const KNOWN_ROUTES = new Set([
+  ROUTES.LOGIN,
+  ROUTES.RESET,
+  ROUTES.VERIFY,
+  ROUTES.HOME,
+  ROUTES.CUSTOM,
+  ROUTES.PLAY,
+  ROUTES.SITES
+]);
+
+const normalizePath = (path = '') => {
+  const trimmed = path.replace(/\/+$/, '');
+  return trimmed === '' ? '/' : trimmed;
+};
+
 export default function App() {
   const { user, loading: authLoading, logout, modelscopeToken, tokenStatus, verifyModelscopeToken } = useAuth();
   const [isGuestMode, setIsGuestMode] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(true); // 登录后默认显示仪表盘
+  const [currentPath, setCurrentPath] = useState(() => normalizePath(window.location.pathname));
   const [gameMode, setGameMode] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState(GAME_SETUPS[0]);
   const [isThinking, setIsThinking] = useState(false);
@@ -44,6 +71,33 @@ export default function App() {
   const nightDecisionsRef = useRef(null);
   const speakingLockRef = useRef(false); // 发言锁，防止并发
   const currentDayRef = useRef(1); // 追踪当前天数 
+  const gameActiveRef = useRef(false);
+  const wasGameActiveRef = useRef(false);
+
+  const navigate = useCallback((path, { replace = false } = {}) => {
+    const nextPath = normalizePath(path);
+    const current = normalizePath(window.location.pathname);
+    if (nextPath === current && !replace) {
+      setCurrentPath(nextPath);
+      return;
+    }
+    if (replace) {
+      window.history.replaceState({}, '', nextPath);
+    } else {
+      window.history.pushState({}, '', nextPath);
+    }
+    setCurrentPath(nextPath);
+  }, [setCurrentPath]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(normalizePath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   const {
     state,
@@ -101,8 +155,126 @@ export default function App() {
     modelUsage,
   } = state;
 
+  const normalizedPath = normalizePath(currentPath);
+  const isAuthRoute = AUTH_ROUTES.has(normalizedPath);
+  const isHomeRoute = normalizedPath === ROUTES.HOME;
+  const isCustomRoute = normalizedPath === ROUTES.CUSTOM;
+  const isPlayRoute = normalizedPath === ROUTES.PLAY;
+  const isSitesRoute = normalizedPath === ROUTES.SITES;
+  const isGameActive = phase !== 'setup' || !!gameMode;
+
   // Keep latest night decisions accessible from stale timers/closures.
   nightDecisionsRef.current = nightDecisions;
+
+  const resetGameState = useCallback(() => {
+    gameActiveRef.current = false;
+    abortAllRequests();
+    processedVoteDayRef.current = -1;
+    gameInitializedRef.current = false;
+    setGameMode(null);
+    setLogs([]);
+    setPhase('setup');
+    setNightStep(0);
+    setDayCount(1);
+    clearCurrentPhaseData();
+    setHunterShooting(null);
+    setSelectedTarget(null);
+    setSpeakerIndex(-1);
+    setSpokenCount(0);
+    setUserInput('');
+    setIsThinking(false);
+    setGameResult(null);
+    setGameStartTime(null);
+  }, [
+    clearCurrentPhaseData,
+    setDayCount,
+    setGameMode,
+    setGameResult,
+    setGameStartTime,
+    setHunterShooting,
+    setIsThinking,
+    setLogs,
+    setNightStep,
+    setPhase,
+    setSelectedTarget,
+    setSpeakerIndex,
+    setSpokenCount,
+    setUserInput
+  ]);
+
+  useEffect(() => {
+    gameActiveRef.current = isGameActive;
+  }, [isGameActive]);
+
+  useEffect(() => {
+    if (user && isGuestMode) {
+      setIsGuestMode(false);
+    }
+  }, [user, isGuestMode]);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (normalizedPath === '/') {
+      const defaultPath = user && !isGuestMode ? ROUTES.HOME : ROUTES.LOGIN;
+      navigate(defaultPath, { replace: true });
+      return;
+    }
+
+    if (!KNOWN_ROUTES.has(normalizedPath)) {
+      const fallback = user && !isGuestMode ? ROUTES.HOME : ROUTES.LOGIN;
+      navigate(fallback, { replace: true });
+      return;
+    }
+
+    if (!user && !isGuestMode) {
+      if (!isAuthRoute) {
+        navigate(ROUTES.LOGIN, { replace: true });
+      }
+      return;
+    }
+
+    if (user && !isGuestMode && isAuthRoute) {
+      navigate(ROUTES.HOME, { replace: true });
+      return;
+    }
+
+    if (isGuestMode && !user && (isHomeRoute || isSitesRoute)) {
+      navigate(ROUTES.LOGIN, { replace: true });
+      return;
+    }
+
+    if (!isGameActive && isPlayRoute) {
+      const fallback = user || isGuestMode ? ROUTES.CUSTOM : ROUTES.LOGIN;
+      navigate(fallback, { replace: true });
+    }
+  }, [
+    authLoading,
+    isAuthRoute,
+    isGameActive,
+    isGuestMode,
+    isHomeRoute,
+    isPlayRoute,
+    isSitesRoute,
+    navigate,
+    normalizedPath,
+    user
+  ]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const wasActive = wasGameActiveRef.current;
+    wasGameActiveRef.current = isGameActive;
+
+    if (!wasActive && isGameActive) {
+      navigate(ROUTES.PLAY);
+      return;
+    }
+
+    if (wasActive && isGameActive && !isPlayRoute) {
+      resetGameState();
+    }
+  }, [authLoading, isGameActive, isPlayRoute, navigate, resetGameState]);
 
   // 页面关闭时立即结束对战，停止所有API调用
   useEffect(() => {
@@ -264,7 +436,8 @@ export default function App() {
       // 模型追踪回调
       onModelUsed: updatePlayerModel,
       // 胜利模式
-      victoryMode
+      victoryMode,
+      gameActiveRef
     });
 
   const checkGameEnd = (currentPlayers = players) => {
@@ -360,10 +533,12 @@ export default function App() {
     setIsThinking,
     checkGameEnd,
     askAI,
-    clearCurrentPhaseData
+    clearCurrentPhaseData,
+    gameActiveRef
   });
 
   const proceedNight = (decisionsOverride = null) => {
+    if (!gameActiveRef.current) return;
     const maxSteps = currentNightSequence.length;
     console.log(`[proceedNight] 当前nightStep=${nightStep}, 将要${nightStep < maxSteps - 1 ? '进入下一步' : '结算夜晚'}`);
     setSelectedTarget(null);
@@ -384,6 +559,7 @@ export default function App() {
   };
 
   const resolveNight = (decisionsOverride = null) => {
+    if (!gameActiveRef.current) return;
     const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget } = decisionsOverride || nightDecisionsRef.current || nightDecisions;
     console.log(`[resolveNight] 夜间决策：`, { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget });
     // 注意：夜间行动现在由 ADD_CURRENT_PHASE_ACTION reducer 自动保存到 nightActionHistory
@@ -491,6 +667,7 @@ export default function App() {
       });
       setPhase('day_resolution');
       setTimeout(() => {
+        if (!gameActiveRef.current) return;
         startDayDiscussion(updatedPlayers, [], players.length, clearCurrentPhaseData);
       }, 2000);
     } else {
@@ -504,6 +681,7 @@ export default function App() {
       if (hunter) {
         // 结算阶段：先处理猎人开枪（含连锁），再进入白天讨论
         setTimeout(() => {
+          if (!gameActiveRef.current) return;
           setHunterShooting({
             ...hunter,
             source: 'night',
@@ -523,6 +701,7 @@ export default function App() {
       } else {
         // 夜晚死亡无遗言，直接进入白天讨论
         setTimeout(() => {
+          if (!gameActiveRef.current) return;
           startDayDiscussion(updatedPlayers, uniqueDeads, players.length, clearCurrentPhaseData);
         }, 2000);
       }
@@ -533,6 +712,7 @@ export default function App() {
     if (phase !== 'night') return;
 
     const executeNightAction = async () => {
+    if (!gameActiveRef.current) return;
     const roleOrder = currentNightSequence;
     const currentRoleKey = roleOrder[nightStep];
     
@@ -542,7 +722,10 @@ export default function App() {
     // 如果nightStep超出范围，直接跳过
     if (!currentRoleKey) {
       console.log('[夜间行动] nightStep超出范围，跳过');
-      setTimeout(proceedNight, 100);
+      setTimeout(() => {
+        if (!gameActiveRef.current) return;
+        proceedNight();
+      }, 100);
       return;
     }
     
@@ -554,7 +737,10 @@ export default function App() {
       if (gameMode === 'ai-only') {
         addLog(`由于场上没有存活的${ROLE_DEFINITIONS[currentRoleKey]}，直接跳过。`, 'system');
       }
-      setTimeout(proceedNight, 1500);
+      setTimeout(() => {
+        if (!gameActiveRef.current) return;
+        proceedNight();
+      }, 1500);
       return;
     }
     console.log(`[夜间行动] 找到角色：${actor.id}号 ${actor.name}，是否用户：${actor.isUser}`);
@@ -565,7 +751,10 @@ export default function App() {
       // 防止新一晚开始时因旧状态值导致误跳过
       if (actor.role === ROLE_DEFINITIONS.WEREWOLF && currentRoleKey === 'WEREWOLF' && nightDecisions.wolfTarget !== null) {
         console.log(`[夜间行动] 狼人队友已选择，用户 ${actor.id} 无需行动`);
-        setTimeout(proceedNight, 100);
+        setTimeout(() => {
+          if (!gameActiveRef.current) return;
+          proceedNight();
+        }, 100);
         return;
       }
       console.log(`[夜间行动] 等待用户操作`);
@@ -785,7 +974,10 @@ export default function App() {
     }
 
     console.log(`[夜间行动] ${ROLE_DEFINITIONS[currentRoleKey]}行动完成，1.5秒后进入下一步`);
-    setTimeout(proceedNight, 1500);
+    setTimeout(() => {
+      if (!gameActiveRef.current) return;
+      proceedNight();
+    }, 1500);
     };
 
     executeNightAction();
@@ -977,15 +1169,19 @@ export default function App() {
 
   // 重新开始游戏
   const restartGame = () => {
-    processedVoteDayRef.current = -1;
-    gameInitializedRef.current = false;
-    setGameMode(null);
-    setLogs([]);
-    setPhase('setup');
-    // 登录用户返回仪表盘，游客模式留在游戏选择页
-    if (user && !isGuestMode) {
-      setShowDashboard(true);
-    }
+    resetGameState();
+    navigate(ROUTES.CUSTOM);
+  };
+
+  const exitToHome = () => {
+    resetGameState();
+    navigate(ROUTES.HOME);
+  };
+
+  const exitToLogin = () => {
+    resetGameState();
+    setIsGuestMode(false);
+    navigate(ROUTES.LOGIN);
   };
 
   // 导出游戏日志
@@ -1172,6 +1368,17 @@ export default function App() {
     return roles[nightStep] || '';
   };
 
+  const exitLabel = isGuestMode && !user ? '返回登录' : '返回首页';
+  const exitHandler = isGuestMode && !user ? exitToLogin : exitToHome;
+  const handleGuestPlay = () => {
+    setIsGuestMode(true);
+    navigate(ROUTES.CUSTOM);
+  };
+  const handleLogout = () => {
+    logout();
+    navigate(ROUTES.LOGIN, { replace: true });
+  };
+
   // 认证加载中
   if (authLoading) {
     return (
@@ -1181,17 +1388,25 @@ export default function App() {
     );
   }
 
-  // 未登录且不是游客模式，显示登录页面
-  if (!user && !isGuestMode) {
-    return <AuthPage onGuestPlay={() => setIsGuestMode(true)} />;
+  if (isAuthRoute) {
+    return <AuthPage onGuestPlay={handleGuestPlay} />;
   }
 
-  // 已登录用户显示仪表盘（非游客模式，且未进入游戏）
-  if (user && !isGuestMode && showDashboard && phase === 'setup' && !gameMode) {
+  if (isHomeRoute) {
     return (
       <Dashboard
-        onEnterGame={() => setShowDashboard(false)}
-        onLogout={logout}
+        onEnterGame={() => navigate(ROUTES.CUSTOM)}
+        onEnterSites={() => navigate(ROUTES.SITES)}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (isSitesRoute) {
+    return (
+      <SitesPage
+        onReturnHome={exitToHome}
+        returnLabel="返回首页"
       />
     );
   }
@@ -1199,17 +1414,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* 用户信息栏 - 仅在游戏设置界面显示（游客模式或从仪表盘进入） */}
-      {user && phase === 'setup' && !gameMode && !showDashboard && (
+      {user && isCustomRoute && (
         <div className="absolute top-4 right-4 flex items-center gap-3 z-50">
           <span className="text-zinc-400 text-sm">
             欢迎, <span className="text-zinc-200">{user.username}</span>
           </span>
-          <button
-            onClick={() => setShowDashboard(true)}
-            className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
-          >
-            返回主页
-          </button>
           <button
             onClick={() => setShowTokenManager(true)}
             className={`px-3 py-1 text-sm rounded transition-colors ${
@@ -1227,7 +1436,7 @@ export default function App() {
             战绩
           </button>
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
           >
             登出
@@ -1250,14 +1459,14 @@ export default function App() {
       )}
 
       {/* 游客模式提示 */}
-      {isGuestMode && !user && phase === 'setup' && !gameMode && (
+      {isGuestMode && !user && isCustomRoute && (
         <div className="absolute top-4 right-4 z-50">
           <span className="text-zinc-500 text-sm">游客模式</span>
         </div>
       )}
 
       {/* 模式选择界面 */}
-      {phase === 'setup' && !gameMode && (
+      {isCustomRoute && phase === 'setup' && !gameMode && (
         <SetupScreen
           gameMode={gameMode}
           setGameMode={setGameMode}
@@ -1270,11 +1479,13 @@ export default function App() {
           onBuildCustomSetup={setSelectedSetup}
           victoryMode={victoryMode}
           setVictoryMode={setVictoryMode}
+          onExit={exitHandler}
+          exitLabel={exitLabel}
         />
       )}
 
       {/* 游戏主界面 - 新的圆形布局 */}
-      {(phase !== 'setup' || gameMode) && (
+      {isPlayRoute && (phase !== 'setup' || gameMode) && (
         <GameArena
           // 游戏状态
           players={players}
@@ -1330,6 +1541,8 @@ export default function App() {
           isUserTurn={isUserTurn}
           exportGameLog={exportGameLog}
           restartGame={restartGame}
+          onExit={exitHandler}
+          exitLabel={exitLabel}
           
           // AI
           AI_MODELS={aiModels}

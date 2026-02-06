@@ -3,7 +3,7 @@ import { CirclePlayerLayout } from './CirclePlayerLayout';
 import { GameHistoryTable } from './GameHistoryTable';
 import { PhaseActionContainer } from './PhaseActionContainer';
 import { SidePanels } from './SidePanels';
-import { ChevronUp, ChevronDown, History } from 'lucide-react';
+import { ChevronUp, ChevronDown, History, ArrowLeft } from 'lucide-react';
 
 export function GameArena({
   // 游戏状态
@@ -60,6 +60,8 @@ export function GameArena({
   isUserTurn,
   exportGameLog,
   restartGame,
+  onExit,
+  exitLabel = '返回首页',
 
   // AI
   AI_MODELS
@@ -244,6 +246,17 @@ export function GameArena({
       className="h-screen overflow-hidden"
       style={{ scrollBehavior: 'smooth' }}
     >
+      {onExit && (
+        <div className="fixed top-4 left-4 z-50">
+          <button
+            onClick={onExit}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 rounded-lg border border-zinc-700 transition-colors"
+          >
+            <ArrowLeft size={14} />
+            {exitLabel}
+          </button>
+        </div>
+      )}
       {/* 第一页：游戏区域 */}
       <section
         className={`h-screen relative ${getBackgroundStyle()} text-zinc-100 overflow-hidden`}

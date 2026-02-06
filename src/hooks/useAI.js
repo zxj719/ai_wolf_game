@@ -42,7 +42,8 @@ export function useAI({
   // 模型追踪回调函数
   onModelUsed = null,
   // 胜利模式
-  victoryMode = 'edge'
+  victoryMode = 'edge',
+  gameActiveRef = null
 }) {
   // 身份推理表存储：每个玩家的推理表
   const identityTablesRef = useRef({});
@@ -115,6 +116,9 @@ export function useAI({
   }, [players, enhancedSpeechHistory, voteHistory, deathHistory, seerChecks, dayCount]);
 
   const askAI = useCallback(async (player, actionType, params = {}) => {
+    if (gameActiveRef && !gameActiveRef.current) {
+      return null;
+    }
     setIsThinking(true);
 
     // Construct GameState object with enhanced speech history
@@ -197,6 +201,11 @@ export function useAI({
       { player, prompt: userPrompt, systemInstruction: systemPrompt },
       { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
     );
+
+    if (gameActiveRef && !gameActiveRef.current) {
+      setIsThinking(false);
+      return null;
+    }
 
     // ============================================
     // 无效响应时自动切换模型重试
@@ -348,7 +357,7 @@ export function useAI({
 
     setIsThinking(false);
     return result;
-  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext, onModelUsed, victoryMode]);
+  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext, gameActiveRef, onModelUsed, victoryMode]);
 
   /**
    * P0增强：获取局势摘要

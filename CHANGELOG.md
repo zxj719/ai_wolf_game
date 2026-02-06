@@ -2,6 +2,32 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-02-06] 页面路由管理 + 退出即停机制
+
+### 新功能
+- **前端路由映射**
+  - 登录页 `/login`、主页 `/home`、自定义局 `/wolfgame/custom`、对局 `/wolfgame/play`、博客 `/sites` 统一由 SPA 管理
+  - 仪表盘“我的博客”入口切换为 `/sites` 内嵌展示
+- **返回按钮覆盖**
+  - 自定义局、对局、博客页新增“返回首页/返回登录”按钮
+- **退出即停**
+  - 离开对局页立即终止游戏并取消 API 请求
+
+### 行为优化
+- **AI 调用防护**
+  - 增加 `gameActiveRef` 守卫，阻断退出后继续触发日/夜流程
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/App.jsx` | 修改 | 增加路由状态、退出逻辑与返回按钮传递 |
+| `src/components/Dashboard.jsx` | 修改 | 博客入口改为 `/sites` |
+| `src/components/SetupScreen.jsx` | 修改 | 自定义界面新增返回按钮 |
+| `src/components/GameArena.jsx` | 修改 | 对局界面新增返回按钮 |
+| `src/components/SitesPage.jsx` | 新增 | 博客嵌入页 |
+| `src/hooks/useAI.js` | 修改 | 新增 `gameActiveRef` 防止退出后调用 |
+| `src/hooks/useDayFlow.js` | 修改 | 流程退出守卫 |
+
 ## [2026-02-06] 自定义模式独占 + 天亮结算阶段 + AI 逻辑约束 + Codex 项目配置
 
 ### 新功能

@@ -21,10 +21,18 @@ import {
  * 用户个人主页/仪表盘
  * 登录后的主界面，提供进入狼人杀游戏和博客的入口
  */
-export function Dashboard({ onEnterGame, onLogout }) {
+export function Dashboard({ onEnterGame, onEnterSites, onLogout }) {
   const { user, tokenStatus, verifyModelscopeToken } = useAuth();
   const [showTokenManager, setShowTokenManager] = useState(false);
   const [showStats, setShowStats] = useState(false);
+
+  const handleEnterSites = () => {
+    if (onEnterSites) {
+      onEnterSites();
+      return;
+    }
+    window.location.href = '/sites';
+  };
 
   // 检查是否可以进入游戏（需要配置令牌）
   const canPlayGame = tokenStatus.hasToken && tokenStatus.isValid;
@@ -190,15 +198,13 @@ export function Dashboard({ onEnterGame, onLogout }) {
               </div>
 
               {/* 进入按钮 */}
-              <a
-                href="/site/index.html"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={handleEnterSites}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/30"
               >
                 阅读博客
                 <ExternalLink size={16} />
-              </a>
+              </button>
             </div>
           </div>
         </div>

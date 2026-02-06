@@ -1,4 +1,4 @@
-import { User, Brain, AlertTriangle, Key, ExternalLink, Swords, Shield } from 'lucide-react';
+import { User, Brain, AlertTriangle, Key, ExternalLink, Swords, Shield, ArrowLeft } from 'lucide-react';
 import { API_KEY } from '../config/aiConfig';
 import { RoleSelector } from './RoleSelector';
 import { validateRoleConfig, generateDescription, generateNightSequence, buildRolesArray, DEFAULT_CUSTOM_SELECTIONS, VICTORY_MODES, DEFAULT_VICTORY_MODE } from '../config/roles';
@@ -16,7 +16,9 @@ export const SetupScreen = ({
   onBuildCustomSetup = null,
   // 胜利模式属性
   victoryMode = DEFAULT_VICTORY_MODE,
-  setVictoryMode = () => {}
+  setVictoryMode = () => {},
+  onExit = null,
+  exitLabel = '返回首页'
 }) => {
   // 需要配置令牌的情况：已登录用户没有配置令牌且环境变量也没有
   const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
@@ -48,7 +50,16 @@ export const SetupScreen = ({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-8">
+    <div className="relative flex flex-col items-center justify-center h-full gap-8">
+      {onExit && (
+        <button
+          onClick={onExit}
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 text-sm bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 rounded-lg border border-zinc-700 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          {exitLabel}
+        </button>
+      )}
       <h1 className="text-4xl font-black tracking-tighter">
         WEREWOLF <span className="text-indigo-500">PRO</span>
       </h1>
