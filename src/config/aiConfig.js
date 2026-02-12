@@ -114,6 +114,26 @@ export const THINKING_MODELS = [
     },
     isThinking: true
   },
+  // 智谱 GLM-5 - 最新旗舰推理模型
+  {
+    id: 'ZhipuAI/GLM-5',
+    name: 'GLM-5',
+    options: {
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    isThinking: true
+  },
+  // 美团 LongCat Flash Lite - 轻量快速模型
+  {
+    id: 'meituan-longcat/LongCat-Flash-Lite',
+    name: 'LongCat-Flash-Lite',
+    options: {
+      temperature: 0.7,
+      top_p: 0.9
+    },
+    isThinking: false
+  },
   // DeepSeek R1 蒸馏版
   { 
     id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B', 

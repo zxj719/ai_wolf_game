@@ -226,6 +226,22 @@ export const authService = {
   },
 
   /**
+   * 提交意见反馈
+   * @param {Object} data - 反馈内容
+   * @param {string} data.message - 反馈文本
+   * @param {string} [data.contact] - 联系方式（可选）
+   * @param {string} [data.username] - 提交者名称（可选）
+   * @param {boolean} [data.isGuest] - 是否游客
+   * @param {string} [data.page] - 页面标识
+   */
+  async submitFeedback(data) {
+    return request('/api/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  /**
    * 提交 AI 模型游戏统计
    * @param {Object} data - 游戏统计数据
    * @param {string} data.gameSessionId - 游戏会话ID

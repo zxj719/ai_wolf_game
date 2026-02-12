@@ -14,6 +14,7 @@ import {
   handleGetGameHistory,
   handleGetUserStats,
   handleGetLeaderboard,
+  handleSubmitFeedback,
   handleSendVerification,
   handleVerifyEmail,
   handleForgotPassword,
@@ -127,6 +128,11 @@ export default {
       // 排行榜（公开接口）
       if (path === '/api/leaderboard' && request.method === 'GET') {
         return handleGetLeaderboard(request, env);
+      }
+
+      // 意见反馈（公开接口）
+      if (path === '/api/feedback' && request.method === 'POST') {
+        return handleSubmitFeedback(request, env);
       }
 
       // AI 模型统计（公开接口）

@@ -16,9 +16,24 @@ import {
 } from './middleware.js';
 import {
   generateToken,
+  sendEmail,
   sendVerificationEmail,
   sendPasswordResetEmail
 } from './email.js';
+
+const FEEDBACK_RECIPIENT = 'xingjian_zhang719@outlook.com';
+const FEEDBACK_MIN_LENGTH = 5;
+const FEEDBACK_MAX_LENGTH = 2000;
+const FEEDBACK_CONTACT_MAX_LENGTH = 200;
+
+function escapeHtml(value = '') {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 /**
  * 用户注册
@@ -556,6 +571,112 @@ export async function handleGetLeaderboard(request, env) {
   } catch (error) {
     console.error('Get leaderboard error:', error);
     return errorResponse('Failed to get leaderboard: ' + error.message, 500, env, request);
+  }
+}
+
+/**
+ * 提交意见反馈（公开接口）
+ * POST /api/feedback
+ */
+export async function handleSubmitFeedback(request, env) {
+  try {
+    const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const rateCheck = await checkRateLimit(env, `feedback:${clientIP}`, 5, 3600);
+
+    if (!rateCheck.allowed) {
+      return errorResponse(
+        `Too many feedback submissions. Please try again in ${rateCheck.retryAfter} seconds.`,
+        429,
+        env,
+        request
+      );
+    }
+
+    const body = await request.json();
+    const messageRaw = typeof body?.message === 'string' ? body.message.trim() : '';
+
+    if (!messageRaw) {
+      return errorResponse('Feedback message is required', 400, env, request);
+    }
+
+    if (messageRaw.length < FEEDBACK_MIN_LENGTH) {
+      return errorResponse(
+        `Feedback message must be at least ${FEEDBACK_MIN_LENGTH} characters`,
+        400,
+        env,
+        request
+      );
+    }
+
+    if (messageRaw.length > FEEDBACK_MAX_LENGTH) {
+      return errorResponse(
+        `Feedback message must be at most ${FEEDBACK_MAX_LENGTH} characters`,
+        400,
+        env,
+        request
+      );
+    }
+
+    const contactRaw = typeof body?.contact === 'string' ? body.contact.trim() : '';
+    if (contactRaw.length > FEEDBACK_CONTACT_MAX_LENGTH) {
+      return errorResponse(
+        `Contact info must be at most ${FEEDBACK_CONTACT_MAX_LENGTH} characters`,
+        400,
+        env,
+        request
+      );
+    }
+
+    const usernameRaw = typeof body?.username === 'string' ? body.username.trim() : '';
+    const pageRaw = typeof body?.page === 'string' ? body.page.trim() : '';
+    const isGuest = !!body?.isGuest;
+
+    const userAgent = request.headers.get('User-Agent') || 'unknown';
+    const referer = request.headers.get('Referer') || '';
+
+    const message = escapeHtml(messageRaw);
+    const contact = escapeHtml(contactRaw || '未填写');
+    const username = escapeHtml(usernameRaw || (isGuest ? '访客' : '未知'));
+    const page = escapeHtml(pageRaw || 'home');
+    const ip = escapeHtml(clientIP);
+    const agent = escapeHtml(userAgent);
+    const refererText = escapeHtml(referer || 'n/a');
+    const timestamp = new Date().toISOString();
+
+    const subject = `Battle Web 意见反馈 - ${username}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <h2 style="color: #f59e0b;">Battle Web 意见反馈</h2>
+        <p>收到新的玩家反馈：</p>
+        <div style="background: #111827; color: #f9fafb; padding: 16px; border-radius: 8px; white-space: pre-wrap;">${message}</div>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;" />
+        <p><strong>联系信息：</strong> ${contact}</p>
+        <p><strong>提交者：</strong> ${username} (${isGuest ? '游客' : '登录用户'})</p>
+        <p><strong>页面：</strong> ${page}</p>
+        <p><strong>时间：</strong> ${timestamp}</p>
+        <p><strong>IP：</strong> ${ip}</p>
+        <p><strong>User-Agent：</strong> ${agent}</p>
+        <p><strong>Referer：</strong> ${refererText}</p>
+      </div>
+    `;
+
+    const emailResult = await sendEmail(env, {
+      to: FEEDBACK_RECIPIENT,
+      subject,
+      html
+    });
+
+    if (!emailResult.success) {
+      return errorResponse('Failed to send feedback', 500, env, request);
+    }
+
+    return jsonResponse({
+      success: true,
+      message: 'Feedback sent'
+    }, 200, env, request);
+  } catch (error) {
+    console.error('Submit feedback error:', error);
+    return errorResponse('Failed to send feedback: ' + error.message, 500, env, request);
   }
 }
 

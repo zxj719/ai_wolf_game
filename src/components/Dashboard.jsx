@@ -1,5 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../services/authService';
 import { TokenManager } from './TokenManager';
 import { UserStats } from './UserStats';
 import { ModelLeaderboard } from './ModelLeaderboard';
@@ -15,13 +16,17 @@ import {
   User,
   ExternalLink,
   Globe,
-  LogIn
+  LogIn,
+  MessageSquare,
+  Send
 } from 'lucide-react';
 
 /**
  * 用户个人主页/仪表盘
  * 登录后的主界面，提供进入狼人杀和站点入口
  */
+const FEEDBACK_MAX_LENGTH = 1000;
+
 export function Dashboard({
   onEnterWolfgame,
   onEnterSites,
@@ -32,6 +37,10 @@ export function Dashboard({
   const { user, tokenStatus, verifyModelscopeToken } = useAuth();
   const [showTokenManager, setShowTokenManager] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackContact, setFeedbackContact] = useState('');
+  const [feedbackStatus, setFeedbackStatus] = useState(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   // 是否可进入游戏（游客模式直接可玩）
   const canPlayGame = isGuestMode ? true : (tokenStatus.hasToken && tokenStatus.isValid);
@@ -42,6 +51,45 @@ export function Dashboard({
       return;
     }
     onEnterWolfgame?.();
+  };
+
+  const feedbackTrimmedLength = feedbackMessage.trim().length;
+  const feedbackLength = feedbackMessage.length;
+  const isFeedbackValid = feedbackTrimmedLength >= 5 && feedbackTrimmedLength <= FEEDBACK_MAX_LENGTH;
+
+  const handleSubmitFeedback = async (event) => {
+    event.preventDefault();
+    setFeedbackStatus(null);
+
+    if (!isFeedbackValid || feedbackLoading) {
+      setFeedbackStatus({
+        type: 'error',
+        text: `请输入至少 5 个字，最多 ${FEEDBACK_MAX_LENGTH} 个字。`
+      });
+      return;
+    }
+
+    setFeedbackLoading(true);
+    try {
+      const response = await authService.submitFeedback({
+        message: feedbackMessage.trim(),
+        contact: feedbackContact.trim(),
+        username: isGuestMode ? '访客' : (user?.username || '未知'),
+        isGuest: isGuestMode,
+        page: 'home'
+      });
+
+      if (response.success) {
+        setFeedbackMessage('');
+        setFeedbackStatus({ type: 'success', text: '已发送，感谢你的反馈！' });
+      } else {
+        setFeedbackStatus({ type: 'error', text: response.error || '发送失败，请稍后再试。' });
+      }
+    } catch (error) {
+      setFeedbackStatus({ type: 'error', text: error.message || '发送失败，请稍后再试。' });
+    } finally {
+      setFeedbackLoading(false);
+    }
   };
 
   return (
@@ -206,6 +254,73 @@ export function Dashboard({
           <ModelLeaderboard />
         </div>
 
+        {/* 意见箱 */}
+        <div className="mt-8">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <MessageSquare size={20} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">意见箱</h3>
+                <p className="text-zinc-400 text-sm">欢迎反馈问题、建议或新想法</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitFeedback} className="grid md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <label className="text-xs text-zinc-400">反馈内容</label>
+                <textarea
+                  className="mt-2 w-full min-h-[140px] bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50"
+                  placeholder="说说你的体验、建议或遇到的问题..."
+                  value={feedbackMessage}
+                  onChange={(event) => setFeedbackMessage(event.target.value)}
+                  maxLength={FEEDBACK_MAX_LENGTH}
+                />
+                <div className="flex items-center justify-between text-xs text-zinc-500 mt-2">
+                  <span>{feedbackLength}/{FEEDBACK_MAX_LENGTH}</span>
+                  <span>请勿提交敏感信息</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-xs text-zinc-400">联系方式（可选）</label>
+                  <input
+                    type="text"
+                    className="mt-2 w-full bg-zinc-950/70 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50"
+                    placeholder="邮箱 / QQ / 微信"
+                    value={feedbackContact}
+                    onChange={(event) => setFeedbackContact(event.target.value)}
+                  />
+                </div>
+
+                <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-xl text-xs text-zinc-400">
+                  当前身份：<span className="text-zinc-200">{isGuestMode ? '游客' : (user?.username || '未知')}</span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!isFeedbackValid || feedbackLoading}
+                  className={`w-full py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
+                    isFeedbackValid && !feedbackLoading
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'
+                      : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                  }`}
+                >
+                  {feedbackLoading ? '发送中...' : '发送反馈'}
+                  <Send size={16} />
+                </button>
+
+                {feedbackStatus && (
+                  <div className={`text-xs ${feedbackStatus.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                    {feedbackStatus.text}
+                  </div>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
         {/* 更多功能 */}
         <div className="mt-8">
           <h3 className="text-lg font-medium text-zinc-300 mb-4">更多功能</h3>
