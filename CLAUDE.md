@@ -275,3 +275,84 @@ git push origin main
 - `docs:` 文档更新
 - `refactor:` 代码重构
 - `style:` 样式调整
+
+## Claude Code 配置体系
+
+本项目使用完整的 Claude Code 配置系统，基于 everything-claude-code 最佳实践适配。
+
+### Rules（规则）
+
+位于 `.claude/rules/`，Claude 在编码时始终遵循：
+
+| 目录 | 内容 |
+|------|------|
+| `common/` | 通用规则（编码风格、安全、Git工作流、性能等） |
+| `javascript/` | JS/JSX 专属规则（React模式、D1查询、TailwindCSS） |
+
+### Agents（子代理）
+
+位于 `.claude/agents/`，可委托特定任务：
+
+| Agent | 用途 | 触发场景 |
+|-------|------|---------|
+| `planner` | 功能规划 | 复杂功能、重构计划 |
+| `architect` | 架构设计 | 系统设计决策 |
+| `code-reviewer` | 代码审查 | 代码修改后 |
+| `build-error-resolver` | 构建修复 | build 失败时 |
+| `refactor-cleaner` | 死代码清理 | 代码维护 |
+| `security-reviewer` | 安全审查 | JWT/Token/D1 相关修改 |
+| `doc-updater` | 文档更新 | 功能变更后 |
+
+### Commands（斜杠命令）
+
+位于 `.claude/commands/`，通过 `/命令名` 快速执行：
+
+| 命令 | 用途 |
+|------|------|
+| `/fix-game` | 排查游戏流程 bug |
+| `/deploy` | 构建并部署 |
+| `/add-api` | 新增 Workers API |
+| `/status` | 查看项目状态 |
+| `/ui-change` | UI 组件修改 |
+| `/code-review` | 代码审查 |
+| `/build-fix` | 构建错误修复 |
+| `/verify` | 全面验证（build+lint+安全） |
+| `/checkpoint` | 创建工作检查点 |
+| `/refactor-clean` | 死代码清理 |
+| `/update-codemaps` | 更新代码地图 |
+| `/plan` | 功能规划（等待确认后执行） |
+
+### Skills（技能）
+
+位于 `.claude/skills/`，特定工作流的详细指南：
+
+| Skill | 用途 |
+|-------|------|
+| `frontend-patterns` | React 组件/Hooks/状态管理模式 |
+| `security-review` | JWT/D1/Token 安全审查清单 |
+| `verification-loop` | 完整验证循环 |
+| `strategic-compact` | 上下文压缩策略 |
+| `game-flow-debug` | 游戏流程调试 |
+| `workers-api` | Workers API 开发模式 |
+
+### Hooks（自动触发器）
+
+在 `.claude/settings.local.json` 中配置，自动执行：
+
+| Hook | 触发时机 | 功能 |
+|------|---------|------|
+| `block-md-creation` | 创建 .md 文件前 | 阻止不必要的文档文件 |
+| `git-push-reminder` | git push 前 | 提醒先审查代码 |
+| `console-log-warn` | 编辑文件后 | 警告 console.log 残留 |
+| `check-console-log` | 响应结束后 | 审计修改文件中的 console.log |
+
+Hook 脚本位于 `scripts/hooks/`。
+
+### MCP Servers
+
+配置参考在 `.claude/mcp-servers.json`，推荐启用的：
+- `cloudflare-docs` — Cloudflare 文档查询
+- `cloudflare-workers-bindings` — Workers 绑定管理
+- `github` — GitHub PR/Issue 管理
+
+通过 `disabledMcpServers` 禁用不常用的 MCP 以保护上下文窗口。

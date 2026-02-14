@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { PROMPT_ACTIONS } from '../services/aiPrompts';
+import { TIMING } from '../config/constants';
 
 export function useDayFlow({
   players,
@@ -274,7 +275,7 @@ export function useDayFlow({
         setHunterShooting({ ...targetPlayer, source: 'chain', chainDepth: chainDepth + 1 });
         // 递归调用，增加连锁深度，并保留最终流程来源（夜晚/投票）
         handleAIHunterShoot(targetPlayer, 'chain', nightDeads, currentPlayers, chainDepth + 1, normalizedFlowSource);
-      }, 1500);
+      }, TIMING.NIGHT_ACTION_DELAY);
       return; // 不继续后续流程，等待连锁完成
       }
     }
@@ -292,7 +293,7 @@ export function useDayFlow({
       } else {
         startDayDiscussion(currentPlayers, nightDeads, players.length, clearCurrentPhaseData);
       }
-    }, 2000);
+    }, TIMING.DAY_TRANSITION_DELAY);
   }, [addCurrentPhaseAction, addLog, askAI, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, players, proceedToNextNightExternal, ROLE_DEFINITIONS, seerChecks, setDeathHistory, setHunterShooting, setIsThinking, setPhase, setPlayers, speechHistory, startDayDiscussion]);
 
   const handleUserHunterShoot = useCallback((source, nightDeads = [], flowSource = null, chainDepth = 0) => {
@@ -362,7 +363,7 @@ export function useDayFlow({
           // AI 连锁开枪：进入结算态，避免白天流程提前推进
           setPhase('day_resolution');
           handleAIHunterShoot(targetPlayer, 'chain', nightDeads, currentPlayers, chainDepth + 1, normalizedFlowSource);
-        }, 1500);
+        }, TIMING.NIGHT_ACTION_DELAY);
         return;
       }
     }
@@ -381,7 +382,7 @@ export function useDayFlow({
       } else {
         startDayDiscussion(currentPlayers, nightDeads, players.length, clearCurrentPhaseData);
       }
-    }, 2000);
+    }, TIMING.DAY_TRANSITION_DELAY);
   }, [addCurrentPhaseAction, addLog, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, selectedTarget, setDeathHistory, setHunterShooting, setPhase, setPlayers, setSelectedTarget, startDayDiscussion, userPlayer]);
 
   const handleAutoVote = useCallback(async () => {
@@ -513,7 +514,7 @@ export function useDayFlow({
         }
         (proceedToNextNightExternal || proceedToNextNight)();
       }
-    }, 2000);
+    }, TIMING.DAY_TRANSITION_DELAY);
   }, [checkGameEnd, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, setDeathHistory, setHunterShooting, setPhase, setPlayers]);
 
   const handleVote = useCallback(async () => {

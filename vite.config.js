@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
   build: {
     // 使用 esbuild 压缩 (Vite 内置，无需额外安装)
     minify: 'esbuild',
