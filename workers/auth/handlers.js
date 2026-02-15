@@ -971,7 +971,7 @@ export async function handleSaveToken(request, env) {
           errorMsg = '账号未完成配置。请确保已完成：1) 绑定阿里云账号 2) 完成阿里云实名认证。';
           break;
         case 'network_error':
-          errorMsg = '网络错误，请稍后重试。';
+          errorMsg = '网络连接失败，无法访问 ModelScope API。可能原因：VPN 节点限制、防火墙拦截、网络不稳定。建议：关闭 VPN 或切换网络后重试。';
           break;
         default:
           errorMsg = '令牌验证失败，请检查令牌是否正确，以及是否已完成阿里云绑定和实名认证。';
@@ -1061,7 +1061,7 @@ export async function handleVerifyModelscopeToken(request, env) {
           message = '账号未完成配置，请完成阿里云绑定和实名认证。';
           break;
         case 'network_error':
-          message = '网络错误，请稍后重试验证。';
+          message = '网络连接失败，无法访问 ModelScope API。可能是 VPN 或防火墙限制，建议关闭 VPN 或切换网络后重试。';
           break;
         default:
           message = '令牌验证失败，请检查配置。';
@@ -1213,6 +1213,9 @@ async function verifyModelscopeToken(token) {
     return { valid: false, error: 'invalid_response' };
   } catch (error) {
     console.error('Token verification error:', error);
+    // 记录更详细的错误信息以便诊断
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
     return { valid: false, error: 'network_error' };
   }
 }

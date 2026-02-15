@@ -146,10 +146,10 @@ export default function App() {
     if (gameMode) {
       resetAbortController();
       gameActiveRef.current = true;
-      initGame(gameMode);
+      initGame(gameMode, selectedSetup);
       setGameStartTime(Date.now());
     }
-  }, [gameMode]);
+  }, [gameMode, selectedSetup]);
 
   // --- Game result: save record & model stats ---
   useEffect(() => {

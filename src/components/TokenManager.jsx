@@ -14,6 +14,8 @@ export function TokenManager({ onClose, onTokenSaved }) {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [networkDiagnosing, setNetworkDiagnosing] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState(null);
   const [tokenStatus, setTokenStatus] = useState({
     hasToken: false,
     isValid: false,
@@ -124,6 +126,60 @@ export function TokenManager({ onClose, onTokenSaved }) {
     }
   };
 
+  // 网络诊断
+  const handleNetworkDiagnose = async () => {
+    setNetworkDiagnosing(true);
+    setNetworkStatus(null);
+    setError('');
+
+    try {
+      // 测试 ModelScope API 连通性
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
+      const response = await fetch('https://api-inference.modelscope.cn/v1/models', {
+        method: 'GET',
+        mode: 'cors',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        setNetworkStatus({
+          success: true,
+          message: '✅ ModelScope API 可正常访问'
+        });
+      } else {
+        setNetworkStatus({
+          success: false,
+          message: `⚠️ ModelScope API 返回异常状态: ${response.status}`
+        });
+      }
+    } catch (err) {
+      console.error('Network diagnosis error:', err);
+
+      let errorMsg = '❌ 无法访问 ModelScope API';
+      let suggestion = '';
+
+      if (err.name === 'AbortError') {
+        errorMsg = '❌ 连接 ModelScope API 超时';
+        suggestion = '网络延迟过高，请检查网络连接或稍后重试';
+      } else if (err.message.includes('CORS') || err.message.includes('Failed to fetch')) {
+        errorMsg = '❌ 网络阻止访问 ModelScope API';
+        suggestion = '可能原因：VPN 限制、防火墙拦截、企业网络策略。建议：关闭 VPN 或切换网络（如使用手机热点）';
+      }
+
+      setNetworkStatus({
+        success: false,
+        message: errorMsg,
+        suggestion
+      });
+    } finally {
+      setNetworkDiagnosing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-zinc-900 rounded-xl max-w-lg w-full p-6 relative border border-zinc-700">
@@ -168,6 +224,8 @@ export function TokenManager({ onClose, onTokenSaved }) {
                     ? '需要完成阿里云绑定/实名认证'
                     : tokenStatus.errorType === 'token_invalid'
                     ? '令牌无效或已过期'
+                    : tokenStatus.errorType === 'network_error'
+                    ? '网络连接失败'
                     : '验证失败'}
                 </span>
               )
@@ -179,9 +237,22 @@ export function TokenManager({ onClose, onTokenSaved }) {
             )}
           </div>
           {tokenStatus.message && !tokenStatus.isValid && tokenStatus.hasToken && (
-            <p className="text-xs text-red-400 mt-2">
-              {tokenStatus.message}
-            </p>
+            <div className="mt-2 space-y-2">
+              <p className="text-xs text-red-400">
+                {tokenStatus.message}
+              </p>
+              {tokenStatus.errorType === 'network_error' && (
+                <div className="text-xs text-amber-400 bg-amber-900/20 border border-amber-700/30 rounded p-2">
+                  <p className="font-medium mb-1">💡 网络问题排查建议：</p>
+                  <ul className="list-disc list-inside space-y-1 text-amber-300/90">
+                    <li>关闭 VPN（部分 VPN 节点无法访问 ModelScope）</li>
+                    <li>切换网络（尝试手机热点或其他 WiFi）</li>
+                    <li>检查防火墙设置</li>
+                    <li>点击下方"网络诊断"按钮进行详细检测</li>
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
           {tokenStatus.verifiedAt && tokenStatus.isValid && (
             <p className="text-xs text-zinc-500 mt-2">
@@ -290,6 +361,20 @@ export function TokenManager({ onClose, onTokenSaved }) {
           </div>
         </div>
 
+        {/* 网络诊断结果 */}
+        {networkStatus && (
+          <div className={`mb-4 p-3 rounded-lg border text-sm ${
+            networkStatus.success
+              ? 'bg-green-900/30 border-green-700/50 text-green-300'
+              : 'bg-red-900/30 border-red-700/50 text-red-300'
+          }`}>
+            <p className="font-medium">{networkStatus.message}</p>
+            {networkStatus.suggestion && (
+              <p className="mt-2 text-xs opacity-90">{networkStatus.suggestion}</p>
+            )}
+          </div>
+        )}
+
         {/* 错误/成功消息 */}
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700/50 text-red-300 text-sm">
@@ -303,34 +388,55 @@ export function TokenManager({ onClose, onTokenSaved }) {
         )}
 
         {/* 操作按钮 */}
-        <div className="flex gap-3">
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <button
+              onClick={handleSaveToken}
+              disabled={loading || !tokenInput.trim()}
+              className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <Check size={18} />
+                  保存令牌
+                </>
+              )}
+            </button>
+
+            {tokenStatus.hasToken && (
+              <button
+                onClick={handleDeleteToken}
+                disabled={loading}
+                className="px-4 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 text-red-400 rounded-lg transition-colors"
+              >
+                删除
+              </button>
+            )}
+          </div>
+
+          {/* 网络诊断按钮 */}
           <button
-            onClick={handleSaveToken}
-            disabled={loading || !tokenInput.trim()}
-            className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            onClick={handleNetworkDiagnose}
+            disabled={networkDiagnosing}
+            className="w-full py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 text-blue-400 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
           >
-            {loading ? (
+            {networkDiagnosing ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
-                保存中...
+                <Loader2 size={16} className="animate-spin" />
+                诊断中...
               </>
             ) : (
               <>
-                <Check size={18} />
-                保存令牌
+                <AlertCircle size={16} />
+                网络诊断（如验证失败请点击）
               </>
             )}
           </button>
-
-          {tokenStatus.hasToken && (
-            <button
-              onClick={handleDeleteToken}
-              disabled={loading}
-              className="px-4 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 text-red-400 rounded-lg transition-colors"
-            >
-              删除
-            </button>
-          )}
         </div>
 
         {/* 隐私说明 */}
