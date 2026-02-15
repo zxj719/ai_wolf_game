@@ -7,7 +7,8 @@ export const ROLE_DEFINITIONS = {
   HUNTER: '猎人',
   GUARD: '守卫',
   MAGICIAN: '魔术师',
-  KNIGHT: '骑士'
+  KNIGHT: '骑士',
+  DREAMWEAVER: '摄梦人'
 };
 
 // 角色元数据 - 定义每个角色的约束和夜间顺序
@@ -83,11 +84,20 @@ export const ROLE_METADATA = {
     nightAction: false,
     camp: 'good',
     description: '白天可决斗一名玩家，整局一次'
+  },
+  DREAMWEAVER: {
+    key: 'DREAMWEAVER',
+    name: '摄梦人',
+    maxCount: 1,
+    nightOrder: 2.5,
+    nightAction: true,
+    camp: 'good',
+    description: '每晚必须入梦一人，免疫刀毒，连梦必死，同生共死'
   }
 };
 
 // 角色分类
-export const UNIQUE_ROLES = ['SEER', 'WITCH', 'GUARD', 'MAGICIAN', 'KNIGHT'];
+export const UNIQUE_ROLES = ['SEER', 'WITCH', 'GUARD', 'MAGICIAN', 'KNIGHT', 'DREAMWEAVER'];
 export const MULTI_ROLES = ['WEREWOLF', 'VILLAGER', 'HUNTER'];
 
 // 根据角色选择生成夜间行动顺序
@@ -108,9 +118,10 @@ export function generateDescription(roleSelections) {
     HUNTER: '猎',
     GUARD: '守',
     MAGICIAN: '术',
-    KNIGHT: '骑'
+    KNIGHT: '骑',
+    DREAMWEAVER: '摄'
   };
-  const roleOrder = ['WEREWOLF', 'VILLAGER', 'SEER', 'WITCH', 'HUNTER', 'GUARD', 'MAGICIAN', 'KNIGHT'];
+  const roleOrder = ['WEREWOLF', 'VILLAGER', 'SEER', 'WITCH', 'HUNTER', 'GUARD', 'MAGICIAN', 'KNIGHT', 'DREAMWEAVER'];
 
   return roleOrder
     .filter(key => (roleSelections[key] || 0) > 0)

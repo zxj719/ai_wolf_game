@@ -30,6 +30,7 @@ export { HUNTER_PROMPTS } from './hunter';
 export { GUARD_PROMPTS } from './guard';
 export { MAGICIAN_PROMPTS } from './magician';
 export { KNIGHT_PROMPTS } from './knight';
+export { DREAMWEAVER_PROMPTS } from './dreamweaver';
 export { VILLAGER_PROMPTS } from './villager';
 
 // 角色模块映射表
@@ -40,6 +41,7 @@ import { HUNTER_PROMPTS } from './hunter';
 import { GUARD_PROMPTS } from './guard';
 import { MAGICIAN_PROMPTS } from './magician';
 import { KNIGHT_PROMPTS } from './knight';
+import { DREAMWEAVER_PROMPTS } from './dreamweaver';
 import { VILLAGER_PROMPTS } from './villager';
 
 export const ROLE_MODULES = {
@@ -50,6 +52,7 @@ export const ROLE_MODULES = {
   '守卫': GUARD_PROMPTS,
   '魔术师': MAGICIAN_PROMPTS,
   '骑士': KNIGHT_PROMPTS,
+  '摄梦人': DREAMWEAVER_PROMPTS,
   '村民': VILLAGER_PROMPTS
 };
 

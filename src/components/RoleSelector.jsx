@@ -11,7 +11,8 @@ const ROLE_ICONS = {
   HUNTER: '🎯',
   GUARD: '🛡️',
   MAGICIAN: '🎩',
-  KNIGHT: '⚔️'
+  KNIGHT: '⚔️',
+  DREAMWEAVER: '🌙'
 };
 
 // 单个角色选择卡片（多选类型：+/- 按钮）
