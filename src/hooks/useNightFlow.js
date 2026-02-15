@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { PROMPT_ACTIONS } from '../services/aiPrompts';
 import { logger } from '../utils/logger';
 import { TIMING } from '../config/constants';
+import { applyMagicianSwap, getValidSwapTargets, validateMagicianSwap, updateMagicianHistory } from '../utils/magicianUtils';
 
 /**
  * useNightFlow - 管理夜间阶段的所有逻辑
@@ -29,6 +30,8 @@ export function useNightFlow({
   setGuardHistory,
   witchHistory,
   setWitchHistory,
+  magicianHistory,
+  setMagicianHistory,
   deathHistory,
   setDeathHistory,
   selectedTarget,
@@ -69,45 +72,53 @@ export function useNightFlow({
   // --- resolveNight ---
   const resolveNight = useCallback((decisionsOverride = null) => {
     if (!gameActiveRef.current) return;
-    const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget } = decisionsOverride || nightDecisionsRef.current || nightDecisions;
-    logger.debug(`[resolveNight] 夜间决策：`, { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget });
+    const decisionsData = decisionsOverride || nightDecisionsRef.current || nightDecisions;
+    const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget, magicianSwap } = decisionsData;
+
+    // 应用魔术师交换重定向所有目标
+    const finalWolfTarget = applyMagicianSwap(wolfTarget, magicianSwap);
+    const finalWitchPoison = applyMagicianSwap(witchPoison, magicianSwap);
+    const finalGuardTarget = applyMagicianSwap(guardTarget, magicianSwap);
+
+    logger.debug(`[resolveNight] 原始决策：`, { wolfTarget, witchPoison, guardTarget, magicianSwap });
+    logger.debug(`[resolveNight] 重定向后：`, { finalWolfTarget, finalWitchPoison, finalGuardTarget });
 
     let deadIds = [];
     let poisonedIds = [];
     let deathReasons = {};
 
-    // 处理狼人袭击
-    if (wolfTarget !== null && !wolfSkipKill) {
-      const isGuarded = guardTarget === wolfTarget;
+    // 处理狼人袭击（使用重定向后的目标）
+    if (finalWolfTarget !== null && !wolfSkipKill) {
+      const isGuarded = finalGuardTarget === finalWolfTarget;
       const isBothGuardedAndSaved = isGuarded && witchSave;
 
-      logger.debug(`[resolveNight] 狼刀${wolfTarget}号，守卫守${guardTarget}号，女巫救${witchSave}，守护=${isGuarded}，同守同救=${isBothGuardedAndSaved}`);
+      logger.debug(`[resolveNight] 狼刀${finalWolfTarget}号（原${wolfTarget}），守卫守${finalGuardTarget}号，女巫救=${witchSave}，守护=${isGuarded}，同守同救=${isBothGuardedAndSaved}`);
 
       if (isBothGuardedAndSaved) {
-        deadIds.push(wolfTarget);
-        deathReasons[wolfTarget] = '同守同救';
-        addLog(`[${wolfTarget}号] 触发同守同救规则！`, 'warning');
-        logger.debug(`[resolveNight] ${wolfTarget}号同守同救死亡`);
+        deadIds.push(finalWolfTarget);
+        deathReasons[finalWolfTarget] = '同守同救';
+        addLog(`[${finalWolfTarget}号] 触发同守同救规则！`, 'warning');
+        logger.debug(`[resolveNight] ${finalWolfTarget}号同守同救死亡`);
         updateActionResult(dayCount, '袭击', null, 'success', '同守同救');
       } else if (!isGuarded && !witchSave) {
-        deadIds.push(wolfTarget);
-        deathReasons[wolfTarget] = '被狼人杀害';
-        logger.debug(`[resolveNight] ${wolfTarget}号被狼人杀害`);
+        deadIds.push(finalWolfTarget);
+        deathReasons[finalWolfTarget] = '被狼人杀害';
+        logger.debug(`[resolveNight] ${finalWolfTarget}号被狼人杀害`);
         updateActionResult(dayCount, '袭击', null, 'success', '击杀成功');
       } else {
-        logger.debug(`[resolveNight] ${wolfTarget}号存活（守护=${isGuarded}，女巫救=${witchSave}）`);
+        logger.debug(`[resolveNight] ${finalWolfTarget}号存活（守护=${isGuarded}，女巫救=${witchSave}）`);
         const savedBy = isGuarded ? '被守护' : '被女巫救';
         updateActionResult(dayCount, '袭击', null, 'failed', savedBy);
       }
     }
 
-    // 处理毒药
-    if (witchPoison !== null) {
-      if (!deadIds.includes(witchPoison)) {
-        deadIds.push(witchPoison);
+    // 处理毒药（使用重定向后的目标）
+    if (finalWitchPoison !== null) {
+      if (!deadIds.includes(finalWitchPoison)) {
+        deadIds.push(finalWitchPoison);
       }
-      poisonedIds.push(witchPoison);
-      deathReasons[witchPoison] = '被女巫毒死';
+      poisonedIds.push(finalWitchPoison);
+      deathReasons[finalWitchPoison] = '被女巫毒死';
     }
 
     const uniqueDeads = [...new Set(deadIds)];
@@ -127,7 +138,7 @@ export function useNightFlow({
 
       if (p.role === ROLE_DEFINITIONS.WITCH) {
         if (witchSave) newP.hasWitchSave = false;
-        if (witchPoison !== null) newP.hasWitchPoison = false;
+        if (finalWitchPoison !== null) newP.hasWitchPoison = false;
       }
 
       if (uniqueDeads.includes(p.id)) {
@@ -281,6 +292,58 @@ export function useNightFlow({
           mergeNightDecisions({ guardTarget: null });
         }
       }
+      else if (currentRoleKey === 'MAGICIAN') {
+        const validSwapTargets = getValidSwapTargets(players, magicianHistory);
+        logger.debug(`[魔术师AI] 开始交换决策，可交换目标：${validSwapTargets.join(',')}`);
+        logger.debug(`[魔术师AI] 已交换玩家：${magicianHistory.swappedPlayers.join(',') || '无'}，上次交换：`, magicianHistory.lastSwap);
+
+        const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_MAGICIAN, {
+          validSwapTargets,
+          magicianHistory,
+          seerChecks
+        });
+        logger.debug(`[魔术师AI] AI返回结果：`, res);
+
+        if (res && res.player1Id !== null && res.player2Id !== null) {
+          const proposedSwap = { player1Id: res.player1Id, player2Id: res.player2Id };
+
+          // 验证交换是否合法
+          const validation = validateMagicianSwap(proposedSwap, magicianHistory, players.filter(p => p.isAlive));
+          if (validation.valid) {
+            logger.debug(`[魔术师AI] 交换${res.player1Id}号和${res.player2Id}号`);
+            if (gameMode === 'ai-only') {
+              addLog(`[${actor.id}号] 魔术师交换了 ${res.player1Id}号 和 ${res.player2Id}号`, 'system');
+            }
+            addCurrentPhaseAction({
+              playerId: actor.id,
+              type: '交换',
+              target: `${res.player1Id}-${res.player2Id}`,
+              night: dayCount,
+              thought: res.thought,
+              description: `交换 ${res.player1Id}号 和 ${res.player2Id}号`,
+              timestamp: Date.now()
+            });
+            mergeNightDecisions({ magicianSwap: proposedSwap });
+            // 更新历史记录
+            const newHistory = updateMagicianHistory(magicianHistory, proposedSwap);
+            setMagicianHistory(newHistory);
+          } else {
+            logger.debug(`[魔术师AI] 交换无效：${validation.reason}，强制不交换`);
+            if (gameMode === 'ai-only') {
+              addLog(`[${actor.id}号] 魔术师选择不交换`, 'system');
+            }
+            mergeNightDecisions({ magicianSwap: null });
+          }
+        } else {
+          logger.debug(`[魔术师AI] 选择不交换`);
+          if (gameMode === 'ai-only') {
+            addLog(`[${actor.id}号] 魔术师选择不交换`, 'system');
+          }
+          mergeNightDecisions({ magicianSwap: null });
+          // 即使不交换，也要更新lastSwap为null（表示这一晚没交换）
+          setMagicianHistory({ ...magicianHistory, lastSwap: null });
+        }
+      }
       else if (currentRoleKey === 'WEREWOLF') {
         const validTargets = players.filter(p => p.isAlive && p.role !== '狼人').map(p => p.id);
         logger.debug(`[狼人AI] 开始狼人决策，可选目标：${validTargets.join(',')}`);
@@ -339,25 +402,29 @@ export function useNightFlow({
           logger.debug(`[预言家AI] AI返回结果：`, res);
 
           if (res?.targetId !== undefined && validTargets.includes(res.targetId)) {
-            const targetPlayer = players.find(p => p.id === res.targetId);
+            // 应用魔术师交换重定向查验目标
+            const originalTarget = res.targetId;
+            const finalSeerTarget = applyMagicianSwap(originalTarget, nightDecisions.magicianSwap);
+            const targetPlayer = players.find(p => p.id === finalSeerTarget);
             if (targetPlayer) {
               const isWolf = targetPlayer.role === ROLE_DEFINITIONS.WEREWOLF;
-              logger.debug(`[预言家AI] 查验${res.targetId}号，结果：${isWolf ? '狼人' : '好人'}`);
+              logger.debug(`[预言家AI] 选择查验${originalTarget}号，魔术师交换后实际查验${finalSeerTarget}号，结果：${isWolf ? '狼人' : '好人'}`);
               if (gameMode === 'ai-only') {
-                addLog(`[${actor.id}号] 预言家查验了 ${res.targetId}号，结果是${isWolf ? '狼人' : '好人'}`, 'system');
+                addLog(`[${actor.id}号] 预言家查验了 ${originalTarget}号，结果是${isWolf ? '狼人' : '好人'}`, 'system');
               }
               addCurrentPhaseAction({
                 playerId: actor.id,
                 type: '查验',
-                target: res.targetId,
+                target: originalTarget,
                 result: isWolf ? '狼人' : '好人',
                 night: dayCount,
                 thought: res.thought,
-                description: `查验 ${res.targetId}号，结果是${isWolf ? '狼人' : '好人'}`,
+                description: `查验 ${originalTarget}号，结果是${isWolf ? '狼人' : '好人'}${finalSeerTarget !== originalTarget ? ` (实际查验${finalSeerTarget}号)` : ''}`,
                 timestamp: Date.now()
               });
-              mergeNightDecisions({ seerResult: { targetId: res.targetId, isWolf } });
-              setSeerChecks(prev => [...prev, { night: dayCount, targetId: res.targetId, isWolf, seerId: actor.id, thought: res.thought }]);
+              mergeNightDecisions({ seerResult: { targetId: originalTarget, isWolf } });
+              // 预言家的记忆中存储原始目标，但结果是实际目标的（制造混乱）
+              setSeerChecks(prev => [...prev, { night: dayCount, targetId: originalTarget, isWolf, seerId: actor.id, thought: res.thought }]);
             } else {
               logger.error(`[预言家AI] 无法找到目标玩家 ${res.targetId}`);
             }

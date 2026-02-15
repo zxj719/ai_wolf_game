@@ -15,6 +15,7 @@ export const PROMPT_ACTIONS = {
     DAY_SPEECH: 'DAY_SPEECH',
     DAY_VOTE: 'DAY_VOTE',
     NIGHT_GUARD: 'NIGHT_GUARD',
+    NIGHT_MAGICIAN: 'NIGHT_MAGICIAN',
     NIGHT_WOLF: 'NIGHT_WOLF',
     NIGHT_SEER: 'NIGHT_SEER',
     NIGHT_WITCH: 'NIGHT_WITCH',
@@ -1102,6 +1103,39 @@ ${nightCot}
 - 优先守护：已跳身份的预言家 > 重要神职 > 高价值好人
 - 博弈思考：狼人预判我会守谁？我该反其道还是稳守？
 输出:{"targetId":数字或null(空守),"reasoning":"一句话理由","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+
+        case PROMPT_ACTIONS.NIGHT_MAGICIAN:
+            const { validSwapTargets, magicianHistory, seerChecks: magicianSeerChecks } = params;
+            const magicianExistingRoles = detectExistingRoles(players);
+
+            // 分析场上已知信息
+            const knownGods = [];
+            const suspectedWolves = [];
+
+            // 从发言历史和查验结果推断
+            if (magicianSeerChecks && magicianSeerChecks.length > 0) {
+                magicianSeerChecks.forEach(check => {
+                    if (check.isWolf) {
+                        suspectedWolves.push(check.targetId);
+                    } else {
+                        knownGods.push(check.targetId);
+                    }
+                });
+            }
+
+            // 使用角色模块的提示词生成器
+            const magicianModule = getRoleModule('魔术师');
+            return magicianModule.nightAction({
+                validTargets: validSwapTargets,
+                swappedPlayers: magicianHistory?.swappedPlayers || [],
+                lastSwap: magicianHistory?.lastSwap || null,
+                existingRoles: magicianExistingRoles,
+                dayCount: ctx.dayCount,
+                nightContext: nightCot,
+                seerChecks: magicianSeerChecks || [],
+                knownGods,
+                suspectedWolves
+            });
 
         case PROMPT_ACTIONS.NIGHT_WOLF:
              const validTargets = players.filter(p => p.isAlive && p.role !== '狼人').map(p => p.id).join(',');

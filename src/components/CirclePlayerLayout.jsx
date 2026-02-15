@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Send, Download, RotateCcw, AlertTriangle, Syringe, Crosshair, Vote, MinusCircle } from 'lucide-react';
+import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Send, Download, RotateCcw, AlertTriangle, Syringe, Crosshair, Vote, MinusCircle, Shuffle } from 'lucide-react';
+import { getValidSwapTargets, validateMagicianSwap } from '../utils/magicianUtils';
 
 const clamp = (min, value, max) => Math.min(max, Math.max(min, value));
 
@@ -45,6 +46,8 @@ export function CirclePlayerLayout({
   setUserPlayer,
   witchHistory,
   setWitchHistory,
+  magicianHistory,
+  setMagicianHistory,
   guardHistory = [],
   nightActionHistory = [],
   modelUsage = null,
@@ -71,6 +74,7 @@ export function CirclePlayerLayout({
   const [cardPositions, setCardPositions] = useState({});
   const [draggingId, setDraggingId] = useState(null);
   const [previewPlayer, setPreviewPlayer] = useState(null);
+  const [magicianSwapSelection, setMagicianSwapSelection] = useState({ player1: null, player2: null });
   const containerRef = useRef(null);
   const dragStateRef = useRef({ pointerId: null, activeId: null, moved: false, startX: 0, startY: 0 });
   const dragOffsetRef = useRef({ x: 0, y: 0 });
@@ -84,6 +88,7 @@ export function CirclePlayerLayout({
       case '女巫': return <FlaskConical size={size} className="text-emerald-500"/>;
       case '猎人': return <Target size={size} className="text-orange-500"/>;
       case '守卫': return <Shield size={size} className="text-blue-500"/>;
+      case '魔术师': return <Shuffle size={size} className="text-violet-500"/>;
       default: return <User size={size} className="text-zinc-500"/>;
     }
   };
@@ -571,6 +576,98 @@ export function CirclePlayerLayout({
                         毒{selectedTarget}号
                       </button>
                     )}
+                  </div>
+                ) : userPlayer?.role === '魔术师' ? (
+                  <div className="text-left bg-zinc-800/50 p-2 rounded-lg text-[10px] space-y-2">
+                    <p className="text-zinc-400 text-center">选择两个玩家进行交换</p>
+                    {magicianHistory?.lastSwap && (
+                      <p className="text-amber-400 text-[9px] text-center flex items-center justify-center gap-1">
+                        <AlertTriangle size={9}/>
+                        上次交换了{magicianHistory.lastSwap.player1Id}和{magicianHistory.lastSwap.player2Id}号
+                      </p>
+                    )}
+                    <div className="flex gap-2 justify-center items-center">
+                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player1 !== null ? 'bg-violet-600' : 'bg-zinc-700'}`}>
+                        {magicianSwapSelection.player1 !== null ? `${magicianSwapSelection.player1}号` : '?'}
+                      </div>
+                      <Shuffle size={12} className="text-violet-400"/>
+                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player2 !== null ? 'bg-violet-600' : 'bg-zinc-700'}`}>
+                        {magicianSwapSelection.player2 !== null ? `${magicianSwapSelection.player2}号` : '?'}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 flex-col">
+                      {selectedTarget !== null && (
+                        <button
+                          onClick={() => {
+                            if (magicianSwapSelection.player1 === null) {
+                              setMagicianSwapSelection({ ...magicianSwapSelection, player1: selectedTarget });
+                              setSelectedTarget(null);
+                            } else if (magicianSwapSelection.player2 === null && selectedTarget !== magicianSwapSelection.player1) {
+                              setMagicianSwapSelection({ ...magicianSwapSelection, player2: selectedTarget });
+                              setSelectedTarget(null);
+                            }
+                          }}
+                          disabled={magicianSwapSelection.player1 !== null && magicianSwapSelection.player2 !== null}
+                          className="px-2 py-1 bg-violet-600 rounded font-bold hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+                        >
+                          {magicianSwapSelection.player1 === null ? `选择${selectedTarget}号为第一个` : `选择${selectedTarget}号为第二个`}
+                        </button>
+                      )}
+                      {magicianSwapSelection.player1 !== null && magicianSwapSelection.player2 !== null && (
+                        <button
+                          onClick={() => {
+                            const swap = { player1Id: magicianSwapSelection.player1, player2Id: magicianSwapSelection.player2 };
+                            const validation = validateMagicianSwap(swap, magicianHistory, players.filter(p => p.isAlive));
+                            if (validation.valid) {
+                              mergeNightDecisions({ magicianSwap: swap });
+                              const newHistory = {
+                                swappedPlayers: [...(magicianHistory?.swappedPlayers || []), swap.player1Id, swap.player2Id],
+                                lastSwap: swap
+                              };
+                              setMagicianHistory(newHistory);
+                              setMagicianSwapSelection({ player1: null, player2: null });
+                              addLog(`你交换了 ${swap.player1Id}号 和 ${swap.player2Id}号`, 'info');
+                              proceedNight({ ...nightDecisions, magicianSwap: swap });
+                            } else {
+                              addLog(`交换无效：${validation.reason}`, 'warning');
+                            }
+                          }}
+                          className="px-2 py-1 bg-indigo-600 rounded font-bold hover:bg-indigo-500"
+                        >
+                          确认交换
+                        </button>
+                      )}
+                      <div className="flex gap-1">
+                        {magicianSwapSelection.player1 !== null && (
+                          <button
+                            onClick={() => setMagicianSwapSelection({ ...magicianSwapSelection, player1: null })}
+                            className="flex-1 px-1 py-1 bg-zinc-700 rounded text-[9px] hover:bg-zinc-600"
+                          >
+                            清除第一个
+                          </button>
+                        )}
+                        {magicianSwapSelection.player2 !== null && (
+                          <button
+                            onClick={() => setMagicianSwapSelection({ ...magicianSwapSelection, player2: null })}
+                            className="flex-1 px-1 py-1 bg-zinc-700 rounded text-[9px] hover:bg-zinc-600"
+                          >
+                            清除第二个
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          mergeNightDecisions({ magicianSwap: null });
+                          setMagicianHistory({ ...magicianHistory, lastSwap: null });
+                          setMagicianSwapSelection({ player1: null, player2: null });
+                          addLog(`你选择不交换`, 'info');
+                          proceedNight({ ...nightDecisions, magicianSwap: null });
+                        }}
+                        className="px-2 py-1 bg-zinc-700 rounded font-bold hover:bg-zinc-600"
+                      >
+                        不交换
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-1">

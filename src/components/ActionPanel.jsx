@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, RotateCcw, AlertTriangle, Moon, Sun } from 'lucide-react';
+import { getValidSwapTargets, validateMagicianSwap, updateMagicianHistory } from '../utils/magicianUtils';
 
 export function ActionPanel({
   type,

@@ -2,6 +2,82 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-02-15] 魔术师角色完整实现
+
+### 新功能
+- **魔术师角色（神职）**
+  - 每晚可交换两名玩家，重定向所有夜间技能（狼刀、验人、毒药、守护）
+  - 整局限制：每个号码只能被交换一次
+  - 连续限制：不能连续两晚交换同一个人
+  - 支持自换（交换自己和他人）实现躲刀
+- **目标重定向机制**
+  - 狼刀 A → 魔术师交换后 B 死亡
+  - 预言家验 A → 实际验 B 的身份（制造逻辑混乱）
+  - 女巫毒 A → 实际 B 死亡
+  - 守卫守 A → 实际守护 B
+- **AI 博弈思维系统**
+  - 5步推演：局势分析 → 狼人视角 → 后果模拟 → 逻辑闭环 → 最终决策
+  - 优先级系统：保核（保护预言家）→ 换刀（狼刀狼）→ 自保（躲刀）
+  - 逻辑镜像表：只有魔术师知道真相，其他角色看到的是交换前目标
+- **用户魔术师 UI**
+  - 分步选择界面（第一个目标 → 第二个目标 → 确认交换）
+  - 实时显示交换限制（已交换玩家、上次交换警告）
+  - 清除选择和"不交换"选项
+  - 实时验证交换合法性
+- **渐进式披露提示词**
+  - 根据场上存在角色动态调整策略提示
+  - 无女巫时不提及毒药重定向，无预言家时不提及保护预言家
+
+### 技术细节
+- **夜间顺序调整**：守卫(1) → 魔术师(2) → 狼人(3) → 预言家(4) → 女巫(5)
+- **状态管理**：
+  - `nightDecisions.magicianSwap` 存储当晚交换决策
+  - `magicianHistory.swappedPlayers` 跟踪整局已交换玩家
+  - `magicianHistory.lastSwap` 记录上次交换用于连续限制验证
+- **核心算法**：
+  - `applyMagicianSwap()` 应用目标重定向（A↔B）
+  - `validateMagicianSwap()` 验证交换合法性（整局限制+连续限制）
+  - `updateMagicianHistory()` 更新历史记录
+  - `getValidSwapTargets()` 获取可交换目标列表
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/config/roles.js` | 修改 | 添加 MAGICIAN 定义，nightOrder=2，短名"术" |
+| `src/useWerewolfGame.js` | 修改 | 添加 magicianSwap 和 magicianHistory 状态 |
+| `src/utils/magicianUtils.js` | 新建 | 核心工具函数：重定向、验证、历史更新 |
+| `src/services/rolePrompts/magician.js` | 新建 | 完整的 AI 提示词系统（博弈思维+逻辑镜像表） |
+| `src/services/rolePrompts/index.js` | 修改 | 导出 MAGICIAN_PROMPTS 并添加到映射表 |
+| `src/services/aiPrompts.js` | 修改 | 添加 NIGHT_MAGICIAN action 和处理逻辑 |
+| `src/hooks/useNightFlow.js` | 修改 | 魔术师夜间行动 + resolveNight 全技能重定向 |
+| `src/components/RoleSelector.jsx` | 修改 | 添加魔术师图标 🎩 |
+| `src/components/CirclePlayerLayout.jsx` | 修改 | 完整的用户魔术师 UI（双选择+验证） |
+| `src/components/ActionPanel.jsx` | 修改 | 导入魔术师工具函数（备用） |
+| `src/components/GameArena.jsx` | 修改 | 传递 magicianHistory 到子组件 |
+| `src/App.jsx` | 修改 | magicianHistory 集成到 useNightFlow 和 GameArena |
+
+### 游戏流程示例
+```
+第1夜：
+- 魔术师交换 1号 和 3号
+- 狼人选择刀 1号 → 实际 3号 死亡
+- 预言家验 3号 → 实际验 1号（狼），但记录为"3号是狼"
+
+第2天：
+- 预言家跳身份："我验了 3号，是狼！"
+- 但 3号 已死，实际 1号 是狼
+- 场上逻辑崩盘
+- 魔术师可选择跳身份修正逻辑
+```
+
+### 已知特性
+- ✅ AI 完整逻辑（含博弈思维链）
+- ✅ 用户 UI 支持（双选择界面）
+- ✅ 全技能重定向（狼刀/验人/毒药/守护）
+- ✅ 预言家查验制造逻辑混乱
+- ✅ 交换限制严格验证
+- ✅ 渐进式披露提示词
+
 ## [2026-02-07] SPA 路由回退 + Changelog 编码修复
 
 ### 修复

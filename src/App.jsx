@@ -55,7 +55,7 @@ export default function App() {
     state,
     setPhase, setNightStep, setDayCount, setPlayers, setUserPlayer,
     setNightDecisions, mergeNightDecisions,
-    setSeerChecks, setGuardHistory, setWitchHistory,
+    setSeerChecks, setGuardHistory, setWitchHistory, setMagicianHistory,
     setSpeechHistory, setVoteHistory, setDeathHistory,
     setNightActionHistory,
     addCurrentPhaseSpeech, addCurrentPhaseAction, clearCurrentPhaseData,
@@ -68,7 +68,7 @@ export default function App() {
 
   const {
     phase, nightStep, dayCount, players, userPlayer, logs,
-    nightDecisions, seerChecks, guardHistory, witchHistory,
+    nightDecisions, seerChecks, guardHistory, witchHistory, magicianHistory,
     speechHistory, voteHistory, deathHistory, nightActionHistory,
     currentPhaseData, gameBackground, modelUsage,
   } = state;
@@ -228,7 +228,8 @@ export default function App() {
     ROLE_DEFINITIONS, setPhase, phase, nightStep, setNightStep, dayCount,
     nightDecisions, nightDecisionsRef, mergeNightDecisions,
     seerChecks, setSeerChecks, guardHistory, setGuardHistory,
-    witchHistory, setWitchHistory, deathHistory, setDeathHistory,
+    witchHistory, setWitchHistory, magicianHistory, setMagicianHistory,
+    deathHistory, setDeathHistory,
     selectedTarget, setSelectedTarget, setHunterShooting,
     checkGameEnd, askAI, setIsThinking, currentNightSequence,
     startDayDiscussion, handleAIHunterShoot, userPlayer, gameActiveRef,
@@ -428,7 +429,8 @@ export default function App() {
           speechHistory={speechHistory} nightActionHistory={nightActionHistory}
           voteHistory={voteHistory} deathHistory={deathHistory}
           seerChecks={seerChecks} guardHistory={guardHistory}
-          witchHistory={witchHistory} currentPhaseData={currentPhaseData}
+          witchHistory={witchHistory} magicianHistory={magicianHistory}
+          currentPhaseData={currentPhaseData}
           gameBackground={gameBackground} logs={logs} modelUsage={modelUsage}
           selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
           speakerIndex={speakerIndex}
@@ -444,6 +446,7 @@ export default function App() {
           mergeNightDecisions={mergeNightDecisions}
           setPlayers={setPlayers} setUserPlayer={setUserPlayer}
           witchHistorySetter={setWitchHistory}
+          magicianHistorySetter={setMagicianHistory}
           getPlayer={getPlayer} addLog={addLog} setSeerChecks={setSeerChecks}
           currentNightSequence={currentNightSequence}
           ROLE_DEFINITIONS={ROLE_DEFINITIONS}

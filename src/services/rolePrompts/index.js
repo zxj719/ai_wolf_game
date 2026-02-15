@@ -28,6 +28,7 @@ export { SEER_PROMPTS } from './seer';
 export { WITCH_PROMPTS } from './witch';
 export { HUNTER_PROMPTS } from './hunter';
 export { GUARD_PROMPTS } from './guard';
+export { MAGICIAN_PROMPTS } from './magician';
 export { VILLAGER_PROMPTS } from './villager';
 
 // 角色模块映射表
@@ -36,6 +37,7 @@ import { SEER_PROMPTS } from './seer';
 import { WITCH_PROMPTS } from './witch';
 import { HUNTER_PROMPTS } from './hunter';
 import { GUARD_PROMPTS } from './guard';
+import { MAGICIAN_PROMPTS } from './magician';
 import { VILLAGER_PROMPTS } from './villager';
 
 export const ROLE_MODULES = {
@@ -44,6 +46,7 @@ export const ROLE_MODULES = {
   '女巫': WITCH_PROMPTS,
   '猎人': HUNTER_PROMPTS,
   '守卫': GUARD_PROMPTS,
+  '魔术师': MAGICIAN_PROMPTS,
   '村民': VILLAGER_PROMPTS
 };
 
