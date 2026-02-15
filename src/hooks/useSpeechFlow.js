@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { PROMPT_ACTIONS } from '../services/aiPrompts';
 import { TIMING } from '../config/constants';
 import { logger } from '../utils/logger';
+import { validateKnightDuel, executeDuel, applyDuelResult } from '../utils/knightUtils';
 
 /**
  * useSpeechFlow - 管理白天发言系统
@@ -10,6 +11,7 @@ import { logger } from '../utils/logger';
 export function useSpeechFlow({
   phase,
   players,
+  setPlayers,
   gameMode,
   dayCount,
   speakerIndex,
@@ -25,6 +27,10 @@ export function useSpeechFlow({
   askAI,
   moveToNextSpeaker,
   gameActiveRef,
+  ROLE_DEFINITIONS,
+  setDeathHistory,
+  checkGameEnd,
+  proceedToNextNight,
 }) {
   const speakingLockRef = useRef(false);
   const currentDayRef = useRef(1);
@@ -51,6 +57,79 @@ export function useSpeechFlow({
 
   /** 检查某玩家今天是否已发言 */
   const hasSpoken = (playerId) => spokenIdsRef.current.has(playerId);
+
+  /** 处理骑士决斗 */
+  const handleKnightDuel = useCallback(async (knight, targetId, reason, confidence) => {
+    if (!gameActiveRef.current) return;
+
+    // 验证决斗是否合法
+    const validation = validateKnightDuel(knight, targetId, players);
+    if (!validation.valid) {
+      logger.error(`[骑士决斗] 决斗验证失败：${validation.reason}`);
+      addLog(`骑士决斗失败：${validation.reason}`, 'error');
+      return;
+    }
+
+    const target = players.find(p => p.id === targetId);
+
+    // 宣告决斗
+    addLog(
+      `🗡️ ${knight.id}号骑士翻牌！发动决斗挑战 ${targetId}号！`,
+      'system'
+    );
+    addLog(`决斗理由：${reason || '未说明'}（确信度：${confidence || 0}%）`, 'system');
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // 执行决斗判定
+    const duelResult = executeDuel(knight, target, ROLE_DEFINITIONS);
+
+    // 公布结果
+    addLog(duelResult.message, 'important');
+    addLog(`${target.id}号的真实身份是：${target.role}`, 'reveal');
+
+    // 应用决斗结果到玩家状态
+    const updatedPlayers = applyDuelResult(players, duelResult, knight.id);
+    setPlayers(updatedPlayers);
+
+    // 记录死亡
+    setDeathHistory(prev => [...prev, {
+      playerId: duelResult.killedPlayer.id,
+      name: duelResult.killedPlayer.name,
+      role: duelResult.killedPlayer.role,
+      day: dayCount,
+      reason: duelResult.targetIsWolf ? '决斗（狼人）' : '决斗失败（自刎）',
+      timestamp: Date.now()
+    }]);
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // 检查游戏是否结束
+    if (checkGameEnd) {
+      const gameEndResult = checkGameEnd(updatedPlayers);
+      if (gameEndResult) {
+        logger.debug(`[骑士决斗] 决斗后游戏结束：${gameEndResult.winner}`);
+        return;
+      }
+    }
+
+    // 根据决斗结果决定下一步
+    if (duelResult.targetIsWolf) {
+      // 狼人被淘汰：跳过投票，直接进入夜晚
+      addLog('狼人被决斗淘汰，跳过投票，直接进入夜晚。', 'system');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setSpeakerIndex(-1);
+      if (proceedToNextNight) {
+        proceedToNextNight(true); // 清空白天数据
+      }
+    } else {
+      // 骑士自刎：继续白天讨论
+      addLog('骑士已出局，白天讨论继续。', 'system');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      // 继续下一个人发言（跳过已死的骑士）
+      moveToNextSpeaker();
+    }
+  }, [players, setPlayers, dayCount, setDeathHistory, checkGameEnd, addLog, ROLE_DEFINITIONS, proceedToNextNight, moveToNextSpeaker, gameActiveRef]);
 
   // AI 发言 useEffect
   useEffect(() => {
@@ -144,6 +223,13 @@ export function useSpeechFlow({
                 }];
               });
             }
+
+            // 骑士决斗处理
+            if (currentSpeaker.role === ROLE_DEFINITIONS.KNIGHT && res.shouldDuel) {
+              logger.debug(`[骑士决斗] ${currentSpeaker.id}号骑士决定发动决斗，目标：${res.duelTarget}号`);
+              await handleKnightDuel(currentSpeaker, res.duelTarget, res.duelReason, res.confidence);
+              return; // 决斗后不再继续正常流程
+            }
           }
 
           await new Promise(resolve => setTimeout(resolve, TIMING.SPEECH_RATE_LIMIT));
@@ -215,5 +301,19 @@ export function useSpeechFlow({
     }
   }, [userInput, speechHistory, dayCount, userPlayer, addLog, addCurrentPhaseSpeech, setSpeechHistory, setUserInput, moveToNextSpeaker]);
 
-  return { handleUserSpeak };
+  /** 用户骑士决斗 */
+  const handleUserDuel = useCallback((targetId) => {
+    const knight = userPlayer;
+    if (!knight) return;
+
+    if (targetId === null) {
+      addLog('请选择决斗目标！', 'warning');
+      return;
+    }
+
+    // 执行决斗
+    handleKnightDuel(knight, targetId, '玩家决斗', 100);
+  }, [userPlayer, handleKnightDuel, addLog]);
+
+  return { handleUserSpeak, handleUserDuel };
 }

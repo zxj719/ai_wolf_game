@@ -210,7 +210,7 @@ export default function App() {
   const {
     startDayDiscussion, handleAutoVote, handleVote,
     handleUserHunterShoot, handleAIHunterShoot,
-    handlePlayerElimination, moveToNextSpeaker,
+    handlePlayerElimination, moveToNextSpeaker, proceedToNextNight,
   } = useDayFlow({
     players, setPlayers, gameMode, addLog, addCurrentPhaseAction,
     ROLE_DEFINITIONS, setPhase, setNightStep, nightDecisions, mergeNightDecisions,
@@ -236,10 +236,11 @@ export default function App() {
   });
 
   // --- Speech flow ---
-  const { handleUserSpeak } = useSpeechFlow({
-    phase, players, gameMode, dayCount, speakerIndex, setSpeakerIndex,
+  const { handleUserSpeak, handleUserDuel } = useSpeechFlow({
+    phase, players, setPlayers, gameMode, dayCount, speakerIndex, setSpeakerIndex,
     speechHistory, setSpeechHistory, userPlayer, userInput, setUserInput,
     addLog, addCurrentPhaseSpeech, setPhase, askAI, moveToNextSpeaker, gameActiveRef,
+    ROLE_DEFINITIONS, setDeathHistory, checkGameEnd, proceedToNextNight,
   });
 
   // --- Auto-vote trigger ---
@@ -440,6 +441,7 @@ export default function App() {
           handleUserSpeak={handleUserSpeak}
           hunterShooting={hunterShooting}
           handleUserHunterShoot={handleUserHunterShoot}
+          handleUserDuel={handleUserDuel}
           handleAIHunterShoot={handleAIHunterShoot}
           handleVote={handleVote}
           proceedNight={proceedNight}

@@ -276,6 +276,7 @@ export function useWerewolfGame(config) {
       hasWitchSave: true,
       hasWitchPoison: true,
       canHunterShoot: true,
+      hasUsedDuel: false,  // 骑士决斗技能（整局一次）
       isPoisoned: false
     }));
 

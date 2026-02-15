@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Send, Download, RotateCcw, AlertTriangle, Syringe, Crosshair, Vote, MinusCircle, Shuffle } from 'lucide-react';
 import { getValidSwapTargets, validateMagicianSwap } from '../utils/magicianUtils';
+import { ROLE_DEFINITIONS } from '../config/roles';
 
 const clamp = (min, value, max) => Math.min(max, Math.max(min, value));
 
@@ -58,6 +59,8 @@ export function CirclePlayerLayout({
   // Hunter props
   hunterShooting,
   handleUserHunterShoot,
+  // Knight props
+  handleUserDuel,
   // Game over props
   exportGameLog,
   restartGame
@@ -715,6 +718,32 @@ export function CirclePlayerLayout({
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* 骑士决斗 */}
+            {phase === 'day_discussion' &&
+             userPlayer?.role === ROLE_DEFINITIONS.KNIGHT &&
+             !userPlayer?.hasUsedDuel && (
+              <div className="w-full mt-2 text-center space-y-2">
+                <p className="text-xs text-amber-400 font-bold">⚔️ 骑士决斗</p>
+                <p className="text-[10px] text-zinc-400">
+                  选择一名玩家发动决斗（整局一次）
+                </p>
+                <p className="text-[9px] text-zinc-500">
+                  对方是狼人→狼出局；对方是好人→你自刎
+                </p>
+                <button
+                  onClick={() => handleUserDuel?.(selectedTarget)}
+                  disabled={selectedTarget === null}
+                  className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${
+                    selectedTarget !== null
+                      ? 'bg-amber-600 hover:bg-amber-500 cursor-pointer'
+                      : 'bg-zinc-700 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  {selectedTarget !== null ? `决斗 ${selectedTarget}号` : '请选择目标'}
+                </button>
               </div>
             )}
 

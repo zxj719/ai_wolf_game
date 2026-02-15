@@ -45,6 +45,7 @@ export function GameArena({
   // Action handlers (传递给子组件)
   hunterShooting,
   handleUserHunterShoot,
+  handleUserDuel,
   handleAIHunterShoot,
   handleVote,
   proceedNight,
@@ -330,6 +331,7 @@ export function GameArena({
               isUserTurn={isUserTurn}
               hunterShooting={hunterShooting}
               handleUserHunterShoot={handleUserHunterShoot}
+              handleUserDuel={handleUserDuel}
               exportGameLog={exportGameLog}
               restartGame={restartGame}
             />
