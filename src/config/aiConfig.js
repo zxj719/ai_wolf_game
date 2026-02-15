@@ -124,6 +124,16 @@ export const THINKING_MODELS = [
     },
     isThinking: true
   },
+  // MiniMax M2.5 - 新一代超大规模模型
+  {
+    id: 'MiniMax/MiniMax-M2.5',
+    name: 'MiniMax-M2.5',
+    options: {
+      temperature: 0.7,
+      top_p: 0.95
+    },
+    isThinking: true
+  },
   // 美团 LongCat Flash Lite - 轻量快速模型
   {
     id: 'meituan-longcat/LongCat-Flash-Lite',
