@@ -6,7 +6,8 @@ export const ROLE_DEFINITIONS = {
   WITCH: '女巫',
   HUNTER: '猎人',
   GUARD: '守卫',
-  MAGICIAN: '魔术师'
+  MAGICIAN: '魔术师',
+  KNIGHT: '骑士'
 };
 
 // 角色元数据 - 定义每个角色的约束和夜间顺序
@@ -73,11 +74,20 @@ export const ROLE_METADATA = {
     nightAction: true,
     camp: 'good',
     description: '每晚可交换两人，重定向所有技能'
+  },
+  KNIGHT: {
+    key: 'KNIGHT',
+    name: '骑士',
+    maxCount: 1,
+    nightOrder: null,
+    nightAction: false,
+    camp: 'good',
+    description: '白天可决斗一名玩家，整局一次'
   }
 };
 
 // 角色分类
-export const UNIQUE_ROLES = ['SEER', 'WITCH', 'GUARD', 'MAGICIAN'];
+export const UNIQUE_ROLES = ['SEER', 'WITCH', 'GUARD', 'MAGICIAN', 'KNIGHT'];
 export const MULTI_ROLES = ['WEREWOLF', 'VILLAGER', 'HUNTER'];
 
 // 根据角色选择生成夜间行动顺序
@@ -97,9 +107,10 @@ export function generateDescription(roleSelections) {
     WITCH: '女',
     HUNTER: '猎',
     GUARD: '守',
-    MAGICIAN: '术'
+    MAGICIAN: '术',
+    KNIGHT: '骑'
   };
-  const roleOrder = ['WEREWOLF', 'VILLAGER', 'SEER', 'WITCH', 'HUNTER', 'GUARD', 'MAGICIAN'];
+  const roleOrder = ['WEREWOLF', 'VILLAGER', 'SEER', 'WITCH', 'HUNTER', 'GUARD', 'MAGICIAN', 'KNIGHT'];
 
   return roleOrder
     .filter(key => (roleSelections[key] || 0) > 0)

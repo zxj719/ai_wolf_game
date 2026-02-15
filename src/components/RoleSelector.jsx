@@ -10,7 +10,8 @@ const ROLE_ICONS = {
   WITCH: '🧙',
   HUNTER: '🎯',
   GUARD: '🛡️',
-  MAGICIAN: '🎩'
+  MAGICIAN: '🎩',
+  KNIGHT: '⚔️'
 };
 
 // 单个角色选择卡片（多选类型：+/- 按钮）
