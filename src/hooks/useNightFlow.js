@@ -295,7 +295,8 @@ export function useNightFlow({
       else if (currentRoleKey === 'MAGICIAN') {
         const validSwapTargets = getValidSwapTargets(players, magicianHistory);
         logger.debug(`[魔术师AI] 开始交换决策，可交换目标：${validSwapTargets.join(',')}`);
-        logger.debug(`[魔术师AI] 已交换玩家：${magicianHistory.swappedPlayers.join(',') || '无'}，上次交换：`, magicianHistory.lastSwap);
+        const swappedList = magicianHistory?.swappedPlayers?.join(',') || '无';
+        logger.debug(`[魔术师AI] 已交换玩家：${swappedList}，上次交换：`, magicianHistory?.lastSwap);
 
         const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_MAGICIAN, {
           validSwapTargets,
@@ -341,7 +342,7 @@ export function useNightFlow({
           }
           mergeNightDecisions({ magicianSwap: null });
           // 即使不交换，也要更新lastSwap为null（表示这一晚没交换）
-          setMagicianHistory({ ...magicianHistory, lastSwap: null });
+          setMagicianHistory({ ...(magicianHistory || { swappedPlayers: [] }), lastSwap: null });
         }
       }
       else if (currentRoleKey === 'WEREWOLF') {

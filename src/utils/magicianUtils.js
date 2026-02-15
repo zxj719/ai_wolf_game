@@ -64,8 +64,11 @@ export function validateMagicianSwap(swap, magicianHistory, alivePlayers) {
     return { valid: false, reason: '交换目标必须是存活玩家' };
   }
 
+  // 防御性检查：如果 magicianHistory 未定义，使用默认值
+  const history = magicianHistory || { swappedPlayers: [], lastSwap: null };
+  const { swappedPlayers = [], lastSwap } = history;
+
   // 检查整局限制：每个号码只能被交换一次
-  const { swappedPlayers } = magicianHistory;
   if (swappedPlayers.includes(player1Id)) {
     return { valid: false, reason: `${player1Id}号已被交换过，不能再次交换` };
   }
@@ -74,7 +77,6 @@ export function validateMagicianSwap(swap, magicianHistory, alivePlayers) {
   }
 
   // 检查连续限制：不能连续两晚交换同一个人
-  const { lastSwap } = magicianHistory;
   if (lastSwap && lastSwap.player1Id !== null) {
     const lastSwappedIds = [lastSwap.player1Id, lastSwap.player2Id];
     if (lastSwappedIds.includes(player1Id) || lastSwappedIds.includes(player2Id)) {
@@ -97,17 +99,20 @@ export function validateMagicianSwap(swap, magicianHistory, alivePlayers) {
 export function updateMagicianHistory(magicianHistory, swap) {
   const { player1Id, player2Id } = swap;
 
+  // 防御性检查：如果 magicianHistory 未定义，使用默认值
+  const history = magicianHistory || { swappedPlayers: [], lastSwap: null };
+
   // 如果没有交换，只更新 lastSwap
   if (player1Id === null || player2Id === null) {
     return {
-      ...magicianHistory,
+      ...history,
       lastSwap: { player1Id: null, player2Id: null }
     };
   }
 
   // 添加到已交换列表
   const newSwappedPlayers = [
-    ...magicianHistory.swappedPlayers,
+    ...(history.swappedPlayers || []),
     player1Id,
     player2Id
   ];
@@ -125,7 +130,9 @@ export function updateMagicianHistory(magicianHistory, swap) {
  * @returns {Array} 可交换的玩家ID列表
  */
 export function getValidSwapTargets(players, magicianHistory) {
-  const { swappedPlayers, lastSwap } = magicianHistory;
+  // 防御性检查：如果 magicianHistory 未定义，使用默认值
+  const history = magicianHistory || { swappedPlayers: [], lastSwap: null };
+  const { swappedPlayers = [], lastSwap } = history;
 
   // 排除：已死亡、已被交换过、上一晚被交换的
   const excludedIds = new Set([
