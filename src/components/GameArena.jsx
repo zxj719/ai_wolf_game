@@ -21,6 +21,7 @@ export function GameArena({
   guardHistory,
   witchHistory,
   magicianHistory,
+  dreamweaverHistory,
   currentPhaseData,
   gameBackground,
   logs,
@@ -54,6 +55,7 @@ export function GameArena({
   setUserPlayer,
   witchHistorySetter,
   magicianHistorySetter,
+  dreamweaverHistorySetter,
   getPlayer,
   addLog,
   setSeerChecks,
@@ -322,6 +324,8 @@ export function GameArena({
               setWitchHistory={witchHistorySetter}
               magicianHistory={magicianHistory}
               setMagicianHistory={magicianHistorySetter}
+              dreamweaverHistory={dreamweaverHistory}
+              setDreamweaverHistory={dreamweaverHistorySetter}
               guardHistory={guardHistory}
               nightActionHistory={nightActionHistory}
               modelUsage={modelUsage}

@@ -17,7 +17,8 @@ const initialState = {
     guardTarget: null,
     lastGuardTarget: null,
     seerResult: null,
-    magicianSwap: null  // { player1Id, player2Id }
+    magicianSwap: null,  // { player1Id, player2Id }
+    dreamTarget: null    // 摄梦人入梦目标ID
   },
   seerChecks: [],
   guardHistory: [],
@@ -25,6 +26,11 @@ const initialState = {
   magicianHistory: {
     swappedPlayers: [],  // 已被交换过的玩家ID列表（整局限制）
     lastSwap: null       // 上一晚的交换对象 { player1Id, player2Id }
+  },
+  dreamweaverHistory: {
+    dreamedPlayers: [],    // 历史上被入梦过的所有玩家ID
+    lastDreamTarget: null, // 上一晚入梦的目标ID
+    currentDreamTarget: null // 当晚入梦的目标ID（夜间结算用）
   },
   speechHistory: [],
   voteHistory: [],
@@ -61,6 +67,7 @@ const types = {
   SET_GUARD_HISTORY: 'SET_GUARD_HISTORY',
   SET_WITCH_HISTORY: 'SET_WITCH_HISTORY',
   SET_MAGICIAN_HISTORY: 'SET_MAGICIAN_HISTORY',
+  SET_DREAMWEAVER_HISTORY: 'SET_DREAMWEAVER_HISTORY',
   SET_SPEECH_HISTORY: 'SET_SPEECH_HISTORY',
   SET_VOTE_HISTORY: 'SET_VOTE_HISTORY',
   SET_DEATH_HISTORY: 'SET_DEATH_HISTORY',
@@ -109,6 +116,8 @@ function reducer(state, action) {
       return { ...state, witchHistory: apply('witchHistory', action.payload) };
     case types.SET_MAGICIAN_HISTORY:
       return { ...state, magicianHistory: apply('magicianHistory', action.payload) };
+    case types.SET_DREAMWEAVER_HISTORY:
+      return { ...state, dreamweaverHistory: apply('dreamweaverHistory', action.payload) };
     case types.SET_SPEECH_HISTORY:
       return { ...state, speechHistory: apply('speechHistory', action.payload) };
     case types.SET_VOTE_HISTORY:
@@ -222,6 +231,7 @@ export function useWerewolfGame(config) {
   const setGuardHistory = (value) => dispatch({ type: types.SET_GUARD_HISTORY, payload: value });
   const setWitchHistory = (value) => dispatch({ type: types.SET_WITCH_HISTORY, payload: value });
   const setMagicianHistory = (value) => dispatch({ type: types.SET_MAGICIAN_HISTORY, payload: value });
+  const setDreamweaverHistory = (value) => dispatch({ type: types.SET_DREAMWEAVER_HISTORY, payload: value });
   const setSpeechHistory = (value) => dispatch({ type: types.SET_SPEECH_HISTORY, payload: value });
   const setVoteHistory = (value) => dispatch({ type: types.SET_VOTE_HISTORY, payload: value });
   const setDeathHistory = (value) => dispatch({ type: types.SET_DEATH_HISTORY, payload: value });
@@ -290,6 +300,7 @@ export function useWerewolfGame(config) {
     setGuardHistory([]);
     setWitchHistory({ savedIds: [], poisonedIds: [] });
     setMagicianHistory({ swappedPlayers: [], lastSwap: null });
+    setDreamweaverHistory({ dreamedPlayers: [], lastDreamTarget: null, currentDreamTarget: null });
     setSpeechHistory([]);
     setVoteHistory([]);
     setDeathHistory([]);
@@ -364,6 +375,8 @@ export function useWerewolfGame(config) {
     setGuardHistory,
     setWitchHistory,
     setMagicianHistory,
+    dreamweaverHistory: state.dreamweaverHistory,
+    setDreamweaverHistory,
     setSpeechHistory,
     setVoteHistory,
     setDeathHistory,

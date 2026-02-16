@@ -56,6 +56,7 @@ export default function App() {
     setPhase, setNightStep, setDayCount, setPlayers, setUserPlayer,
     setNightDecisions, mergeNightDecisions,
     setSeerChecks, setGuardHistory, setWitchHistory, setMagicianHistory,
+    dreamweaverHistory, setDreamweaverHistory,
     setSpeechHistory, setVoteHistory, setDeathHistory,
     setNightActionHistory,
     addCurrentPhaseSpeech, addCurrentPhaseAction, clearCurrentPhaseData,
@@ -229,6 +230,7 @@ export default function App() {
     nightDecisions, nightDecisionsRef, mergeNightDecisions,
     seerChecks, setSeerChecks, guardHistory, setGuardHistory,
     witchHistory, setWitchHistory, magicianHistory, setMagicianHistory,
+    dreamweaverHistory, setDreamweaverHistory,
     deathHistory, setDeathHistory,
     selectedTarget, setSelectedTarget, setHunterShooting,
     checkGameEnd, askAI, setIsThinking, currentNightSequence,
@@ -431,6 +433,7 @@ export default function App() {
           voteHistory={voteHistory} deathHistory={deathHistory}
           seerChecks={seerChecks} guardHistory={guardHistory}
           witchHistory={witchHistory} magicianHistory={magicianHistory}
+          dreamweaverHistory={dreamweaverHistory}
           currentPhaseData={currentPhaseData}
           gameBackground={gameBackground} logs={logs} modelUsage={modelUsage}
           selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
@@ -449,6 +452,7 @@ export default function App() {
           setPlayers={setPlayers} setUserPlayer={setUserPlayer}
           witchHistorySetter={setWitchHistory}
           magicianHistorySetter={setMagicianHistory}
+          dreamweaverHistorySetter={setDreamweaverHistory}
           getPlayer={getPlayer} addLog={addLog} setSeerChecks={setSeerChecks}
           currentNightSequence={currentNightSequence}
           ROLE_DEFINITIONS={ROLE_DEFINITIONS}

@@ -3,6 +3,7 @@ import { PROMPT_ACTIONS } from '../services/aiPrompts';
 import { logger } from '../utils/logger';
 import { TIMING } from '../config/constants';
 import { applyMagicianSwap, getValidSwapTargets, validateMagicianSwap, updateMagicianHistory } from '../utils/magicianUtils';
+import { validateDreamTarget, getValidDreamTargets, updateDreamweaverHistory, resolveDreamweaverEffects } from '../utils/dreamweaverUtils';
 
 /**
  * useNightFlow - 管理夜间阶段的所有逻辑
@@ -32,6 +33,8 @@ export function useNightFlow({
   setWitchHistory,
   magicianHistory,
   setMagicianHistory,
+  dreamweaverHistory,
+  setDreamweaverHistory,
   deathHistory,
   setDeathHistory,
   selectedTarget,
@@ -73,28 +76,59 @@ export function useNightFlow({
   const resolveNight = useCallback((decisionsOverride = null) => {
     if (!gameActiveRef.current) return;
     const decisionsData = decisionsOverride || nightDecisionsRef.current || nightDecisions;
-    const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget, magicianSwap } = decisionsData;
+    const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget, magicianSwap, dreamTarget } = decisionsData;
 
     // 应用魔术师交换重定向所有目标
     const finalWolfTarget = applyMagicianSwap(wolfTarget, magicianSwap);
     const finalWitchPoison = applyMagicianSwap(witchPoison, magicianSwap);
     const finalGuardTarget = applyMagicianSwap(guardTarget, magicianSwap);
+    // 摄梦人入梦目标也受魔术师交换影响
+    const finalDreamTarget = applyMagicianSwap(dreamTarget, magicianSwap);
 
-    logger.debug(`[resolveNight] 原始决策：`, { wolfTarget, witchPoison, guardTarget, magicianSwap });
-    logger.debug(`[resolveNight] 重定向后：`, { finalWolfTarget, finalWitchPoison, finalGuardTarget });
+    // 计算摄梦人效果
+    const dwHistory = dreamweaverHistory || { dreamedPlayers: [], lastDreamTarget: null, currentDreamTarget: null };
+    const dreamweaver = players.find(p => p.role === ROLE_DEFINITIONS.DREAMWEAVER && p.isAlive);
+
+    logger.debug(`[resolveNight] 原始决策：`, { wolfTarget, witchPoison, guardTarget, magicianSwap, dreamTarget });
+    logger.debug(`[resolveNight] 重定向后：`, { finalWolfTarget, finalWitchPoison, finalGuardTarget, finalDreamTarget });
 
     let deadIds = [];
     let poisonedIds = [];
     let deathReasons = {};
 
+    // === 摄梦人连梦必死判定（优先级最高） ===
+    let dreamConsecutiveKill = null;
+    if (finalDreamTarget !== null && finalDreamTarget !== undefined && dreamweaver) {
+      const isConsecutive = dwHistory.lastDreamTarget !== null && finalDreamTarget === dwHistory.lastDreamTarget;
+      if (isConsecutive) {
+        dreamConsecutiveKill = finalDreamTarget;
+        logger.debug(`[resolveNight] 摄梦人连梦击杀！目标：${finalDreamTarget}号（连续两晚入梦）`);
+        addLog(`[${finalDreamTarget}号] 被摄梦人连续入梦，梦境崩塌死亡！`, 'danger');
+        deadIds.push(finalDreamTarget);
+        deathReasons[finalDreamTarget] = '连梦致死（摄梦人）';
+      }
+    }
+
+    // === 计算摄梦人免疫效果（非连梦情况下） ===
+    const isDreamImmune = (targetId) => {
+      if (!dreamweaver || finalDreamTarget === null || finalDreamTarget === undefined) return false;
+      if (dreamConsecutiveKill !== null) return false; // 连梦时不提供免疫
+      return targetId === finalDreamTarget;
+    };
+
     // 处理狼人袭击（使用重定向后的目标）
     if (finalWolfTarget !== null && !wolfSkipKill) {
       const isGuarded = finalGuardTarget === finalWolfTarget;
       const isBothGuardedAndSaved = isGuarded && witchSave;
+      const isDreamed = isDreamImmune(finalWolfTarget);
 
-      logger.debug(`[resolveNight] 狼刀${finalWolfTarget}号（原${wolfTarget}），守卫守${finalGuardTarget}号，女巫救=${witchSave}，守护=${isGuarded}，同守同救=${isBothGuardedAndSaved}`);
+      logger.debug(`[resolveNight] 狼刀${finalWolfTarget}号（原${wolfTarget}），守卫守${finalGuardTarget}号，女巫救=${witchSave}，守护=${isGuarded}，同守同救=${isBothGuardedAndSaved}，入梦免疫=${isDreamed}`);
 
-      if (isBothGuardedAndSaved) {
+      if (isDreamed) {
+        // 摄梦人入梦免疫狼刀
+        logger.debug(`[resolveNight] ${finalWolfTarget}号被摄梦人入梦，免疫狼刀！`);
+        updateActionResult(dayCount, '袭击', null, 'failed', '梦境免疫');
+      } else if (isBothGuardedAndSaved) {
         deadIds.push(finalWolfTarget);
         deathReasons[finalWolfTarget] = '同守同救';
         addLog(`[${finalWolfTarget}号] 触发同守同救规则！`, 'warning');
@@ -114,11 +148,29 @@ export function useNightFlow({
 
     // 处理毒药（使用重定向后的目标）
     if (finalWitchPoison !== null) {
-      if (!deadIds.includes(finalWitchPoison)) {
-        deadIds.push(finalWitchPoison);
+      const poisonDreamed = isDreamImmune(finalWitchPoison);
+      if (poisonDreamed) {
+        // 摄梦人入梦免疫毒药
+        logger.debug(`[resolveNight] ${finalWitchPoison}号被摄梦人入梦，免疫毒药！`);
+      } else {
+        if (!deadIds.includes(finalWitchPoison)) {
+          deadIds.push(finalWitchPoison);
+        }
+        poisonedIds.push(finalWitchPoison);
+        deathReasons[finalWitchPoison] = '被女巫毒死';
       }
-      poisonedIds.push(finalWitchPoison);
-      deathReasons[finalWitchPoison] = '被女巫毒死';
+    }
+
+    // === 摄梦人同生共死判定 ===
+    // 检查摄梦人是否在本轮死亡
+    if (dreamweaver && finalDreamTarget !== null && finalDreamTarget !== undefined && dreamConsecutiveKill === null) {
+      const dreamweaverDead = deadIds.includes(dreamweaver.id);
+      if (dreamweaverDead && !deadIds.includes(finalDreamTarget)) {
+        logger.debug(`[resolveNight] 摄梦人${dreamweaver.id}号死亡，触发同生共死！${finalDreamTarget}号也将死亡`);
+        addLog(`[${finalDreamTarget}号] 与摄梦人同生共死，一同出局！`, 'danger');
+        deadIds.push(finalDreamTarget);
+        deathReasons[finalDreamTarget] = '同生共死（摄梦人）';
+      }
     }
 
     const uniqueDeads = [...new Set(deadIds)];
@@ -160,7 +212,8 @@ export function useNightFlow({
       witchSave: false,
       witchPoison: null,
       guardTarget: null,
-      seerResult: null
+      seerResult: null,
+      dreamTarget: null
     });
 
     // 检查游戏是否结束
@@ -343,6 +396,62 @@ export function useNightFlow({
           mergeNightDecisions({ magicianSwap: null });
           // 即使不交换，也要更新lastSwap为null（表示这一晚没交换）
           setMagicianHistory({ ...(magicianHistory || { swappedPlayers: [] }), lastSwap: null });
+        }
+      }
+      else if (currentRoleKey === 'DREAMWEAVER') {
+        const dwTargets = getValidDreamTargets(players, actor.id);
+        const dwHistory = dreamweaverHistory || { dreamedPlayers: [], lastDreamTarget: null, currentDreamTarget: null };
+        logger.debug(`[摄梦人AI] 开始入梦决策，可选目标：${dwTargets.join(',')}，上晚入梦：${dwHistory.lastDreamTarget}`);
+
+        const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_DREAMWEAVER, {
+          dreamHistory: dwHistory,
+          lastDreamTarget: dwHistory.lastDreamTarget,
+          aliveTargets: dwTargets
+        });
+        logger.debug(`[摄梦人AI] AI返回结果：`, res);
+
+        if (res && res.dreamTarget !== null && res.dreamTarget !== undefined) {
+          const validation = validateDreamTarget(res.dreamTarget, actor.id, players);
+          if (validation.valid) {
+            logger.debug(`[摄梦人AI] 入梦目标：${res.dreamTarget}号，模式：${res.dreamMode}，连梦：${res.isConsecutiveDream}`);
+            if (gameMode === 'ai-only') {
+              const modeText = res.dreamMode === 'defense' ? '防御' : res.dreamMode === 'offense' ? '进攻' : '殉情';
+              addLog(`[${actor.id}号] 摄梦人入梦 ${res.dreamTarget}号（${modeText}模式）`, 'system');
+            }
+            addCurrentPhaseAction({
+              playerId: actor.id,
+              type: '入梦',
+              target: res.dreamTarget,
+              night: dayCount,
+              thought: res.thought,
+              description: `入梦 ${res.dreamTarget}号（${res.dreamReason || ''})`,
+              timestamp: Date.now()
+            });
+            mergeNightDecisions({ dreamTarget: res.dreamTarget });
+            const newHistory = updateDreamweaverHistory(dwHistory, res.dreamTarget);
+            setDreamweaverHistory(newHistory);
+          } else {
+            logger.debug(`[摄梦人AI] 入梦无效：${validation.reason}，随机选择`);
+            const fallback = dwTargets[Math.floor(Math.random() * dwTargets.length)];
+            if (fallback !== undefined) {
+              mergeNightDecisions({ dreamTarget: fallback });
+              setDreamweaverHistory(updateDreamweaverHistory(dwHistory, fallback));
+              if (gameMode === 'ai-only') {
+                addLog(`[${actor.id}号] 摄梦人入梦 ${fallback}号（备选）`, 'system');
+              }
+            }
+          }
+        } else {
+          // AI未返回有效目标，随机选择（摄梦人每晚必须入梦）
+          logger.debug(`[摄梦人AI] 未返回有效目标，强制随机入梦`);
+          const fallback = dwTargets[Math.floor(Math.random() * dwTargets.length)];
+          if (fallback !== undefined) {
+            mergeNightDecisions({ dreamTarget: fallback });
+            setDreamweaverHistory(updateDreamweaverHistory(dwHistory, fallback));
+            if (gameMode === 'ai-only') {
+              addLog(`[${actor.id}号] 摄梦人入梦 ${fallback}号（随机）`, 'system');
+            }
+          }
         }
       }
       else if (currentRoleKey === 'WEREWOLF') {

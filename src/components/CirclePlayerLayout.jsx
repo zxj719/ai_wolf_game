@@ -49,6 +49,8 @@ export function CirclePlayerLayout({
   setWitchHistory,
   magicianHistory,
   setMagicianHistory,
+  dreamweaverHistory,
+  setDreamweaverHistory,
   guardHistory = [],
   nightActionHistory = [],
   modelUsage = null,
@@ -671,6 +673,46 @@ export function CirclePlayerLayout({
                         不交换
                       </button>
                     </div>
+                  </div>
+                ) : userPlayer?.role === ROLE_DEFINITIONS.DREAMWEAVER ? (
+                  <div className="text-left bg-zinc-800/50 p-2 rounded-lg text-[10px] space-y-2">
+                    <p className="text-zinc-400 text-center">选择一名玩家入梦（每晚必须）</p>
+                    {dreamweaverHistory?.lastDreamTarget !== null && (
+                      <p className="text-amber-400 text-[9px] text-center flex items-center justify-center gap-1">
+                        <AlertTriangle size={9}/>
+                        上晚入梦了{dreamweaverHistory.lastDreamTarget}号
+                        {selectedTarget === dreamweaverHistory.lastDreamTarget && (
+                          <span className="text-rose-400 font-bold ml-1">连梦将击杀TA!</span>
+                        )}
+                      </p>
+                    )}
+                    <button
+                      disabled={selectedTarget === null || selectedTarget === userPlayer?.id}
+                      onClick={() => {
+                        const updatedDecisions = { ...nightDecisions, dreamTarget: selectedTarget };
+                        mergeNightDecisions({ dreamTarget: selectedTarget });
+                        const newHistory = {
+                          dreamedPlayers: [...(dreamweaverHistory?.dreamedPlayers || []),
+                            ...(dreamweaverHistory?.dreamedPlayers?.includes(selectedTarget) ? [] : [selectedTarget])],
+                          lastDreamTarget: selectedTarget,
+                          currentDreamTarget: selectedTarget
+                        };
+                        setDreamweaverHistory(newHistory);
+                        addLog(`你入梦了 ${selectedTarget}号`, 'info');
+                        proceedNight(updatedDecisions);
+                      }}
+                      className={`w-full px-2 py-1.5 rounded font-bold hover:opacity-90 transition-all ${
+                        selectedTarget !== null && selectedTarget === dreamweaverHistory?.lastDreamTarget
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-indigo-600 text-white'
+                      } disabled:bg-zinc-700 disabled:text-zinc-500`}
+                    >
+                      {selectedTarget !== null
+                        ? (selectedTarget === dreamweaverHistory?.lastDreamTarget
+                          ? `连梦击杀 ${selectedTarget}号`
+                          : `入梦 ${selectedTarget}号`)
+                        : '请选择目标'}
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-1">

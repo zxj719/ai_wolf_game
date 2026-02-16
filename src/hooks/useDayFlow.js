@@ -54,6 +54,7 @@ export function useDayFlow({
       witchPoison: null,
       guardTarget: null,
       seerResult: null,
+      dreamTarget: null,
       // 保留 lastGuardTarget，它在 resolveNight 中已被正确设置
     });
     setDayCount(dayCount + 1);

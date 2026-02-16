@@ -19,6 +19,7 @@ export const PROMPT_ACTIONS = {
     NIGHT_WOLF: 'NIGHT_WOLF',
     NIGHT_SEER: 'NIGHT_SEER',
     NIGHT_WITCH: 'NIGHT_WITCH',
+    NIGHT_DREAMWEAVER: 'NIGHT_DREAMWEAVER',
     HUNTER_SHOOT: 'HUNTER_SHOOT',
     SUMMARIZE_CONTENT: 'SUMMARIZE_CONTENT'
 };
@@ -1205,6 +1206,56 @@ ${nightCot}
 - 风险评估：毒错好人会导致阵营崩盘
 - 临界决策：在危急时刻，保守会导致失败，必须果断出手
 输出:{"useSave":true/false,"usePoison":数字或null,"reasoning":"决策理由(必须包含你的推断：当前大概还剩X好人Y狼人)"}`;
+
+        case PROMPT_ACTIONS.NIGHT_DREAMWEAVER: {
+             const { dreamHistory, lastDreamTarget: dwLastTarget, aliveTargets: dwAliveTargets } = params;
+             const dwExistingRoles = detectExistingRoles(players);
+
+             // 构建入梦历史提示
+             const dwHistoryText = dreamHistory?.dreamedPlayers?.length > 0
+                 ? `已被你入梦过的玩家：${dreamHistory.dreamedPlayers.join(',')}号`
+                 : '无人被入梦过';
+             const dwWarning = dwLastTarget !== null
+                 ? `\n⚠️【连梦警告】你昨晚入梦了 ${dwLastTarget}号！如果今晚再次入梦TA，TA将直接死亡（无法被救）！`
+                 : '';
+
+             // 根据有无特定角色调整策略提示
+             const dwStrategyHints = [];
+             if (dwExistingRoles.hasSeer) {
+                 dwStrategyHints.push('- 防御模式：可入梦真预言家，但绝不能连续两晚入梦同一人');
+             }
+             if (dwExistingRoles.hasWitch) {
+                 dwStrategyHints.push('- 避免入梦女巫：你死时会连带女巫出局，损失过大');
+             }
+             if (dwExistingRoles.hasHunter) {
+                 dwStrategyHints.push('- 避免入梦猎人：你死时连带猎人，无法开枪');
+             }
+             dwStrategyHints.push('- 进攻模式：对高度怀疑的狼人进行"连梦击杀"（确信度≥75%）');
+             dwStrategyHints.push('- 殉情模式：预感自己会死时，入梦铁狼，同归于尽');
+
+             return `摄梦人入梦决策。
+${dwWarning}
+【入梦历史】${dwHistoryText}
+【上一晚入梦】${dwLastTarget !== null ? `${dwLastTarget}号` : '无'}
+【可入梦目标】${dwAliveTargets?.join(',') || '无'}号（不能入梦自己）
+
+【核心机制提醒】
+✦ 免疫效果：被入梦者当晚免疫狼刀和毒药
+✦ 连梦必死：连续两晚入梦同一人 → 该人直接死亡（无法被救）
+✦ 同生共死：你若死亡，被入梦者也一同出局
+
+【策略提示】
+${dwStrategyHints.join('\n')}
+${nightCot}
+【思维链】
+Step1: 场上谁是核心好人？谁是狼头？
+Step2: 我昨晚梦了谁？今晚是否需要换目标？
+Step3: 狼人今晚会刀我吗？我是否暴露？
+Step4: 选择决策模式：防御/进攻/殉情
+Step5: 确定入梦目标
+
+输出JSON:{"dreamTarget":数字(必选，不能为null不能为自己),"dreamMode":"defense/offense/sacrifice","dreamReason":"入梦理由(20-40字)","isConsecutiveDream":true/false,"confidence":0-100,"thought":"思考过程"}`;
+        }
 
         case PROMPT_ACTIONS.DAY_VOTE:
              const { validTargets: voteTargets, seerConstraint, lastVoteIntention } = params;
