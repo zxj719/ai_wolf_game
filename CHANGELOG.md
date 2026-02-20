@@ -2,6 +2,30 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-02-18] 实时行情系统（简单版）
+
+### 新功能
+- **实时行情页面**：在"站点入口"中新增"实时行情"入口卡片
+  - WebSocket 连接 infoway.io，支持股票/加密货币/外汇期货三类市场
+  - 自定义自选列表，按 market 分类存储在 sessionStorage
+  - 实时价格显示 + SVG Sparkline 折线图（纯前端，无第三方图表库）
+  - 连接状态指示器（实时/连接中/已断开/错误）
+  - 内置调试面板，可查看 WebSocket 原始消息（首次联调使用）
+  - 自动重连（4s 延迟）+ 心跳保活（25s ping）
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/config/stockConfig.js` | 新建 | API Key、WebSocket 端点、默认自选列表 |
+| `src/components/Stock/useStockWS.js` | 新建 | WebSocket Hook，灵活解析多种响应格式 |
+| `src/components/Stock/StockPage.jsx` | 新建 | 行情主页面（搜索、卡片网格、调试面板） |
+| `src/components/SitesPage.jsx` | 修改 | 添加"实时行情"入口卡片，内嵌子视图切换 |
+
+### 技术细节
+- 单 WebSocket 连接多路复用，避免频繁建立连接
+- `parseTickerItem()` 同时兼容 3 种常见字段格式，首次运行后可根据控制台日志微调
+- `SitesPage` 用内部 `view` state 切换子视图，不修改主路由体系
+
 ## [2026-02-15] 魔术师角色完整实现
 
 ### 新功能

@@ -1,6 +1,13 @@
-﻿import { Globe, ExternalLink, ChevronLeft } from 'lucide-react';
+﻿import { Globe, ExternalLink, ChevronLeft, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { StockPage } from './Stock/StockPage';
 
 export function SitesPage({ onBack }) {
+  const [view, setView] = useState('sites'); // 'sites' | 'stock'
+
+  if (view === 'stock') {
+    return <StockPage onBack={() => setView('sites')} />;
+  }
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-40">
@@ -62,12 +69,26 @@ export function SitesPage({ onBack }) {
             </div>
           </div>
 
-          <div className="p-6 bg-zinc-900/50 border border-zinc-800/50 rounded-2xl text-left">
-            <div className="w-12 h-12 bg-zinc-800 rounded-xl mb-4" />
-            <h3 className="text-white font-medium mb-2">更多入口</h3>
-            <p className="text-zinc-500 text-sm">
-              未来会在这里添加更多内容入口，如作品集、资料库、活动页面等。
-            </p>
+          <div className="group relative bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700 rounded-2xl overflow-hidden hover:border-amber-600/50 transition-all duration-300 cursor-pointer" onClick={() => setView('stock')}>
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <TrendingUp size={28} className="text-white" />
+                </div>
+                <span className="px-3 py-1 bg-amber-600/20 border border-amber-600/50 text-amber-400 text-xs rounded-full">
+                  实时数据
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">实时行情</h2>
+              <p className="text-zinc-400 text-sm mb-4 leading-relaxed">
+                美股、港股、A股、加密货币实时行情，WebSocket 推送，自定义自选列表。
+              </p>
+              <button className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-600/30">
+                进入行情
+                <TrendingUp size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </main>
