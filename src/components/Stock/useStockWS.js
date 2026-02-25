@@ -104,18 +104,44 @@ export function useStockWS(symbols, market = 'stock') {
       // 调试面板（保留最近 5 条）
       setRawMessages(prev => [JSON.stringify(data, null, 2), ...prev].slice(0, 5));
 
-      // 有 code 字段 = 控制消息（订阅确认 / 心跳回包 / 鉴权结果），直接忽略数据处理
+      // 数据推送：code 10002 (成交) / 10008 (K线)，实际数据在 data.data 里
+      // 其余 code（200 鉴权、10001/10007 订阅确认、10010 心跳）为控制消息，跳过
       if (data.code !== undefined) {
+        const payload = data.data; // 实际行情数据
+
+        if (data.code === WS_CODES.TRADE_PUSH && payload?.s) {
+          // 成交明细推送
+          const tick = parseTradePush(payload);
+          if (tick) {
+            setQuotes(prev => {
+              const existing = prev[tick.symbol] ?? { priceHistory: [] };
+              const priceHistory = [...existing.priceHistory, tick.price].slice(-MAX_PRICE_HISTORY);
+              return { ...prev, [tick.symbol]: { ...existing, price: tick.price, priceHistory, updatedAt: Date.now() } };
+            });
+          }
+          return;
+        }
+
+        if (data.code === WS_CODES.CANDLE_PUSH && payload?.s) {
+          // K 线推送
+          const ticker = parseCandlePush(payload);
+          if (ticker) {
+            setQuotes(prev => {
+              const existing = prev[ticker.symbol] ?? { priceHistory: [] };
+              const priceHistory = [...existing.priceHistory, ticker.price].slice(-MAX_PRICE_HISTORY);
+              return { ...prev, [ticker.symbol]: { ...existing, ...ticker, priceHistory, updatedAt: Date.now() } };
+            });
+          }
+          return;
+        }
+
         if (data.code === 200) {
-          console.log('[Stock WS] ✓ 鉴权成功，API Key 有效');
-        } else {
-          console.log('[Stock WS] 控制消息 code:', data.code);
+          console.log('[Stock WS] ✓ 鉴权成功');
         }
         return;
       }
 
-      console.log('[Stock WS] 数据推送:', data);
-
+      // 无 code 字段的旧格式（兼容）
       // K 线推送：有 respList 字段
       if (data.s && Array.isArray(data.respList)) {
         const ticker = parseCandlePush(data);
@@ -128,7 +154,7 @@ export function useStockWS(symbols, market = 'stock') {
         return;
       }
 
-      // 成交明细推送：有 p 字段（价格）+ td 字段（方向）
+      // 成交明细推送：有 p 字段
       if (data.s && data.p !== undefined) {
         const tick = parseTradePush(data);
         if (!tick) return;
