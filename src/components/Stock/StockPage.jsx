@@ -4,6 +4,7 @@ import {
   Wifi, WifiOff, Loader2, Plus, X, ChevronDown, Clock,
 } from 'lucide-react';
 import { useStockWS } from './useStockWS';
+import { StockDetail } from './StockDetail';
 import { DEFAULT_WATCHLIST, MARKETS } from '../../config/stockConfig';
 
 /**
@@ -75,7 +76,7 @@ function fmtMoney(val) {
 }
 
 // 单只 A 股行情卡片
-function StockCard({ symbol, name, quote, onRemove, marketStatus }) {
+function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick }) {
   const changePct = quote?.changePct ?? 0;
   const isUp = changePct >= 0;
   const isFlat = changePct === 0;
@@ -85,10 +86,10 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus }) {
   // A 股：涨为红，跌为绿（国内习惯）
 
   return (
-    <div className="group relative bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition-all">
+    <div className="group relative bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition-all cursor-pointer" onClick={onClick}>
       {/* 移除按钮 */}
       <button
-        onClick={() => onRemove(symbol)}
+        onClick={(e) => { e.stopPropagation(); onRemove(symbol); }}
         className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-zinc-600 hover:text-red-400 transition-all"
         title="移除"
       >
@@ -149,7 +150,9 @@ export function StockPage({ onBack }) {
   const [market, setMarket] = useState('stock');
   const [watchlist, setWatchlist] = useState(() => {
     try {
-      const saved = sessionStorage.getItem('stock_watchlist');
+      // 优先读 localStorage，兼容旧 sessionStorage 数据
+      const saved = localStorage.getItem('stock_watchlist')
+        || sessionStorage.getItem('stock_watchlist');
       return saved ? JSON.parse(saved) : DEFAULT_WATCHLIST;
     } catch {
       return DEFAULT_WATCHLIST;
@@ -158,6 +161,7 @@ export function StockPage({ onBack }) {
   const [searchInput, setSearchInput] = useState('');
   const [showDebug, setShowDebug] = useState(false);
   const [showMarketMenu, setShowMarketMenu] = useState(false);
+  const [detailStock, setDetailStock] = useState(null); // { symbol, name }
 
   const currentList = watchlist[market] ?? [];
   const symbols = useMemo(() => currentList.map(s => s.symbol), [currentList]);
@@ -168,7 +172,7 @@ export function StockPage({ onBack }) {
 
   const saveWatchlist = (next) => {
     setWatchlist(next);
-    try { sessionStorage.setItem('stock_watchlist', JSON.stringify(next)); } catch {}
+    try { localStorage.setItem('stock_watchlist', JSON.stringify(next)); } catch {}
   };
 
   const addSymbol = () => {
@@ -184,6 +188,18 @@ export function StockPage({ onBack }) {
   };
 
   const currentMarketLabel = MARKETS.find(m => m.value === market)?.label ?? market;
+
+  // 个股详情页
+  if (detailStock) {
+    return (
+      <StockDetail
+        symbol={detailStock.symbol}
+        name={detailStock.name}
+        market={market}
+        onBack={() => setDetailStock(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -291,6 +307,7 @@ export function StockPage({ onBack }) {
                 quote={quotes[symbol]}
                 onRemove={removeSymbol}
                 marketStatus={marketStatus}
+                onClick={() => setDetailStock({ symbol, name })}
               />
             ))}
           </div>

@@ -2,6 +2,7 @@
 export const INFOWAY_CONFIG = {
   apiKey: 'c2c3f1594d41409e9e1a198b3e494d47-infoway',
   wsBase: 'wss://data.infoway.io/ws',
+  restBase: 'https://data.infoway.io',
 };
 
 // WebSocket 协议码（infoway.io 私有协议，来源：官方 Python 示例）
@@ -16,7 +17,7 @@ export const WS_CODES = {
   HEARTBEAT:  10010,   // 心跳
 };
 
-// K线类型
+// K线类型（WebSocket 订阅用）
 export const CANDLE_TYPES = {
   MIN1: 1,
   MIN5: 2,
@@ -27,6 +28,29 @@ export const CANDLE_TYPES = {
   WEEK: 7,
   MONTH: 8,
 };
+
+// REST API K线类型（POST /stock/v2/batch_kline 用）
+export const REST_KLINE_TYPES = {
+  MIN1:  1,
+  MIN5:  2,
+  MIN15: 3,
+  MIN30: 4,
+  MIN60: 5,
+  DAY:   8,
+  WEEK:  9,
+  MONTH: 10,
+};
+
+// K线周期选项（UI 下拉用）
+export const KLINE_PERIODS = [
+  { label: '1分', value: 'MIN1' },
+  { label: '5分', value: 'MIN5' },
+  { label: '15分', value: 'MIN15' },
+  { label: '60分', value: 'MIN60' },
+  { label: '日K', value: 'DAY' },
+  { label: '周K', value: 'WEEK' },
+  { label: '月K', value: 'MONTH' },
+];
 
 export const MARKETS = [
   { value: 'stock', label: 'A股' },
