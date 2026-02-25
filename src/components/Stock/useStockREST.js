@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
-import { INFOWAY_CONFIG, REST_KLINE_TYPES } from '../../config/stockConfig';
+import { REST_KLINE_TYPES } from '../../config/stockConfig';
 
 /**
- * useStockREST - infoway.io REST API hook
- * 用于获取历史 K 线数据
+ * useStockREST - 股票 REST API hook
+ * 通过 /api/stock/kline 代理获取历史 K 线数据（避免 CORS）
  */
 export function useStockREST() {
   const [loading, setLoading] = useState(false);
@@ -27,12 +27,9 @@ export function useStockREST() {
     setError(null);
 
     try {
-      const resp = await fetch(`${INFOWAY_CONFIG.restBase}/stock/v2/batch_kline`, {
+      const resp = await fetch('/api/stock/kline', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apiKey': INFOWAY_CONFIG.apiKey,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           codes: symbol,
           klineType,
@@ -46,10 +43,10 @@ export function useStockREST() {
 
       const json = await resp.json();
 
-      // 响应格式: { s: "symbol", respList: [{ t, o, h, l, c, v, vw, pc, pca }] }
-      // 或者 { data: { s: ..., respList: [...] } }
-      const payload = json.data || json;
-      const list = payload?.respList || [];
+      // 响应格式: { ret: 200, data: [{ s: "symbol", respList: [...] }] }
+      const dataArr = json.data || [];
+      const entry = Array.isArray(dataArr) ? dataArr[0] : dataArr;
+      const list = entry?.respList || [];
 
       const candles = list.map(item => ({
         time:   parseInt(item.t),

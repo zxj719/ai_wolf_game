@@ -28,6 +28,16 @@ export default defineConfig({
   // 开发服务器配置
   server: {
     port: 3000,
-    open: true
+    open: true,
+    proxy: {
+      '/api/stock': {
+        target: 'https://data.infoway.io',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/stock\/kline/, '/stock/v2/batch_kline'),
+        headers: {
+          'apiKey': 'c2c3f1594d41409e9e1a198b3e494d47-infoway',
+        },
+      },
+    },
   }
 })

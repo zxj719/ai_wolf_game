@@ -2,7 +2,7 @@
  * Cloudflare Workers 认证API入口
  */
 
-import { handleCors, errorResponse, checkGlobalIPLimit } from './middleware.js';
+import { handleCors, errorResponse, checkGlobalIPLimit, getCorsHeaders } from './middleware.js';
 import {
   handleRegister,
   handleLogin,
@@ -153,6 +153,11 @@ export default {
         return handleGetAvatarsBatch(request, env);
       }
 
+      // 股票K线代理（解决 CORS）
+      if (path === '/api/stock/kline' && request.method === 'POST') {
+        return handleStockKlineProxy(request, env);
+      }
+
       // 健康检查
       if (path === '/api/health') {
         return new Response(JSON.stringify({
@@ -171,6 +176,40 @@ export default {
     }
   }
 };
+
+/**
+ * 股票K线数据代理 - 转发请求到 infoway.io（解决 CORS 限制）
+ */
+async function handleStockKlineProxy(request, env) {
+  const corsHeaders = getCorsHeaders(env, request);
+  try {
+    const body = await request.json();
+    const INFOWAY_API_KEY = env.INFOWAY_API_KEY || 'c2c3f1594d41409e9e1a198b3e494d47-infoway';
+
+    const resp = await fetch('https://data.infoway.io/stock/v2/batch_kline', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apiKey': INFOWAY_API_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await resp.text();
+    return new Response(data, {
+      status: resp.status,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+      },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+}
 
 async function serveStaticAsset(request, env) {
   if (!env.ASSETS) {
