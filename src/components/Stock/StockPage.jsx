@@ -2,24 +2,29 @@ import { useState, useMemo } from 'react';
 import {
   ChevronLeft, TrendingUp, TrendingDown,
   Wifi, WifiOff, Loader2, Plus, X, ChevronDown, Clock,
+  Search, ListPlus, Tag,
 } from 'lucide-react';
 import { useStockWS } from './useStockWS';
 import { StockDetail } from './StockDetail';
+import { StockScreener } from './StockScreener';
+import { PaperTrading } from './PaperTrading';
+import { WatchlistTags, COLOR_DOT } from './WatchlistTags';
+import { WatchlistSorter } from './WatchlistSorter';
+import { BatchAddModal } from './BatchAddModal';
+import { useWatchlistTags } from './useWatchlistTags';
 import { DEFAULT_WATCHLIST, MARKETS } from '../../config/stockConfig';
 
 /**
  * 判断 A 股当前是否处于交易时段（北京时间）
- * 上午：09:30–11:30 / 下午：13:00–15:00 / 仅周一至周五
  */
 function getAShareMarketStatus() {
-  // 转换为北京时间（UTC+8）
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
-  const day = now.getDay(); // 0=周日, 6=周六
+  const day = now.getDay();
   if (day === 0 || day === 6) return { open: false, reason: '周末休市' };
 
   const h = now.getHours();
   const m = now.getMinutes();
-  const t = h * 60 + m; // 当前分钟数
+  const t = h * 60 + m;
 
   if (t >= 9 * 60 + 30 && t < 11 * 60 + 30) return { open: true, session: '上午场' };
   if (t >= 13 * 60 && t < 15 * 60)           return { open: true, session: '下午场' };
@@ -76,14 +81,13 @@ function fmtMoney(val) {
 }
 
 // 单只 A 股行情卡片
-function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick }) {
+function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick, stockTags, onTagClick }) {
   const changePct = quote?.changePct ?? 0;
   const isUp = changePct >= 0;
   const isFlat = changePct === 0;
   const hasData = quote?.price !== undefined;
 
   const priceColor = isFlat ? 'text-zinc-300' : isUp ? 'text-red-400' : 'text-green-400';
-  // A 股：涨为红，跌为绿（国内习惯）
 
   return (
     <div className="group relative bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition-all cursor-pointer" onClick={onClick}>
@@ -95,6 +99,17 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick }) {
       >
         <X size={12} />
       </button>
+
+      {/* 标签按钮 */}
+      {onTagClick && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onTagClick(symbol); }}
+          className="absolute top-2.5 right-9 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-zinc-600 hover:text-amber-400 transition-all"
+          title="标签"
+        >
+          <Tag size={11} />
+        </button>
+      )}
 
       {/* 头部：名称 + Sparkline */}
       <div className="flex items-start justify-between mb-2">
@@ -142,6 +157,53 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick }) {
           }
         </div>
       )}
+
+      {/* 标签小点 */}
+      {stockTags?.length > 0 && (
+        <div className="flex gap-1 mt-2">
+          {stockTags.map(t => (
+            <span key={t.id} className={`w-2 h-2 rounded-full ${COLOR_DOT[t.color] || 'bg-zinc-500'}`} title={t.name} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 标签选择弹出框
+function TagPopover({ symbol, tags, stockTags, onTag, onUntag, onClose }) {
+  const currentTagIds = stockTags[symbol] || [];
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/40" />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-800 border border-zinc-700 rounded-lg p-3 min-w-[200px] shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="text-xs text-zinc-400 mb-2">选择标签：{symbol}</div>
+        {tags.length === 0 ? (
+          <div className="text-xs text-zinc-600">暂无标签，请先创建</div>
+        ) : (
+          <div className="space-y-1">
+            {tags.map(tag => {
+              const active = currentTagIds.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => active ? onUntag(symbol, tag.id) : onTag(symbol, tag.id)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded transition-colors ${
+                    active ? 'bg-amber-600/20 text-amber-400' : 'text-zinc-300 hover:bg-zinc-700'
+                  }`}
+                >
+                  <span className={`w-2.5 h-2.5 rounded-full ${COLOR_DOT[tag.color] || 'bg-zinc-500'}`} />
+                  {tag.name}
+                  {active && <span className="ml-auto text-amber-500">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <button onClick={onClose} className="mt-2 w-full text-center text-xs text-zinc-500 hover:text-zinc-300 py-1">
+          关闭
+        </button>
+      </div>
     </div>
   );
 }
@@ -150,7 +212,6 @@ export function StockPage({ onBack }) {
   const [market, setMarket] = useState('stock');
   const [watchlist, setWatchlist] = useState(() => {
     try {
-      // 优先读 localStorage，兼容旧 sessionStorage 数据
       const saved = localStorage.getItem('stock_watchlist')
         || sessionStorage.getItem('stock_watchlist');
       return saved ? JSON.parse(saved) : DEFAULT_WATCHLIST;
@@ -161,13 +222,22 @@ export function StockPage({ onBack }) {
   const [searchInput, setSearchInput] = useState('');
   const [showDebug, setShowDebug] = useState(false);
   const [showMarketMenu, setShowMarketMenu] = useState(false);
-  const [detailStock, setDetailStock] = useState(null); // { symbol, name }
+  const [detailStock, setDetailStock] = useState(null);
+  const [screenView, setScreenView] = useState(null); // 'screener' | 'trading' | null
+  const [activeTag, setActiveTag] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'default', asc: true });
+  const [showBatchAdd, setShowBatchAdd] = useState(false);
+  const [tagPopoverSymbol, setTagPopoverSymbol] = useState(null);
+
+  const {
+    tags, stockTags, TAG_COLORS,
+    createTag, deleteTag, tagStock, untagStock, getStockTags,
+  } = useWatchlistTags();
 
   const currentList = watchlist[market] ?? [];
   const symbols = useMemo(() => currentList.map(s => s.symbol), [currentList]);
   const { quotes, status, rawMessages } = useStockWS(symbols, market);
 
-  // A 股交易时段（仅在 stock 市场显示提示）
   const marketStatus = market === 'stock' ? getAShareMarketStatus() : null;
 
   const saveWatchlist = (next) => {
@@ -183,13 +253,53 @@ export function StockPage({ onBack }) {
     setSearchInput('');
   };
 
+  const addSymbols = (items) => {
+    const existing = new Set(currentList.map(s => s.symbol));
+    const newItems = items.filter(s => !existing.has(s.symbol));
+    if (newItems.length) {
+      saveWatchlist({ ...watchlist, [market]: [...currentList, ...newItems] });
+    }
+  };
+
   const removeSymbol = (sym) => {
     saveWatchlist({ ...watchlist, [market]: currentList.filter(s => s.symbol !== sym) });
   };
 
+  // 标签筛选 + 排序
+  const displayList = useMemo(() => {
+    let list = currentList;
+
+    // 按标签筛选
+    if (activeTag) {
+      const taggedSymbols = new Set(
+        Object.entries(stockTags)
+          .filter(([, ids]) => ids.includes(activeTag))
+          .map(([sym]) => sym)
+      );
+      list = list.filter(s => taggedSymbols.has(s.symbol));
+    }
+
+    // 排序
+    if (sortConfig.key !== 'default') {
+      list = [...list].sort((a, b) => {
+        let cmp = 0;
+        if (sortConfig.key === 'name') {
+          cmp = (a.name || a.symbol).localeCompare(b.name || b.symbol, 'zh-CN');
+        } else if (sortConfig.key === 'price') {
+          cmp = (quotes[a.symbol]?.price ?? 0) - (quotes[b.symbol]?.price ?? 0);
+        } else if (sortConfig.key === 'changePct') {
+          cmp = (quotes[a.symbol]?.changePct ?? 0) - (quotes[b.symbol]?.changePct ?? 0);
+        }
+        return sortConfig.asc ? cmp : -cmp;
+      });
+    }
+
+    return list;
+  }, [currentList, activeTag, stockTags, sortConfig, quotes]);
+
   const currentMarketLabel = MARKETS.find(m => m.value === market)?.label ?? market;
 
-  // 个股详情页
+  // 子页面路由
   if (detailStock) {
     return (
       <StockDetail
@@ -197,6 +307,26 @@ export function StockPage({ onBack }) {
         name={detailStock.name}
         market={market}
         onBack={() => setDetailStock(null)}
+      />
+    );
+  }
+
+  if (screenView === 'screener') {
+    return (
+      <StockScreener
+        onBack={() => setScreenView(null)}
+        onAddToWatchlist={addSymbols}
+        existingSymbols={symbols}
+      />
+    );
+  }
+
+  if (screenView === 'trading') {
+    return (
+      <PaperTrading
+        onBack={() => setScreenView(null)}
+        quotes={quotes}
+        wsStatus={status}
       />
     );
   }
@@ -217,8 +347,22 @@ export function StockPage({ onBack }) {
             <div className="h-4 w-px bg-zinc-700" />
             <span className="text-white font-semibold text-sm">📈 实时行情</span>
           </div>
-          <div className="flex items-center gap-3">
-            {/* A 股交易时段指示 */}
+          <div className="flex items-center gap-2">
+            {/* 功能入口 */}
+            <button
+              onClick={() => setScreenView('screener')}
+              className="px-2.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors flex items-center gap-1"
+            >
+              <Search size={12} />
+              筛选
+            </button>
+            <button
+              onClick={() => setScreenView('trading')}
+              className="px-2.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors flex items-center gap-1"
+            >
+              💰 模拟交易
+            </button>
+            <div className="h-4 w-px bg-zinc-700" />
             {marketStatus && (
               <span className={`text-xs flex items-center gap-1 ${
                 marketStatus.open ? 'text-green-400' : 'text-zinc-500'
@@ -240,7 +384,7 @@ export function StockPage({ onBack }) {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* 控制栏 */}
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex flex-wrap gap-3 mb-4">
           {/* 市场下拉 */}
           <div className="relative">
             <button
@@ -269,7 +413,7 @@ export function StockPage({ onBack }) {
             )}
           </div>
 
-          {/* 搜索添加（A股示例提示） */}
+          {/* 搜索添加 */}
           <div className="flex gap-2 flex-1 min-w-[220px]">
             <input
               type="text"
@@ -288,18 +432,60 @@ export function StockPage({ onBack }) {
               添加
             </button>
           </div>
+
+          {/* 批量添加 + 排序 */}
+          <button
+            onClick={() => setShowBatchAdd(true)}
+            className="px-2.5 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors flex items-center gap-1"
+          >
+            <ListPlus size={13} />
+            批量
+          </button>
+          <WatchlistSorter sortConfig={sortConfig} onSort={setSortConfig} />
         </div>
 
+        {/* 标签栏 */}
+        {tags.length > 0 && (
+          <div className="mb-4">
+            <WatchlistTags
+              tags={tags}
+              activeTag={activeTag}
+              onSelect={setActiveTag}
+              onCreate={createTag}
+              onDelete={deleteTag}
+              TAG_COLORS={TAG_COLORS}
+            />
+          </div>
+        )}
+
+        {/* 创建首个标签的提示（无标签时显示在控制栏右侧） */}
+        {tags.length === 0 && (
+          <div className="mb-4">
+            <WatchlistTags
+              tags={tags}
+              activeTag={activeTag}
+              onSelect={setActiveTag}
+              onCreate={createTag}
+              onDelete={deleteTag}
+              TAG_COLORS={TAG_COLORS}
+            />
+          </div>
+        )}
+
         {/* 股票卡片网格 */}
-        {currentList.length === 0 ? (
+        {displayList.length === 0 ? (
           <div className="text-center py-24 text-zinc-600">
             <div className="text-5xl mb-4">📊</div>
-            <div className="text-sm">暂无自选，输入股票代码添加</div>
-            <div className="text-xs mt-1 text-zinc-700">A股格式：600519.SH（沪）/ 002594.SZ（深）</div>
+            <div className="text-sm">
+              {activeTag ? '该标签下暂无股票' : '暂无自选，输入股票代码添加'}
+            </div>
+            {!activeTag && (
+              <div className="text-xs mt-1 text-zinc-700">A股格式：600519.SH（沪）/ 002594.SZ（深）</div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {currentList.map(({ symbol, name }) => (
+            {displayList.map(({ symbol, name }) => (
               <StockCard
                 key={symbol}
                 symbol={symbol}
@@ -308,6 +494,8 @@ export function StockPage({ onBack }) {
                 onRemove={removeSymbol}
                 marketStatus={marketStatus}
                 onClick={() => setDetailStock({ symbol, name })}
+                stockTags={getStockTags(symbol)}
+                onTagClick={tags.length > 0 ? setTagPopoverSymbol : undefined}
               />
             ))}
           </div>
@@ -341,6 +529,27 @@ export function StockPage({ onBack }) {
           )}
         </div>
       </main>
+
+      {/* 批量添加弹窗 */}
+      {showBatchAdd && (
+        <BatchAddModal
+          onClose={() => setShowBatchAdd(false)}
+          onAdd={addSymbols}
+          existingSymbols={symbols}
+        />
+      )}
+
+      {/* 标签选择弹出框 */}
+      {tagPopoverSymbol && (
+        <TagPopover
+          symbol={tagPopoverSymbol}
+          tags={tags}
+          stockTags={stockTags}
+          onTag={tagStock}
+          onUntag={untagStock}
+          onClose={() => setTagPopoverSymbol(null)}
+        />
+      )}
     </div>
   );
 }
