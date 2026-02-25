@@ -11,6 +11,8 @@ export const WS_CODES = {
   TRADE_ACK:  10001,   // 订阅确认
   TRADE_PUSH: 10002,   // 成交明细推送
   DEPTH_SUB:  10003,   // 订阅盘口（五档买卖）
+  DEPTH_ACK:  10004,   // 盘口订阅确认
+  DEPTH_PUSH: 10005,   // 盘口数据推送
   CANDLE_SUB: 10006,   // 订阅K线
   CANDLE_ACK: 10007,   // K线订阅确认
   CANDLE_PUSH:10008,   // K线数据推送
