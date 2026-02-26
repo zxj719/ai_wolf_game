@@ -124,21 +124,24 @@ export function ResetPasswordForm({ token, onSuccess, onBack }) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* New Password */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="reset-password" className="block text-sm font-medium text-zinc-300 mb-2">
                 新密码
               </label>
               <div className="relative">
                 <input
+                  id="reset-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors pr-12"
                   placeholder="输入新密码"
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300 transition-colors"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -169,16 +172,18 @@ export function ResetPasswordForm({ token, onSuccess, onBack }) {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-zinc-300 mb-2">
                 确认密码
               </label>
               <input
+                id="reset-confirm-password"
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 placeholder="再次输入新密码"
                 disabled={isLoading}
+                autoComplete="new-password"
               />
               {confirmPassword && !passwordsMatch && (
                 <p className="mt-2 text-xs text-red-400">密码不一致</p>

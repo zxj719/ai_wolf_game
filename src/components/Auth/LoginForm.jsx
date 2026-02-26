@@ -53,23 +53,25 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="login-email" className="block text-sm font-medium text-zinc-300 mb-2">
                 邮箱
               </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 placeholder="your@email.com"
                 disabled={isLoading}
+                autoComplete="email"
               />
             </div>
 
             {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-zinc-300">
+                <label htmlFor="login-password" className="block text-sm font-medium text-zinc-300">
                   密码
                 </label>
                 {onForgotPassword && (
@@ -84,16 +86,19 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
               </div>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors pr-12"
                   placeholder="输入密码"
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300 transition-colors"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -139,6 +144,15 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
         <div className="mt-4 text-center">
           <p className="text-zinc-500 text-sm">
             或者直接以游客身份体验游戏
+          </p>
+          <p className="text-zinc-600 text-xs mt-2">
+            继续即代表同意
+            {' '}
+            <a href="/terms.html" className="text-zinc-400 hover:text-zinc-300">用户协议</a>
+            {' '}
+            与
+            {' '}
+            <a href="/privacy.html" className="text-zinc-400 hover:text-zinc-300">隐私政策</a>
           </p>
         </div>
       </div>

@@ -77,7 +77,7 @@ export function AuthPage({ onGuestPlay }) {
   };
 
   return (
-    <div className="relative">
+    <main className="relative" aria-label="账号登录与注册页面">
       {renderView()}
 
       {/* Guest Play Button - Fixed at bottom (only show on login/register) */}
@@ -85,12 +85,13 @@ export function AuthPage({ onGuestPlay }) {
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2">
           <button
             onClick={onGuestPlay}
+            aria-label="以游客身份体验"
             className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg border border-zinc-700 transition-colors"
           >
             游客模式体验
           </button>
         </div>
       )}
-    </div>
+    </main>
   );
 }

@@ -73,16 +73,18 @@ export function ForgotPasswordForm({ onBack }) {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="forgot-email" className="block text-sm font-medium text-zinc-300 mb-2">
                 邮箱地址
               </label>
               <input
+                id="forgot-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 placeholder="your@email.com"
                 disabled={isLoading}
+                autoComplete="email"
               />
             </div>
 

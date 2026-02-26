@@ -88,10 +88,11 @@ export function RegisterForm({ onSwitchToLogin }) {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Username */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="register-username" className="block text-sm font-medium text-zinc-300 mb-2">
                 用户名
               </label>
               <input
+                id="register-username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -102,6 +103,7 @@ export function RegisterForm({ onSwitchToLogin }) {
                 }`}
                 placeholder="3-20个字符，字母、数字、下划线"
                 disabled={isLoading}
+                autoComplete="username"
               />
               {username && !isUsernameValid && (
                 <p className="mt-1 text-sm text-red-400">
@@ -112,36 +114,41 @@ export function RegisterForm({ onSwitchToLogin }) {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="register-email" className="block text-sm font-medium text-zinc-300 mb-2">
                 邮箱
               </label>
               <input
+                id="register-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 placeholder="your@email.com"
                 disabled={isLoading}
+                autoComplete="email"
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="register-password" className="block text-sm font-medium text-zinc-300 mb-2">
                 密码
               </label>
               <div className="relative">
                 <input
+                  id="register-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors pr-12"
                   placeholder="创建密码"
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300 transition-colors"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -161,10 +168,11 @@ export function RegisterForm({ onSwitchToLogin }) {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
+              <label htmlFor="register-confirm-password" className="block text-sm font-medium text-zinc-300 mb-2">
                 确认密码
               </label>
               <input
+                id="register-confirm-password"
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -175,6 +183,7 @@ export function RegisterForm({ onSwitchToLogin }) {
                 }`}
                 placeholder="再次输入密码"
                 disabled={isLoading}
+                autoComplete="new-password"
               />
               {confirmPassword && password !== confirmPassword && (
                 <p className="mt-1 text-sm text-red-400">密码不一致</p>
@@ -211,6 +220,15 @@ export function RegisterForm({ onSwitchToLogin }) {
               >
                 立即登录
               </button>
+            </p>
+            <p className="text-zinc-600 text-xs mt-3">
+              注册即代表同意
+              {' '}
+              <a href="/terms.html" className="text-zinc-400 hover:text-zinc-300">用户协议</a>
+              {' '}
+              与
+              {' '}
+              <a href="/privacy.html" className="text-zinc-400 hover:text-zinc-300">隐私政策</a>
             </p>
           </div>
         </div>

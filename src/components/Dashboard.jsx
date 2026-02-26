@@ -18,7 +18,8 @@ import {
   Globe,
   LogIn,
   MessageSquare,
-  Send
+  Send,
+  BookOpen
 } from 'lucide-react';
 
 /**
@@ -116,6 +117,7 @@ export function Dashboard({
               <>
                 <button
                   onClick={() => setShowStats(true)}
+                  aria-label="查看我的战绩"
                   className="p-2 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 rounded-lg transition-colors"
                   title="查看战绩"
                 >
@@ -123,6 +125,7 @@ export function Dashboard({
                 </button>
                 <button
                   onClick={() => setShowTokenManager(true)}
+                  aria-label="管理 ModelScope 令牌"
                   className={`p-2 rounded-lg transition-colors ${
                     tokenStatus.hasToken
                       ? 'text-green-400 hover:bg-green-900/30'
@@ -134,6 +137,7 @@ export function Dashboard({
                 </button>
                 <button
                   onClick={onLogout}
+                  aria-label="退出登录"
                   className="p-2 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors"
                   title="登出"
                 >
@@ -143,6 +147,7 @@ export function Dashboard({
             ) : (
               <button
                 onClick={onLogin}
+                aria-label="前往登录"
                 className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded-lg transition-colors"
                 title="登录"
               >
@@ -160,6 +165,32 @@ export function Dashboard({
           <h1 className="text-3xl font-bold text-white mb-2">我的空间</h1>
           <p className="text-zinc-400">选择你想进入的内容</p>
         </div>
+
+        <section className="mb-8 bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-amber-500/15 rounded-lg flex items-center justify-center">
+              <BookOpen size={20} className="text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-100">新手快速上手</h2>
+              <p className="text-zinc-400 text-sm">3 步完成首局狼人杀 AI 对战</p>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-4">
+              <p className="text-zinc-300 text-sm font-medium mb-1">1. 进入 AI 狼人杀</p>
+              <p className="text-zinc-500 text-xs">先从游客模式体验，或登录后保存战绩。</p>
+            </div>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-4">
+              <p className="text-zinc-300 text-sm font-medium mb-1">2. 选择角色与胜利规则</p>
+              <p className="text-zinc-500 text-xs">在设置页按提示配置阵容，再开始对局。</p>
+            </div>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-4">
+              <p className="text-zinc-300 text-sm font-medium mb-1">3. 发言投票并复盘</p>
+              <p className="text-zinc-500 text-xs">对局结束后查看战绩和模型表现。</p>
+            </div>
+          </div>
+        </section>
 
         {/* 功能卡片网格 */}
         <div className="grid md:grid-cols-2 gap-6">
@@ -213,7 +244,7 @@ export function Dashboard({
                     : 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                 }`}
               >
-                {canPlayGame ? '进入游戏' : '需要配置令牌'}
+                {canPlayGame ? '立即开始首局' : '需要配置令牌'}
                 <ChevronRight size={18} />
               </button>
             </div>
@@ -388,6 +419,15 @@ export function Dashboard({
           }}
         />
       )}
+
+      <footer className="border-t border-zinc-800 mt-8 py-6 px-4">
+        <div className="max-w-5xl mx-auto flex flex-wrap items-center gap-4 text-sm text-zinc-500">
+          <a href="/about.html" className="hover:text-zinc-300 transition-colors">关于我们</a>
+          <a href="/privacy.html" className="hover:text-zinc-300 transition-colors">隐私政策</a>
+          <a href="/terms.html" className="hover:text-zinc-300 transition-colors">用户协议</a>
+          <span className="ml-auto">© {new Date().getFullYear()} Werewolf Pro</span>
+        </div>
+      </footer>
     </div>
   );
 }

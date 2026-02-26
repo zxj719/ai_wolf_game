@@ -1,16 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { logger } from './utils/logger';
 import { useWerewolfGame } from './useWerewolfGame';
-import { SetupScreen } from './components/SetupScreen';
-import { GameArena } from './components/GameArena';
-import { AuthPage } from './components/Auth';
-import { Dashboard } from './components/Dashboard';
-import { SitesPage } from './components/SitesPage';
 import { useAuth } from './contexts/AuthContext';
-import { TokenManager } from './components/TokenManager';
 import { saveGameRecord } from './services/gameService';
 import { authService } from './services/authService';
-import { UserStats } from './components/UserStats';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS, DEFAULT_CUSTOM_SELECTIONS, DEFAULT_VICTORY_MODE } from './config/roles';
 import { API_KEY, API_URL } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
@@ -24,6 +17,43 @@ import { checkGameEnd as checkGameEndUtil, getPlayer as getPlayerUtil, isUserTur
 import { exportGameLog as exportGameLogUtil } from './utils/exportGameLog';
 
 const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
+const SITE_BASE_URL = 'https://zhaxiaoji.com';
+
+const SetupScreen = lazy(() =>
+  import('./components/SetupScreen').then((module) => ({ default: module.SetupScreen }))
+);
+const GameArena = lazy(() =>
+  import('./components/GameArena').then((module) => ({ default: module.GameArena }))
+);
+const AuthPage = lazy(() =>
+  import('./components/Auth').then((module) => ({ default: module.AuthPage }))
+);
+const Dashboard = lazy(() =>
+  import('./components/Dashboard').then((module) => ({ default: module.Dashboard }))
+);
+const SitesPage = lazy(() =>
+  import('./components/SitesPage').then((module) => ({ default: module.SitesPage }))
+);
+const TokenManager = lazy(() =>
+  import('./components/TokenManager').then((module) => ({ default: module.TokenManager }))
+);
+const UserStats = lazy(() =>
+  import('./components/UserStats').then((module) => ({ default: module.UserStats }))
+);
+
+function FullPageLoader() {
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="text-zinc-400">加载中...</div>
+    </div>
+  );
+}
+
+function InlineLoader({ text = '加载中...' }) {
+  return (
+    <div className="w-full py-14 text-center text-zinc-500">{text}</div>
+  );
+}
 
 export default function App() {
   const { user, loading: authLoading, logout, modelscopeToken, tokenStatus, verifyModelscopeToken } = useAuth();
@@ -114,6 +144,68 @@ export default function App() {
   const {
     navigate, isHomeRoute, isCustomRoute, isPlayRoute, isSitesRoute, isAuthed,
   } = useAppRouter({ user, isGuestMode, isGameActive, endGame, gameMode, phase });
+
+  // --- Route meta for SPA SEO ---
+  useEffect(() => {
+    const pageMeta = (() => {
+      if (!isAuthed) {
+        return {
+          title: '登录 | Werewolf Pro - 狼人杀AI对战',
+          description: '登录或注册 Werewolf Pro，立即体验 AI 狼人杀对战。'
+        };
+      }
+      if (isHomeRoute) {
+        return {
+          title: '主页 | Werewolf Pro - 狼人杀AI对战',
+          description: '进入狼人杀 AI 对战、管理令牌、查看模型排行榜与游戏战绩。'
+        };
+      }
+      if (isCustomRoute) {
+        return {
+          title: '游戏设置 | Werewolf Pro',
+          description: '配置角色阵容与胜利条件，快速开始玩家模式或全 AI 模式。'
+        };
+      }
+      if (isPlayRoute) {
+        return {
+          title: `对局进行中（第${dayCount}天）| Werewolf Pro`,
+          description: '狼人杀对局进行中，跟踪发言、投票与夜晚行动结算。'
+        };
+      }
+      if (isSitesRoute) {
+        return {
+          title: '站点入口 | Werewolf Pro',
+          description: '统一管理与访问站点内容入口。'
+        };
+      }
+      return {
+        title: 'Werewolf Pro - 狼人杀AI对战',
+        description: '狼人杀AI对战平台 - 体验与AI对手的智慧博弈。'
+      };
+    })();
+
+    const canonicalUrl = `${SITE_BASE_URL}${window.location.pathname}`;
+    document.title = pageMeta.title;
+
+    const updateMetaContent = (selector, content) => {
+      const element = document.querySelector(selector);
+      if (element) {
+        element.setAttribute('content', content);
+      }
+    };
+
+    updateMetaContent('meta[name="description"]', pageMeta.description);
+    updateMetaContent('meta[property="og:title"]', pageMeta.title);
+    updateMetaContent('meta[property="og:description"]', pageMeta.description);
+    updateMetaContent('meta[property="og:url"]', canonicalUrl);
+    updateMetaContent('meta[name="twitter:title"]', pageMeta.title);
+    updateMetaContent('meta[name="twitter:description"]', pageMeta.description);
+
+    const canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) {
+      canonical.setAttribute('href', canonicalUrl);
+    }
+  }, [dayCount, isAuthed, isCustomRoute, isHomeRoute, isPlayRoute, isSitesRoute]);
 
   // --- Guest mode auto-disable ---
   useEffect(() => {
@@ -305,31 +397,37 @@ export default function App() {
   // ===================== RENDER =====================
 
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-400">加载中...</div>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   if (!isAuthed) {
-    return <AuthPage onGuestPlay={handleGuestPlay} />;
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <AuthPage onGuestPlay={handleGuestPlay} />
+      </Suspense>
+    );
   }
 
   if (isHomeRoute) {
     return (
-      <Dashboard
-        onEnterWolfgame={handleEnterWolfgame}
-        onEnterSites={handleEnterSites}
-        onLogout={handleLogout}
-        isGuestMode={isGuestMode}
-        onLogin={handleGuestExitToLogin}
-      />
+      <Suspense fallback={<FullPageLoader />}>
+        <Dashboard
+          onEnterWolfgame={handleEnterWolfgame}
+          onEnterSites={handleEnterSites}
+          onLogout={handleLogout}
+          isGuestMode={isGuestMode}
+          onLogin={handleGuestExitToLogin}
+        />
+      </Suspense>
     );
   }
 
   if (isSitesRoute) {
-    return <SitesPage onBack={handleExitToHome} />;
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SitesPage onBack={handleExitToHome} />
+      </Suspense>
+    );
   }
 
   if (!isCustomRoute && !isPlayRoute) {
@@ -345,6 +443,7 @@ export default function App() {
           )}
           <button
             onClick={handleExitToHome}
+            aria-label="返回主页"
             className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
           >
             返回主页
@@ -353,6 +452,7 @@ export default function App() {
             <>
               <button
                 onClick={() => setShowTokenManager(true)}
+                aria-label={tokenStatus.hasToken ? '查看令牌配置状态' : '打开令牌配置'}
                 className={`px-3 py-1 text-sm rounded transition-colors ${
                   tokenStatus.hasToken
                     ? 'bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50'
@@ -363,12 +463,14 @@ export default function App() {
               </button>
               <button
                 onClick={() => setShowStats(true)}
+                aria-label="查看战绩"
                 className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors"
               >
                 战绩
               </button>
               <button
                 onClick={handleLogout}
+                aria-label="退出登录"
                 className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
               >
                 登出
@@ -378,6 +480,7 @@ export default function App() {
           {isGuestMode && (
             <button
               onClick={handleGuestExitToLogin}
+              aria-label="前往登录"
               className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
             >
               登录
@@ -390,6 +493,7 @@ export default function App() {
         <div className="absolute top-4 right-4 z-50">
           <button
             onClick={handleExitToHome}
+            aria-label="结束游戏并返回主页"
             className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
           >
             结束并返回主页
@@ -397,72 +501,79 @@ export default function App() {
         </div>
       )}
 
-      {showStats && <UserStats onClose={() => setShowStats(false)} />}
+      <Suspense fallback={null}>
+        {showStats && <UserStats onClose={() => setShowStats(false)} />}
+        {showTokenManager && (
+          <TokenManager
+            onClose={() => setShowTokenManager(false)}
+            onTokenSaved={() => {
+              setShowTokenManager(false);
+              verifyModelscopeToken();
+            }}
+          />
+        )}
+      </Suspense>
 
-      {showTokenManager && (
-        <TokenManager
-          onClose={() => setShowTokenManager(false)}
-          onTokenSaved={() => {
-            setShowTokenManager(false);
-            verifyModelscopeToken();
-          }}
-        />
-      )}
+      <main className="relative" aria-label="狼人杀主内容区">
+        {isCustomRoute && phase === 'setup' && !gameMode && (
+          <Suspense fallback={<InlineLoader text="正在加载游戏设置..." />}>
+            <SetupScreen
+              gameMode={gameMode}
+              setGameMode={setGameMode}
+              isLoggedIn={!!user}
+              isGuestMode={isGuestMode}
+              hasModelscopeToken={tokenStatus.hasToken}
+              onConfigureToken={() => setShowTokenManager(true)}
+              customRoleSelections={customRoleSelections}
+              setCustomRoleSelections={setCustomRoleSelections}
+              onBuildCustomSetup={setSelectedSetup}
+              victoryMode={victoryMode}
+              setVictoryMode={setVictoryMode}
+            />
+          </Suspense>
+        )}
 
-      {isCustomRoute && phase === 'setup' && !gameMode && (
-        <SetupScreen
-          gameMode={gameMode}
-          setGameMode={setGameMode}
-          isLoggedIn={!!user}
-          isGuestMode={isGuestMode}
-          hasModelscopeToken={tokenStatus.hasToken}
-          onConfigureToken={() => setShowTokenManager(true)}
-          customRoleSelections={customRoleSelections}
-          setCustomRoleSelections={setCustomRoleSelections}
-          onBuildCustomSetup={setSelectedSetup}
-          victoryMode={victoryMode}
-          setVictoryMode={setVictoryMode}
-        />
-      )}
-
-      {isPlayRoute && (phase !== 'setup' || gameMode) && (
-        <GameArena
-          players={players} userPlayer={userPlayer} phase={phase}
-          dayCount={dayCount} nightStep={nightStep} nightDecisions={nightDecisions}
-          speechHistory={speechHistory} nightActionHistory={nightActionHistory}
-          voteHistory={voteHistory} deathHistory={deathHistory}
-          seerChecks={seerChecks} guardHistory={guardHistory}
-          witchHistory={witchHistory} magicianHistory={magicianHistory}
-          dreamweaverHistory={dreamweaverHistory}
-          currentPhaseData={currentPhaseData}
-          gameBackground={gameBackground} logs={logs} modelUsage={modelUsage}
-          selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
-          speakerIndex={speakerIndex}
-          gameMode={gameMode} isThinking={isThinking}
-          speakingOrder={speakingOrder} setSpeakingOrder={setSpeakingOrder}
-          userInput={userInput} setUserInput={setUserInput}
-          handleUserSpeak={handleUserSpeak}
-          hunterShooting={hunterShooting}
-          handleUserHunterShoot={handleUserHunterShoot}
-          handleUserDuel={handleUserDuel}
-          handleAIHunterShoot={handleAIHunterShoot}
-          handleVote={handleVote}
-          proceedNight={proceedNight}
-          mergeNightDecisions={mergeNightDecisions}
-          setPlayers={setPlayers} setUserPlayer={setUserPlayer}
-          witchHistorySetter={setWitchHistory}
-          magicianHistorySetter={setMagicianHistory}
-          dreamweaverHistorySetter={setDreamweaverHistory}
-          getPlayer={getPlayer} addLog={addLog} setSeerChecks={setSeerChecks}
-          currentNightSequence={currentNightSequence}
-          ROLE_DEFINITIONS={ROLE_DEFINITIONS}
-          getCurrentNightRole={getCurrentNightRole}
-          isUserTurn={isUserTurn}
-          exportGameLog={exportGameLog}
-          restartGame={restartGame}
-          AI_MODELS={aiModels}
-        />
-      )}
+        {isPlayRoute && (phase !== 'setup' || gameMode) && (
+          <Suspense fallback={<InlineLoader text="正在加载对局..." />}>
+            <GameArena
+              players={players} userPlayer={userPlayer} phase={phase}
+              dayCount={dayCount} nightStep={nightStep} nightDecisions={nightDecisions}
+              speechHistory={speechHistory} nightActionHistory={nightActionHistory}
+              voteHistory={voteHistory} deathHistory={deathHistory}
+              seerChecks={seerChecks} guardHistory={guardHistory}
+              witchHistory={witchHistory} magicianHistory={magicianHistory}
+              dreamweaverHistory={dreamweaverHistory}
+              currentPhaseData={currentPhaseData}
+              gameBackground={gameBackground} logs={logs} modelUsage={modelUsage}
+              selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
+              speakerIndex={speakerIndex}
+              gameMode={gameMode} isThinking={isThinking}
+              speakingOrder={speakingOrder} setSpeakingOrder={setSpeakingOrder}
+              userInput={userInput} setUserInput={setUserInput}
+              handleUserSpeak={handleUserSpeak}
+              hunterShooting={hunterShooting}
+              handleUserHunterShoot={handleUserHunterShoot}
+              handleUserDuel={handleUserDuel}
+              handleAIHunterShoot={handleAIHunterShoot}
+              handleVote={handleVote}
+              proceedNight={proceedNight}
+              mergeNightDecisions={mergeNightDecisions}
+              setPlayers={setPlayers} setUserPlayer={setUserPlayer}
+              witchHistorySetter={setWitchHistory}
+              magicianHistorySetter={setMagicianHistory}
+              dreamweaverHistorySetter={setDreamweaverHistory}
+              getPlayer={getPlayer} addLog={addLog} setSeerChecks={setSeerChecks}
+              currentNightSequence={currentNightSequence}
+              ROLE_DEFINITIONS={ROLE_DEFINITIONS}
+              getCurrentNightRole={getCurrentNightRole}
+              isUserTurn={isUserTurn}
+              exportGameLog={exportGameLog}
+              restartGame={restartGame}
+              AI_MODELS={aiModels}
+            />
+          </Suspense>
+        )}
+      </main>
     </div>
   );
 }
