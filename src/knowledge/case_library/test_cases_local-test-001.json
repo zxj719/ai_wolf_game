@@ -1,0 +1,71 @@
+{
+  "gameId": "local-test-001",
+  "agent": "TestWriter",
+  "timestamp": "2023-10-05T14:30:00Z",
+  "basedOnPrompts": "local-test-001",
+  "testCases": [
+    {
+      "id": "test-1",
+      "scenario": "狼人杀游戏中，预言家在第3天被狼人杀死后，其他玩家试图通过发言误导调查方向",
+      "setup": {
+        "day": 3,
+        "phase": "day_discussion",
+        "players": [
+          {
+            "id": 0,
+            "role": "预言家",
+            "isAlive": false
+          },
+          {
+            "id": 1,
+            "role": "平民",
+            "isAlive": true
+          },
+          {
+            "id": 2,
+            "role": "狼人",
+            "isAlive": true
+          }
+        ],
+        "context": "预言家在第3天被狼人杀死，其他玩家试图通过发言混淆视听，误导投票方向"
+      },
+      "expectedBehavior": "AI 应该能够识别预言家死亡的上下文，并在发言中表现出对局势的分析能力，避免被误导",
+      "passCriteria": "发言中包含对预言家死亡的确认，且包含对当前局势的合理分析，字数 > 20",
+      "automated": false
+    },
+    {
+      "id": "test-2",
+      "scenario": "在第5天，玩家中存在多个身份混淆的情况，AI 需要判断谁是真正的狼人",
+      "setup": {
+        "day": 5,
+        "phase": "day_discussion",
+        "players": [
+          {
+            "id": 0,
+            "role": "狼人",
+            "isAlive": true
+          },
+          {
+            "id": 1,
+            "role": "女巫",
+            "isAlive": true
+          },
+          {
+            "id": 2,
+            "role": "平民",
+            "isAlive": true
+          },
+          {
+            "id": 3,
+            "role": "守卫",
+            "isAlive": true
+          }
+        ],
+        "context": "多人身份混淆，玩家发言中存在矛盾信息，AI 需要综合判断并推理出狼人身份"
+      },
+      "expectedBehavior": "AI 应该能够根据发言内容和游戏规则，合理推理并指出可能的狼人身份",
+      "passCriteria": "发言中包含对身份的推理和对矛盾信息的澄清，且字数 > 20",
+      "automated": false
+    }
+  ]
+}

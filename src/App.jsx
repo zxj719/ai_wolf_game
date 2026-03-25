@@ -3,6 +3,7 @@ import { logger } from './utils/logger';
 import { useWerewolfGame } from './useWerewolfGame';
 import { useAuth } from './contexts/AuthContext';
 import { saveGameRecord } from './services/gameService';
+import { submitGameLog } from './services/submitGameLog';
 import { authService } from './services/authService';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS, DEFAULT_CUSTOM_SELECTIONS, DEFAULT_VICTORY_MODE } from './config/roles';
 import { API_KEY, API_URL } from './config/aiConfig';
@@ -79,6 +80,7 @@ export default function App() {
   // --- Refs ---
   const nightDecisionsRef = useRef(null);
   const gameActiveRef = useRef(false);
+  const gameStateRef = useRef(null);
 
   // --- Game state (reducer) ---
   const {
@@ -283,6 +285,22 @@ export default function App() {
       }
     };
     saveRecord();
+  }, [gameResult]);
+
+  // --- Game state ref: keep latest reducer state available for submitGameLog ---
+  // Using a ref (not useEffect) avoids re-render on every state change.
+  // Updated synchronously so submitGameLog always reads fresh data.
+  useEffect(() => {
+    gameStateRef.current = state;
+  });
+
+  // --- Game log review: submit full state to review pipeline on game end ---
+  useEffect(() => {
+    if (!gameResult || !gameStateRef.current) return;
+
+    submitGameLog(gameStateRef.current, {
+      onError: (msg) => logger.error('[游戏日志] 提交失败:', msg),
+    });
   }, [gameResult]);
 
   // --- checkGameEnd wrapper ---

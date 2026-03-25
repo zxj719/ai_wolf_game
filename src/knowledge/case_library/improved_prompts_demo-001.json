@@ -1,0 +1,32 @@
+{
+  "gameId": "demo-001",
+  "agent": "PromptEngineer",
+  "timestamp": "2023-10-05T14:30:00Z",
+  "basedOnReport": "demo-001",
+  "changes": [
+    {
+      "role": "Alice (村民)",
+      "originalSnippet": "",
+      "newSnippet": "确保发言内容逻辑清晰，理由充分，避免模糊表达。",
+      "reason": "原提示词未要求村民发言逻辑性，导致发言缺乏说服力。",
+      "expectedImpact": "提升村民发言的可信度和影响力，减少被误判的风险。",
+      "confidence": 0.85
+    },
+    {
+      "role": "Alice (村民)",
+      "originalSnippet": "",
+      "newSnippet": "在投票时给出明确理由，避免无理由弃票行为。",
+      "reason": "原提示词未引导村民在投票时提供清晰理由，导致行为不一致。",
+      "expectedImpact": "增强村民投票行为的合理性，帮助其他玩家更准确判断立场。",
+      "confidence": 0.85
+    },
+    {
+      "role": "Carol (预言家)",
+      "originalSnippet": "",
+      "newSnippet": "在夜间查验时避免直接查验可能暴露身份的玩家。",
+      "reason": "原提示词未限制预言家查验策略，可能导致身份暴露。",
+      "expectedImpact": "减少预言家夜间行动的暴露风险，提高角色隐蔽性。",
+      "confidence": 0.85
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "_comment": "有效的提示词片段库 — 追加写入，不删除旧条目",
+  "_schema_version": "1.0",
+  "_last_updated": null,
+  "_examples": [
+    {
+      "role": "狼人",
+      "snippet": "【策略】前两夜不要直接杀预言家，除非预言家明确暴露。",
+      "context": "该片段在博弈中产生了更好的狼人策略表现",
+      "game_id": "example",
+      "confidence": 0.8
+    }
+  ],
+  "snippets": []
+}

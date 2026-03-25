@@ -1495,3 +1495,70 @@ export async function handleGetAvatarsBatch(request, env) {
     return errorResponse('Failed to get avatars batch', 500, env, request);
   }
 }
+
+/**
+ * 游戏结束 — 提交完整游戏日志用于复盘
+ * POST /api/game-end
+ *
+ * 不需要认证（游戏结束时前端直接调用）。
+ * 将游戏日志写入 KV 队列，由 reviewPipeline.mjs 异步处理。
+ * 返回 202 Accepted 表示已入队，不等待实际分析完成。
+ */
+export async function handleGameEnd(request, env) {
+  try {
+    const body = await request.json();
+
+    // Required fields validation
+    const { gameSessionId, gameResult, gameMode } = body;
+    if (!gameSessionId || !gameResult || !gameMode) {
+      return errorResponse(
+        'gameSessionId, gameResult, and gameMode are required',
+        400, env, request
+      );
+    }
+
+    // Generate a unique queue key: review:{timestamp}:{gameSessionId}
+    const timestamp = Date.now();
+    const queueKey = `review:${timestamp}:${gameSessionId}`;
+
+    // Prepare the queued item
+    const queueItem = {
+      key: queueKey,
+      gameSessionId,
+      gameResult,
+      gameMode,
+      submittedAt: new Date().toISOString(),
+      // Include the full truncated game state
+      speechHistory: body.speechHistory || [],
+      voteHistory: body.voteHistory || [],
+      deathHistory: body.deathHistory || [],
+      nightActionHistory: body.nightActionHistory || [],
+      players: body.players || [],
+      dayCount: body.dayCount || 0,
+      phase: body.phase || 'setup',
+      userRole: body.userRole || null,
+    };
+
+    // Write to KV queue
+    // REVIEW_QUEUE binding must be provisioned in wrangler.toml
+    if (!env.REVIEW_QUEUE) {
+      console.error('[handleGameEnd] REVIEW_QUEUE KV binding not configured');
+      return errorResponse(
+        'Review pipeline not configured (KV binding missing)',
+        503, env, request
+      );
+    }
+
+    await env.REVIEW_QUEUE.put(queueKey, JSON.stringify(queueItem));
+
+    return jsonResponse({
+      success: true,
+      message: 'Game log queued for review',
+      queueKey,
+    }, 202, env, request);
+
+  } catch (error) {
+    console.error('Error in handleGameEnd:', error);
+    return errorResponse('Failed to queue game log: ' + error.message, 500, env, request);
+  }
+}

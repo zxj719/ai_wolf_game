@@ -1,0 +1,77 @@
+{
+  "gameId": "demo-001",
+  "agent": "BugHunter",
+  "timestamp": "2023-09-15T10:30:00Z",
+  "issues": [
+    {
+      "id": "issue-1",
+      "severity": "medium",
+      "category": "speech_contradiction",
+      "role": "Bob (狼人)",
+      "description": "Bob 在第一天和第三天发言中表现出不一致的策略，第一天声称 Carol 是狼人并建议出她，第三天却坚持要出 Carol，这可能表明他未能有效隐藏身份。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 0,
+        "quote": "Carol 是在胡说，她才是狼人。我建议全票出 Carol。"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "增强模型在夜间行动和发言时的策略一致性，避免重复性行为暴露身份。"
+    },
+    {
+      "id": "issue-2",
+      "severity": "medium",
+      "category": "vote_mismanagement",
+      "role": "Bob (狼人)",
+      "description": "Bob 在第一天和第三天都明确建议出 Carol，但第一天的投票结果并未成功，第三天的投票结果也未成功，这可能表明他的策略未能有效影响投票。",
+      "evidence": {
+        "source": "voteHistory",
+        "entryIndex": 0,
+        "quote": "votes: [from: 0, to: 1], [from: 2, to: 1], [from: 3, to: 2]"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "提升模型在投票策略上的灵活性和说服力，以更有效地引导其他玩家投票。"
+    },
+    {
+      "id": "issue-3",
+      "severity": "medium",
+      "category": "night_misplay",
+      "role": "Carol (预言家)",
+      "description": "Carol 在第二天夜间行动中查验了 Bob，结果为狼人，但这一行为可能被狼人利用，导致其身份暴露。",
+      "evidence": {
+        "source": "nightActionHistory",
+        "entryIndex": 1,
+        "quote": "预言家查验 1号，结果为狼人"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "优化模型在夜间行动时的策略，避免直接查验可能暴露身份的玩家。"
+    },
+    {
+      "id": "issue-4",
+      "severity": "low",
+      "category": "speech_contradiction",
+      "role": "Alice (村民)",
+      "description": "Alice 在第二天发言中表示相信 Carol，但未明确说明原因，这可能影响其他玩家对她的判断。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 2,
+        "quote": "Carol 和 Bob 互相指责，我暂时无法判断。我弃票。"
+      },
+      "rootCause": "prompt_gap",
+      "suggestedFix": "在提示词中加入对村民发言逻辑性的要求，确保其发言更具说服力和一致性。"
+    },
+    {
+      "id": "issue-5",
+      "severity": "low",
+      "category": "vote_mismanagement",
+      "role": "Alice (村民)",
+      "description": "Alice 在第二天发言中弃票，但未给出明确理由，这可能使其他玩家误判其立场。",
+      "evidence": {
+        "source": "voteHistory",
+        "entryIndex": 1,
+        "quote": "votes: [from: 0, to: 2], [from: 2, to: 1], [from: 1, to: 2]"
+      },
+      "rootCause": "prompt_gap",
+      "suggestedFix": "在提示词中加入对村民投票行为的引导，确保其投票理由清晰且具有逻辑性。"
+    }
+  ]
+}

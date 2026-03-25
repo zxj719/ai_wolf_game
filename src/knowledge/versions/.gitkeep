@@ -1,0 +1,8 @@
+# Knowledge Base — Versions
+
+This directory stores versioned snapshots of the knowledge base.
+Each version is a subdirectory created when a PR is merged.
+
+Format: `vXXX/` where XXX is a zero-padded version number.
+
+See `case_library/` for individual game review reports.

@@ -8,6 +8,16 @@ binding = "DB"
 database_name = "wolfgame-db"
 database_id = "f54315ad-c129-41e4-a23d-82463488d315"
 
+# KV 队列绑定（review pipeline 用）
+# TODO (prerequisite): run the following commands to provision the namespace:
+#   1. npx wrangler kv:namespace create "REVIEW_QUEUE" --env production
+#   2. npx wrangler kv:namespace create "REVIEW_QUEUE"  (for local dev)
+#   3. Replace the placeholder IDs below with the output IDs
+# [[kv_namespaces]]
+# binding = "REVIEW_QUEUE"
+# id = "YOUR_PRODUCTION_NAMESPACE_ID"
+# preview_id = "YOUR_PREVIEW_NAMESPACE_ID"
+
 # 开发环境配置
 [dev]
 port = 8787

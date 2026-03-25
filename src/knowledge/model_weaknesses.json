@@ -1,0 +1,14 @@
+{
+  "_comment": "模型能力差异记录 — 追加写入，不删除旧条目",
+  "_schema_version": "1.0",
+  "_last_updated": null,
+  "_examples": [
+    {
+      "model_id": "Qwen/Qwen2.5-7B-Instruct",
+      "insight": "该模型在长上下文博弈中容易丢失关键信息",
+      "severity": "medium",
+      "workaround": "在提示词中强调关键信息"
+    }
+  ],
+  "_models": {}
+}

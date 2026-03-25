@@ -356,3 +356,52 @@ Hook 脚本位于 `scripts/hooks/`。
 - `github` — GitHub PR/Issue 管理
 
 通过 `disabledMcpServers` 禁用不常用的 MCP 以保护上下文窗口。
+
+## gstack
+
+本项目集成了 [gstack](https://github.com/garrytan/gstack) 技能套件，提供网页浏览、QA 测试、代码审查等自动化能力。
+
+### 网页浏览规则
+
+- **所有网页浏览必须使用 `/browse` 技能**，禁止使用任何 `mcp__claude-in-chrome__*` 工具
+- `/browse` 基于 Playwright 无头浏览器，支持导航、交互、截图、状态验证等
+
+### 可用技能列表
+
+| 技能 | 用途 |
+|------|------|
+| `/office-hours` | 办公时间会议 |
+| `/plan-ceo-review` | CEO 评审计划 |
+| `/plan-eng-review` | 工程评审计划 |
+| `/plan-design-review` | 设计评审计划 |
+| `/design-consultation` | 设计咨询 |
+| `/review` | 代码审查 |
+| `/ship` | 发布流程 |
+| `/land-and-deploy` | 合并并部署 |
+| `/canary` | 灰度发布 |
+| `/benchmark` | 性能基准测试 |
+| `/browse` | 网页浏览（唯一指定浏览工具） |
+| `/qa` | QA 测试 |
+| `/qa-only` | 仅 QA 测试 |
+| `/design-review` | 设计评审 |
+| `/setup-browser-cookies` | 浏览器 Cookie 设置 |
+| `/setup-deploy` | 部署配置 |
+| `/retro` | 回顾总结 |
+| `/investigate` | 问题调查 |
+| `/document-release` | 发布文档 |
+| `/codex` | Codex 模式 |
+| `/cso` | CSO 安全审查 |
+| `/autoplan` | 自动规划 |
+| `/careful` | 谨慎模式 |
+| `/freeze` | 冻结变更 |
+| `/guard` | 守护模式 |
+| `/unfreeze` | 解冻变更 |
+| `/gstack-upgrade` | 升级 gstack |
+
+### 故障排除
+
+如果 gstack 技能无法正常工作，运行以下命令重新构建二进制并注册技能：
+
+```bash
+cd .claude/skills/gstack && ./setup
+```

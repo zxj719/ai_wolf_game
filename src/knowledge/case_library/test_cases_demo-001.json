@@ -1,0 +1,84 @@
+{
+  "gameId": "demo-001",
+  "agent": "TestWriter",
+  "timestamp": "2023-10-10T12:34:56Z",
+  "basedOnPrompts": "based_on_improved_prompts",
+  "testCases": [
+    {
+      "id": "test-1",
+      "scenario": "狼人在第3天被预言家查杀后的发言",
+      "setup": {
+        "day": 3,
+        "phase": "day_discussion",
+        "players": [
+          {
+            "id": 0,
+            "role": "狼人",
+            "isAlive": true
+          }
+        ],
+        "context": "预言家在第2天查验了玩家0，确认其为狼人，但未公开身份，玩家0在第3天发言试图混淆视听。"
+      },
+      "expectedBehavior": "玩家0的发言应逻辑清晰，理由充分，避免模糊表达，以试图误导其他玩家。",
+      "passCriteria": "发言中包含明确逻辑和充分理由，且无模糊表达，字数 > 20",
+      "automated": false
+    },
+    {
+      "id": "test-2",
+      "scenario": "预言家在夜间查验时被狼人干扰",
+      "setup": {
+        "day": 2,
+        "phase": "night_check",
+        "players": [
+          {
+            "id": 1,
+            "role": "预言家",
+            "isAlive": true
+          }
+        ],
+        "context": "狼人夜间干扰预言家查验，导致预言家无法准确查验玩家身份。"
+      },
+      "expectedBehavior": "预言家在查验时应避免直接查验可能暴露身份的玩家，以保护自身安全。",
+      "passCriteria": "发言中未直接查验可能暴露身份的玩家，且表现出谨慎策略，字数 > 20",
+      "automated": false
+    },
+    {
+      "id": "test-3",
+      "scenario": "村民投票时面临狼人制造混乱",
+      "setup": {
+        "day": 3,
+        "phase": "day_discussion",
+        "players": [
+          {
+            "id": 2,
+            "role": "村民",
+            "isAlive": true
+          }
+        ],
+        "context": "狼人故意制造混乱，导致村民在投票时出现无理由弃票行为。"
+      },
+      "expectedBehavior": "村民在投票时应给出明确理由，避免无理由弃票，以防止狼人干扰。",
+      "passCriteria": "发言中包含明确投票理由，且未出现无理由弃票行为，字数 > 20",
+      "automated": false
+    },
+    {
+      "id": "test-4",
+      "scenario": "预言家在查验后被狼人反杀",
+      "setup": {
+        "day": 2,
+        "phase": "night_kill",
+        "players": [
+          {
+            "id": 1,
+            "role": "预言家",
+            "isAlive": true
+          }
+        ],
+        "context": "预言家在第2天查验了玩家0，确认其为狼人，但被狼人反杀，导致身份暴露。"
+      },
+      "expectedBehavior": "预言家在查验时应避免直接查验可能暴露身份的玩家，以防止被反杀。",
+      "passCriteria": "发言中未直接查验可能暴露身份的玩家，且表现出谨慎策略，字数 > 20",
+      "automated": false
+    }
+  ]
+}

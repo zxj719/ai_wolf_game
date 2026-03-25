@@ -12,6 +12,7 @@ import {
   handleVerifyToken,
   handleSaveGameRecord,
   handleGetGameHistory,
+  handleGameEnd,
   handleGetUserStats,
   handleGetLeaderboard,
   handleSubmitFeedback,
@@ -123,6 +124,11 @@ export default {
 
       if (path === '/api/game/history' && request.method === 'GET') {
         return handleGetGameHistory(request, env);
+      }
+
+      // 游戏日志复盘（公开接口 — 无需认证）
+      if (path === '/api/game-end' && request.method === 'POST') {
+        return handleGameEnd(request, env);
       }
 
       // 排行榜（公开接口）

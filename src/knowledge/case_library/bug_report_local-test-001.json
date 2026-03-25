@@ -1,0 +1,77 @@
+{
+  "gameId": "local-test-001",
+  "agent": "BugHunter",
+  "timestamp": "2023-09-15T12:34:56Z",
+  "issues": [
+    {
+      "id": "issue-1",
+      "severity": "high",
+      "category": "speech_contradiction",
+      "role": "Bob (狼人)",
+      "description": "Bob 在第一天发言中声称自己是村民，并建议投票 Carol，但第二天他直接反驳 Carol 的发言，表现出明显的角色矛盾。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 0,
+        "quote": "我是村民，大家跟我投票 Carol"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "加强角色行为一致性训练，避免身份混淆导致的发言矛盾。"
+    },
+    {
+      "id": "issue-2",
+      "severity": "medium",
+      "category": "vote_mismanagement",
+      "role": "Bob (狼人)",
+      "description": "Bob 在第二天投票中被投票出局，但他在发言中没有表现出对自身被投票的反应或策略调整，可能影响狼人阵营的后续决策。",
+      "evidence": {
+        "source": "voteHistory",
+        "entryIndex": 1,
+        "quote": "from: 1, to: 2"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "增强模型对投票结果的应对能力，确保角色在被投票时能合理调整策略。"
+    },
+    {
+      "id": "issue-3",
+      "severity": "low",
+      "category": "speech_contradiction",
+      "role": "Carol (预言家)",
+      "description": "Carol 在第二天发言中声称昨晚查验 Bob 是狼人，但未提供任何支持性证据，容易被质疑其发言可信度。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 1,
+        "quote": "昨晚查验 Bob，他是狼人"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "训练模型在发言中提供更具体的证据或逻辑，以增强发言可信度。"
+    },
+    {
+      "id": "issue-4",
+      "severity": "high",
+      "category": "night_misplay",
+      "role": "Dave (女巫)",
+      "description": "Dave 在第三天发言中表示要用解药救 Carol，但根据死亡记录，Carol 在第二天已被投票出局，这表明 Dave 的夜间行动可能未正确执行或未及时更新信息。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 3,
+        "quote": "我要用解药救 Carol，她不应该这么快死"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "加强模型对死亡记录和夜间行动结果的实时更新与逻辑判断能力。"
+    },
+    {
+      "id": "issue-5",
+      "severity": "medium",
+      "category": "vote_mismanagement",
+      "role": "Dave (女巫)",
+      "description": "Dave 在第二天投票中投给 Bob，但未明确说明其动机或策略，可能影响其他玩家对其立场的判断。",
+      "evidence": {
+        "source": "voteHistory",
+        "entryIndex": 1,
+        "quote": "from: 3, to: 1"
+      },
+      "rootCause": "model_weakness",
+      "suggestedFix": "提升模型在投票时的策略表达能力，确保投票动机清晰合理。"
+    }
+  ]
+}

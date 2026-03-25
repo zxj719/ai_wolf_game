@@ -1,0 +1,11 @@
+# Pending Queue
+
+This directory is used as a **local filesystem fallback** for the review pipeline
+when Cloudflare KV is not configured.
+
+Each pending game is stored as a JSON file: `{queueKey}.json`
+
+For production with KV, use `CLOUDFLARE_ACCOUNT_ID`, `REVIEW_QUEUE_ID`, and
+`CLOUDFLARE_API_TOKEN` environment variables instead.
+
+See `reviewPipeline.mjs` for details.
