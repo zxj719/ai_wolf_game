@@ -1,312 +1,260 @@
-# 🐺 狼人杀 AI 对战平台 (Werewolf Pro)
+# Zhaxiaoji Studio
 
-一个现代化的、基于多智能体博弈理论的狼人杀 Web 应用程序。多个大语言模型（LLM）智能体相互对战或与人类玩家进行深度博弈。项目实现了完整的贝叶斯推理、欺骗检测、双系统认知架构等高级 AI 功能。好犀利！
+当前仓库已经不是单一的 “Werewolf Pro” 游戏首页，而是一个以个人主页为外壳、以 AI 狼人杀为核心可玩模块、并保留 Projects & Labs 入口的混合型站点。
 
-基于 **React 18 + Vite** 构建，支持 **ModelScope** 和 **SiliconFlow** 双 API 提供商。
+前端基于 `React 18 + Vite`，公开站点与 Cloudflare Workers 后端共用 `https://zhaxiaoji.com` 域名。首页、狼人杀模块页和项目实验页已经完成信息架构重组；狼人杀排行榜前端入口已移除。
 
-## ✨ 核心特性
+## 当前路由
 
-### 🤖 多模型 AI 后端
-- **双提供商支持**：ModelScope 和 SiliconFlow 无缝切换
-- **动态模型加载**：自动获取 SiliconFlow 可用模型列表
-- **负载均衡**：智能分配玩家到不同模型，优化请求频率
-- **自动故障转移**：API 失败时自动切换备用模型
+| 路由 | 访问级别 | 说明 |
+|------|----------|------|
+| `/home` | 公开 | 个人主页，聚合狼人杀入口、Projects & Labs、静态站入口 |
+| `/wolfgame` | 公开 | 狼人杀模块页，解释玩法、游客试玩、登录与记录能力 |
+| `/wolfgame/custom` | 游客或登录 | 对局设置页 |
+| `/wolfgame/play` | 游客或登录 | 对局页 |
+| `/sites` | 公开 | Projects & Labs Hub，承载静态站与实时行情实验 |
+| `/login` | 公开 | 登录 / 注册入口 |
+| `/reset-password` | 公开 | 重置密码 |
+| `/verify-email` | 公开 | 验证邮箱 |
 
-### 🧠 高级 AI 认知架构
+路由守卫逻辑在 [src/hooks/useAppRouter.js](src/hooks/useAppRouter.js)。
 
-#### 双系统框架 (Thinker-Listener)
-基于认知科学理论，实现三层认知架构：
-- **Listener（感知层）**：处理自然语言理解，提取关键信息摘要，过滤噪声
-- **Thinker（推理层）**：核心逻辑演绎，在抽象策略空间进行决策
-- **Presenter（表达层）**：根据战略意图生成符合角色的说服性语言
+## 架构概览
 
-#### 贝叶斯身份推断
-```
-P(Role_i | Action_j) = P(Action_j | Role_i) × P(Role_i) / P(Action_j)
-```
-- 基于行为的后验概率动态更新
-- 完整的行为-角色似然度矩阵
-- 支持 16+ 种行为类型分析
+### 1. 应用壳层
 
-#### GRATR 信任评分系统
-多维度信任评估：
-- 身份可信度（Identity）
-- 逻辑连贯性（Logic）
-- 行为一致性（Behavior）
-- 情绪真实度（Emotion）
-- 阵营倾向（Alignment）
-- 逻辑严密度（Consistency）
+- [src/App.jsx](src/App.jsx)
+  - 应用组合根。
+  - 负责懒加载页面组件、设置 SEO meta、衔接认证态和游客态。
+  - 通过 `useAppRouter` 管理公开页、私有页和狼人杀流程页切换。
+  - 在对局结束后保存战绩、提交完整游戏日志。
 
-#### 欺骗检测引擎
-识别 15+ 种欺骗信号：
-- **认知负荷信号**：过度细节、逻辑断层、自相矛盾
-- **行为信号**：投票背叛、立场翻转、选择性记忆
-- **社交信号**：过度辩护、先发制人指控、情绪操控
-- **高级欺骗**：战术性暴露、反向心理、深度潜伏
+- [src/hooks/useAppRouter.js](src/hooks/useAppRouter.js)
+  - 定义所有前端路由常量。
+  - 区分 `PUBLIC_ROUTES` 和 `PRIVATE_ROUTES`。
+  - 处理 `/` 到 `/home` 的归一化、未授权访问拦截、从公开页返回时自动结束游戏。
 
-### 🎭 智能角色扮演
-AI 智能体严格遵循角色机制，具备独特的人格系统：
+- [src/contexts/AuthContext.jsx](src/contexts/AuthContext.jsx)
+  - 管理 JWT 登录态、用户信息、ModelScope token 状态。
+  - 提供注册、登录、登出、更新资料、保存 / 验证 ModelScope token 等能力。
 
-| 人格类型 | 名称 | 特点 |
-|---------|------|------|
-| logical | 逻辑怪 | 严谨冷静，通过投票记录和发言矛盾找狼 |
-| aggressive | 暴躁哥 | 直觉敏锐，攻击性强，怀疑划水者 |
-| steady | 稳健派 | 发言平和，倾向于保护神职 |
-| cunning | 心机王 | 善于伪装和误导，喜欢带节奏 |
+### 2. 公开页面层
 
-角色专属策略：
-- **狼人**：悍跳逻辑、深水策略、倒钩战术、刀法规划
-- **预言家**：查验逻辑、警徽流决策、防守逻辑、心路历程
-- **女巫**：解药逻辑、毒药逻辑、轮次平衡、身份隐藏
-- **守卫**：守护次序、自守价值、心理博弈
-- **猎人**：威慑逻辑、枪口准星
+- [src/components/Dashboard.jsx](src/components/Dashboard.jsx)
+  - 公开首页。
+  - 使用 `@chenglou/pretext` 相关组件重做排版。
+  - 负责展示个人主页 hero、狼人杀入口、Projects & Labs 入口、登录 / 游客入口、个人战绩 / token 管理入口。
 
-### 🎮 多种游戏模式
-- **玩家模式**：你作为 0 号玩家参与博弈
-- **全 AI 模式**：观看 AI 智能体之间的全自动对决
+- [src/components/WolfgameHub.jsx](src/components/WolfgameHub.jsx)
+  - 公开狼人杀模块页。
+  - 说明 `/wolfgame`、`/wolfgame/custom`、`/wolfgame/play` 的入口关系。
+  - 承担游客试玩、登录、查看战绩、配置 token 的聚合入口。
 
-### 📊 游戏配置
-支持多种局制：
-- **8 人标准局**：2狼 2民 1预 1女 1猎 1守
-- **6 人迷你局**：2狼 2民 1预 1女
+- [src/components/SitesPage.jsx](src/components/SitesPage.jsx)
+  - Projects & Labs Hub。
+  - 当前承载静态个人站入口和实时行情实验入口。
+  - 行情实验进一步落到 `src/components/Stock/*`。
 
-### 🎨 沉浸式界面
-- 暗黑/赛博朋克美学设计，玻璃拟态效果
-- 实时状态追踪（存活/死亡、角色揭示）
-- **AI 头像生成**：支持 ModelScope 和 SiliconFlow 图像模型
-- 详细的游戏日志，支持导出
+### 3. 狼人杀游戏层
 
-### ⚙️ 完整游戏逻辑
-- **夜晚阶段**：守卫 → 狼人 → 预言家 → 女巫
-- **白天阶段**：公告 → 讨论发言 → 投票放逐
-- 支持遗言、猎人开枪、同票 PK 等机制
-- **逻辑剪枝验证**：自动检测并修正 AI 生成的规则违规内容
+- [src/components/SetupScreen.jsx](src/components/SetupScreen.jsx)
+  - 对局配置页。
+  - 负责模式选择、角色选择、自定义阵容、胜利条件等设置。
 
-### 💭 思维过程可视化
-- Chain-of-Thought 推理过程展示
-- 支持 Thinking Model 的专用处理
-- 实时显示 AI "正在思考" 状态
+- [src/components/GameArena.jsx](src/components/GameArena.jsx)
+  - 对局主舞台。
+  - 组合头部、玩家视图、发言、行动、投票、日志、历史等子组件。
 
-## 🛠️ 技术栈
+- [src/useWerewolfGame.js](src/useWerewolfGame.js)
+  - 核心 reducer。
+  - 维护 `phase`、`nightStep`、`players`、`speechHistory`、`voteHistory`、`deathHistory`、`nightActionHistory`、`modelUsage` 等全局游戏状态。
 
-| 类别 | 技术 |
-|------|------|
-| **框架** | React 18 + Vite 5 |
-| **语言** | JavaScript (ES6+) |
-| **样式** | Tailwind CSS 3 |
-| **图标** | Lucide React |
-| **AI 接口** | ModelScope / SiliconFlow (兼容 OpenAI 接口) |
-| **部署** | Cloudflare Workers |
+- [src/hooks/useDayFlow.js](src/hooks/useDayFlow.js)
+  - 白天流程控制。
+  - 负责发言顺序、投票、放逐、猎人开枪和进入下一夜。
 
-## 🚀 快速开始
+- [src/hooks/useNightFlow.js](src/hooks/useNightFlow.js)
+  - 夜晚流程控制。
+  - 负责守卫、狼人、预言家、女巫等夜间行动推进与结算。
 
-### 环境要求
-- Node.js (v16+)
-- npm 或 yarn
+- [src/hooks/useSpeechFlow.js](src/hooks/useSpeechFlow.js)
+  - 发言相关交互控制。
+  - 负责用户发言、AI 发言、对决发言与阶段推进。
 
-### 安装步骤
+- [src/hooks/useGameLifecycle.js](src/hooks/useGameLifecycle.js)
+  - 生命周期辅助逻辑。
+  - 负责请求中断、记录保存等外围行为。
 
-1. **克隆仓库**
-   ```bash
-   git clone <repository_url>
-   cd battle-web
-   ```
+### 4. AI 与提示词层
 
-2. **安装依赖**
-   ```bash
-   npm install
-   ```
+- [src/hooks/useAI.js](src/hooks/useAI.js)
+  - AI 调用统一入口。
+  - 组装当前局面上下文，向模型发起请求，并跟踪模型使用情况。
 
-3. **配置环境变量**
-   创建 `.env` 文件：
-   ```env
-   # 选择 AI 提供商: modelscope 或 siliconflow
-   VITE_AI_PROVIDER=modelscope
+- [src/hooks/useAIModels.js](src/hooks/useAIModels.js)
+  - 模型列表与禁用模型追踪。
 
-   # ModelScope API Key
-   VITE_API_KEY=your_modelscope_api_key
+- [src/services/aiClient.js](src/services/aiClient.js)
+  - 与上游 LLM API 交互的低层客户端。
 
-   # SiliconFlow API Key (可选)
-   VITE_SILICONFLOW_API_KEY=your_siliconflow_api_key
-   ```
+- [src/services/aiPrompts.js](src/services/aiPrompts.js)
+  - 狼人杀主提示词模板与约束。
 
-4. **启动开发服务器**
-   ```bash
-   npm run dev
-   ```
+- [src/services/rolePrompts/*](src/services/rolePrompts)
+  - 按角色拆分的补充提示词。
 
-5. **开始游戏**
-   打开浏览器访问 `http://localhost:5173`
+- [src/services/identityTableSanitizer.js](src/services/identityTableSanitizer.js)
+  - 清洗和约束模型返回的身份推理表。
 
-## 🧠 AI 模型配置
+- [src/services/logicValidator.js](src/services/logicValidator.js)
+  - 规则一致性与行为合法性校验。
 
-### 支持的 AI 提供商
+项目里还保留了更早期的认知架构和实验组件，例如：
 
-| 提供商 | API 地址 | 特点 |
-|--------|----------|------|
-| **ModelScope** | api-inference.modelscope.cn | 异步模式，国内访问快 |
-| **SiliconFlow** | api.siliconflow.cn | 同步模式，模型丰富 |
+- `src/services/bayesianInference.js`
+- `src/services/deceptionDetection.js`
+- `src/services/dualSystem.js`
+- `src/hooks/useDualSystem.js`
+- `src/hooks/useTrustInference.js`
 
-### Thinking Models（推理决策）
+这些能力仍在仓库中，但当前首页重构不以它们为主叙事。
 
-用于 AI 角色的深度推理和决策：
+### 5. pretext 前端排版层
 
-| 模型 | 参数量 | 特点 |
-|------|--------|------|
-| DeepSeek-R1-0528 | 684B | 顶级推理模型 |
-| QwQ-32B | 32B | 轻量推理模型 |
-| Qwen3-235B-Thinking | 235B | 高级思维模型 |
-| Qwen3-Next-80B-Thinking | 80B | 混合注意力模型 |
-| MiMo-V2-Flash | 309B | 小米超大规模推理 |
-| DeepSeek-V3.2 | - | Thinking 模式 |
+- [src/components/home/BalancedHeadline.jsx](src/components/home/BalancedHeadline.jsx)
+  - 基于 `pretext` 做标题平衡换行。
 
-### Instruct Models（总结任务）
+- [src/components/home/IdeaMasonry.jsx](src/components/home/IdeaMasonry.jsx)
+  - 用 `pretext` 测量文本高度，生成更稳定的卡片栅格。
 
-用于发言压缩、历史总结等任务：
+- [src/components/home/HomePortalCard.jsx](src/components/home/HomePortalCard.jsx)
+  - 首页和狼人杀模块页共享的入口卡片。
 
-| 模型 | 参数量 | 特点 |
-|------|--------|------|
-| Qwen3-Coder-480B | 480B | 编码模型 |
-| Qwen3-235B-Instruct | 235B | 指令跟随 |
-| ERNIE-4.5-300B | 300B | 百度文心 |
-| Mistral-Large | 123B | 多语言支持 |
-| Llama-4-Maverick | 400B | Meta 最新 |
-| Command-R-Plus | 104B | Cohere 对话 |
+- [src/hooks/useBalancedHeadline.js](src/hooks/useBalancedHeadline.js)
+  - `BalancedHeadline` 的布局计算 hook。
 
-> 配置文件位于 [src/config/aiConfig.js](src/config/aiConfig.js)
+- [src/hooks/useElementWidth.js](src/hooks/useElementWidth.js)
+  - 观察元素宽度，为 `pretext` 计算提供输入。
 
-## 🎮 游戏规则
+- [src/index.css](src/index.css)
+  - 全局视觉基线。
+  - 当前已包含 `Zhaxiaoji Studio` 的纸感背景、`page-orbit`、`paper-panel`、字体变量等视觉系统。
 
-### 8 人标准局
+## 后端与部署
 
-| 角色 | 数量 | 能力 |
-|------|------|------|
-| 🐺 **狼人** | 2 | 每晚选择一名玩家击杀 |
-| 🔮 **预言家** | 1 | 每晚查验一名玩家的阵营 |
-| 🧪 **女巫** | 1 | 1 瓶解药 + 1 瓶毒药 |
-| 🛡️ **守卫** | 1 | 每晚守护一人（不能连守） |
-| 🔫 **猎人** | 1 | 死亡时可开枪（被毒除外） |
-| 🧑‍🌾 **村民** | 2 | 白天投票 |
+- [workers/auth/index.js](workers/auth/index.js)
+  - Cloudflare Workers 入口。
 
-### 6 人迷你局
+- [workers/auth/handlers.js](workers/auth/handlers.js)
+  - 认证相关业务 handler。
 
-| 角色 | 数量 |
-|------|------|
-| 🐺 狼人 | 2 |
-| 🔮 预言家 | 1 |
-| 🧪 女巫 | 1 |
-| 🧑‍🌾 村民 | 2 |
+- [workers/auth/jwt.js](workers/auth/jwt.js)
+  - JWT 生成与校验。
 
-### 胜利条件
+- [workers/auth/password.js](workers/auth/password.js)
+  - 密码处理。
 
-- **好人阵营**：投票放逐所有狼人
-- **狼人阵营**：屠边（杀光神职或平民）或屠城
+- [workers/auth/email.js](workers/auth/email.js)
+  - 邮件相关流程。
 
-## 📂 项目结构
+- [workers/auth/middleware.js](workers/auth/middleware.js)
+  - Worker 中间件。
 
-```
-battle-web/
-├── src/
-│   ├── components/              # UI 组件
-│   │   ├── ActionPanel.jsx          # 阶段操作按钮
-│   │   ├── CirclePlayerLayout.jsx   # 圆桌玩家布局
-│   │   ├── ErrorBoundary.jsx        # 错误边界处理
-│   │   ├── GameArena.jsx            # 游戏主舞台
-│   │   ├── GameHeader.jsx           # 游戏头部状态栏
-│   │   ├── GameHistoryTable.jsx     # 游戏历史表格
-│   │   ├── GameLog.jsx              # 可滚动的历史日志
-│   │   ├── PhaseActionContainer.jsx # 阶段动作容器
-│   │   ├── PlayerCardList.jsx       # 玩家卡片列表
-│   │   ├── SetupScreen.jsx          # 游戏设置界面
-│   │   ├── SidePanels.jsx           # 侧边信息面板
-│   │   ├── SpeechBubble.jsx         # 发言气泡组件
-│   │   ├── SpeechPanel.jsx          # 讨论发言界面
-│   │   └── VotePanel.jsx            # 投票界面
-│   │
-│   ├── hooks/                   # React Hooks
-│   │   ├── useAI.js                 # AI 调用封装
-│   │   ├── useDayFlow.js            # 白天流程控制
-│   │   ├── useDualSystem.js         # 双系统集成
-│   │   ├── useNightFlow.js          # 夜晚流程控制
-│   │   └── useTrustInference.js     # 信任推理集成
-│   │
-│   ├── services/                # 核心服务
-│   │   ├── aiClient.js              # AI API 客户端
-│   │   ├── aiPrompts.js             # 提示词工程系统
-│   │   ├── bayesianInference.js     # 贝叶斯身份推断
-│   │   ├── deceptionDetection.js    # 欺骗检测引擎
-│   │   ├── dualSystem.js            # 双系统认知架构
-│   │   ├── imageGenerator.js        # AI 头像生成
-│   │   ├── logicValidator.js        # 逻辑剪枝验证
-│   │   ├── ragRetrieval.js          # RAG 检索服务
-│   │   ├── ragSchema.js             # RAG 数据结构
-│   │   ├── speechSummarizer.js      # 发言压缩服务
-│   │   └── trustScoring.js          # GRATR 信任评分
-│   │
-│   ├── config/                  # 配置文件
-│   │   ├── aiConfig.js              # AI 模型配置
-│   │   └── roles.js                 # 角色与游戏配置
-│   │
-│   ├── useWerewolfGame.js       # 核心游戏状态机
-│   ├── App.jsx                  # 应用主入口
-│   ├── main.jsx                 # React 入口
-│   └── index.css                # 全局样式
-│
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-├── postcss.config.js
-└── wrangler.toml                # Cloudflare 部署配置
+- [wrangler.toml](wrangler.toml)
+  - Cloudflare Workers 配置。
+  - `main = "workers/auth/index.js"`，同时通过 `[assets]` 发布 `dist/` 静态资源。
+
+## 数据与服务边界
+
+- [src/services/authService.js](src/services/authService.js)
+  - 前端对认证 Worker 的调用封装。
+
+- [src/services/gameService.js](src/services/gameService.js)
+  - 用户战绩读写接口。
+
+- [src/services/submitGameLog.js](src/services/submitGameLog.js)
+  - 对局结束后提交完整游戏日志，用于复盘 / 评审流水线。
+
+- [src/utils/authToken.js](src/utils/authToken.js)
+  - 本地 token 与用户缓存读写。
+
+- [src/utils/exportGameLog.js](src/utils/exportGameLog.js)
+  - 导出对局日志。
+
+## 仓库里的次级子系统
+
+当前仓库不只有主页和狼人杀，还包含两个相对独立的子系统：
+
+- `src/components/Stock/*`
+  - 实时行情 / 自选股 / 深度 / 纸交易实验。
+  - 当前通过 `SitesPage` 进入，不在公开首页直接占主叙事。
+
+- `src/agents/*`
+  - review pipeline / prompt engineer / bug hunter / test writer 等 agent 实验。
+  - 它们和本次主页重构不是同一条用户路径，但仍在仓库中。
+
+## 当前目录地图
+
+```text
+src/
+├── App.jsx                      # 应用壳层与页面装配
+├── useWerewolfGame.js           # 核心游戏 reducer
+├── contexts/
+│   └── AuthContext.jsx          # 认证上下文
+├── hooks/
+│   ├── useAppRouter.js          # 前端路由与守卫
+│   ├── useAI.js                 # AI 统一调用入口
+│   ├── useAIModels.js           # 模型列表与禁用追踪
+│   ├── useDayFlow.js            # 白天流程
+│   ├── useNightFlow.js          # 夜晚流程
+│   ├── useSpeechFlow.js         # 发言流程
+│   ├── useGameLifecycle.js      # 生命周期外围逻辑
+│   ├── useBalancedHeadline.js   # pretext 标题计算
+│   └── useElementWidth.js       # 元素宽度测量
+├── components/
+│   ├── Dashboard.jsx            # 公开首页
+│   ├── WolfgameHub.jsx          # 狼人杀模块页
+│   ├── SitesPage.jsx            # Projects & Labs Hub
+│   ├── SetupScreen.jsx          # 对局设置页
+│   ├── GameArena.jsx            # 对局主舞台
+│   ├── TokenManager.jsx         # token 管理弹层
+│   ├── UserStats.jsx            # 用户战绩弹层
+│   ├── home/                    # pretext 首页组件
+│   ├── Stock/                   # 行情实验子系统
+│   └── Auth/                    # 登录/注册/重置密码/验证邮箱
+├── services/
+│   ├── authService.js           # 认证 API
+│   ├── gameService.js           # 战绩 API
+│   ├── submitGameLog.js         # 对局日志提交
+│   ├── aiClient.js              # LLM 客户端
+│   ├── aiPrompts.js             # 主提示词
+│   └── rolePrompts/             # 角色级提示词
+├── config/
+│   ├── aiConfig.js              # AI 服务配置
+│   └── roles.js                 # 角色、阵容、胜利条件配置
+└── utils/                       # 游戏/日志/认证辅助工具
 ```
 
-## 📚 文档
-
-- [提示词工程架构](PROMPT_ENGINEERING.md)：AI 上下文管理、系统提示词、幻觉防止技术
-- [游戏设计理论](game.md)：多智能体博弈理论研究报告
-  - 贝叶斯博弈与不完全信息转化
-  - 纳什均衡与混合策略分布
-  - 角色核心思维建模
-  - 双系统架构设计
-  - 潜空间策略优化（LSPO）
-
-## 🔧 开发命令
+## 运行命令
 
 ```bash
-# 启动开发服务器
-npm run dev
-
-# 构建生产版本
-npm run build
-
-# 预览构建结果
-npm run preview
-
-# 代码检查
-npm run lint
-
-# 部署到 Cloudflare Workers
-npm run deploy
+npm.cmd run dev
+npm.cmd run build
+npm.cmd run preview
+npm.cmd run test
+npm.cmd run deploy
 ```
 
-## 🔑 环境变量
+## 当前测试
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `VITE_AI_PROVIDER` | AI 提供商 | `modelscope` |
-| `VITE_API_KEY` | ModelScope API Key | - |
-| `VITE_API_URL` | ModelScope API 地址 | 内置默认值 |
-| `VITE_SILICONFLOW_API_KEY` | SiliconFlow API Key | - |
-| `VITE_SILICONFLOW_API_URL` | SiliconFlow API 地址 | 内置默认值 |
+当前仓库至少有这几组自动化验证：
 
-## 📄 许可证
+- [src/utils/__tests__/gameUtils.test.js](src/utils/__tests__/gameUtils.test.js)
+- [src/services/__tests__/submitGameLog.test.js](src/services/__tests__/submitGameLog.test.js)
+- [src/agents/shared/__tests__/validation.test.js](src/agents/shared/__tests__/validation.test.js)
 
-本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
-> `const API_KEY = "ms-..."`
+## 说明
 
-**For local development:**
-If the key expires or hits rate limits, please replace it with your own ModelScope API Token in `src/App.jsx`.
-
-## License
-
-MIT
+- 公开首页、狼人杀模块页和 Projects & Labs 已完成重构。
+- 狼人杀排行榜前端已移除，不再作为公开入口的一部分。
+- 原仓库可能仍有历史实验文件、知识库样本和 agent 产物；这些不影响当前主页 / 狼人杀 / Projects & Labs 的主路径结构。
