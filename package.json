@@ -1,5 +1,5 @@
 {
-  "name": "battle-web",
+  "name": "zhaxiaoji-home",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@chenglou/pretext": "^0.0.4",
     "lucide-react": "^0.292.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

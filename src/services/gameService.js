@@ -84,22 +84,3 @@ export async function getUserStats() {
   }
 }
 
-/**
- * 获取排行榜
- * @param {number} [limit=20] - 数量限制
- */
-export async function getLeaderboard(limit = 20) {
-  try {
-    const response = await fetch(buildApiUrl(`/api/leaderboard?limit=${limit}`), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    return await response.json();
-  } catch (error) {
-    console.error('Get leaderboard error:', error);
-    return { success: false, error: error.message };
-  }
-}

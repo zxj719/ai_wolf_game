@@ -4,7 +4,6 @@ import { useWerewolfGame } from './useWerewolfGame';
 import { useAuth } from './contexts/AuthContext';
 import { saveGameRecord } from './services/gameService';
 import { submitGameLog } from './services/submitGameLog';
-import { authService } from './services/authService';
 import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS, DEFAULT_CUSTOM_SELECTIONS, DEFAULT_VICTORY_MODE } from './config/roles';
 import { API_KEY, API_URL } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
@@ -31,6 +30,9 @@ const AuthPage = lazy(() =>
 );
 const Dashboard = lazy(() =>
   import('./components/Dashboard').then((module) => ({ default: module.Dashboard }))
+);
+const WolfgameHub = lazy(() =>
+  import('./components/WolfgameHub').then((module) => ({ default: module.WolfgameHub }))
 );
 const SitesPage = lazy(() =>
   import('./components/SitesPage').then((module) => ({ default: module.SitesPage }))
@@ -144,45 +146,51 @@ export default function App() {
 
   // --- Router ---
   const {
-    navigate, isHomeRoute, isCustomRoute, isPlayRoute, isSitesRoute, isAuthed,
+    navigate, isHomeRoute, isWolfgameRoute, isCustomRoute, isPlayRoute, isSitesRoute, isAuthed,
   } = useAppRouter({ user, isGuestMode, isGameActive, endGame, gameMode, phase });
 
   // --- Route meta for SPA SEO ---
   useEffect(() => {
     const pageMeta = (() => {
-      if (!isAuthed) {
-        return {
-          title: '登录 | Werewolf Pro - 狼人杀AI对战',
-          description: '登录或注册 Werewolf Pro，立即体验 AI 狼人杀对战。'
-        };
-      }
       if (isHomeRoute) {
         return {
-          title: '主页 | Werewolf Pro - 狼人杀AI对战',
-          description: '进入狼人杀 AI 对战、管理令牌、查看模型排行榜与游戏战绩。'
+          title: 'Zhaxiaoji Studio | 个人主页',
+          description: 'Zhaxiaoji Studio 主页，公开展示个人项目入口，并保留狼人杀、游客试玩与登录能力。'
         };
       }
-      if (isCustomRoute) {
+      if (isWolfgameRoute) {
         return {
-          title: '游戏设置 | Werewolf Pro',
-          description: '配置角色阵容与胜利条件，快速开始玩家模式或全 AI 模式。'
-        };
-      }
-      if (isPlayRoute) {
-        return {
-          title: `对局进行中（第${dayCount}天）| Werewolf Pro`,
-          description: '狼人杀对局进行中，跟踪发言、投票与夜晚行动结算。'
+          title: 'AI 狼人杀 | Zhaxiaoji Studio',
+          description: '了解 AI 狼人杀玩法，从游客试玩或登录后进入对局，并统一访问战绩与令牌入口。'
         };
       }
       if (isSitesRoute) {
         return {
-          title: '站点入口 | Werewolf Pro',
-          description: '统一管理与访问站点内容入口。'
+          title: 'Projects & Labs | Zhaxiaoji Studio',
+          description: '统一访问 Zhaxiaoji Studio 的项目、实验和工具入口。'
+        };
+      }
+      if (isCustomRoute) {
+        return {
+          title: '游戏设置 | Zhaxiaoji Studio',
+          description: '配置狼人杀角色阵容与胜利条件，开始游客、人机或全 AI 对局。'
+        };
+      }
+      if (isPlayRoute) {
+        return {
+          title: `对局进行中（第${dayCount}天）| Zhaxiaoji Studio`,
+          description: '狼人杀对局进行中，继续查看发言、投票、结算与模型使用情况。'
+        };
+      }
+      if (!isAuthed) {
+        return {
+          title: '登录 | Zhaxiaoji Studio',
+          description: '登录 Zhaxiaoji Studio，保存狼人杀战绩与令牌配置。'
         };
       }
       return {
-        title: 'Werewolf Pro - 狼人杀AI对战',
-        description: '狼人杀AI对战平台 - 体验与AI对手的智慧博弈。'
+        title: 'Zhaxiaoji Studio',
+        description: 'Zhaxiaoji Studio 个人主页与 AI 狼人杀入口。'
       };
     })();
 
@@ -207,7 +215,7 @@ export default function App() {
     if (canonical) {
       canonical.setAttribute('href', canonicalUrl);
     }
-  }, [dayCount, isAuthed, isCustomRoute, isHomeRoute, isPlayRoute, isSitesRoute]);
+  }, [dayCount, isAuthed, isCustomRoute, isHomeRoute, isPlayRoute, isSitesRoute, isWolfgameRoute]);
 
   // --- Guest mode auto-disable ---
   useEffect(() => {
@@ -246,7 +254,7 @@ export default function App() {
     }
   }, [gameMode, selectedSetup]);
 
-  // --- Game result: save record & model stats ---
+  // --- Game result: save record ---
   useEffect(() => {
     if (!gameResult || !gameMode) return;
     const saveRecord = async () => {
@@ -262,25 +270,6 @@ export default function App() {
           });
         } catch (err) {
           logger.error('[战绩] 保存失败:', err);
-        }
-      }
-      if (modelUsage?.playerModels) {
-        try {
-          const modelStats = {};
-          Object.values(modelUsage.playerModels).forEach(({ modelId }) => {
-            if (modelId) modelStats[modelId] = (modelStats[modelId] || 0) + 1;
-          });
-          const playerResults = players.map(p => ({
-            playerId: p.id, role: p.role,
-            isWinner: gameResult === 'good_win' ? p.role !== '狼人' : p.role === '狼人',
-            modelId: modelUsage.playerModels[p.id]?.modelId || null,
-            modelName: modelUsage.playerModels[p.id]?.modelName || null,
-          }));
-          await authService.submitModelStats({
-            gameSessionId: modelUsage.gameSessionId, gameResult, gameMode, playerResults, modelStats
-          });
-        } catch (err) {
-          logger.error('[模型统计] 提交失败:', err);
         }
       }
     };
@@ -386,11 +375,20 @@ export default function App() {
     navigate(ROUTES.HOME, { replace: true });
   }, [navigate]);
 
+  const handleGuestWolfgame = useCallback(() => {
+    setIsGuestMode(true);
+    navigate(ROUTES.CUSTOM, { replace: true });
+  }, [navigate]);
+
   const handleGuestExitToLogin = useCallback(() => {
     endGame();
     setIsGuestMode(false);
     navigate(ROUTES.LOGIN, { replace: true });
   }, [endGame, navigate]);
+
+  const handleGoToLogin = useCallback(() => {
+    navigate(ROUTES.LOGIN);
+  }, [navigate]);
 
   const handleLogout = useCallback(async () => {
     endGame();
@@ -405,6 +403,10 @@ export default function App() {
   }, [endGame, navigate]);
 
   const handleEnterWolfgame = useCallback(() => {
+    navigate(ROUTES.WOLFGAME);
+  }, [navigate]);
+
+  const handleEnterWolfgameSetup = useCallback(() => {
     navigate(ROUTES.CUSTOM);
   }, [navigate]);
 
@@ -418,14 +420,6 @@ export default function App() {
     return <FullPageLoader />;
   }
 
-  if (!isAuthed) {
-    return (
-      <Suspense fallback={<FullPageLoader />}>
-        <AuthPage onGuestPlay={handleGuestPlay} />
-      </Suspense>
-    );
-  }
-
   if (isHomeRoute) {
     return (
       <Suspense fallback={<FullPageLoader />}>
@@ -434,7 +428,22 @@ export default function App() {
           onEnterSites={handleEnterSites}
           onLogout={handleLogout}
           isGuestMode={isGuestMode}
-          onLogin={handleGuestExitToLogin}
+          onLogin={isGuestMode ? handleGuestExitToLogin : handleGoToLogin}
+          onGuestPlay={handleGuestPlay}
+        />
+      </Suspense>
+    );
+  }
+
+  if (isWolfgameRoute) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WolfgameHub
+          onBackHome={handleExitToHome}
+          onEnterWolfgame={handleEnterWolfgameSetup}
+          onGuestWolfgame={handleGuestWolfgame}
+          onLogin={isGuestMode ? handleGuestExitToLogin : handleGoToLogin}
+          isGuestMode={isGuestMode}
         />
       </Suspense>
     );
@@ -444,6 +453,14 @@ export default function App() {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SitesPage onBack={handleExitToHome} />
+      </Suspense>
+    );
+  }
+
+  if (!isAuthed) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <AuthPage onGuestPlay={handleGuestPlay} />
       </Suspense>
     );
   }

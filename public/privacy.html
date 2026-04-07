@@ -1,70 +1,98 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>隐私政策 | Werewolf Pro</title>
-    <meta name="description" content="Werewolf Pro 隐私政策说明。" />
+    <title>隐私政策 | Zhaxiaoji Studio</title>
+    <meta name="description" content="Zhaxiaoji Studio 的隐私政策说明。" />
     <style>
       :root {
         color-scheme: dark;
+        --bg: #09090b;
+        --panel: #18181b;
+        --border: #3f3f46;
+        --text: #f4f4f5;
+        --muted: #a1a1aa;
+        --accent: #67e8f9;
       }
       body {
         margin: 0;
         font-family: "Segoe UI", "PingFang SC", sans-serif;
-        background: #09090b;
-        color: #f4f4f5;
+        background:
+          radial-gradient(circle at top, rgba(103, 232, 249, 0.12), transparent 34%),
+          var(--bg);
+        color: var(--text);
       }
       .wrap {
         max-width: 920px;
         margin: 0 auto;
-        padding: 48px 20px 64px;
+        padding: 48px 20px 72px;
       }
       .card {
-        background: #18181b;
-        border: 1px solid #3f3f46;
-        border-radius: 14px;
+        background: rgba(24, 24, 27, 0.9);
+        border: 1px solid var(--border);
+        border-radius: 18px;
         padding: 24px;
         margin-bottom: 16px;
       }
+      .eyebrow {
+        margin: 0 0 10px;
+        font-size: 12px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
       h1, h2 {
         margin-top: 0;
+      }
+      h1 {
+        font-size: clamp(32px, 5vw, 52px);
+        margin-bottom: 10px;
       }
       p, li {
         line-height: 1.7;
         color: #d4d4d8;
       }
       a {
-        color: #60a5fa;
+        color: var(--accent);
+      }
+      ul {
+        margin-bottom: 0;
+      }
+      .note {
+        color: var(--muted);
+        max-width: 70ch;
       }
     </style>
   </head>
   <body>
     <main class="wrap">
+      <p class="eyebrow">Zhaxiaoji Studio</p>
       <h1>隐私政策</h1>
+      <p class="note">本页面说明 Zhaxiaoji Studio 在公开站点与功能页中可能接触到的数据类型、用途和基本处理方式。</p>
       <section class="card">
         <h2>1. 我们收集的信息</h2>
-        <p>当你注册与使用服务时，平台可能会收集账号信息（如用户名、邮箱）、对局记录、令牌配置状态以及必要的日志信息，用于提供功能与稳定性保障。</p>
+        <p>当你访问本站或使用相关功能页时，我们可能会记录基础账号信息、必要的访问日志，以及为了提供服务所需的配置数据。</p>
       </section>
       <section class="card">
         <h2>2. 信息用途</h2>
         <ul>
-          <li>用于账号认证、找回密码与安全校验。</li>
-          <li>用于记录战绩、模型表现和产品分析，持续改进体验。</li>
-          <li>用于排查错误与防止滥用。</li>
+          <li>用于身份验证、账号安全和必要的服务同步。</li>
+          <li>用于理解功能使用情况并改进页面体验。</li>
+          <li>用于排查故障、保障稳定性并防止滥用。</li>
         </ul>
       </section>
       <section class="card">
         <h2>3. 数据安全</h2>
-        <p>我们会采取合理措施保护数据安全，包括访问控制与传输加密。请不要在反馈和昵称中主动提交敏感个人信息。</p>
+        <p>我们会采取合理措施保护数据安全，包括访问控制和传输保护。请不要在公开反馈中主动提交敏感信息。</p>
       </section>
       <section class="card">
-        <h2>4. 你的权利</h2>
-        <p>你可以通过站内反馈渠道申请删除或更正个人信息，我们会在合理时间内处理。</p>
+        <h2>4. 你的选择</h2>
+        <p>你可以根据站点内提供的方式申请查看、更新或删除相关信息，我们会在合理时间内处理。</p>
       </section>
       <section class="card">
         <h2>5. 政策更新</h2>
-        <p>隐私政策可能随产品迭代更新，更新后将发布在此页面。</p>
+        <p>随着产品和功能的变化，本政策可能会更新。更新后会在本页面公布。</p>
       </section>
       <p><a href="/">返回首页</a></p>
     </main>

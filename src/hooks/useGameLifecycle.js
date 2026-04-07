@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { abortAllRequests, resetAbortController } from '../services/aiClient';
 import { saveGameRecord } from '../services/gameService';
-import { authService } from '../services/authService';
 
 /**
  * useGameLifecycle - 管理游戏生命周期
@@ -123,35 +122,6 @@ export function useGameLifecycle({
         }
       }
 
-      // 提交 AI 模型统计
-      if (modelUsage?.playerModels) {
-        try {
-          const modelStats = {};
-          Object.values(modelUsage.playerModels).forEach(({ modelId }) => {
-            if (modelId) {
-              modelStats[modelId] = (modelStats[modelId] || 0) + 1;
-            }
-          });
-
-          const playerResults = players.map(p => ({
-            playerId: p.id,
-            role: p.role,
-            isWinner: gameResult === 'good_win' ? p.role !== '狼人' : p.role === '狼人',
-            modelId: modelUsage.playerModels[p.id]?.modelId || null,
-            modelName: modelUsage.playerModels[p.id]?.modelName || null,
-          }));
-
-          await authService.submitModelStats({
-            gameSessionId: modelUsage.gameSessionId,
-            gameResult,
-            gameMode,
-            playerResults,
-            modelStats
-          });
-        } catch (err) {
-          console.error('[模型统计] 提交失败:', err);
-        }
-      }
     };
 
     saveRecord();

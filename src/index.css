@@ -1,8 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 自定义滚动条 */
+:root {
+  --homepage-bg: #f5efe6;
+  --homepage-ink: #1f1a17;
+  --homepage-paper: rgba(255, 251, 246, 0.82);
+  --homepage-line: rgba(28, 25, 23, 0.1);
+  --homepage-shadow: rgba(28, 25, 23, 0.12);
+  --font-display: "Noto Serif SC", "Songti SC", serif;
+  --font-sans: "Outfit", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+html {
+  background: var(--homepage-bg);
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(15, 76, 70, 0.08), transparent 34%),
+    radial-gradient(circle at 85% 0%, rgba(196, 90, 29, 0.12), transparent 28%),
+    var(--homepage-bg);
+  color: var(--homepage-ink);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(15, 76, 70, 0.18);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.page-orbit {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(28, 25, 23, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 25, 23, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
+  opacity: 0.5;
+}
+
+.paper-panel {
+  background:
+    linear-gradient(135deg, rgba(255, 251, 246, 0.94), rgba(250, 241, 228, 0.72)),
+    var(--homepage-paper);
+  border: 1px solid var(--homepage-line);
+  box-shadow: 0 26px 60px var(--homepage-shadow);
+}
+
+.headline-line {
+  display: block;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -20,7 +81,6 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* 气泡动画 */
 @keyframes bubble-in {
   0% {
     opacity: 0;
@@ -39,7 +99,6 @@
   animation: bubble-in 0.4s ease-out forwards;
 }
 
-/* 发言气泡弹跳效果 */
 @keyframes bounce-in {
   0% {
     opacity: 0;
@@ -61,7 +120,6 @@
   animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-/* 卡片悬浮效果 */
 .player-card-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -71,7 +129,6 @@
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
-/* 发光效果 */
 .glow-indigo {
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
 }
@@ -84,7 +141,6 @@
   box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
 }
 
-/* 渐变文字 */
 .text-gradient-gold {
   background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706);
   -webkit-background-clip: text;
@@ -99,7 +155,6 @@
   background-clip: text;
 }
 
-/* 夜晚背景动画 */
 @keyframes twinkle {
   0%, 100% {
     opacity: 0.3;
@@ -113,12 +168,10 @@
   animation: twinkle 2s ease-in-out infinite;
 }
 
-/* 表格行高亮 */
 .table-row-highlight:hover {
   background: rgba(99, 102, 241, 0.1) !important;
 }
 
-/* 可爱的气泡尾巴 */
 .bubble-tail-right::before {
   content: '';
   position: absolute;
@@ -143,12 +196,10 @@
   border-left-color: inherit;
 }
 
-/* 平滑过渡 */
 .transition-smooth {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 文本截断 */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -163,7 +214,6 @@
   overflow: hidden;
 }
 
-/* 响应式圆形布局调整 */
 @media (max-width: 768px) {
   .circle-layout {
     transform: scale(0.8);

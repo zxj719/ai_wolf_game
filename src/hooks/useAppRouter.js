@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 export const ROUTES = {
   LOGIN: '/login',
   HOME: '/home',
+  WOLFGAME: '/wolfgame',
   CUSTOM: '/wolfgame/custom',
   PLAY: '/wolfgame/play',
   SITES: '/sites',
@@ -11,16 +12,15 @@ export const ROUTES = {
 };
 
 const AUTH_ROUTES = new Set([ROUTES.LOGIN, ROUTES.RESET, ROUTES.VERIFY]);
-const APP_ROUTES = new Set([ROUTES.HOME, ROUTES.SITES, ROUTES.CUSTOM, ROUTES.PLAY]);
+const PUBLIC_ROUTES = new Set([ROUTES.HOME, ROUTES.WOLFGAME, ROUTES.SITES, ...AUTH_ROUTES]);
+const PRIVATE_ROUTES = new Set([ROUTES.CUSTOM, ROUTES.PLAY]);
+const APP_ROUTES = new Set([...PUBLIC_ROUTES, ...PRIVATE_ROUTES]);
 
 export function normalizePath(path = '') {
   const trimmed = path.replace(/\/+$/, '');
   return trimmed === '' ? '/' : trimmed;
 }
 
-/**
- * useAppRouter - 管理应用路由和导航
- */
 export function useAppRouter({ user, isGuestMode, isGameActive, endGame, gameMode, phase }) {
   const [currentPath, setCurrentPath] = useState(() => normalizePath(window.location.pathname));
 
@@ -39,7 +39,6 @@ export function useAppRouter({ user, isGuestMode, isGameActive, endGame, gameMod
     setCurrentPath(nextPath);
   }, []);
 
-  // popstate 监听
   useEffect(() => {
     const handlePopState = () => {
       setCurrentPath(normalizePath(window.location.pathname));
@@ -51,54 +50,57 @@ export function useAppRouter({ user, isGuestMode, isGameActive, endGame, gameMod
   const normalizedPath = normalizePath(currentPath);
   const isAuthRoute = AUTH_ROUTES.has(normalizedPath);
   const isHomeRoute = normalizedPath === ROUTES.HOME;
+  const isWolfgameRoute = normalizedPath === ROUTES.WOLFGAME;
   const isCustomRoute = normalizedPath === ROUTES.CUSTOM;
   const isPlayRoute = normalizedPath === ROUTES.PLAY;
   const isSitesRoute = normalizedPath === ROUTES.SITES;
   const isAuthed = !!user || isGuestMode;
 
-  // 认证路由重定向
   useEffect(() => {
-    if (!isAuthed) {
-      if (!isAuthRoute) {
-        navigate(ROUTES.LOGIN, { replace: true });
-      }
-      return;
-    }
-    if (normalizedPath === '/' || isAuthRoute) {
+    if (normalizedPath === '/') {
       navigate(ROUTES.HOME, { replace: true });
       return;
     }
+
     if (!APP_ROUTES.has(normalizedPath)) {
       navigate(ROUTES.HOME, { replace: true });
+      return;
     }
-  }, [isAuthed, normalizedPath, isAuthRoute]);
 
-  // 返回首页/站点时自动结束游戏
+    if (!isAuthed && PRIVATE_ROUTES.has(normalizedPath)) {
+      navigate(ROUTES.LOGIN, { replace: true });
+      return;
+    }
+
+    if (isAuthed && isAuthRoute) {
+      navigate(ROUTES.HOME, { replace: true });
+    }
+  }, [isAuthed, isAuthRoute, navigate, normalizedPath]);
+
   useEffect(() => {
-    if ((isHomeRoute || isSitesRoute) && isGameActive) {
+    if ((isHomeRoute || isWolfgameRoute || isSitesRoute) && isGameActive) {
       endGame();
     }
-  }, [isHomeRoute, isSitesRoute, isGameActive]);
+  }, [endGame, isGameActive, isHomeRoute, isSitesRoute, isWolfgameRoute]);
 
-  // gameMode 设置后跳转到 play
   useEffect(() => {
     if (gameMode && isCustomRoute) {
       navigate(ROUTES.PLAY, { replace: true });
     }
-  }, [gameMode, isCustomRoute]);
+  }, [gameMode, isCustomRoute, navigate]);
 
-  // 无 gameMode 时回到 custom
   useEffect(() => {
     if (isPlayRoute && !gameMode && phase === 'setup') {
       navigate(ROUTES.CUSTOM, { replace: true });
     }
-  }, [isPlayRoute, gameMode, phase]);
+  }, [gameMode, isPlayRoute, navigate, phase]);
 
   return {
     navigate,
     currentPath,
     isAuthRoute,
     isHomeRoute,
+    isWolfgameRoute,
     isCustomRoute,
     isPlayRoute,
     isSitesRoute,

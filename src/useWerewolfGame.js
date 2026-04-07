@@ -44,7 +44,7 @@ const initialState = {
   },
   // 游戏主题背景图像
   gameBackground: null,
-  // AI模型使用追踪（用于排行榜统计）
+  // AI模型使用追踪（仅用于局内展示和复盘）
   modelUsage: {
     gameSessionId: null,  // 游戏会话ID
     playerModels: {}      // { playerId: { modelId, modelName } }
