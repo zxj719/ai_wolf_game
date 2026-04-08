@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
 import { TokenManager } from './TokenManager';
 import { UserStats } from './UserStats';
-import { ModelLeaderboard } from './ModelLeaderboard';
 import {
   Gamepad2,
   LogOut,
@@ -252,10 +251,6 @@ export function Dashboard({
                   </button>
                 </div>
               </div>
-            </section>
-
-            <section className="mac-panel p-5 md:p-6">
-              <ModelLeaderboard locale={locale} />
             </section>
 
             <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">

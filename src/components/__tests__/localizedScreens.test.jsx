@@ -19,10 +19,6 @@ vi.mock('../../services/authService.js', () => ({
   },
 }));
 
-vi.mock('../ModelLeaderboard.jsx', () => ({
-  ModelLeaderboard: () => React.createElement('div', { 'data-testid': 'leaderboard' }, 'leaderboard'),
-}));
-
 vi.mock('../TokenManager.jsx', () => ({
   TokenManager: () => React.createElement('div', { 'data-testid': 'token-manager' }, 'token manager'),
 }));

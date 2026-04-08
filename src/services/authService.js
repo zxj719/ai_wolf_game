@@ -256,16 +256,4 @@ export const authService = {
    * 获取 AI 模型排行榜
    * @param {Object} options - 查询选项
    */
-  async getModelLeaderboard(options = {}) {
-    const params = new URLSearchParams();
-    if (options.role) params.append('role', options.role);
-    if (options.sortBy) params.append('sortBy', options.sortBy);
-    if (options.limit) params.append('limit', options.limit.toString());
-
-    const queryString = params.toString();
-    const endpoint = queryString ? `/api/model-leaderboard?${queryString}` : '/api/model-leaderboard';
-
-    return request(endpoint, { method: 'GET' });
-  },
-
 };
