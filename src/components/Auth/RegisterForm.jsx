@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, UserPlus, Loader2, Check, X } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { getUiCopy } from '../../i18n/locale.js';
+import { AuthShell } from './AuthShell.jsx';
 
-export function RegisterForm({ onSwitchToLogin }) {
+export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
   const { register, error } = useAuth();
+  const authCopy = getUiCopy(locale).auth;
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,7 +16,6 @@ export function RegisterForm({ onSwitchToLogin }) {
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  // 密码强度检查
   const passwordChecks = {
     length: password.length >= 8,
     lowercase: /[a-z]/.test(password),
@@ -23,27 +26,27 @@ export function RegisterForm({ onSwitchToLogin }) {
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
   const isUsernameValid = /^[a-zA-Z0-9_]{3,20}$/.test(username);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setLocalError('');
 
     if (!username || !email || !password) {
-      setLocalError('请填写所有必填字段');
+      setLocalError(authCopy.fillAllFields);
       return;
     }
 
     if (!isUsernameValid) {
-      setLocalError('用户名需要3-20个字符，只能包含字母、数字和下划线');
+      setLocalError(authCopy.invalidUsername);
       return;
     }
 
     if (!isPasswordValid) {
-      setLocalError('密码不符合要求');
+      setLocalError(authCopy.passwordWeak);
       return;
     }
 
     if (password !== confirmPassword) {
-      setLocalError('两次输入的密码不一致');
+      setLocalError(authCopy.passwordMismatch);
       return;
     }
 
@@ -51,188 +54,135 @@ export function RegisterForm({ onSwitchToLogin }) {
     try {
       const result = await register(username, email, password);
       if (!result.success) {
-        setLocalError(result.error || '注册失败');
+        setLocalError(result.error || authCopy.registrationFailed);
       }
     } catch (err) {
-      setLocalError(err.message || '注册失败');
+      setLocalError(err.message || authCopy.registrationFailed);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const PasswordCheck = ({ passed, label }) => (
-    <div className={`flex items-center gap-2 text-sm ${passed ? 'text-green-400' : 'text-zinc-500'}`}>
+  const Rule = ({ passed, label }) => (
+    <div className={`flex items-center gap-2 text-sm ${passed ? 'text-emerald-600' : 'text-slate-400'}`}>
       {passed ? <Check size={14} /> : <X size={14} />}
       <span>{label}</span>
     </div>
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-zinc-100 mb-2">狼人杀</h1>
-            <p className="text-zinc-400">创建新账号</p>
+    <AuthShell locale={locale} title={authCopy.registerTitle} subtitle={authCopy.guestDescription}>
+      {(localError || error) && (
+        <div className="mb-6 rounded-[22px] border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-600">
+          {localError || error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.username}</span>
+          <input
+            id="register-username"
+            type="text"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            className="mac-input"
+            placeholder={authCopy.usernamePlaceholder}
+            disabled={isLoading}
+            autoComplete="username"
+          />
+          {username && !isUsernameValid && <p className="mt-2 text-sm text-rose-600">{authCopy.invalidUsername}</p>}
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.email}</span>
+          <input
+            id="register-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="mac-input"
+            placeholder={authCopy.emailPlaceholder}
+            disabled={isLoading}
+            autoComplete="email"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.password}</span>
+          <div className="relative">
+            <input
+              id="register-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="mac-input pr-12"
+              placeholder={authCopy.createPasswordPlaceholder}
+              disabled={isLoading}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? authCopy.hidePassword : authCopy.showPassword}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
-          {/* Error Message */}
-          {(localError || error) && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-400 text-sm">{localError || error}</p>
+          {password && (
+            <div className="mt-3 grid gap-2">
+              <Rule passed={passwordChecks.length} label={authCopy.passwordRules[0]} />
+              <Rule passed={passwordChecks.lowercase} label={authCopy.passwordRules[1]} />
+              <Rule passed={passwordChecks.uppercase} label={authCopy.passwordRules[2]} />
+              <Rule passed={passwordChecks.number} label={authCopy.passwordRules[3]} />
             </div>
           )}
+        </label>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Username */}
-            <div>
-              <label htmlFor="register-username" className="block text-sm font-medium text-zinc-300 mb-2">
-                用户名
-              </label>
-              <input
-                id="register-username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className={`w-full px-4 py-3 bg-zinc-800 border rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 transition-colors ${
-                  username && !isUsernameValid
-                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                    : 'border-zinc-700 focus:border-blue-500 focus:ring-blue-500'
-                }`}
-                placeholder="3-20个字符，字母、数字、下划线"
-                disabled={isLoading}
-                autoComplete="username"
-              />
-              {username && !isUsernameValid && (
-                <p className="mt-1 text-sm text-red-400">
-                  用户名需要3-20个字符，只能包含字母、数字和下划线
-                </p>
-              )}
-            </div>
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.confirmPassword}</span>
+          <input
+            id="register-confirm-password"
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            className="mac-input"
+            placeholder={authCopy.confirmPasswordPlaceholder}
+            disabled={isLoading}
+            autoComplete="new-password"
+          />
+          {confirmPassword && password !== confirmPassword && (
+            <p className="mt-2 text-sm text-rose-600">{authCopy.passwordMismatch}</p>
+          )}
+        </label>
 
-            {/* Email */}
-            <div>
-              <label htmlFor="register-email" className="block text-sm font-medium text-zinc-300 mb-2">
-                邮箱
-              </label>
-              <input
-                id="register-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-                placeholder="your@email.com"
-                disabled={isLoading}
-                autoComplete="email"
-              />
-            </div>
+        <button
+          type="submit"
+          disabled={isLoading || !isPasswordValid || !isUsernameValid}
+          className="mac-button mac-button-primary w-full justify-center py-3"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              {authCopy.registering}
+            </>
+          ) : (
+            <>
+              <UserPlus size={18} />
+              {authCopy.registerButton}
+            </>
+          )}
+        </button>
+      </form>
 
-            {/* Password */}
-            <div>
-              <label htmlFor="register-password" className="block text-sm font-medium text-zinc-300 mb-2">
-                密码
-              </label>
-              <div className="relative">
-                <input
-                  id="register-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors pr-12"
-                  placeholder="创建密码"
-                  disabled={isLoading}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-
-              {/* Password Requirements */}
-              {password && (
-                <div className="mt-3 space-y-1">
-                  <PasswordCheck passed={passwordChecks.length} label="至少8个字符" />
-                  <PasswordCheck passed={passwordChecks.lowercase} label="包含小写字母" />
-                  <PasswordCheck passed={passwordChecks.uppercase} label="包含大写字母" />
-                  <PasswordCheck passed={passwordChecks.number} label="包含数字" />
-                </div>
-              )}
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label htmlFor="register-confirm-password" className="block text-sm font-medium text-zinc-300 mb-2">
-                确认密码
-              </label>
-              <input
-                id="register-confirm-password"
-                type={showPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full px-4 py-3 bg-zinc-800 border rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 transition-colors ${
-                  confirmPassword && password !== confirmPassword
-                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                    : 'border-zinc-700 focus:border-blue-500 focus:ring-blue-500'
-                }`}
-                placeholder="再次输入密码"
-                disabled={isLoading}
-                autoComplete="new-password"
-              />
-              {confirmPassword && password !== confirmPassword && (
-                <p className="mt-1 text-sm text-red-400">密码不一致</p>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading || !isPasswordValid || !isUsernameValid}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  注册中...
-                </>
-              ) : (
-                <>
-                  <UserPlus size={20} />
-                  注册
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Switch to Login */}
-          <div className="mt-6 text-center">
-            <p className="text-zinc-400">
-              已有账号？{' '}
-              <button
-                onClick={onSwitchToLogin}
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-              >
-                立即登录
-              </button>
-            </p>
-            <p className="text-zinc-600 text-xs mt-3">
-              注册即代表同意
-              {' '}
-              <a href="/terms.html" className="text-zinc-400 hover:text-zinc-300">用户协议</a>
-              {' '}
-              与
-              {' '}
-              <a href="/privacy.html" className="text-zinc-400 hover:text-zinc-300">隐私政策</a>
-            </p>
-          </div>
-        </div>
+      <div className="mt-6 text-sm text-slate-500">
+        {authCopy.hasAccount}{' '}
+        <button type="button" onClick={onSwitchToLogin} className="font-semibold text-sky-600 hover:text-sky-500">
+          {authCopy.loginNow}
+        </button>
       </div>
-    </div>
+    </AuthShell>
   );
 }

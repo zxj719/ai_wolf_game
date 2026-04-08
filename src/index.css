@@ -4,28 +4,76 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --homepage-bg: #f5efe6;
-  --homepage-ink: #1f1a17;
-  --homepage-paper: rgba(255, 251, 246, 0.82);
-  --homepage-line: rgba(28, 25, 23, 0.1);
-  --homepage-shadow: rgba(28, 25, 23, 0.12);
-  --font-display: "Noto Serif SC", "Songti SC", serif;
-  --font-sans: "Outfit", "PingFang SC", "Microsoft YaHei", sans-serif;
-}
+@layer base {
+  :root {
+    font-family: "Outfit", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color-scheme: light;
+    --homepage-bg: #f5efe6;
+    --homepage-ink: #1f1a17;
+    --homepage-paper: rgba(255, 251, 246, 0.82);
+    --homepage-line: rgba(28, 25, 23, 0.1);
+    --homepage-shadow: rgba(28, 25, 23, 0.12);
+    --font-display: "Noto Serif SC", "Songti SC", serif;
+    --font-sans: "Outfit", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mac-ink: #172033;
+    --mac-muted: #556176;
+    --mac-line: rgba(116, 133, 161, 0.28);
+    --mac-surface: rgba(255, 255, 255, 0.74);
+    --mac-surface-strong: rgba(255, 255, 255, 0.88);
+    --mac-panel: rgba(248, 250, 255, 0.64);
+    --mac-shadow: 0 24px 80px rgba(56, 74, 102, 0.22);
+    --mac-shadow-soft: 0 14px 36px rgba(71, 91, 125, 0.16);
+    --mac-primary: #2879ff;
+    --mac-primary-strong: #1463f2;
+    --mac-accent: #ff8f38;
+    --mac-success: #22a06b;
+    --mac-danger: #ea4e46;
+  }
 
-html {
-  background: var(--homepage-bg);
-}
+  html {
+    background: var(--homepage-bg);
+  }
 
-body {
-  margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(15, 76, 70, 0.08), transparent 34%),
-    radial-gradient(circle at 85% 0%, rgba(196, 90, 29, 0.12), transparent 28%),
-    var(--homepage-bg);
-  color: var(--homepage-ink);
-  font-family: var(--font-sans);
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(255, 189, 122, 0.44), transparent 28%),
+      radial-gradient(circle at top right, rgba(111, 175, 255, 0.4), transparent 32%),
+      radial-gradient(circle at bottom center, rgba(163, 140, 255, 0.18), transparent 28%),
+      linear-gradient(180deg, #f2f6ff 0%, #edf3fb 40%, #f6f8fb 100%);
+    color: var(--mac-ink);
+    font-family: var(--font-sans);
+  }
+
+  body::before,
+  body::after {
+    content: '';
+    position: fixed;
+    inset: auto;
+    width: 26rem;
+    height: 26rem;
+    border-radius: 9999px;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::before {
+    top: -10rem;
+    right: -10rem;
+    background: rgba(138, 190, 255, 0.28);
+  }
+
+  body::after {
+    bottom: -12rem;
+    left: -8rem;
+    background: rgba(255, 183, 128, 0.24);
+  }
 }
 
 a {
@@ -64,6 +112,176 @@ a {
   display: block;
 }
 
+@layer components {
+  .mac-app-shell {
+    @apply relative min-h-screen text-slate-900;
+  }
+
+  .mac-floating-toolbar {
+    @apply fixed right-4 top-4 z-[70] flex items-center gap-3;
+  }
+
+  .mac-window {
+    background: var(--mac-surface);
+    border: 1px solid var(--mac-line);
+    border-radius: 28px;
+    box-shadow: var(--mac-shadow);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+  }
+
+  .mac-panel {
+    background: var(--mac-panel);
+    border: 1px solid rgba(132, 150, 184, 0.18);
+    border-radius: 24px;
+    box-shadow: var(--mac-shadow-soft);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .mac-toolbar {
+    @apply flex items-center justify-between gap-4 px-6 py-4;
+    border-bottom: 1px solid rgba(123, 139, 167, 0.14);
+  }
+
+  .mac-window-chrome {
+    @apply flex items-center gap-2;
+  }
+
+  .mac-window-dot {
+    @apply h-3 w-3 rounded-full;
+  }
+
+  .mac-dot-red {
+    background: #ff5f57;
+  }
+
+  .mac-dot-yellow {
+    background: #febc2e;
+  }
+
+  .mac-dot-green {
+    background: #28c840;
+  }
+
+  .mac-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em];
+    color: #64748b;
+  }
+
+  .mac-title {
+    @apply text-3xl font-semibold tracking-tight;
+    color: var(--mac-ink);
+  }
+
+  .mac-subtitle {
+    @apply text-sm leading-6;
+    color: var(--mac-muted);
+  }
+
+  .mac-badge {
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium;
+    background: rgba(255, 255, 255, 0.64);
+    border: 1px solid rgba(116, 133, 161, 0.18);
+    color: #42506a;
+  }
+
+  .mac-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all duration-200;
+    border: 1px solid transparent;
+  }
+
+  .mac-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .mac-button:disabled {
+    @apply cursor-not-allowed opacity-60;
+    transform: none;
+  }
+
+  .mac-button-primary {
+    background: linear-gradient(180deg, var(--mac-primary) 0%, var(--mac-primary-strong) 100%);
+    color: white;
+    box-shadow: 0 12px 28px rgba(20, 99, 242, 0.28);
+  }
+
+  .mac-button-secondary {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(116, 133, 161, 0.22);
+    color: var(--mac-ink);
+  }
+
+  .mac-button-ghost {
+    background: rgba(255, 255, 255, 0.42);
+    border-color: rgba(116, 133, 161, 0.2);
+    color: #51607a;
+  }
+
+  .mac-button-danger {
+    background: linear-gradient(180deg, #fb6a63 0%, #e65048 100%);
+    color: white;
+    box-shadow: 0 10px 22px rgba(234, 78, 70, 0.24);
+  }
+
+  .mac-input,
+  .mac-textarea,
+  .mac-select {
+    @apply w-full rounded-2xl px-4 py-3 text-sm outline-none transition-all;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(122, 141, 176, 0.26);
+    color: var(--mac-ink);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  .mac-input::placeholder,
+  .mac-textarea::placeholder {
+    color: #8a96ab;
+  }
+
+  .mac-input:focus,
+  .mac-textarea:focus,
+  .mac-select:focus {
+    border-color: rgba(40, 121, 255, 0.55);
+    box-shadow: 0 0 0 4px rgba(40, 121, 255, 0.14);
+  }
+
+  .mac-section-title {
+    @apply text-base font-semibold;
+    color: var(--mac-ink);
+  }
+
+  .mac-section-copy {
+    @apply text-sm leading-6;
+    color: var(--mac-muted);
+  }
+
+  .mac-segmented-control {
+    @apply inline-flex items-center gap-1 rounded-full p-1;
+    background: rgba(255, 255, 255, 0.74);
+    border: 1px solid rgba(122, 141, 176, 0.18);
+    box-shadow: var(--mac-shadow-soft);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .mac-segmented-icon {
+    @apply flex h-8 w-8 items-center justify-center rounded-full text-slate-500;
+  }
+
+  .mac-segment {
+    @apply rounded-full px-3 py-1.5 text-xs font-semibold transition-colors;
+    color: #5d6b80;
+  }
+
+  .mac-segment.is-active {
+    background: rgba(23, 32, 51, 0.92);
+    color: white;
+    box-shadow: 0 6px 16px rgba(23, 32, 51, 0.18);
+  }
+}
+
+/* 自定义滚动条 */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -81,6 +299,7 @@ a {
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* 气泡动画 */
 @keyframes bubble-in {
   0% {
     opacity: 0;
@@ -99,6 +318,7 @@ a {
   animation: bubble-in 0.4s ease-out forwards;
 }
 
+/* 发言气泡弹跳效果 */
 @keyframes bounce-in {
   0% {
     opacity: 0;
@@ -120,6 +340,7 @@ a {
   animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
+/* 卡片悬浮效果 */
 .player-card-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -129,6 +350,7 @@ a {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
+/* 发光效果 */
 .glow-indigo {
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
 }
@@ -141,6 +363,7 @@ a {
   box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
 }
 
+/* 渐变文字 */
 .text-gradient-gold {
   background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706);
   -webkit-background-clip: text;
@@ -155,6 +378,7 @@ a {
   background-clip: text;
 }
 
+/* 夜晚背景动画 */
 @keyframes twinkle {
   0%, 100% {
     opacity: 0.3;
@@ -168,10 +392,12 @@ a {
   animation: twinkle 2s ease-in-out infinite;
 }
 
+/* 表格行高亮 */
 .table-row-highlight:hover {
   background: rgba(99, 102, 241, 0.1) !important;
 }
 
+/* 可爱的气泡尾巴 */
 .bubble-tail-right::before {
   content: '';
   position: absolute;
@@ -196,10 +422,12 @@ a {
   border-left-color: inherit;
 }
 
+/* 平滑过渡 */
 .transition-smooth {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 文本截断 */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -214,6 +442,7 @@ a {
   overflow: hidden;
 }
 
+/* 响应式圆形布局调整 */
 @media (max-width: 768px) {
   .circle-layout {
     transform: scale(0.8);

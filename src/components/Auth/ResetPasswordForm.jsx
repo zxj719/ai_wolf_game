@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { authService } from '../../services/authService';
 import { Eye, EyeOff, Lock, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { authService } from '../../services/authService';
+import { getUiCopy } from '../../i18n/locale.js';
+import { AuthShell } from './AuthShell.jsx';
 
-export function ResetPasswordForm({ token, onSuccess, onBack }) {
+export function ResetPasswordForm({ token, onSuccess, onBack, locale = 'zh' }) {
+  const authCopy = getUiCopy(locale).auth;
+
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-
-  // 密码验证状态
   const [passwordChecks, setPasswordChecks] = useState({
     length: false,
     uppercase: false,
     lowercase: false,
-    number: false
+    number: false,
   });
 
   useEffect(() => {
@@ -23,24 +25,24 @@ export function ResetPasswordForm({ token, onSuccess, onBack }) {
       length: password.length >= 8,
       uppercase: /[A-Z]/.test(password),
       lowercase: /[a-z]/.test(password),
-      number: /\d/.test(password)
+      number: /\d/.test(password),
     });
   }, [password]);
 
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
   const passwordsMatch = password === confirmPassword && password.length > 0;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
 
     if (!isPasswordValid) {
-      setError('请确保密码满足所有要求');
+      setError(authCopy.passwordWeak);
       return;
     }
 
     if (!passwordsMatch) {
-      setError('两次输入的密码不一致');
+      setError(authCopy.passwordMismatch);
       return;
     }
 
@@ -49,7 +51,7 @@ export function ResetPasswordForm({ token, onSuccess, onBack }) {
       await authService.resetPassword(token, password);
       setSuccess(true);
     } catch (err) {
-      setError(err.message || '重置密码失败');
+      setError(err.message || authCopy.resetInvalid);
     } finally {
       setIsLoading(false);
     }
@@ -57,162 +59,109 @@ export function ResetPasswordForm({ token, onSuccess, onBack }) {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 p-8 text-center">
-            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={32} className="text-green-400" />
-            </div>
-            <h2 className="text-xl font-bold text-zinc-100 mb-2">密码重置成功</h2>
-            <p className="text-zinc-400 mb-6">
-              你的密码已成功重置，现在可以使用新密码登录了。
-            </p>
-            <button
-              onClick={onSuccess || onBack}
-              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-            >
-              去登录
-            </button>
+      <AuthShell locale={locale} title={authCopy.resetSuccess} subtitle={authCopy.resetSuccessDescription}>
+        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/90 p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600">
+            <CheckCircle size={28} />
           </div>
+          <div className="text-base font-semibold text-slate-900">{authCopy.resetSuccess}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{authCopy.resetSuccessDescription}</p>
+          <button type="button" onClick={onSuccess || onBack} className="mac-button mac-button-primary mt-6">
+            {authCopy.goLogin}
+          </button>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 p-8 text-center">
-            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <XCircle size={32} className="text-red-400" />
-            </div>
-            <h2 className="text-xl font-bold text-zinc-100 mb-2">无效的链接</h2>
-            <p className="text-zinc-400 mb-6">
-              重置密码链接无效或已过期，请重新请求。
-            </p>
-            <button
-              onClick={onBack}
-              className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-            >
-              返回登录
-            </button>
+      <AuthShell locale={locale} title={authCopy.invalidLink} subtitle={authCopy.resetInvalid}>
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50/90 p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/12 text-rose-600">
+            <XCircle size={28} />
           </div>
+          <div className="text-base font-semibold text-slate-900">{authCopy.invalidLink}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{authCopy.resetInvalid}</p>
+          <button type="button" onClick={onBack} className="mac-button mac-button-primary mt-6">
+            {authCopy.backToLogin}
+          </button>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-zinc-100 mb-2">设置新密码</h1>
-            <p className="text-zinc-400">请输入你的新密码</p>
-          </div>
+    <AuthShell locale={locale} title={authCopy.resetTitle} subtitle={authCopy.resetDescription}>
+      {error && <div className="mb-6 rounded-[22px] border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-600">{error}</div>}
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* New Password */}
-            <div>
-              <label htmlFor="reset-password" className="block text-sm font-medium text-zinc-300 mb-2">
-                新密码
-              </label>
-              <div className="relative">
-                <input
-                  id="reset-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors pr-12"
-                  placeholder="输入新密码"
-                  disabled={isLoading}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-
-              {/* Password Requirements */}
-              <div className="mt-3 space-y-1">
-                {[
-                  { key: 'length', text: '至少8个字符' },
-                  { key: 'uppercase', text: '包含大写字母' },
-                  { key: 'lowercase', text: '包含小写字母' },
-                  { key: 'number', text: '包含数字' }
-                ].map(({ key, text }) => (
-                  <div key={key} className="flex items-center gap-2 text-xs">
-                    {passwordChecks[key] ? (
-                      <CheckCircle size={14} className="text-green-400" />
-                    ) : (
-                      <div className="w-3.5 h-3.5 rounded-full border border-zinc-600" />
-                    )}
-                    <span className={passwordChecks[key] ? 'text-green-400' : 'text-zinc-500'}>
-                      {text}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-zinc-300 mb-2">
-                确认密码
-              </label>
-              <input
-                id="reset-confirm-password"
-                type={showPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-                placeholder="再次输入新密码"
-                disabled={isLoading}
-                autoComplete="new-password"
-              />
-              {confirmPassword && !passwordsMatch && (
-                <p className="mt-2 text-xs text-red-400">密码不一致</p>
-              )}
-              {passwordsMatch && (
-                <p className="mt-2 text-xs text-green-400">密码一致</p>
-              )}
-            </div>
-
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.password}</span>
+          <div className="relative">
+            <input
+              id="reset-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="mac-input pr-12"
+              placeholder={authCopy.newPasswordPlaceholder}
+              disabled={isLoading}
+              autoComplete="new-password"
+            />
             <button
-              type="submit"
-              disabled={isLoading || !isPasswordValid || !passwordsMatch}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? authCopy.hidePassword : authCopy.showPassword}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  重置中...
-                </>
-              ) : (
-                <>
-                  <Lock size={20} />
-                  重置密码
-                </>
-              )}
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
-          </form>
-        </div>
-      </div>
-    </div>
+          </div>
+          <div className="mt-3 grid gap-2 text-sm">
+            <div className={passwordChecks.length ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[0]}</div>
+            <div className={passwordChecks.lowercase ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[1]}</div>
+            <div className={passwordChecks.uppercase ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[2]}</div>
+            <div className={passwordChecks.number ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[3]}</div>
+          </div>
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.confirmPassword}</span>
+          <input
+            id="reset-confirm-password"
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            className="mac-input"
+            placeholder={authCopy.confirmPasswordPlaceholder}
+            disabled={isLoading}
+            autoComplete="new-password"
+          />
+          {confirmPassword && !passwordsMatch && (
+            <p className="mt-2 text-sm text-rose-600">{authCopy.passwordMismatch}</p>
+          )}
+          {passwordsMatch && <p className="mt-2 text-sm text-emerald-600">{authCopy.passwordMatched}</p>}
+        </label>
+
+        <button
+          type="submit"
+          disabled={isLoading || !isPasswordValid || !passwordsMatch}
+          className="mac-button mac-button-primary w-full justify-center py-3"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              {authCopy.sending}
+            </>
+          ) : (
+            <>
+              <Lock size={18} />
+              {authCopy.resetTitle}
+            </>
+          )}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

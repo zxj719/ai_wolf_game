@@ -241,4 +241,31 @@ export const authService = {
     });
   },
 
+  /**
+   * 提交 AI 模型对局统计
+   * @param {Object} data - 游戏统计数据
+   */
+  async submitModelStats(data) {
+    return request('/api/model-stats', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  /**
+   * 获取 AI 模型排行榜
+   * @param {Object} options - 查询选项
+   */
+  async getModelLeaderboard(options = {}) {
+    const params = new URLSearchParams();
+    if (options.role) params.append('role', options.role);
+    if (options.sortBy) params.append('sortBy', options.sortBy);
+    if (options.limit) params.append('limit', options.limit.toString());
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/api/model-leaderboard?${queryString}` : '/api/model-leaderboard';
+
+    return request(endpoint, { method: 'GET' });
+  },
+
 };

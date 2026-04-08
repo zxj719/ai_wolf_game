@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { LoginForm } from './LoginForm';
-import { RegisterForm } from './RegisterForm';
-import { ForgotPasswordForm } from './ForgotPasswordForm';
-import { ResetPasswordForm } from './ResetPasswordForm';
-import { VerifyEmailPage } from './VerifyEmailPage';
+import { LoginForm } from './LoginForm.jsx';
+import { RegisterForm } from './RegisterForm.jsx';
+import { ForgotPasswordForm } from './ForgotPasswordForm.jsx';
+import { ResetPasswordForm } from './ResetPasswordForm.jsx';
+import { VerifyEmailPage } from './VerifyEmailPage.jsx';
+import { getUiCopy } from '../../i18n/locale.js';
 
-export function AuthPage({ onGuestPlay }) {
-  // 'login' | 'register' | 'forgot' | 'reset' | 'verify'
+export function AuthPage({ onGuestPlay, locale = 'zh' }) {
+  const authCopy = getUiCopy(locale).auth;
+  const dashboardCopy = getUiCopy(locale).dashboard;
+  const termsJoiner = locale === 'en' ? 'and' : '与';
+
   const [view, setView] = useState('login');
   const [resetToken, setResetToken] = useState(null);
   const [verifyToken, setVerifyToken] = useState(null);
 
-  // 检查URL参数
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const path = window.location.pathname;
 
-    // 检查是否是重置密码页面
     if (path === '/reset-password' || params.get('reset')) {
       const token = params.get('token');
       if (token) {
@@ -25,7 +27,6 @@ export function AuthPage({ onGuestPlay }) {
       }
     }
 
-    // 检查是否是邮箱验证页面
     if (path === '/verify-email' || params.get('verify')) {
       const token = params.get('token');
       if (token) {
@@ -36,7 +37,6 @@ export function AuthPage({ onGuestPlay }) {
   }, []);
 
   const handleBackToLogin = () => {
-    // 清除URL参数
     window.history.replaceState({}, '', '/login');
     window.dispatchEvent(new PopStateEvent('popstate'));
     setView('login');
@@ -44,31 +44,34 @@ export function AuthPage({ onGuestPlay }) {
     setVerifyToken(null);
   };
 
+  const guestFooter = onGuestPlay && (view === 'login' || view === 'register') ? (
+    <div className="px-4 pb-10 text-center">
+      <button type="button" onClick={onGuestPlay} className="mac-button mac-button-secondary">
+        {authCopy.guestEnter}
+      </button>
+      <p className="mt-4 text-xs leading-6 text-slate-400">
+        {authCopy.guestTermsPrefix}{' '}
+        <a href="/terms.html" className="text-slate-500 hover:text-slate-700">{dashboardCopy.footerTerms}</a>
+        {' '}{termsJoiner}{' '}
+        <a href="/privacy.html" className="text-slate-500 hover:text-slate-700">{dashboardCopy.footerPrivacy}</a>
+      </p>
+    </div>
+  ) : null;
+
   const renderView = () => {
     switch (view) {
       case 'register':
-        return <RegisterForm onSwitchToLogin={() => setView('login')} />;
+        return <RegisterForm locale={locale} onSwitchToLogin={() => setView('login')} />;
       case 'forgot':
-        return <ForgotPasswordForm onBack={handleBackToLogin} />;
+        return <ForgotPasswordForm locale={locale} onBack={handleBackToLogin} />;
       case 'reset':
-        return (
-          <ResetPasswordForm
-            token={resetToken}
-            onSuccess={handleBackToLogin}
-            onBack={handleBackToLogin}
-          />
-        );
+        return <ResetPasswordForm locale={locale} token={resetToken} onSuccess={handleBackToLogin} onBack={handleBackToLogin} />;
       case 'verify':
-        return (
-          <VerifyEmailPage
-            token={verifyToken}
-            onSuccess={handleBackToLogin}
-            onBack={handleBackToLogin}
-          />
-        );
+        return <VerifyEmailPage locale={locale} token={verifyToken} onSuccess={handleBackToLogin} onBack={handleBackToLogin} />;
       default:
         return (
           <LoginForm
+            locale={locale}
             onSwitchToRegister={() => setView('register')}
             onForgotPassword={() => setView('forgot')}
           />
@@ -76,22 +79,14 @@ export function AuthPage({ onGuestPlay }) {
     }
   };
 
-  return (
-    <main className="relative" aria-label="账号登录与注册页面">
-      {renderView()}
+  if (!guestFooter) {
+    return <main aria-label={authCopy.productName}>{renderView()}</main>;
+  }
 
-      {/* Guest Play Button - Fixed at bottom (only show on login/register) */}
-      {onGuestPlay && (view === 'login' || view === 'register') && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2">
-          <button
-            onClick={onGuestPlay}
-            aria-label="以游客身份体验"
-            className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg border border-zinc-700 transition-colors"
-          >
-            游客模式体验
-          </button>
-        </div>
-      )}
+  return (
+    <main aria-label={authCopy.productName}>
+      {renderView()}
+      {guestFooter}
     </main>
   );
 }

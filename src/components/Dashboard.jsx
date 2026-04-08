@@ -1,23 +1,29 @@
-import { useMemo, useState } from 'react';
-import {
-  Compass,
-  FlaskConical,
-  Globe2,
-  KeyRound,
-  LogIn,
-  LogOut,
-  Radar,
-  Swords,
-  Ticket,
-  Trophy,
-  UserCircle2,
-} from 'lucide-react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../services/authService';
 import { TokenManager } from './TokenManager';
 import { UserStats } from './UserStats';
-import { BalancedHeadline } from './home/BalancedHeadline';
-import { HomePortalCard } from './home/HomePortalCard';
-import { IdeaMasonry } from './home/IdeaMasonry';
+import { ModelLeaderboard } from './ModelLeaderboard';
+import {
+  Gamepad2,
+  LogOut,
+  Trophy,
+  Key,
+  Ticket,
+  ChevronRight,
+  AlertCircle,
+  Check,
+  User,
+  ExternalLink,
+  Globe,
+  LogIn,
+  MessageSquare,
+  Send,
+  Sparkles,
+} from 'lucide-react';
+import { getUiCopy } from '../i18n/locale.js';
+
+const FEEDBACK_MAX_LENGTH = 1000;
 
 export function Dashboard({
   onEnterWolfgame,
@@ -26,277 +32,367 @@ export function Dashboard({
   isGuestMode = false,
   onLogin,
   onGuestPlay,
+  locale = 'zh',
 }) {
   const { user, tokenStatus, verifyModelscopeToken } = useAuth();
+  const copy = getUiCopy(locale).dashboard;
+  const common = getUiCopy(locale).common;
+  const appCopy = getUiCopy(locale).app;
+
   const [showTokenManager, setShowTokenManager] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackContact, setFeedbackContact] = useState('');
+  const [feedbackStatus, setFeedbackStatus] = useState(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   const isLoggedIn = !!user;
-  const currentLabel = isGuestMode
-    ? 'Guest mode is active'
-    : isLoggedIn
-      ? `Signed in as ${user?.username}`
-      : 'Public homepage';
+  const needsTokenConfig = isLoggedIn && !isGuestMode && !(tokenStatus.hasToken && tokenStatus.isValid);
+  const feedbackTrimmedLength = feedbackMessage.trim().length;
+  const feedbackLength = feedbackMessage.length;
+  const isFeedbackValid = feedbackTrimmedLength >= 5 && feedbackTrimmedLength <= FEEDBACK_MAX_LENGTH;
+  const displayName = isGuestMode ? common.guest : (user?.username || common.unknown);
+  const headerTitle = isGuestMode ? copy.guestMode : isLoggedIn ? `${copy.greetingPrefix}${displayName}` : copy.workspace;
 
-  const noteItems = useMemo(() => ([
-    {
-      category: 'Current focus',
-      title: '把狼人杀保留下来，但不再让它定义整个站点。',
-      description: '这次重构只动外层壳层。游戏逻辑、配置页和对局页继续沿用，重点是把项目入口、实验入口和个人表达重新排到同一张桌面上。',
-      meta: 'Keep the engine, rebuild the shell',
-    },
-    {
-      category: 'Pretext',
-      title: '标题与信息卡不靠猜高度，直接提前测量。',
-      description: '主页 headline 和文本驱动卡片都用 pretext 预估换行与高度，让版面在不同宽度下更稳定，也更像编辑式排版而不是一排平均卡片。',
-      meta: 'Pretext + editorial layout',
-    },
-    {
-      category: 'Open routes',
-      title: '首页和项目 hub 公开访问，登录只负责增量能力。',
-      description: '公开主页负责介绍项目和入口；登录后继续保存战绩、管理令牌、查看自己的狼人杀记录。这样首页终于像主页，而不是门禁。',
-      meta: 'Public home, private gameplay state',
-    },
-    {
-      category: 'Playable',
-      title: '游客可以直接试玩 AI 狼人杀。',
-      description: '没有账号也能进入试玩，登录用户再解锁令牌配置与战绩沉淀。这样主页既能展示内容，也能立刻让人开始玩。',
-      meta: 'Guest-ready werewolf entry',
-    },
-    {
-      category: 'Elsewhere',
-      title: '实验站和实时行情不再躲在“站点入口”后面。',
-      description: '它们现在被归类成 Projects & Labs，语义更清楚，也更适合继续加新的实验或工具模块。',
-      meta: 'Projects, labs, and tools',
-      link: '/site/index.html',
-    },
-  ]), []);
+  const handleEnterGame = () => {
+    if (needsTokenConfig) {
+      setShowTokenManager(true);
+      return;
+    }
+    onEnterWolfgame?.();
+  };
 
-  const wolfgamePrimaryAction = { label: '进入狼人杀模块', onClick: onEnterWolfgame };
+  const handleSubmitFeedback = async (event) => {
+    event.preventDefault();
+    setFeedbackStatus(null);
 
-  const wolfgameSecondaryAction = isLoggedIn
-    ? { label: '查看我的战绩', onClick: () => setShowStats(true) }
-    : { label: '登录后保存记录', onClick: onLogin };
+    if (!isFeedbackValid || feedbackLoading) {
+      setFeedbackStatus({
+        type: 'error',
+        text: copy.feedbackValidation(FEEDBACK_MAX_LENGTH),
+      });
+      return;
+    }
+
+    setFeedbackLoading(true);
+    try {
+      const response = await authService.submitFeedback({
+        message: feedbackMessage.trim(),
+        contact: feedbackContact.trim(),
+        username: isGuestMode ? common.guest : (user?.username || common.unknown),
+        isGuest: isGuestMode,
+        page: 'home',
+      });
+
+      if (response.success) {
+        setFeedbackMessage('');
+        setFeedbackContact('');
+        setFeedbackStatus({ type: 'success', text: copy.feedbackSuccess });
+      } else {
+        setFeedbackStatus({ type: 'error', text: response.error || copy.feedbackError });
+      }
+    } catch (error) {
+      setFeedbackStatus({ type: 'error', text: error.message || copy.feedbackError });
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[var(--homepage-bg)] text-[var(--homepage-ink)]">
-      <div className="page-orbit" />
-
-      <header className="sticky top-0 z-40 border-b border-stone-900/10 bg-[rgba(245,239,230,0.84)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-stone-900 text-stone-50 shadow-[0_14px_28px_rgba(28,25,23,0.18)]">
-              <Compass size={20} />
+    <div className="px-4 py-24 md:px-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mac-window overflow-hidden">
+          <div className="mac-toolbar">
+            <div className="flex items-center gap-4">
+              <div className="mac-window-chrome">
+                <span className="mac-window-dot mac-dot-red" />
+                <span className="mac-window-dot mac-dot-yellow" />
+                <span className="mac-window-dot mac-dot-green" />
+              </div>
+              <div>
+                <div className="mac-eyebrow">{copy.windowTitle}</div>
+                <h1 className="text-lg font-semibold text-slate-900">
+                  {headerTitle}
+                </h1>
+              </div>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-stone-500">Zhaxiaoji Studio</p>
-              <p className="text-sm text-stone-700">{currentLabel}</p>
-            </div>
-          </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {isLoggedIn ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowStats(true)}
-                  className="inline-flex items-center gap-2 rounded-full border border-stone-900/10 bg-white/70 px-4 py-2 text-sm text-stone-700 transition-colors hover:bg-white"
-                >
-                  <Trophy size={16} />
-                  战绩
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowTokenManager(true)}
-                  className="inline-flex items-center gap-2 rounded-full border border-stone-900/10 bg-white/70 px-4 py-2 text-sm text-stone-700 transition-colors hover:bg-white"
-                >
-                  <KeyRound size={16} />
-                  令牌
-                </button>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-sm text-stone-50 transition-colors hover:bg-stone-800"
-                >
-                  <LogOut size={16} />
-                  退出
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={onGuestPlay}
-                  className="inline-flex items-center gap-2 rounded-full border border-stone-900/10 bg-white/70 px-4 py-2 text-sm text-stone-700 transition-colors hover:bg-white"
-                >
-                  <Ticket size={16} />
-                  游客模式
-                </button>
+            <div className="flex items-center gap-2">
+              {isGuestMode ? (
                 <button
                   type="button"
                   onClick={onLogin}
-                  className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-sm text-stone-50 transition-colors hover:bg-stone-800"
+                  aria-label={appCopy.login}
+                  className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                  title={appCopy.login}
                 >
-                  <LogIn size={16} />
-                  登录
+                  <LogIn size={18} />
                 </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
-        <section className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
-          <div className="paper-panel rounded-[38px] p-7 sm:p-10">
-            <div className="mb-6 flex flex-wrap gap-3">
-              <span className="rounded-full bg-stone-900 px-4 py-1.5 text-xs uppercase tracking-[0.28em] text-stone-50">
-                Personal homepage
-              </span>
-              <span className="rounded-full border border-stone-900/10 px-4 py-1.5 text-xs uppercase tracking-[0.22em] text-stone-600">
-                AI werewolf + projects + labs
-              </span>
-            </div>
-
-            <BalancedHeadline
-              text="把游戏、实验和长期项目放进同一个入口里。"
-              className="font-display max-w-4xl text-[clamp(2.7rem,7vw,5.3rem)] leading-[0.96] tracking-[-0.05em] text-stone-950"
-              lineClassName="headline-line"
-              font='700 64px "Noto Serif SC"'
-              lineHeight={72}
-            />
-
-            <p className="mt-6 max-w-2xl text-base leading-8 text-stone-600 sm:text-lg">
-              这是 Zhaxiaoji Studio 的新版主页。狼人杀不再是整站唯一叙事，但它仍然可玩；项目站、实验页和工具模块也终于回到同一个首页里。
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={wolfgamePrimaryAction.onClick}
-                className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-stone-50 transition-transform hover:-translate-y-0.5 hover:bg-stone-900"
-              >
-                <Swords size={18} />
-                {wolfgamePrimaryAction.label}
-              </button>
-              <button
-                type="button"
-                onClick={onEnterSites}
-                className="inline-flex items-center gap-2 rounded-full border border-stone-900/10 bg-white/70 px-5 py-3 text-sm font-medium text-stone-700 transition-transform hover:-translate-y-0.5 hover:bg-white"
-              >
-                <FlaskConical size={18} />
-                浏览 Projects & Labs
-              </button>
-              <a
-                href="/site/index.html"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="inline-flex items-center gap-2 rounded-full border border-stone-900/10 bg-white/70 px-5 py-3 text-sm font-medium text-stone-700 transition-transform hover:-translate-y-0.5 hover:bg-white"
-              >
-                <Globe2 size={18} />
-                打开静态个人站
-              </a>
+              ) : isLoggedIn ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowStats(true)}
+                    aria-label={copy.statsTitle}
+                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    title={copy.statsTitle}
+                  >
+                    <Trophy size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowTokenManager(true)}
+                    aria-label={copy.tokenTitle}
+                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    title={copy.tokenTitle}
+                  >
+                    <Key size={18} className={tokenStatus.hasToken ? 'text-emerald-600' : 'text-amber-600'} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    aria-label={appCopy.logout}
+                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    title={appCopy.logout}
+                  >
+                    <LogOut size={18} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={onGuestPlay}
+                    aria-label={appCopy.guestMode}
+                    className="mac-button mac-button-secondary"
+                    title={appCopy.guestMode}
+                  >
+                    <Ticket size={16} />
+                    {appCopy.guestMode}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onLogin}
+                    aria-label={appCopy.login}
+                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    title={appCopy.login}
+                  >
+                    <LogIn size={18} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          <aside className="grid gap-4">
-            <div className="paper-panel rounded-[30px] p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Now</p>
-              <h2 className="font-display mt-4 text-3xl text-stone-950">这次改造保留了什么</h2>
-              <div className="mt-6 space-y-4">
-                <div className="rounded-2xl border border-stone-900/10 bg-white/60 p-4">
-                  <p className="text-sm font-medium text-stone-900">狼人杀逻辑没有被重写</p>
-                  <p className="mt-2 text-sm leading-7 text-stone-600">继续沿用原有的 SetupScreen、GameArena 和 reducer，只动外层入口和信息架构。</p>
+          <main className="space-y-8 px-6 py-6 lg:px-8 lg:py-8">
+            <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="mac-panel overflow-hidden p-6 md:p-8">
+                <div className="mac-badge">
+                  <Sparkles size={14} />
+                  {copy.workspaceDescription}
                 </div>
-                <div className="rounded-2xl border border-stone-900/10 bg-white/60 p-4">
-                  <p className="text-sm font-medium text-stone-900">首页变成公开访问</p>
-                  <p className="mt-2 text-sm leading-7 text-stone-600">现在不登录也能先看到项目、实验和试玩入口，登录只负责增量能力。</p>
+                <div className="mt-6 space-y-3">
+                  <h2 className="text-4xl font-semibold tracking-tight text-slate-900">{copy.workspace}</h2>
+                  <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.windowSubtitle}</p>
+                </div>
+
+                <div className="mt-8 grid gap-4 md:grid-cols-3">
+                  {copy.quickSteps.map((step) => (
+                    <div key={step.title} className="rounded-[24px] border border-white/70 bg-white/78 p-4 shadow-[0_12px_28px_rgba(68,85,119,0.08)]">
+                      <div className="text-sm font-semibold text-slate-900">{step.title}</div>
+                      <div className="mt-2 text-sm leading-6 text-slate-500">{step.description}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[28px] bg-stone-950 p-5 text-stone-50 shadow-[0_20px_40px_rgba(28,25,23,0.16)]">
-                <p className="text-xs uppercase tracking-[0.28em] text-stone-400">Access</p>
-                <p className="mt-3 text-lg">{isLoggedIn ? '登录后可保存战绩和令牌。' : '不登录也能直接浏览主页。'}</p>
+              <div className="grid gap-4">
+                <div className="rounded-[28px] border border-amber-200/80 bg-white/76 p-6 shadow-[0_22px_42px_rgba(255,179,84,0.14)]">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/25">
+                      <Gamepad2 size={28} />
+                    </div>
+                    <span className={`mac-badge ${needsTokenConfig ? 'text-amber-700' : 'text-emerald-700'}`}>
+                      {needsTokenConfig ? <AlertCircle size={14} /> : <Check size={14} />}
+                      {needsTokenConfig ? copy.tokenNeeded : copy.gameReady}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-900">{copy.gameCardTitle}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">{copy.gameCardDescription}</p>
+                  {needsTokenConfig && (
+                    <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50/90 p-4 text-sm leading-6 text-amber-900">
+                      {copy.tokenHint}
+                      <button type="button" onClick={() => setShowTokenManager(true)} className="ml-2 font-semibold underline">
+                        {copy.configureNow}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleEnterGame}
+                    className={`mac-button mt-6 w-full justify-between ${needsTokenConfig ? 'mac-button-secondary' : 'mac-button-primary'}`}
+                  >
+                    <span>{needsTokenConfig ? copy.openToken : copy.startMatch}</span>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                <div className="rounded-[28px] border border-sky-200/80 bg-white/76 p-6 shadow-[0_22px_42px_rgba(40,121,255,0.12)]">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-lg shadow-sky-500/25">
+                      <Globe size={28} />
+                    </div>
+                    <span className="mac-badge text-sky-700">{copy.sitesBadge}</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-slate-900">{copy.sitesTitle}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">{copy.sitesDescription}</p>
+                  <button type="button" onClick={onEnterSites} className="mac-button mac-button-primary mt-6 w-full justify-between">
+                    <span>{copy.enterSites}</span>
+                    <ExternalLink size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="rounded-[28px] bg-[#0f4c46] p-5 text-emerald-50 shadow-[0_20px_40px_rgba(15,76,70,0.18)]">
-                <p className="text-xs uppercase tracking-[0.28em] text-emerald-100/70">Playability</p>
-                <p className="mt-3 text-lg">狼人杀现在有独立 hub，游客试玩与登录入口都从那里进入。</p>
+            </section>
+
+            <section className="mac-panel p-5 md:p-6">
+              <ModelLeaderboard locale={locale} />
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="mac-panel p-6">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                    <MessageSquare size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">{copy.feedbackTitle}</h3>
+                    <p className="text-sm text-slate-500">{copy.feedbackDescription}</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmitFeedback} className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
+                  <div>
+                    <label className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{copy.feedbackLabel}</label>
+                    <textarea
+                      className="mac-textarea mt-2 min-h-[180px]"
+                      placeholder={copy.feedbackPlaceholder}
+                      value={feedbackMessage}
+                      onChange={(event) => setFeedbackMessage(event.target.value)}
+                      maxLength={FEEDBACK_MAX_LENGTH}
+                    />
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                      <span>{feedbackLength}/{FEEDBACK_MAX_LENGTH}</span>
+                      <span>{copy.feedbackSafe}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <label className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{copy.feedbackContact}</label>
+                      <input
+                        type="text"
+                        className="mac-input mt-2"
+                        placeholder={copy.feedbackContactPlaceholder}
+                        value={feedbackContact}
+                        onChange={(event) => setFeedbackContact(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4 text-sm text-slate-500">
+                      {copy.feedbackIdentity}: <span className="font-semibold text-slate-900">{displayName}</span>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={!isFeedbackValid || feedbackLoading}
+                      className={`mac-button w-full justify-between ${isFeedbackValid && !feedbackLoading ? 'mac-button-primary' : 'mac-button-secondary'}`}
+                    >
+                      <span>{feedbackLoading ? copy.feedbackSending : copy.feedbackSend}</span>
+                      <Send size={16} />
+                    </button>
+
+                    {feedbackStatus && (
+                      <div className={`text-sm ${feedbackStatus.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {feedbackStatus.text}
+                      </div>
+                    )}
+                  </div>
+                </form>
               </div>
-            </div>
-          </aside>
-        </section>
 
-        <section className="mt-12 grid gap-6 lg:grid-cols-3">
-          <HomePortalCard
-            eyebrow="Playable"
-            title="AI 狼人杀"
-            description="模块首页先介绍玩法、入口和账户能力，再从 hub 进入游客试玩、人机混合和全 AI 对局。"
-            badge="Hub"
-            icon={Swords}
-            tone="rust"
-            primaryAction={wolfgamePrimaryAction}
-            secondaryAction={wolfgameSecondaryAction}
-          />
+              <div className="mac-panel p-6">
+                <div className="mac-eyebrow">{copy.moreFeatures}</div>
+                <div className="mt-4 grid gap-3">
+                  {!isGuestMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowStats(true)}
+                        className="rounded-[22px] border border-white/80 bg-white/78 p-4 text-left shadow-[0_12px_28px_rgba(68,85,119,0.08)] transition-all hover:-translate-y-1"
+                      >
+                        <Trophy size={22} className="text-amber-500" />
+                        <p className="mt-3 font-semibold text-slate-900">{copy.statsTitle}</p>
+                        <p className="mt-1 text-sm text-slate-500">{copy.statsDescription}</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowTokenManager(true)}
+                        className="rounded-[22px] border border-white/80 bg-white/78 p-4 text-left shadow-[0_12px_28px_rgba(68,85,119,0.08)] transition-all hover:-translate-y-1"
+                      >
+                        <Key size={22} className="text-sky-500" />
+                        <p className="mt-3 font-semibold text-slate-900">{copy.tokenTitle}</p>
+                        <p className="mt-1 text-sm text-slate-500">{copy.tokenDescription}</p>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="rounded-[22px] border border-white/80 bg-white/78 p-4 shadow-[0_12px_28px_rgba(68,85,119,0.08)]">
+                        <User size={22} className="text-slate-500" />
+                        <p className="mt-3 font-semibold text-slate-900">{copy.guestCardTitle}</p>
+                        <p className="mt-1 text-sm text-slate-500">{copy.guestCardDescription}</p>
+                      </div>
+                      <div className="rounded-[22px] border border-white/80 bg-white/78 p-4 shadow-[0_12px_28px_rgba(68,85,119,0.08)]">
+                        <LogIn size={22} className="text-sky-500" />
+                        <p className="mt-3 font-semibold text-slate-900">{copy.loginUnlockTitle}</p>
+                        <p className="mt-1 text-sm text-slate-500">{copy.loginUnlockDescription}</p>
+                      </div>
+                    </>
+                  )}
 
-          <HomePortalCard
-            eyebrow="Curated"
-            title="Projects & Labs"
-            description="把静态站、实时行情和后续实验放进同一个 hub，不再埋在“站点入口”这种模糊概念下面。"
-            badge="Open"
-            icon={Compass}
-            tone="forest"
-            primaryAction={{ label: '打开实验集合', onClick: onEnterSites }}
-            secondaryAction={{ label: '静态站首页', href: '/site/index.html', external: true }}
-          />
-
-          <HomePortalCard
-            eyebrow="State"
-            title="登录与个人记录"
-            description="登录后保留你的战绩、令牌和个人入口；不登录也能先把站点和试玩体验逛一遍。"
-            badge={isLoggedIn ? 'Account' : 'Public'}
-            icon={isLoggedIn ? UserCircle2 : Radar}
-            tone="ink"
-            primaryAction={isLoggedIn ? { label: '查看我的战绩', onClick: () => setShowStats(true) } : { label: '前往登录', onClick: onLogin }}
-            secondaryAction={isLoggedIn ? { label: '管理令牌', onClick: () => setShowTokenManager(true) } : { label: '启用游客模式', onClick: onGuestPlay }}
-          />
-        </section>
-
-        <section className="mt-14">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Measured notes</p>
-              <h2 className="font-display mt-3 text-4xl text-stone-950">用 pretext 驱动的文本板</h2>
-            </div>
-            <p className="max-w-xl text-sm leading-7 text-stone-600">
-              这一组卡片的最小高度由文本测量结果驱动，标题和说明不会靠拍脑袋估尺寸。首页 headline 也使用了相同思路的平衡换行。
-            </p>
-          </div>
-
-          <IdeaMasonry items={noteItems} />
-        </section>
-      </main>
-
-      <footer className="border-t border-stone-900/10 bg-white/50">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-6 text-sm text-stone-600 sm:px-6">
-          <a href="/about.html" className="transition-colors hover:text-stone-950">关于</a>
-          <a href="/privacy.html" className="transition-colors hover:text-stone-950">隐私</a>
-          <a href="/terms.html" className="transition-colors hover:text-stone-950">协议</a>
-          <span className="ml-auto">© {new Date().getFullYear()} Zhaxiaoji Studio</span>
+                  {[0, 1].map((index) => (
+                    <div
+                      key={index}
+                      className="rounded-[22px] border border-dashed border-slate-300 bg-white/48 p-4 text-slate-400"
+                    >
+                      <p className="font-semibold">{copy.comingSoon}</p>
+                      <p className="mt-1 text-sm">{copy.inDevelopment}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </main>
         </div>
-      </footer>
 
-      {showStats ? <UserStats onClose={() => setShowStats(false)} /> : null}
-      {showTokenManager ? (
+        <footer className="mt-6 flex flex-wrap items-center gap-4 px-2 text-sm text-slate-500">
+          <a href="/about.html" className="hover:text-slate-700 transition-colors">{copy.footerAbout}</a>
+          <a href="/privacy.html" className="hover:text-slate-700 transition-colors">{copy.footerPrivacy}</a>
+          <a href="/terms.html" className="hover:text-slate-700 transition-colors">{copy.footerTerms}</a>
+          <span className="ml-auto">© {new Date().getFullYear()} Werewolf Pro</span>
+        </footer>
+      </div>
+
+      {showStats && <UserStats onClose={() => setShowStats(false)} locale={locale} />}
+      {showTokenManager && (
         <TokenManager
+          locale={locale}
           onClose={() => setShowTokenManager(false)}
           onTokenSaved={() => {
             setShowTokenManager(false);
             verifyModelscopeToken();
           }}
         />
-      ) : null}
+      )}
     </div>
   );
 }

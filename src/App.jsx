@@ -4,7 +4,17 @@ import { useWerewolfGame } from './useWerewolfGame';
 import { useAuth } from './contexts/AuthContext';
 import { saveGameRecord } from './services/gameService';
 import { submitGameLog } from './services/submitGameLog';
-import { ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, DEFAULT_TOTAL_PLAYERS, DEFAULT_CUSTOM_SELECTIONS, DEFAULT_VICTORY_MODE } from './config/roles';
+import { authService } from './services/authService';
+import {
+  ROLE_DEFINITIONS,
+  STANDARD_ROLES,
+  GAME_SETUPS,
+  PERSONALITIES,
+  NAMES,
+  DEFAULT_TOTAL_PLAYERS,
+  DEFAULT_CUSTOM_SELECTIONS,
+  DEFAULT_VICTORY_MODE,
+} from './config/roles';
 import { API_KEY, API_URL } from './config/aiConfig';
 import { useAI } from './hooks/useAI';
 import { useDayFlow } from './hooks/useDayFlow';
@@ -13,8 +23,15 @@ import { useSpeechFlow } from './hooks/useSpeechFlow';
 import { useAppRouter, ROUTES } from './hooks/useAppRouter';
 import { useAIModels } from './hooks/useAIModels';
 import { abortAllRequests, resetAbortController } from './services/aiClient';
-import { checkGameEnd as checkGameEndUtil, getPlayer as getPlayerUtil, isUserTurn as isUserTurnUtil, getCurrentNightRole as getCurrentNightRoleUtil } from './utils/gameUtils';
+import {
+  checkGameEnd as checkGameEndUtil,
+  getPlayer as getPlayerUtil,
+  isUserTurn as isUserTurnUtil,
+  getCurrentNightRole as getCurrentNightRoleUtil,
+} from './utils/gameUtils';
 import { exportGameLog as exportGameLogUtil } from './utils/exportGameLog';
+import { LanguageToggle } from './components/LanguageToggle';
+import { getUiCopy, readStoredLocale, writeStoredLocale } from './i18n/locale.js';
 
 const TOTAL_PLAYERS = DEFAULT_TOTAL_PLAYERS;
 const SITE_BASE_URL = 'https://zhaxiaoji.com';
@@ -44,24 +61,30 @@ const UserStats = lazy(() =>
   import('./components/UserStats').then((module) => ({ default: module.UserStats }))
 );
 
-function FullPageLoader() {
+function FullPageLoader({ text = 'Loading...' }) {
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="text-zinc-400">加载中...</div>
+    <div className="mac-app-shell flex min-h-screen items-center justify-center px-6">
+      <div className="mac-window px-8 py-6 text-sm text-slate-500">{text}</div>
     </div>
   );
 }
 
-function InlineLoader({ text = '加载中...' }) {
+function InlineLoader({ text = 'Loading...' }) {
+  return <div className="w-full py-14 text-center text-slate-500">{text}</div>;
+}
+
+function LocaleOverlay({ locale, onChange, label }) {
   return (
-    <div className="w-full py-14 text-center text-zinc-500">{text}</div>
+    <div className="mac-floating-toolbar">
+      <LanguageToggle locale={locale} onChange={onChange} label={label} />
+    </div>
   );
 }
 
 export default function App() {
   const { user, loading: authLoading, logout, modelscopeToken, tokenStatus, verifyModelscopeToken } = useAuth();
 
-  // --- Local UI state ---
+  const [locale, setLocale] = useState(() => readStoredLocale());
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [gameMode, setGameMode] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState(GAME_SETUPS[0]);
@@ -79,47 +102,76 @@ export default function App() {
   const [customRoleSelections, setCustomRoleSelections] = useState(DEFAULT_CUSTOM_SELECTIONS);
   const [victoryMode, setVictoryMode] = useState(DEFAULT_VICTORY_MODE);
 
-  // --- Refs ---
   const nightDecisionsRef = useRef(null);
   const gameActiveRef = useRef(false);
   const gameStateRef = useRef(null);
 
-  // --- Game state (reducer) ---
   const {
     state,
-    setPhase, setNightStep, setDayCount, setPlayers, setUserPlayer,
-    setNightDecisions, mergeNightDecisions,
-    setSeerChecks, setGuardHistory, setWitchHistory, setMagicianHistory,
-    dreamweaverHistory, setDreamweaverHistory,
-    setSpeechHistory, setVoteHistory, setDeathHistory,
-    setNightActionHistory,
-    addCurrentPhaseSpeech, addCurrentPhaseAction, clearCurrentPhaseData,
-    setLogs, addLog, initGame,
-    processedVoteDayRef, gameInitializedRef,
-    updatePlayerModel, updateActionResult,
+    setPhase,
+    setNightStep,
+    setDayCount,
+    setPlayers,
+    setUserPlayer,
+    mergeNightDecisions,
+    setSeerChecks,
+    setGuardHistory,
+    setWitchHistory,
+    setMagicianHistory,
+    dreamweaverHistory,
+    setDreamweaverHistory,
+    setSpeechHistory,
+    setVoteHistory,
+    setDeathHistory,
+    addCurrentPhaseSpeech,
+    addCurrentPhaseAction,
+    clearCurrentPhaseData,
+    setLogs,
+    addLog,
+    initGame,
+    processedVoteDayRef,
+    gameInitializedRef,
+    updatePlayerModel,
+    updateActionResult,
   } = useWerewolfGame({
-    ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES, TOTAL_PLAYERS: DEFAULT_TOTAL_PLAYERS
+    ROLE_DEFINITIONS,
+    STANDARD_ROLES,
+    GAME_SETUPS,
+    PERSONALITIES,
+    NAMES,
+    TOTAL_PLAYERS: DEFAULT_TOTAL_PLAYERS,
   });
 
   const {
-    phase, nightStep, dayCount, players, userPlayer, logs,
-    nightDecisions, seerChecks, guardHistory, witchHistory, magicianHistory,
-    speechHistory, voteHistory, deathHistory, nightActionHistory,
-    currentPhaseData, gameBackground, modelUsage,
+    phase,
+    nightStep,
+    dayCount,
+    players,
+    userPlayer,
+    logs,
+    nightDecisions,
+    seerChecks,
+    guardHistory,
+    witchHistory,
+    magicianHistory,
+    speechHistory,
+    voteHistory,
+    deathHistory,
+    nightActionHistory,
+    currentPhaseData,
+    gameBackground,
+    modelUsage,
   } = state;
 
-  // --- AI Models ---
   const { aiModels, disabledModelsRef } = useAIModels();
 
-  // --- Derived values ---
   const isGameActive = phase !== 'setup' || !!gameMode;
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
   const effectiveApiKey = modelscopeToken || API_KEY;
+  const ui = getUiCopy(locale);
 
-  // Keep ref in sync
   nightDecisionsRef.current = nightDecisions;
 
-  // --- endGame ---
   const endGame = useCallback(() => {
     gameActiveRef.current = false;
     abortAllRequests();
@@ -144,53 +196,56 @@ export default function App() {
     setShowTokenManager(false);
   }, [clearCurrentPhaseData, setDayCount, setLogs, setNightStep, setPhase]);
 
-  // --- Router ---
-  const {
-    navigate, isHomeRoute, isWolfgameRoute, isCustomRoute, isPlayRoute, isSitesRoute, isAuthed,
-  } = useAppRouter({ user, isGuestMode, isGameActive, endGame, gameMode, phase });
+  const { navigate, isHomeRoute, isWolfgameRoute, isCustomRoute, isPlayRoute, isSitesRoute, isAuthed } = useAppRouter({
+    user,
+    isGuestMode,
+    isGameActive,
+    endGame,
+    gameMode,
+    phase,
+  });
 
-  // --- Route meta for SPA SEO ---
   useEffect(() => {
     const pageMeta = (() => {
+      if (!isAuthed) {
+        return {
+          title: ui.app.authTitle,
+          description: ui.app.authDescription,
+        };
+      }
       if (isHomeRoute) {
         return {
-          title: 'Zhaxiaoji Studio | 个人主页',
-          description: 'Zhaxiaoji Studio 主页，公开展示个人项目入口，并保留狼人杀、游客试玩与登录能力。'
+          title: ui.app.homeTitle,
+          description: ui.app.homeDescription,
         };
       }
       if (isWolfgameRoute) {
         return {
-          title: 'AI 狼人杀 | Zhaxiaoji Studio',
-          description: '了解 AI 狼人杀玩法，从游客试玩或登录后进入对局，并统一访问战绩与令牌入口。'
-        };
-      }
-      if (isSitesRoute) {
-        return {
-          title: 'Projects & Labs | Zhaxiaoji Studio',
-          description: '统一访问 Zhaxiaoji Studio 的项目、实验和工具入口。'
+          title: ui.app.homeTitle,
+          description: ui.app.homeDescription,
         };
       }
       if (isCustomRoute) {
         return {
-          title: '游戏设置 | Zhaxiaoji Studio',
-          description: '配置狼人杀角色阵容与胜利条件，开始游客、人机或全 AI 对局。'
+          title: ui.app.setupTitle,
+          description: ui.app.setupDescription,
         };
       }
       if (isPlayRoute) {
         return {
-          title: `对局进行中（第${dayCount}天）| Zhaxiaoji Studio`,
-          description: '狼人杀对局进行中，继续查看发言、投票、结算与模型使用情况。'
+          title: ui.app.playTitle(dayCount),
+          description: ui.app.playDescription,
         };
       }
-      if (!isAuthed) {
+      if (isSitesRoute) {
         return {
-          title: '登录 | Zhaxiaoji Studio',
-          description: '登录 Zhaxiaoji Studio，保存狼人杀战绩与令牌配置。'
+          title: ui.app.sitesTitle,
+          description: ui.app.sitesDescription,
         };
       }
       return {
-        title: 'Zhaxiaoji Studio',
-        description: 'Zhaxiaoji Studio 个人主页与 AI 狼人杀入口。'
+        title: ui.app.defaultTitle,
+        description: ui.app.defaultDescription,
       };
     })();
 
@@ -215,36 +270,39 @@ export default function App() {
     if (canonical) {
       canonical.setAttribute('href', canonicalUrl);
     }
-  }, [dayCount, isAuthed, isCustomRoute, isHomeRoute, isPlayRoute, isSitesRoute, isWolfgameRoute]);
+  }, [dayCount, isAuthed, isCustomRoute, isHomeRoute, isPlayRoute, isSitesRoute, isWolfgameRoute, ui.app]);
 
-  // --- Guest mode auto-disable ---
   useEffect(() => {
     if (user && isGuestMode) {
       setIsGuestMode(false);
     }
   }, [user, isGuestMode]);
 
-  // --- Game active tracking ---
   useEffect(() => {
     gameActiveRef.current = isGameActive;
   }, [isGameActive]);
 
-  // --- Page lifecycle ---
+  useEffect(() => {
+    writeStoredLocale(locale);
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   useEffect(() => {
     const handleBeforeUnload = () => abortAllRequests();
     const handleVisibilityChange = () => {
       if (document.hidden) abortAllRequests();
       else resetAbortController();
     };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
-  // --- Game initialization ---
   useEffect(() => {
     if (gameMode) {
       resetAbortController();
@@ -252,116 +310,239 @@ export default function App() {
       initGame(gameMode, selectedSetup);
       setGameStartTime(Date.now());
     }
-  }, [gameMode, selectedSetup]);
+  }, [gameMode, initGame, selectedSetup]);
 
-  // --- Game result: save record ---
   useEffect(() => {
     if (!gameResult || !gameMode) return;
+
     const saveRecord = async () => {
       if (user && !isGuestMode) {
         try {
-          const up = players.find(p => p.isUser);
+          const currentUserPlayer = players.find((player) => player.isUser);
           const duration = gameStartTime ? Math.floor((Date.now() - gameStartTime) / 1000) : 0;
           await saveGameRecord({
-            role: up?.role || '观战',
-            result: gameResult === 'good_win' ? (up?.role === '狼人' ? 'lose' : 'win') : (up?.role === '狼人' ? 'win' : 'lose'),
+            role: currentUserPlayer?.role || '观战',
+            result:
+              gameResult === 'good_win'
+                ? currentUserPlayer?.role === ROLE_DEFINITIONS.WEREWOLF ? 'lose' : 'win'
+                : currentUserPlayer?.role === ROLE_DEFINITIONS.WEREWOLF ? 'win' : 'lose',
             game_mode: gameMode,
-            duration_seconds: duration
+            duration_seconds: duration,
           });
-        } catch (err) {
-          logger.error('[战绩] 保存失败:', err);
+        } catch (error) {
+          logger.error('[stats] save failed:', error);
+        }
+      }
+
+      if (modelUsage?.playerModels && modelUsage.gameSessionId) {
+        try {
+          const durationSeconds = gameStartTime ? Math.floor((Date.now() - gameStartTime) / 1000) : 0;
+          const modelPlayers = players
+            .filter((player) => modelUsage.playerModels[player.id]?.modelId)
+            .map((player) => ({
+              playerId: player.id,
+              role: player.role,
+              modelId: modelUsage.playerModels[player.id].modelId,
+              modelName: modelUsage.playerModels[player.id].modelName || modelUsage.playerModels[player.id].modelId,
+              result:
+                gameResult === 'good_win'
+                  ? player.role === ROLE_DEFINITIONS.WEREWOLF ? 'lose' : 'win'
+                  : player.role === ROLE_DEFINITIONS.WEREWOLF ? 'win' : 'lose',
+            }));
+
+          if (modelPlayers.length > 0) {
+            await authService.submitModelStats({
+              gameSessionId: modelUsage.gameSessionId,
+              gameMode,
+              durationSeconds,
+              result: gameResult,
+              players: modelPlayers,
+            });
+          }
+        } catch (error) {
+          logger.error('[model stats] submit failed:', error);
         }
       }
     };
-    saveRecord();
-  }, [gameResult]);
 
-  // --- Game state ref: keep latest reducer state available for submitGameLog ---
-  // Using a ref (not useEffect) avoids re-render on every state change.
-  // Updated synchronously so submitGameLog always reads fresh data.
+    saveRecord();
+  }, [gameMode, gameResult, gameStartTime, isGuestMode, modelUsage, players, user]);
+
   useEffect(() => {
     gameStateRef.current = state;
   });
 
-  // --- Game log review: submit full state to review pipeline on game end ---
   useEffect(() => {
     if (!gameResult || !gameStateRef.current) return;
 
     submitGameLog(gameStateRef.current, {
-      onError: (msg) => logger.error('[游戏日志] 提交失败:', msg),
+      onError: (message) => logger.error('[game log] submit failed:', message),
     });
   }, [gameResult]);
 
-  // --- checkGameEnd wrapper ---
-  const checkGameEnd = useCallback((currentPlayers = players) => {
-    return checkGameEndUtil(currentPlayers, victoryMode, addLog, setGameResult);
-  }, [players, victoryMode, addLog]);
+  const checkGameEnd = useCallback(
+    (currentPlayers = players) => checkGameEndUtil(currentPlayers, victoryMode, addLog, setGameResult),
+    [players, victoryMode, addLog]
+  );
 
-  // --- AI ---
   const { askAI } = useAI({
-    players, speechHistory, voteHistory, deathHistory, nightDecisions,
-    seerChecks, guardHistory, witchHistory, dayCount, phase, setIsThinking,
-    disabledModelsRef, API_URL, API_KEY: effectiveApiKey, AI_MODELS: aiModels,
-    gameSetup: selectedSetup, nightActionHistory,
-    onModelUsed: updatePlayerModel, victoryMode, gameActiveRef
+    players,
+    speechHistory,
+    voteHistory,
+    deathHistory,
+    nightDecisions,
+    seerChecks,
+    guardHistory,
+    witchHistory,
+    dayCount,
+    phase,
+    setIsThinking,
+    disabledModelsRef,
+    API_URL,
+    API_KEY: effectiveApiKey,
+    AI_MODELS: aiModels,
+    gameSetup: selectedSetup,
+    nightActionHistory,
+    onModelUsed: updatePlayerModel,
+    victoryMode,
+    gameActiveRef,
   });
 
-  // --- Day flow ---
   const {
-    startDayDiscussion, handleAutoVote, handleVote,
-    handleUserHunterShoot, handleAIHunterShoot,
-    handlePlayerElimination, moveToNextSpeaker, proceedToNextNight,
+    startDayDiscussion,
+    handleAutoVote,
+    handleVote,
+    handleUserHunterShoot,
+    handleAIHunterShoot,
+    moveToNextSpeaker,
+    proceedToNextNight,
   } = useDayFlow({
-    players, setPlayers, gameMode, addLog, addCurrentPhaseAction,
-    ROLE_DEFINITIONS, setPhase, setNightStep, nightDecisions, mergeNightDecisions,
-    dayCount, setDayCount, seerChecks, speechHistory, setSpeechHistory,
-    voteHistory, setVoteHistory, deathHistory, setDeathHistory,
-    setHunterShooting, selectedTarget, setSelectedTarget,
-    speakerIndex, setSpeakerIndex, speakingOrder, setSpeakingOrder,
-    spokenCount, setSpokenCount, userPlayer, isThinking, setIsThinking,
-    checkGameEnd, askAI, clearCurrentPhaseData, gameActiveRef
+    players,
+    setPlayers,
+    gameMode,
+    addLog,
+    addCurrentPhaseAction,
+    ROLE_DEFINITIONS,
+    setPhase,
+    setNightStep,
+    nightDecisions,
+    mergeNightDecisions,
+    dayCount,
+    setDayCount,
+    seerChecks,
+    speechHistory,
+    setSpeechHistory,
+    voteHistory,
+    setVoteHistory,
+    deathHistory,
+    setDeathHistory,
+    setHunterShooting,
+    selectedTarget,
+    setSelectedTarget,
+    speakerIndex,
+    setSpeakerIndex,
+    speakingOrder,
+    setSpeakingOrder,
+    spokenCount,
+    setSpokenCount,
+    userPlayer,
+    isThinking,
+    setIsThinking,
+    checkGameEnd,
+    askAI,
+    clearCurrentPhaseData,
+    gameActiveRef,
   });
 
-  // --- Night flow ---
   const { proceedNight } = useNightFlow({
-    players, setPlayers, gameMode, addLog, addCurrentPhaseAction, updateActionResult,
-    ROLE_DEFINITIONS, setPhase, phase, nightStep, setNightStep, dayCount,
-    nightDecisions, nightDecisionsRef, mergeNightDecisions,
-    seerChecks, setSeerChecks, guardHistory, setGuardHistory,
-    witchHistory, setWitchHistory, magicianHistory, setMagicianHistory,
-    dreamweaverHistory, setDreamweaverHistory,
-    deathHistory, setDeathHistory,
-    selectedTarget, setSelectedTarget, setHunterShooting,
-    checkGameEnd, askAI, setIsThinking, currentNightSequence,
-    startDayDiscussion, handleAIHunterShoot, userPlayer, gameActiveRef,
+    players,
+    setPlayers,
+    gameMode,
+    addLog,
+    addCurrentPhaseAction,
+    updateActionResult,
+    ROLE_DEFINITIONS,
+    setPhase,
+    phase,
+    nightStep,
+    setNightStep,
+    dayCount,
+    nightDecisions,
+    nightDecisionsRef,
+    mergeNightDecisions,
+    seerChecks,
+    setSeerChecks,
+    guardHistory,
+    setGuardHistory,
+    witchHistory,
+    setWitchHistory,
+    magicianHistory,
+    setMagicianHistory,
+    dreamweaverHistory,
+    setDreamweaverHistory,
+    deathHistory,
+    setDeathHistory,
+    selectedTarget,
+    setSelectedTarget,
+    setHunterShooting,
+    checkGameEnd,
+    askAI,
+    setIsThinking,
+    currentNightSequence,
+    startDayDiscussion,
+    handleAIHunterShoot,
+    userPlayer,
+    gameActiveRef,
   });
 
-  // --- Speech flow ---
   const { handleUserSpeak, handleUserDuel } = useSpeechFlow({
-    phase, players, setPlayers, gameMode, dayCount, speakerIndex, setSpeakerIndex,
-    speechHistory, setSpeechHistory, userPlayer, userInput, setUserInput,
-    addLog, addCurrentPhaseSpeech, setPhase, askAI, moveToNextSpeaker, gameActiveRef,
-    ROLE_DEFINITIONS, setDeathHistory, checkGameEnd, proceedToNextNight,
+    phase,
+    players,
+    setPlayers,
+    gameMode,
+    dayCount,
+    speakerIndex,
+    setSpeakerIndex,
+    speechHistory,
+    setSpeechHistory,
+    userPlayer,
+    userInput,
+    setUserInput,
+    addLog,
+    addCurrentPhaseSpeech,
+    setPhase,
+    askAI,
+    moveToNextSpeaker,
+    gameActiveRef,
+    ROLE_DEFINITIONS,
+    setDeathHistory,
+    checkGameEnd,
+    proceedToNextNight,
   });
 
-  // --- Auto-vote trigger ---
   useEffect(() => {
     if (phase === 'day_voting' && !isThinking) {
-      const userAlive = players.find(p => p.id === 0)?.isAlive;
-      if (!userAlive || gameMode === 'ai-only') {
+      const currentUserAlive = players.find((player) => player.id === 0)?.isAlive;
+      if (!currentUserAlive || gameMode === 'ai-only') {
         handleAutoVote();
       }
     }
-  }, [phase, players]);
+  }, [gameMode, handleAutoVote, isThinking, phase, players]);
 
-  // --- Utility wrappers ---
   const getPlayer = (id) => getPlayerUtil(players, id);
   const isUserTurn = () => isUserTurnUtil(userPlayer, nightStep, currentNightSequence);
   const getCurrentNightRole = () => getCurrentNightRoleUtil(nightStep, currentNightSequence);
 
   const exportGameLog = () => exportGameLogUtil({
-    players, dayCount, deathHistory, speechHistory, voteHistory,
-    seerChecks, guardHistory, witchHistory, victoryMode
+    players,
+    dayCount,
+    deathHistory,
+    speechHistory,
+    voteHistory,
+    seerChecks,
+    guardHistory,
+    witchHistory,
+    victoryMode,
   });
 
   const restartGame = () => {
@@ -369,7 +550,6 @@ export default function App() {
     navigate(ROUTES.CUSTOM, { replace: true });
   };
 
-  // --- Navigation handlers ---
   const handleGuestPlay = useCallback(() => {
     setIsGuestMode(true);
     navigate(ROUTES.HOME, { replace: true });
@@ -414,54 +594,103 @@ export default function App() {
     navigate(ROUTES.SITES);
   }, [navigate]);
 
-  // ===================== RENDER =====================
+  const routeToolbar = (isCustomRoute || isPlayRoute) ? (
+    <div className="mac-floating-toolbar flex-wrap justify-end">
+      {(isCustomRoute || isPlayRoute) && (
+        <button type="button" onClick={handleExitToHome} className="mac-button mac-button-secondary">
+          {isPlayRoute ? ui.app.endAndHome : ui.app.backHome}
+        </button>
+      )}
+      {isCustomRoute && !isGuestMode && user && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowTokenManager(true)}
+            className={`mac-button ${tokenStatus.hasToken ? 'mac-button-secondary' : 'mac-button-ghost'}`}
+          >
+            {tokenStatus.hasToken ? ui.app.tokenReady : ui.app.tokenNeeded}
+          </button>
+          <button type="button" onClick={() => setShowStats(true)} className="mac-button mac-button-secondary">
+            {ui.app.stats}
+          </button>
+          <button type="button" onClick={handleLogout} className="mac-button mac-button-secondary">
+            {ui.app.logout}
+          </button>
+        </>
+      )}
+      {isCustomRoute && isGuestMode && (
+        <button type="button" onClick={handleGuestExitToLogin} className="mac-button mac-button-secondary">
+          {ui.app.login}
+        </button>
+      )}
+      <LanguageToggle locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
+    </div>
+  ) : null;
 
   if (authLoading) {
-    return <FullPageLoader />;
+    return (
+      <>
+        <LocaleOverlay locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
+        <FullPageLoader text={ui.common.loading} />
+      </>
+    );
   }
 
   if (isHomeRoute) {
     return (
-      <Suspense fallback={<FullPageLoader />}>
-        <Dashboard
-          onEnterWolfgame={handleEnterWolfgame}
-          onEnterSites={handleEnterSites}
-          onLogout={handleLogout}
-          isGuestMode={isGuestMode}
-          onLogin={isGuestMode ? handleGuestExitToLogin : handleGoToLogin}
-          onGuestPlay={handleGuestPlay}
-        />
-      </Suspense>
+      <div className="mac-app-shell">
+        <LocaleOverlay locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
+        <Suspense fallback={<FullPageLoader text={ui.common.loading} />}>
+          <Dashboard
+            locale={locale}
+            onEnterWolfgame={handleEnterWolfgame}
+            onEnterSites={handleEnterSites}
+            onLogout={handleLogout}
+            isGuestMode={isGuestMode}
+            onLogin={isGuestMode ? handleGuestExitToLogin : handleGoToLogin}
+            onGuestPlay={handleGuestPlay}
+          />
+        </Suspense>
+      </div>
     );
   }
 
   if (isWolfgameRoute) {
     return (
-      <Suspense fallback={<FullPageLoader />}>
-        <WolfgameHub
-          onBackHome={handleExitToHome}
-          onEnterWolfgame={handleEnterWolfgameSetup}
-          onGuestWolfgame={handleGuestWolfgame}
-          onLogin={isGuestMode ? handleGuestExitToLogin : handleGoToLogin}
-          isGuestMode={isGuestMode}
-        />
-      </Suspense>
+      <div className="mac-app-shell">
+        <LocaleOverlay locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
+        <Suspense fallback={<FullPageLoader text={ui.common.loading} />}>
+          <WolfgameHub
+            onBackHome={handleExitToHome}
+            onEnterWolfgame={handleEnterWolfgameSetup}
+            onGuestWolfgame={handleGuestWolfgame}
+            onLogin={isGuestMode ? handleGuestExitToLogin : handleGoToLogin}
+            isGuestMode={isGuestMode}
+          />
+        </Suspense>
+      </div>
     );
   }
 
   if (isSitesRoute) {
     return (
-      <Suspense fallback={<FullPageLoader />}>
-        <SitesPage onBack={handleExitToHome} />
-      </Suspense>
+      <div className="mac-app-shell">
+        <LocaleOverlay locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
+        <Suspense fallback={<FullPageLoader text={ui.common.loading} />}>
+          <SitesPage onBack={handleExitToHome} locale={locale} />
+        </Suspense>
+      </div>
     );
   }
 
   if (!isAuthed) {
     return (
-      <Suspense fallback={<FullPageLoader />}>
-        <AuthPage onGuestPlay={handleGuestPlay} />
-      </Suspense>
+      <div className="mac-app-shell">
+        <LocaleOverlay locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
+        <Suspense fallback={<FullPageLoader text={ui.common.loading} />}>
+          <AuthPage onGuestPlay={handleGuestPlay} locale={locale} />
+        </Suspense>
+      </div>
     );
   }
 
@@ -470,76 +699,14 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 relative">
-      {isCustomRoute && (
-        <div className="absolute top-4 right-4 flex items-center gap-3 z-50">
-          {isGuestMode && !user && (
-            <span className="text-zinc-500 text-sm">游客模式</span>
-          )}
-          <button
-            onClick={handleExitToHome}
-            aria-label="返回主页"
-            className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
-          >
-            返回主页
-          </button>
-          {!isGuestMode && user && (
-            <>
-              <button
-                onClick={() => setShowTokenManager(true)}
-                aria-label={tokenStatus.hasToken ? '查看令牌配置状态' : '打开令牌配置'}
-                className={`px-3 py-1 text-sm rounded transition-colors ${
-                  tokenStatus.hasToken
-                    ? 'bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50'
-                    : 'bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-600/50'
-                }`}
-              >
-                {tokenStatus.hasToken ? '令牌已配置' : '配置令牌'}
-              </button>
-              <button
-                onClick={() => setShowStats(true)}
-                aria-label="查看战绩"
-                className="px-3 py-1 text-sm bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors"
-              >
-                战绩
-              </button>
-              <button
-                onClick={handleLogout}
-                aria-label="退出登录"
-                className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
-              >
-                登出
-              </button>
-            </>
-          )}
-          {isGuestMode && (
-            <button
-              onClick={handleGuestExitToLogin}
-              aria-label="前往登录"
-              className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
-            >
-              登录
-            </button>
-          )}
-        </div>
-      )}
-
-      {isPlayRoute && (
-        <div className="absolute top-4 right-4 z-50">
-          <button
-            onClick={handleExitToHome}
-            aria-label="结束游戏并返回主页"
-            className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
-          >
-            结束并返回主页
-          </button>
-        </div>
-      )}
+    <div className="mac-app-shell relative">
+      {routeToolbar}
 
       <Suspense fallback={null}>
-        {showStats && <UserStats onClose={() => setShowStats(false)} />}
+        {showStats && <UserStats onClose={() => setShowStats(false)} locale={locale} />}
         {showTokenManager && (
           <TokenManager
+            locale={locale}
             onClose={() => setShowTokenManager(false)}
             onTokenSaved={() => {
               setShowTokenManager(false);
@@ -549,10 +716,11 @@ export default function App() {
         )}
       </Suspense>
 
-      <main className="relative" aria-label="狼人杀主内容区">
+      <main className="relative" aria-label={ui.app.defaultTitle}>
         {isCustomRoute && phase === 'setup' && !gameMode && (
-          <Suspense fallback={<InlineLoader text="正在加载游戏设置..." />}>
+          <Suspense fallback={<InlineLoader text={ui.app.loadingSetup} />}>
             <SetupScreen
+              locale={locale}
               gameMode={gameMode}
               setGameMode={setGameMode}
               isLoggedIn={!!user}
@@ -569,22 +737,37 @@ export default function App() {
         )}
 
         {isPlayRoute && (phase !== 'setup' || gameMode) && (
-          <Suspense fallback={<InlineLoader text="正在加载对局..." />}>
+          <Suspense fallback={<InlineLoader text={ui.app.loadingGame} />}>
             <GameArena
-              players={players} userPlayer={userPlayer} phase={phase}
-              dayCount={dayCount} nightStep={nightStep} nightDecisions={nightDecisions}
-              speechHistory={speechHistory} nightActionHistory={nightActionHistory}
-              voteHistory={voteHistory} deathHistory={deathHistory}
-              seerChecks={seerChecks} guardHistory={guardHistory}
-              witchHistory={witchHistory} magicianHistory={magicianHistory}
+              locale={locale}
+              players={players}
+              userPlayer={userPlayer}
+              phase={phase}
+              dayCount={dayCount}
+              nightStep={nightStep}
+              nightDecisions={nightDecisions}
+              speechHistory={speechHistory}
+              nightActionHistory={nightActionHistory}
+              voteHistory={voteHistory}
+              deathHistory={deathHistory}
+              seerChecks={seerChecks}
+              guardHistory={guardHistory}
+              witchHistory={witchHistory}
+              magicianHistory={magicianHistory}
               dreamweaverHistory={dreamweaverHistory}
               currentPhaseData={currentPhaseData}
-              gameBackground={gameBackground} logs={logs} modelUsage={modelUsage}
-              selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
+              gameBackground={gameBackground}
+              logs={logs}
+              modelUsage={modelUsage}
+              selectedTarget={selectedTarget}
+              setSelectedTarget={setSelectedTarget}
               speakerIndex={speakerIndex}
-              gameMode={gameMode} isThinking={isThinking}
-              speakingOrder={speakingOrder} setSpeakingOrder={setSpeakingOrder}
-              userInput={userInput} setUserInput={setUserInput}
+              gameMode={gameMode}
+              isThinking={isThinking}
+              speakingOrder={speakingOrder}
+              setSpeakingOrder={setSpeakingOrder}
+              userInput={userInput}
+              setUserInput={setUserInput}
               handleUserSpeak={handleUserSpeak}
               hunterShooting={hunterShooting}
               handleUserHunterShoot={handleUserHunterShoot}
@@ -593,11 +776,14 @@ export default function App() {
               handleVote={handleVote}
               proceedNight={proceedNight}
               mergeNightDecisions={mergeNightDecisions}
-              setPlayers={setPlayers} setUserPlayer={setUserPlayer}
+              setPlayers={setPlayers}
+              setUserPlayer={setUserPlayer}
               witchHistorySetter={setWitchHistory}
               magicianHistorySetter={setMagicianHistory}
               dreamweaverHistorySetter={setDreamweaverHistory}
-              getPlayer={getPlayer} addLog={addLog} setSeerChecks={setSeerChecks}
+              getPlayer={getPlayer}
+              addLog={addLog}
+              setSeerChecks={setSeerChecks}
               currentNightSequence={currentNightSequence}
               ROLE_DEFINITIONS={ROLE_DEFINITIONS}
               getCurrentNightRole={getCurrentNightRole}

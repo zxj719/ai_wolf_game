@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { authService } from '../../services/authService';
 import { Mail, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { authService } from '../../services/authService';
+import { getUiCopy } from '../../i18n/locale.js';
+import { AuthShell } from './AuthShell.jsx';
 
-export function ForgotPasswordForm({ onBack }) {
+export function ForgotPasswordForm({ onBack, locale = 'zh' }) {
+  const authCopy = getUiCopy(locale).auth;
+
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
 
     if (!email) {
-      setError('请输入邮箱地址');
+      setError(authCopy.emailRequired);
       return;
     }
 
@@ -22,7 +26,7 @@ export function ForgotPasswordForm({ onBack }) {
       await authService.forgotPassword(email);
       setSuccess(true);
     } catch (err) {
-      setError(err.message || '发送失败，请稍后重试');
+      setError(err.message || authCopy.sendFailed);
     } finally {
       setIsLoading(false);
     }
@@ -30,95 +34,59 @@ export function ForgotPasswordForm({ onBack }) {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 p-8 text-center">
-            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={32} className="text-green-400" />
-            </div>
-            <h2 className="text-xl font-bold text-zinc-100 mb-2">邮件已发送</h2>
-            <p className="text-zinc-400 mb-6">
-              如果该邮箱已注册，你将收到一封包含重置密码链接的邮件。
-              请检查你的收件箱（包括垃圾邮件文件夹）。
-            </p>
-            <button
-              onClick={onBack}
-              className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-            >
-              返回登录
-            </button>
+      <AuthShell locale={locale} title={authCopy.forgotTitle} subtitle={authCopy.forgotDescription}>
+        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/90 p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600">
+            <CheckCircle size={28} />
           </div>
+          <div className="text-base font-semibold text-slate-900">{authCopy.sendReset}</div>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{authCopy.forgotDescription}</p>
+          <button type="button" onClick={onBack} className="mac-button mac-button-primary mt-6">
+            {authCopy.backToLogin}
+          </button>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-zinc-100 mb-2">忘记密码</h1>
-            <p className="text-zinc-400">输入你的邮箱，我们将发送重置链接</p>
-          </div>
+    <AuthShell locale={locale} title={authCopy.forgotTitle} subtitle={authCopy.forgotDescription}>
+      {error && <div className="mb-6 rounded-[22px] border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-600">{error}</div>}
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.emailAddress}</span>
+          <input
+            id="forgot-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="mac-input"
+            placeholder={authCopy.emailPlaceholder}
+            disabled={isLoading}
+            autoComplete="email"
+          />
+        </label>
+
+        <button type="submit" disabled={isLoading} className="mac-button mac-button-primary w-full justify-center py-3">
+          {isLoading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              {authCopy.sending}
+            </>
+          ) : (
+            <>
+              <Mail size={18} />
+              {authCopy.sendReset}
+            </>
           )}
+        </button>
+      </form>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="forgot-email" className="block text-sm font-medium text-zinc-300 mb-2">
-                邮箱地址
-              </label>
-              <input
-                id="forgot-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-                placeholder="your@email.com"
-                disabled={isLoading}
-                autoComplete="email"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  发送中...
-                </>
-              ) : (
-                <>
-                  <Mail size={20} />
-                  发送重置链接
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Back to Login */}
-          <div className="mt-6 text-center">
-            <button
-              onClick={onBack}
-              className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-300 transition-colors"
-            >
-              <ArrowLeft size={16} />
-              返回登录
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      <button type="button" onClick={onBack} className="mac-button mac-button-ghost mt-6">
+        <ArrowLeft size={16} />
+        {authCopy.backToLogin}
+      </button>
+    </AuthShell>
   );
 }

@@ -1,12 +1,29 @@
-import { User, Brain, AlertTriangle, Key, ExternalLink, Swords, Shield, ArrowLeft } from 'lucide-react';
+import React from 'react';
+import {
+  User,
+  Brain,
+  AlertTriangle,
+  Key,
+  ExternalLink,
+  Swords,
+  Shield,
+  ArrowLeft,
+  Sparkles,
+} from 'lucide-react';
 import { API_KEY } from '../config/aiConfig';
 import { RoleSelector } from './RoleSelector';
-import { validateRoleConfig, generateDescription, generateNightSequence, buildRolesArray, DEFAULT_CUSTOM_SELECTIONS, VICTORY_MODES, DEFAULT_VICTORY_MODE } from '../config/roles';
+import {
+  validateRoleConfig,
+  generateNightSequence,
+  buildRolesArray,
+  DEFAULT_CUSTOM_SELECTIONS,
+  DEFAULT_VICTORY_MODE,
+} from '../config/roles';
+import { getUiCopy, getVictoryModeCopy } from '../i18n/locale.js';
 
-export const SetupScreen = ({
+export function SetupScreen({
   gameMode,
   setGameMode,
-  // 令牌相关属性
   isLoggedIn = false,
   isGuestMode = false,
   hasModelscopeToken = false,
@@ -14,183 +31,212 @@ export const SetupScreen = ({
   customRoleSelections = DEFAULT_CUSTOM_SELECTIONS,
   setCustomRoleSelections = () => {},
   onBuildCustomSetup = null,
-  // 胜利模式属性
   victoryMode = DEFAULT_VICTORY_MODE,
   setVictoryMode = () => {},
   onExit = null,
-  exitLabel = '返回首页'
-}) => {
-  // 需要配置令牌的情况：已登录用户没有配置令牌且环境变量也没有
+  exitLabel,
+  locale = 'zh',
+}) {
+  const copy = getUiCopy(locale).setup;
+  const common = getUiCopy(locale).common;
+
   const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
-
-  // 自定义模式验证
   const customValidation = validateRoleConfig(customRoleSelections);
-
-  // 是否可以开始游戏
-  const hasApiAccess = isGuestMode ? !!API_KEY : (hasModelscopeToken || !!API_KEY);
+  const hasApiAccess = isGuestMode ? !!API_KEY : hasModelscopeToken || !!API_KEY;
   const canStartGame = hasApiAccess && customValidation.isValid;
 
-  // 处理开始游戏
+  const edgeCopy = getVictoryModeCopy('edge', locale);
+  const townCopy = getVictoryModeCopy('town', locale);
+
   const handleStartGame = (mode) => {
-    // 自定义（唯一模式）：开局前基于当前选择构建 setup
     if (onBuildCustomSetup) {
       const rolesArray = buildRolesArray(customRoleSelections);
-      const customSetup = {
+      onBuildCustomSetup({
         id: 'custom',
-        name: '自定义局',
+        name: locale === 'en' ? 'Custom Match' : '自定义局',
         TOTAL_PLAYERS: rolesArray.length,
         STANDARD_ROLES: rolesArray,
         NIGHT_SEQUENCE: generateNightSequence(customRoleSelections),
-        description: generateDescription(customRoleSelections),
-        isCustom: true
-      };
-      onBuildCustomSetup(customSetup);
+        description: '',
+        isCustom: true,
+      });
     }
     setGameMode(mode);
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center h-full gap-8">
-      {onExit && (
-        <button
-          onClick={onExit}
-          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 text-sm bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 rounded-lg border border-zinc-700 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          {exitLabel}
-        </button>
-      )}
-      <h1 className="text-4xl font-black tracking-tighter">
-        WEREWOLF <span className="text-indigo-500">PRO</span>
-      </h1>
-
-      {/* 令牌配置提示 - 仅对已登录用户显示 */}
-      {needsTokenConfig && !API_KEY && (
-        <div className="flex items-center gap-3 px-6 py-4 bg-amber-900/50 border border-amber-600 rounded-xl max-w-lg">
-          <Key className="w-6 h-6 text-amber-500 flex-shrink-0" />
-          <div className="text-sm flex-1">
-            <p className="font-bold text-amber-400">需要配置 ModelScope 令牌</p>
-            <p className="text-amber-200/80 mb-2">
-              您需要配置 ModelScope API 令牌才能玩 AI 狼人杀。
-            </p>
+    <div className="px-4 py-24 md:px-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mac-window overflow-hidden">
+          <div className="mac-toolbar">
             <div className="flex items-center gap-4">
-              {onConfigureToken && (
-                <button
-                  onClick={onConfigureToken}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  配置令牌
-                </button>
+              <div className="mac-window-chrome">
+                <span className="mac-window-dot mac-dot-red" />
+                <span className="mac-window-dot mac-dot-yellow" />
+                <span className="mac-window-dot mac-dot-green" />
+              </div>
+              <div>
+                <div className="mac-eyebrow">Werewolf Pro</div>
+                <h1 className="mac-title mt-1">{copy.title}</h1>
+              </div>
+            </div>
+
+            {onExit && (
+              <button type="button" onClick={onExit} className="mac-button mac-button-secondary">
+                <ArrowLeft size={16} />
+                {exitLabel || getUiCopy(locale).app.backHome}
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-8 px-6 py-6 lg:grid-cols-[1.05fr_1.45fr] lg:px-8 lg:py-8">
+            <section className="space-y-6">
+              <div className="mac-panel p-6">
+                <div className="mac-badge">
+                  <Sparkles size={14} />
+                  {copy.subtitle}
+                </div>
+                <div className="mt-4 space-y-3">
+                  <h2 className="text-2xl font-semibold text-slate-900">{copy.chooseMode}</h2>
+                  <p className="mac-section-copy">{copy.bannerDescription}</p>
+                </div>
+              </div>
+
+              {(needsTokenConfig && !API_KEY) && (
+                <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-5 shadow-[0_14px_30px_rgba(255,178,74,0.15)]">
+                  <div className="flex items-start gap-3">
+                    <Key className="mt-0.5 text-amber-600" size={20} />
+                    <div>
+                      <h3 className="text-base font-semibold text-amber-900">{copy.tokenTitle}</h3>
+                      <p className="mt-1 text-sm leading-6 text-amber-800">{copy.tokenDescription}</p>
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        {onConfigureToken && (
+                          <button type="button" onClick={onConfigureToken} className="mac-button mac-button-primary">
+                            {copy.tokenButton}
+                          </button>
+                        )}
+                        <a
+                          href="https://modelscope.cn/my/access/token"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mac-button mac-button-secondary"
+                        >
+                          {copy.tokenLink}
+                          <ExternalLink size={14} />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
-              <a
-                href="https://modelscope.cn/my/access/token"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-amber-400 hover:text-amber-300 text-sm"
-              >
-                获取令牌 <ExternalLink size={14} />
-              </a>
-            </div>
+
+              {isGuestMode && !API_KEY && (
+                <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-5">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 text-amber-600" size={20} />
+                    <div>
+                      <h3 className="text-base font-semibold text-amber-900">{copy.guestTokenTitle}</h3>
+                      <p className="mt-1 text-sm leading-6 text-amber-800">{copy.guestTokenDescription}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => handleStartGame('player')}
+                  disabled={!canStartGame}
+                  className="rounded-[28px] border border-emerald-300/60 bg-white/70 p-6 text-left shadow-[0_18px_40px_rgba(41,167,107,0.12)] transition-all hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/25">
+                    <User size={24} />
+                  </div>
+                  <div className="text-lg font-semibold text-slate-900">{copy.playerMode}</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-500">{copy.playerModeDescription}</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleStartGame('ai-only')}
+                  disabled={!canStartGame}
+                  className="rounded-[28px] border border-sky-300/60 bg-white/70 p-6 text-left shadow-[0_18px_40px_rgba(40,121,255,0.12)] transition-all hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/25">
+                    <Brain size={24} />
+                  </div>
+                  <div className="text-lg font-semibold text-slate-900">{copy.aiMode}</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-500">{copy.aiModeDescription(customValidation.total)}</div>
+                </button>
+              </div>
+
+              <div className="mac-panel p-5">
+                <div className="mac-eyebrow">{copy.victoryRule}</div>
+                <div className="mt-4 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setVictoryMode('edge')}
+                    className={`rounded-[22px] border p-4 text-left transition-all ${
+                      victoryMode === 'edge'
+                        ? 'border-rose-300 bg-rose-50 shadow-[0_14px_28px_rgba(234,78,70,0.12)]'
+                        : 'bg-white/70 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-500 text-white">
+                        <Swords size={18} />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">{edgeCopy.name}</div>
+                        <div className="mt-1 text-sm text-slate-500">{edgeCopy.description}</div>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVictoryMode('town')}
+                    className={`rounded-[22px] border p-4 text-left transition-all ${
+                      victoryMode === 'town'
+                        ? 'border-sky-300 bg-sky-50 shadow-[0_14px_28px_rgba(40,121,255,0.12)]'
+                        : 'bg-white/70 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500 text-white">
+                        <Shield size={18} />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900">{townCopy.name}</div>
+                        <div className="mt-1 text-sm text-slate-500">{townCopy.description}</div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="rounded-[24px] border border-amber-200/70 bg-amber-50/80 p-5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 text-amber-600" size={18} />
+                  <div>
+                    <div className="text-sm font-semibold text-amber-900">{copy.bannerTitle}</div>
+                    <p className="mt-1 text-sm leading-6 text-amber-800">{copy.bannerDescription}</p>
+                  </div>
+                </div>
+              </div>
+
+              <RoleSelector
+                selections={customRoleSelections}
+                onChange={setCustomRoleSelections}
+                validation={customValidation}
+                locale={locale}
+              />
+            </section>
           </div>
         </div>
-      )}
-
-      {/* API Key Warning - 游客模式且环境变量未配置 */}
-      {isGuestMode && !API_KEY && (
-        <div className="flex items-center gap-3 px-6 py-4 bg-amber-900/50 border border-amber-600 rounded-xl max-w-md">
-          <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
-          <div className="text-sm">
-            <p className="font-bold text-amber-400">API Key 未配置</p>
-            <p className="text-amber-200/80">游戏需要 AI 服务。请登录并配置您的 ModelScope 令牌。</p>
-          </div>
-        </div>
-      )}
-
-      {/* 自定义模式说明 */}
-      <div className="w-full max-w-2xl px-4">
-        <div className="flex items-start gap-3 px-6 py-4 bg-zinc-900/50 border border-zinc-700 rounded-xl">
-          <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="text-sm flex-1">
-            <p className="font-bold text-zinc-200">关于响应速度与稳定性</p>
-              <p className="text-zinc-400 mt-1">
-                这是一个调用免费算力平台的大模型狼人杀游戏。部分模型会排队或响应较慢，偶尔也可能掉线/超时。
-              游戏过程中请耐心等待。
-              </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 自定义角色选择器 */}
-      <RoleSelector
-        selections={customRoleSelections}
-        onChange={setCustomRoleSelections}
-        validation={customValidation}
-      />
-
-      {/* 胜利模式选择 */}
-      <div className="flex flex-col items-center gap-3">
-        <h2 className="text-lg text-zinc-400">胜利条件</h2>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setVictoryMode('edge')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all ${
-              victoryMode === 'edge'
-                ? 'bg-red-600 text-white shadow-lg shadow-red-900/30'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-            }`}
-          >
-            <Swords size={18} />
-            <div className="text-left">
-              <div className="font-bold">{VICTORY_MODES.EDGE.name}</div>
-              <div className="text-xs opacity-80">{VICTORY_MODES.EDGE.description}</div>
-            </div>
-          </button>
-          <button
-            onClick={() => setVictoryMode('town')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all ${
-              victoryMode === 'town'
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-            }`}
-          >
-            <Shield size={18} />
-            <div className="text-left">
-              <div className="font-bold">{VICTORY_MODES.TOWN.name}</div>
-              <div className="text-xs opacity-80">{VICTORY_MODES.TOWN.description}</div>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      <h2 className="text-xl text-zinc-400">请选择开始模式</h2>
-      <div className="flex gap-6">
-        <button
-          onClick={() => handleStartGame('player')}
-          disabled={!canStartGame}
-          className={`group px-10 py-6 rounded-2xl text-xl font-bold transition-all transform shadow-xl flex flex-col items-center gap-3 ${
-            !canStartGame
-              ? 'bg-gray-700 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 hover:scale-105'
-          }`}
-        >
-          <User className="w-10 h-10" />
-          <span>玩家模式</span>
-          <span className="text-sm text-green-200 font-normal">您将扮演一名玩家</span>
-        </button>
-        <button
-          onClick={() => handleStartGame('ai-only')}
-          disabled={!canStartGame}
-          className={`group px-10 py-6 rounded-2xl text-xl font-bold transition-all transform shadow-xl flex flex-col items-center gap-3 ${
-            !canStartGame
-              ? 'bg-gray-700 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 hover:scale-105'
-          }`}
-        >
-          <Brain className="w-10 h-10" />
-          <span>全AI模式</span>
-          <span className="text-sm text-purple-200 font-normal">观看{customValidation.total}位AI对战</span>
-        </button>
       </div>
     </div>
   );
-};
+}

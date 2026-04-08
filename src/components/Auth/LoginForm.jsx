@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { getUiCopy } from '../../i18n/locale.js';
+import { AuthShell } from './AuthShell.jsx';
 
-export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
+export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' }) {
   const { login, error } = useAuth();
+  const authCopy = getUiCopy(locale).auth;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setLocalError('');
 
     if (!email || !password) {
-      setLocalError('请填写邮箱和密码');
+      setLocalError(authCopy.fillEmailPassword);
       return;
     }
 
@@ -23,139 +27,90 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }) {
     try {
       const result = await login(email, password);
       if (!result.success) {
-        setLocalError(result.error || '登录失败');
+        setLocalError(result.error || authCopy.loginFailed);
       }
     } catch (err) {
-      setLocalError(err.message || '登录失败');
+      setLocalError(err.message || authCopy.loginFailed);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-zinc-100 mb-2">狼人杀</h1>
-            <p className="text-zinc-400">登录你的账号</p>
-          </div>
+    <AuthShell locale={locale} title={authCopy.loginTitle} subtitle={authCopy.guestDescription}>
+      {(localError || error) && (
+        <div className="mb-6 rounded-[22px] border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-600">
+          {localError || error}
+        </div>
+      )}
 
-          {/* Error Message */}
-          {(localError || error) && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-400 text-sm">{localError || error}</p>
-            </div>
-          )}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <label className="block">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.email}</span>
+          <input
+            id="login-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="mac-input"
+            placeholder={authCopy.emailPlaceholder}
+            disabled={isLoading}
+            autoComplete="email"
+          />
+        </label>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
-            <div>
-              <label htmlFor="login-email" className="block text-sm font-medium text-zinc-300 mb-2">
-                邮箱
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-                placeholder="your@email.com"
-                disabled={isLoading}
-                autoComplete="email"
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label htmlFor="login-password" className="block text-sm font-medium text-zinc-300">
-                  密码
-                </label>
-                {onForgotPassword && (
-                  <button
-                    type="button"
-                    onClick={onForgotPassword}
-                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    忘记密码？
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors pr-12"
-                  placeholder="输入密码"
-                  disabled={isLoading}
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  登录中...
-                </>
-              ) : (
-                <>
-                  <LogIn size={20} />
-                  登录
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Switch to Register */}
-          <div className="mt-6 text-center">
-            <p className="text-zinc-400">
-              还没有账号？{' '}
-              <button
-                onClick={onSwitchToRegister}
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-              >
-                立即注册
+        <label className="block">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.password}</span>
+            {onForgotPassword && (
+              <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-sky-600 hover:text-sky-500">
+                {authCopy.forgotPassword}
               </button>
-            </p>
+            )}
           </div>
-        </div>
+          <div className="relative">
+            <input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="mac-input pr-12"
+              placeholder={authCopy.passwordPlaceholder}
+              disabled={isLoading}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? authCopy.hidePassword : authCopy.showPassword}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </label>
 
-        {/* Guest Mode */}
-        <div className="mt-4 text-center">
-          <p className="text-zinc-500 text-sm">
-            或者直接以游客身份体验游戏
-          </p>
-          <p className="text-zinc-600 text-xs mt-2">
-            继续即代表同意
-            {' '}
-            <a href="/terms.html" className="text-zinc-400 hover:text-zinc-300">用户协议</a>
-            {' '}
-            与
-            {' '}
-            <a href="/privacy.html" className="text-zinc-400 hover:text-zinc-300">隐私政策</a>
-          </p>
-        </div>
+        <button type="submit" disabled={isLoading} className="mac-button mac-button-primary w-full justify-center py-3">
+          {isLoading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              {authCopy.loggingIn}
+            </>
+          ) : (
+            <>
+              <LogIn size={18} />
+              {authCopy.loginButton}
+            </>
+          )}
+        </button>
+      </form>
+
+      <div className="mt-6 text-sm text-slate-500">
+        {authCopy.noAccount}{' '}
+        <button type="button" onClick={onSwitchToRegister} className="font-semibold text-sky-600 hover:text-sky-500">
+          {authCopy.registerNow}
+        </button>
       </div>
-    </div>
+    </AuthShell>
   );
 }
