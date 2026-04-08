@@ -583,8 +583,12 @@ export default function App() {
   }, [endGame, navigate]);
 
   const handleEnterWolfgame = useCallback(() => {
-    navigate(ROUTES.WOLFGAME);
-  }, [navigate]);
+    if (user || isGuestMode) {
+      navigate(ROUTES.CUSTOM);
+      return;
+    }
+    handleGuestWolfgame();
+  }, [handleGuestWolfgame, isGuestMode, navigate, user]);
 
   const handleEnterWolfgameSetup = useCallback(() => {
     navigate(ROUTES.CUSTOM);
@@ -727,7 +731,13 @@ export default function App() {
               isLoggedIn={!!user}
               isGuestMode={isGuestMode}
               hasModelscopeToken={tokenStatus.hasToken}
-              onConfigureToken={() => setShowTokenManager(true)}
+              onConfigureToken={() => {
+                if (isGuestMode) {
+                  handleGuestExitToLogin();
+                  return;
+                }
+                setShowTokenManager(true);
+              }}
               customRoleSelections={customRoleSelections}
               setCustomRoleSelections={setCustomRoleSelections}
               onBuildCustomSetup={setSelectedSetup}

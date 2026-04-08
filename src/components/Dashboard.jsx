@@ -71,13 +71,7 @@ export function Dashboard({
   const displayName = isGuestMode ? common.guest : (user?.username || common.unknown);
   const headerTitle = isGuestMode ? copy.guestMode : isLoggedIn ? `${copy.greetingPrefix}${displayName}` : copy.windowTitle;
 
-  const handleEnterGame = () => {
-    if (needsTokenConfig) {
-      setShowTokenManager(true);
-      return;
-    }
-    onEnterWolfgame?.();
-  };
+  const handleEnterGame = () => onEnterWolfgame?.();
 
   const handleSubmitFeedback = async (event) => {
     event.preventDefault();
@@ -213,10 +207,10 @@ export function Dashboard({
                 <button
                   type="button"
                   onClick={handleEnterGame}
-                  className={`mac-button ${needsTokenConfig ? 'mac-button-secondary' : 'mac-button-primary'}`}
+                  className="mac-button mac-button-primary"
                 >
                   <Gamepad2 size={16} />
-                  {needsTokenConfig ? copy.openToken : copy.startMatch}
+                  {copy.startMatch}
                 </button>
                 <button type="button" onClick={onEnterSites} className="mac-button mac-button-secondary">
                   <Globe size={16} />

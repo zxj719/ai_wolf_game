@@ -66,12 +66,20 @@ export function SetupScreen({
   const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
   const customValidation = validateRoleConfig(customRoleSelections);
   const hasApiAccess = isGuestMode ? !!API_KEY : hasModelscopeToken || !!API_KEY;
-  const canStartGame = hasApiAccess && customValidation.isValid;
 
   const edgeCopy = getVictoryModeCopy('edge', locale);
   const townCopy = getVictoryModeCopy('town', locale);
 
   const handleStartGame = (mode) => {
+    if (!customValidation.isValid) {
+      return;
+    }
+
+    if (!hasApiAccess) {
+      onConfigureToken?.();
+      return;
+    }
+
     if (onBuildCustomSetup) {
       const rolesArray = buildRolesArray(customRoleSelections);
       onBuildCustomSetup({
@@ -168,7 +176,7 @@ export function SetupScreen({
                   title={copy.playerMode}
                   description={copy.playerModeDescription}
                   onClick={() => handleStartGame('player')}
-                  disabled={!canStartGame}
+                  disabled={!customValidation.isValid}
                   tone="primary"
                 />
                 <ActionCard
@@ -176,7 +184,7 @@ export function SetupScreen({
                   title={copy.aiMode}
                   description={copy.aiModeDescription(customValidation.total)}
                   onClick={() => handleStartGame('ai-only')}
-                  disabled={!canStartGame}
+                  disabled={!customValidation.isValid}
                 />
               </div>
 
