@@ -4,25 +4,43 @@ import { authService } from '../services/authService';
 import { TokenManager } from './TokenManager';
 import { UserStats } from './UserStats';
 import {
-  Gamepad2,
-  LogOut,
-  Trophy,
-  Key,
-  Ticket,
-  ChevronRight,
-  AlertCircle,
+  ArrowUpRight,
   Check,
-  User,
-  ExternalLink,
+  ChevronRight,
+  Gamepad2,
   Globe,
+  Key,
   LogIn,
+  LogOut,
   MessageSquare,
-  Send,
-  Sparkles,
+  Ticket,
+  Trophy,
+  User,
 } from 'lucide-react';
 import { getUiCopy } from '../i18n/locale.js';
 
 const FEEDBACK_MAX_LENGTH = 1000;
+
+function UtilityButton({ icon: Icon, title, description, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mac-list-row w-full text-left transition-colors hover:bg-white/90"
+    >
+      <div className="flex items-center gap-3">
+        <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
+          <Icon size={18} />
+        </span>
+        <div>
+          <div className="text-sm font-semibold text-slate-900">{title}</div>
+          <div className="text-sm text-slate-500">{description}</div>
+        </div>
+      </div>
+      <ChevronRight size={16} className="text-slate-400" />
+    </button>
+  );
+}
 
 export function Dashboard({
   onEnterWolfgame,
@@ -51,7 +69,7 @@ export function Dashboard({
   const feedbackLength = feedbackMessage.length;
   const isFeedbackValid = feedbackTrimmedLength >= 5 && feedbackTrimmedLength <= FEEDBACK_MAX_LENGTH;
   const displayName = isGuestMode ? common.guest : (user?.username || common.unknown);
-  const headerTitle = isGuestMode ? copy.guestMode : isLoggedIn ? `${copy.greetingPrefix}${displayName}` : copy.workspace;
+  const headerTitle = isGuestMode ? copy.guestMode : isLoggedIn ? `${copy.greetingPrefix}${displayName}` : copy.windowTitle;
 
   const handleEnterGame = () => {
     if (needsTokenConfig) {
@@ -98,8 +116,8 @@ export function Dashboard({
   };
 
   return (
-    <div className="px-4 py-24 md:px-6">
-      <div className="mx-auto max-w-7xl">
+    <div className="px-4 py-16 md:px-6">
+      <div className="mx-auto max-w-5xl">
         <div className="mac-window overflow-hidden">
           <div className="mac-toolbar">
             <div className="flex items-center gap-4">
@@ -109,10 +127,8 @@ export function Dashboard({
                 <span className="mac-window-dot mac-dot-green" />
               </div>
               <div>
-                <div className="mac-eyebrow">{copy.windowTitle}</div>
-                <h1 className="text-lg font-semibold text-slate-900">
-                  {headerTitle}
-                </h1>
+                <div className="mac-eyebrow">Zhaxiaoji Studio</div>
+                <h1 className="text-base font-semibold text-slate-900">{headerTitle}</h1>
               </div>
             </div>
 
@@ -122,10 +138,10 @@ export function Dashboard({
                   type="button"
                   onClick={onLogin}
                   aria-label={appCopy.login}
-                  className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                  className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
                   title={appCopy.login}
                 >
-                  <LogIn size={18} />
+                  <LogIn size={17} />
                 </button>
               ) : isLoggedIn ? (
                 <>
@@ -133,28 +149,28 @@ export function Dashboard({
                     type="button"
                     onClick={() => setShowStats(true)}
                     aria-label={copy.statsTitle}
-                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
                     title={copy.statsTitle}
                   >
-                    <Trophy size={18} />
+                    <Trophy size={17} />
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowTokenManager(true)}
                     aria-label={copy.tokenTitle}
-                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
                     title={copy.tokenTitle}
                   >
-                    <Key size={18} className={tokenStatus.hasToken ? 'text-emerald-600' : 'text-amber-600'} />
+                    <Key size={17} className={tokenStatus.hasToken ? 'text-slate-700' : 'text-slate-400'} />
                   </button>
                   <button
                     type="button"
                     onClick={onLogout}
                     aria-label={appCopy.logout}
-                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
                     title={appCopy.logout}
                   >
-                    <LogOut size={18} />
+                    <LogOut size={17} />
                   </button>
                 </>
               ) : (
@@ -166,110 +182,72 @@ export function Dashboard({
                     className="mac-button mac-button-secondary"
                     title={appCopy.guestMode}
                   >
-                    <Ticket size={16} />
+                    <Ticket size={15} />
                     {appCopy.guestMode}
                   </button>
                   <button
                     type="button"
                     onClick={onLogin}
                     aria-label={appCopy.login}
-                    className="mac-button mac-button-secondary !h-11 !w-11 !rounded-2xl !p-0"
+                    className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
                     title={appCopy.login}
                   >
-                    <LogIn size={18} />
+                    <LogIn size={17} />
                   </button>
                 </>
               )}
             </div>
           </div>
 
-          <main className="space-y-8 px-6 py-6 lg:px-8 lg:py-8">
-            <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="mac-panel overflow-hidden p-6 md:p-8">
-                <div className="mac-badge">
-                  <Sparkles size={14} />
-                  {copy.workspaceDescription}
-                </div>
-                <div className="mt-6 space-y-3">
-                  <h2 className="text-4xl font-semibold tracking-tight text-slate-900">{copy.workspace}</h2>
-                  <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.windowSubtitle}</p>
-                </div>
-
-                <div className="mt-8 grid gap-4 md:grid-cols-3">
-                  {copy.quickSteps.map((step) => (
-                    <div key={step.title} className="rounded-[24px] border border-white/70 bg-white/78 p-4 shadow-[0_12px_28px_rgba(68,85,119,0.08)]">
-                      <div className="text-sm font-semibold text-slate-900">{step.title}</div>
-                      <div className="mt-2 text-sm leading-6 text-slate-500">{step.description}</div>
-                    </div>
-                  ))}
-                </div>
+          <main className="grid gap-8 px-6 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:px-8">
+            <section className="space-y-8">
+              <div className="space-y-4">
+                <div className="mac-eyebrow">{copy.workspaceDescription}</div>
+                <h2 className="text-[clamp(2.25rem,5vw,4rem)] font-semibold tracking-tight text-slate-950">
+                  {copy.workspace}
+                </h2>
+                <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.windowSubtitle}</p>
               </div>
 
-              <div className="grid gap-4">
-                <div className="rounded-[28px] border border-amber-200/80 bg-white/76 p-6 shadow-[0_22px_42px_rgba(255,179,84,0.14)]">
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/25">
-                      <Gamepad2 size={28} />
-                    </div>
-                    <span className={`mac-badge ${needsTokenConfig ? 'text-amber-700' : 'text-emerald-700'}`}>
-                      {needsTokenConfig ? <AlertCircle size={14} /> : <Check size={14} />}
-                      {needsTokenConfig ? copy.tokenNeeded : copy.gameReady}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-semibold text-slate-900">{copy.gameCardTitle}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{copy.gameCardDescription}</p>
-                  {needsTokenConfig && (
-                    <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50/90 p-4 text-sm leading-6 text-amber-900">
-                      {copy.tokenHint}
-                      <button type="button" onClick={() => setShowTokenManager(true)} className="ml-2 font-semibold underline">
-                        {copy.configureNow}
-                      </button>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleEnterGame}
-                    className={`mac-button mt-6 w-full justify-between ${needsTokenConfig ? 'mac-button-secondary' : 'mac-button-primary'}`}
-                  >
-                    <span>{needsTokenConfig ? copy.openToken : copy.startMatch}</span>
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-
-                <div className="rounded-[28px] border border-sky-200/80 bg-white/76 p-6 shadow-[0_22px_42px_rgba(40,121,255,0.12)]">
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-lg shadow-sky-500/25">
-                      <Globe size={28} />
-                    </div>
-                    <span className="mac-badge text-sky-700">{copy.sitesBadge}</span>
-                  </div>
-                  <h3 className="text-xl font-semibold text-slate-900">{copy.sitesTitle}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{copy.sitesDescription}</p>
-                  <button type="button" onClick={onEnterSites} className="mac-button mac-button-primary mt-6 w-full justify-between">
-                    <span>{copy.enterSites}</span>
-                    <ExternalLink size={16} />
-                  </button>
-                </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleEnterGame}
+                  className={`mac-button ${needsTokenConfig ? 'mac-button-secondary' : 'mac-button-primary'}`}
+                >
+                  <Gamepad2 size={16} />
+                  {needsTokenConfig ? copy.openToken : copy.startMatch}
+                </button>
+                <button type="button" onClick={onEnterSites} className="mac-button mac-button-secondary">
+                  <Globe size={16} />
+                  {copy.enterSites}
+                </button>
               </div>
-            </section>
 
-            <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="mac-panel p-6">
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
-                    <MessageSquare size={20} />
+              <div className="grid gap-3 sm:grid-cols-3">
+                {copy.quickSteps.map((step) => (
+                  <div key={step.title} className="mac-muted-card">
+                    <div className="text-sm font-semibold text-slate-900">{step.title}</div>
+                    <div className="mt-2 text-sm leading-6 text-slate-500">{step.description}</div>
                   </div>
+                ))}
+              </div>
+
+              <div className="mac-panel p-5 md:p-6">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="mac-icon-tile">
+                    <MessageSquare size={18} />
+                  </span>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900">{copy.feedbackTitle}</h3>
+                    <h3 className="text-base font-semibold text-slate-900">{copy.feedbackTitle}</h3>
                     <p className="text-sm text-slate-500">{copy.feedbackDescription}</p>
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmitFeedback} className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
+                <form onSubmit={handleSubmitFeedback} className="grid gap-4">
                   <div>
-                    <label className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{copy.feedbackLabel}</label>
                     <textarea
-                      className="mac-textarea mt-2 min-h-[180px]"
+                      className="mac-textarea min-h-[140px]"
                       placeholder={copy.feedbackPlaceholder}
                       value={feedbackMessage}
                       onChange={(event) => setFeedbackMessage(event.target.value)}
@@ -281,99 +259,112 @@ export function Dashboard({
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <label className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{copy.feedbackContact}</label>
-                      <input
-                        type="text"
-                        className="mac-input mt-2"
-                        placeholder={copy.feedbackContactPlaceholder}
-                        value={feedbackContact}
-                        onChange={(event) => setFeedbackContact(event.target.value)}
-                      />
-                    </div>
-
-                    <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4 text-sm text-slate-500">
-                      {copy.feedbackIdentity}: <span className="font-semibold text-slate-900">{displayName}</span>
-                    </div>
-
+                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                    <input
+                      type="text"
+                      className="mac-input"
+                      placeholder={copy.feedbackContactPlaceholder}
+                      value={feedbackContact}
+                      onChange={(event) => setFeedbackContact(event.target.value)}
+                    />
                     <button
                       type="submit"
                       disabled={!isFeedbackValid || feedbackLoading}
-                      className={`mac-button w-full justify-between ${isFeedbackValid && !feedbackLoading ? 'mac-button-primary' : 'mac-button-secondary'}`}
+                      className={`mac-button min-w-[156px] ${isFeedbackValid && !feedbackLoading ? 'mac-button-primary' : 'mac-button-secondary'}`}
                     >
-                      <span>{feedbackLoading ? copy.feedbackSending : copy.feedbackSend}</span>
-                      <Send size={16} />
+                      {feedbackLoading ? copy.feedbackSending : copy.feedbackSend}
+                      <ArrowUpRight size={15} />
                     </button>
-
-                    {feedbackStatus && (
-                      <div className={`text-sm ${feedbackStatus.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {feedbackStatus.text}
-                      </div>
-                    )}
                   </div>
+
+                  {feedbackStatus && (
+                    <div className={`text-sm ${feedbackStatus.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {feedbackStatus.text}
+                    </div>
+                  )}
                 </form>
               </div>
+            </section>
 
-              <div className="mac-panel p-6">
+            <aside className="space-y-4">
+              <div className="mac-panel p-5">
+                <div className="mac-eyebrow">{copy.windowTitle}</div>
+                <div className="mt-4 space-y-3">
+                  <div className="mac-list-row">
+                    <div className="flex items-center gap-3">
+                      <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
+                        <Gamepad2 size={17} />
+                      </span>
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">{copy.gameCardTitle}</div>
+                        <div className="text-sm text-slate-500">{copy.gameCardDescription}</div>
+                      </div>
+                    </div>
+                    {!needsTokenConfig && <Check size={16} className="text-emerald-600" />}
+                  </div>
+
+                  {needsTokenConfig && (
+                    <div className="rounded-[18px] border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-800">
+                      {copy.tokenHint}
+                    </div>
+                  )}
+
+                  <div className="rounded-[18px] border border-slate-200/80 bg-white/68 px-4 py-3 text-sm leading-6 text-slate-500">
+                    {copy.feedbackIdentity}: <span className="font-medium text-slate-900">{displayName}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mac-panel p-5">
                 <div className="mac-eyebrow">{copy.moreFeatures}</div>
-                <div className="mt-4 grid gap-3">
+                <div className="mt-4 space-y-3">
                   {!isGuestMode ? (
                     <>
-                      <button
-                        type="button"
+                      <UtilityButton
+                        icon={Trophy}
+                        title={copy.statsTitle}
+                        description={copy.statsDescription}
                         onClick={() => setShowStats(true)}
-                        className="rounded-[22px] border border-white/80 bg-white/78 p-4 text-left shadow-[0_12px_28px_rgba(68,85,119,0.08)] transition-all hover:-translate-y-1"
-                      >
-                        <Trophy size={22} className="text-amber-500" />
-                        <p className="mt-3 font-semibold text-slate-900">{copy.statsTitle}</p>
-                        <p className="mt-1 text-sm text-slate-500">{copy.statsDescription}</p>
-                      </button>
-                      <button
-                        type="button"
+                      />
+                      <UtilityButton
+                        icon={Key}
+                        title={copy.tokenTitle}
+                        description={copy.tokenDescription}
                         onClick={() => setShowTokenManager(true)}
-                        className="rounded-[22px] border border-white/80 bg-white/78 p-4 text-left shadow-[0_12px_28px_rgba(68,85,119,0.08)] transition-all hover:-translate-y-1"
-                      >
-                        <Key size={22} className="text-sky-500" />
-                        <p className="mt-3 font-semibold text-slate-900">{copy.tokenTitle}</p>
-                        <p className="mt-1 text-sm text-slate-500">{copy.tokenDescription}</p>
-                      </button>
+                      />
                     </>
                   ) : (
                     <>
-                      <div className="rounded-[22px] border border-white/80 bg-white/78 p-4 shadow-[0_12px_28px_rgba(68,85,119,0.08)]">
-                        <User size={22} className="text-slate-500" />
-                        <p className="mt-3 font-semibold text-slate-900">{copy.guestCardTitle}</p>
-                        <p className="mt-1 text-sm text-slate-500">{copy.guestCardDescription}</p>
+                      <div className="mac-list-row">
+                        <div className="flex items-center gap-3">
+                          <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
+                            <User size={17} />
+                          </span>
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">{copy.guestCardTitle}</div>
+                            <div className="text-sm text-slate-500">{copy.guestCardDescription}</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="rounded-[22px] border border-white/80 bg-white/78 p-4 shadow-[0_12px_28px_rgba(68,85,119,0.08)]">
-                        <LogIn size={22} className="text-sky-500" />
-                        <p className="mt-3 font-semibold text-slate-900">{copy.loginUnlockTitle}</p>
-                        <p className="mt-1 text-sm text-slate-500">{copy.loginUnlockDescription}</p>
-                      </div>
+                      <UtilityButton
+                        icon={LogIn}
+                        title={copy.loginUnlockTitle}
+                        description={copy.loginUnlockDescription}
+                        onClick={onLogin}
+                      />
                     </>
                   )}
-
-                  {[0, 1].map((index) => (
-                    <div
-                      key={index}
-                      className="rounded-[22px] border border-dashed border-slate-300 bg-white/48 p-4 text-slate-400"
-                    >
-                      <p className="font-semibold">{copy.comingSoon}</p>
-                      <p className="mt-1 text-sm">{copy.inDevelopment}</p>
-                    </div>
-                  ))}
                 </div>
               </div>
-            </section>
+            </aside>
           </main>
         </div>
 
-        <footer className="mt-6 flex flex-wrap items-center gap-4 px-2 text-sm text-slate-500">
-          <a href="/about.html" className="hover:text-slate-700 transition-colors">{copy.footerAbout}</a>
-          <a href="/privacy.html" className="hover:text-slate-700 transition-colors">{copy.footerPrivacy}</a>
-          <a href="/terms.html" className="hover:text-slate-700 transition-colors">{copy.footerTerms}</a>
-          <span className="ml-auto">© {new Date().getFullYear()} Werewolf Pro</span>
+        <footer className="mt-4 flex flex-wrap items-center gap-4 px-2 text-sm text-slate-500">
+          <a href="/about.html" className="transition-colors hover:text-slate-700">{copy.footerAbout}</a>
+          <a href="/privacy.html" className="transition-colors hover:text-slate-700">{copy.footerPrivacy}</a>
+          <a href="/terms.html" className="transition-colors hover:text-slate-700">{copy.footerTerms}</a>
+          <span className="ml-auto">(c) {new Date().getFullYear()} Zhaxiaoji Studio</span>
         </footer>
       </div>
 

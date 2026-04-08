@@ -1,33 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    font-family: "Outfit", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "SF Pro Text", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color-scheme: light;
-    --homepage-bg: #f5efe6;
-    --homepage-ink: #1f1a17;
-    --homepage-paper: rgba(255, 251, 246, 0.82);
-    --homepage-line: rgba(28, 25, 23, 0.1);
-    --homepage-shadow: rgba(28, 25, 23, 0.12);
-    --font-display: "Noto Serif SC", "Songti SC", serif;
-    --font-sans: "Outfit", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    --mac-ink: #172033;
-    --mac-muted: #556176;
-    --mac-line: rgba(116, 133, 161, 0.28);
-    --mac-surface: rgba(255, 255, 255, 0.74);
-    --mac-surface-strong: rgba(255, 255, 255, 0.88);
-    --mac-panel: rgba(248, 250, 255, 0.64);
-    --mac-shadow: 0 24px 80px rgba(56, 74, 102, 0.22);
-    --mac-shadow-soft: 0 14px 36px rgba(71, 91, 125, 0.16);
-    --mac-primary: #2879ff;
-    --mac-primary-strong: #1463f2;
-    --mac-accent: #ff8f38;
+    --homepage-bg: #f3f4f6;
+    --homepage-ink: #111827;
+    --homepage-paper: rgba(255, 255, 255, 0.84);
+    --homepage-line: rgba(15, 23, 42, 0.08);
+    --homepage-shadow: rgba(15, 23, 42, 0.08);
+    --font-display: "SF Pro Display", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-sans: "SF Pro Text", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mac-ink: #111827;
+    --mac-muted: #667085;
+    --mac-line: rgba(15, 23, 42, 0.08);
+    --mac-surface: rgba(255, 255, 255, 0.8);
+    --mac-surface-strong: rgba(255, 255, 255, 0.92);
+    --mac-panel: rgba(255, 255, 255, 0.68);
+    --mac-panel-strong: rgba(255, 255, 255, 0.88);
+    --mac-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+    --mac-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.05);
+    --mac-primary: #0a84ff;
+    --mac-primary-strong: #0071e3;
+    --mac-accent: #0a84ff;
     --mac-success: #22a06b;
-    --mac-danger: #ea4e46;
+    --mac-danger: #e85d5d;
   }
 
   html {
@@ -42,10 +41,9 @@
 
   body {
     background:
-      radial-gradient(circle at top left, rgba(255, 189, 122, 0.44), transparent 28%),
-      radial-gradient(circle at top right, rgba(111, 175, 255, 0.4), transparent 32%),
-      radial-gradient(circle at bottom center, rgba(163, 140, 255, 0.18), transparent 28%),
-      linear-gradient(180deg, #f2f6ff 0%, #edf3fb 40%, #f6f8fb 100%);
+      radial-gradient(circle at top center, rgba(255, 255, 255, 0.92), transparent 42%),
+      radial-gradient(circle at bottom left, rgba(225, 229, 237, 0.6), transparent 28%),
+      linear-gradient(180deg, #f7f7f8 0%, #eff1f4 100%);
     color: var(--mac-ink);
     font-family: var(--font-sans);
   }
@@ -64,15 +62,15 @@
   }
 
   body::before {
-    top: -10rem;
-    right: -10rem;
-    background: rgba(138, 190, 255, 0.28);
+    top: -12rem;
+    right: -8rem;
+    background: rgba(255, 255, 255, 0.8);
   }
 
   body::after {
-    bottom: -12rem;
-    left: -8rem;
-    background: rgba(255, 183, 128, 0.24);
+    bottom: -16rem;
+    left: -10rem;
+    background: rgba(215, 220, 229, 0.42);
   }
 }
 
@@ -81,7 +79,7 @@ a {
 }
 
 ::selection {
-  background: rgba(15, 76, 70, 0.18);
+  background: rgba(10, 132, 255, 0.14);
 }
 
 .font-display {
@@ -93,19 +91,19 @@ a {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(28, 25, 23, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(28, 25, 23, 0.04) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
-  opacity: 0.5;
+    linear-gradient(rgba(15, 23, 42, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black 36%, transparent 82%);
+  opacity: 0.3;
 }
 
 .paper-panel {
   background:
-    linear-gradient(135deg, rgba(255, 251, 246, 0.94), rgba(250, 241, 228, 0.72)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 251, 253, 0.86)),
     var(--homepage-paper);
   border: 1px solid var(--homepage-line);
-  box-shadow: 0 26px 60px var(--homepage-shadow);
+  box-shadow: 0 18px 42px var(--homepage-shadow);
 }
 
 .headline-line {
@@ -124,24 +122,24 @@ a {
   .mac-window {
     background: var(--mac-surface);
     border: 1px solid var(--mac-line);
-    border-radius: 28px;
+    border-radius: 24px;
     box-shadow: var(--mac-shadow);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
   }
 
   .mac-panel {
     background: var(--mac-panel);
-    border: 1px solid rgba(132, 150, 184, 0.18);
-    border-radius: 24px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    border-radius: 20px;
     box-shadow: var(--mac-shadow-soft);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
 
   .mac-toolbar {
-    @apply flex items-center justify-between gap-4 px-6 py-4;
-    border-bottom: 1px solid rgba(123, 139, 167, 0.14);
+    @apply flex items-center justify-between gap-4 px-5 py-4 md:px-6;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
   }
 
   .mac-window-chrome {
@@ -165,8 +163,8 @@ a {
   }
 
   .mac-eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.28em];
-    color: #64748b;
+    @apply text-[11px] font-semibold uppercase tracking-[0.22em];
+    color: #6b7280;
   }
 
   .mac-title {
@@ -181,9 +179,9 @@ a {
 
   .mac-badge {
     @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium;
-    background: rgba(255, 255, 255, 0.64);
-    border: 1px solid rgba(116, 133, 161, 0.18);
-    color: #42506a;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    color: #475467;
   }
 
   .mac-button {
@@ -203,19 +201,19 @@ a {
   .mac-button-primary {
     background: linear-gradient(180deg, var(--mac-primary) 0%, var(--mac-primary-strong) 100%);
     color: white;
-    box-shadow: 0 12px 28px rgba(20, 99, 242, 0.28);
+    box-shadow: 0 8px 18px rgba(0, 113, 227, 0.22);
   }
 
   .mac-button-secondary {
-    background: rgba(255, 255, 255, 0.78);
-    border-color: rgba(116, 133, 161, 0.22);
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(15, 23, 42, 0.08);
     color: var(--mac-ink);
   }
 
   .mac-button-ghost {
-    background: rgba(255, 255, 255, 0.42);
-    border-color: rgba(116, 133, 161, 0.2);
-    color: #51607a;
+    background: rgba(255, 255, 255, 0.46);
+    border-color: rgba(15, 23, 42, 0.05);
+    color: #667085;
   }
 
   .mac-button-danger {
@@ -228,15 +226,15 @@ a {
   .mac-textarea,
   .mac-select {
     @apply w-full rounded-2xl px-4 py-3 text-sm outline-none transition-all;
-    background: rgba(255, 255, 255, 0.78);
-    border: 1px solid rgba(122, 141, 176, 0.26);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.08);
     color: var(--mac-ink);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   }
 
   .mac-input::placeholder,
   .mac-textarea::placeholder {
-    color: #8a96ab;
+    color: #98a2b3;
   }
 
   .mac-input:focus,
@@ -256,10 +254,30 @@ a {
     color: var(--mac-muted);
   }
 
+  .mac-icon-tile {
+    @apply flex h-11 w-11 items-center justify-center rounded-2xl;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    color: #344054;
+    box-shadow: var(--mac-shadow-soft);
+  }
+
+  .mac-list-row {
+    @apply flex items-center justify-between gap-4 rounded-[18px] px-4 py-3;
+    background: var(--mac-panel-strong);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .mac-muted-card {
+    @apply rounded-[20px] p-4;
+    background: rgba(255, 255, 255, 0.58);
+    border: 1px solid rgba(15, 23, 42, 0.05);
+  }
+
   .mac-segmented-control {
     @apply inline-flex items-center gap-1 rounded-full p-1;
     background: rgba(255, 255, 255, 0.74);
-    border: 1px solid rgba(122, 141, 176, 0.18);
+    border: 1px solid rgba(15, 23, 42, 0.06);
     box-shadow: var(--mac-shadow-soft);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -271,13 +289,13 @@ a {
 
   .mac-segment {
     @apply rounded-full px-3 py-1.5 text-xs font-semibold transition-colors;
-    color: #5d6b80;
+    color: #667085;
   }
 
   .mac-segment.is-active {
-    background: rgba(23, 32, 51, 0.92);
+    background: rgba(17, 24, 39, 0.88);
     color: white;
-    box-shadow: 0 6px 16px rgba(23, 32, 51, 0.18);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
   }
 }
 

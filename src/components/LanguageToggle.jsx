@@ -13,7 +13,7 @@ export function LanguageToggle({ locale = 'zh', onChange, label = 'Interface lan
         className={`mac-segment ${locale === 'zh' ? 'is-active' : ''}`}
         aria-pressed={locale === 'zh'}
       >
-        中文
+        ZH
       </button>
       <button
         type="button"

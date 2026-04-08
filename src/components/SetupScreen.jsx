@@ -1,14 +1,13 @@
 import React from 'react';
 import {
-  User,
-  Brain,
   AlertTriangle,
-  Key,
-  ExternalLink,
-  Swords,
-  Shield,
   ArrowLeft,
-  Sparkles,
+  Brain,
+  ExternalLink,
+  Key,
+  Shield,
+  Swords,
+  User,
 } from 'lucide-react';
 import { API_KEY } from '../config/aiConfig';
 import { RoleSelector } from './RoleSelector';
@@ -20,6 +19,31 @@ import {
   DEFAULT_VICTORY_MODE,
 } from '../config/roles';
 import { getUiCopy, getVictoryModeCopy } from '../i18n/locale.js';
+
+function ActionCard({ icon: Icon, title, description, onClick, disabled, tone = 'default' }) {
+  const toneClass = tone === 'primary'
+    ? 'border-slate-900/10 bg-slate-900 text-white'
+    : 'border-slate-200 bg-white/78 text-slate-900';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full rounded-[20px] border px-4 py-4 text-left transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${toneClass}`}
+    >
+      <div className="flex items-start gap-3">
+        <span className={`mac-icon-tile h-10 w-10 rounded-[16px] ${tone === 'primary' ? '!bg-white/12 !text-white !border-white/10' : ''}`}>
+          <Icon size={18} />
+        </span>
+        <div>
+          <div className={`text-sm font-semibold ${tone === 'primary' ? 'text-white' : 'text-slate-900'}`}>{title}</div>
+          <div className={`mt-1 text-sm leading-6 ${tone === 'primary' ? 'text-white/72' : 'text-slate-500'}`}>{description}</div>
+        </div>
+      </div>
+    </button>
+  );
+}
 
 export function SetupScreen({
   gameMode,
@@ -38,7 +62,6 @@ export function SetupScreen({
   locale = 'zh',
 }) {
   const copy = getUiCopy(locale).setup;
-  const common = getUiCopy(locale).common;
 
   const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
   const customValidation = validateRoleConfig(customRoleSelections);
@@ -65,8 +88,8 @@ export function SetupScreen({
   };
 
   return (
-    <div className="px-4 py-24 md:px-6">
-      <div className="mx-auto max-w-7xl">
+    <div className="px-4 py-16 md:px-6">
+      <div className="mx-auto max-w-6xl">
         <div className="mac-window overflow-hidden">
           <div className="mac-toolbar">
             <div className="flex items-center gap-4">
@@ -89,27 +112,24 @@ export function SetupScreen({
             )}
           </div>
 
-          <div className="grid gap-8 px-6 py-6 lg:grid-cols-[1.05fr_1.45fr] lg:px-8 lg:py-8">
-            <section className="space-y-6">
-              <div className="mac-panel p-6">
-                <div className="mac-badge">
-                  <Sparkles size={14} />
-                  {copy.subtitle}
-                </div>
-                <div className="mt-4 space-y-3">
-                  <h2 className="text-2xl font-semibold text-slate-900">{copy.chooseMode}</h2>
-                  <p className="mac-section-copy">{copy.bannerDescription}</p>
-                </div>
+          <div className="grid gap-8 px-6 py-8 lg:grid-cols-[320px_1fr] lg:px-8">
+            <aside className="space-y-4">
+              <div className="space-y-3">
+                <div className="mac-eyebrow">{copy.subtitle}</div>
+                <h2 className="text-3xl font-semibold tracking-tight text-slate-950">{copy.chooseMode}</h2>
+                <p className="mac-section-copy">{copy.bannerDescription}</p>
               </div>
 
-              {(needsTokenConfig && !API_KEY) && (
-                <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-5 shadow-[0_14px_30px_rgba(255,178,74,0.15)]">
+              {needsTokenConfig && !API_KEY && (
+                <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/82 p-4 text-sm leading-6 text-amber-800">
                   <div className="flex items-start gap-3">
-                    <Key className="mt-0.5 text-amber-600" size={20} />
-                    <div>
-                      <h3 className="text-base font-semibold text-amber-900">{copy.tokenTitle}</h3>
-                      <p className="mt-1 text-sm leading-6 text-amber-800">{copy.tokenDescription}</p>
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Key size={18} className="mt-1 shrink-0" />
+                    <div className="space-y-3">
+                      <div>
+                        <div className="font-semibold">{copy.tokenTitle}</div>
+                        <div>{copy.tokenDescription}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         {onConfigureToken && (
                           <button type="button" onClick={onConfigureToken} className="mac-button mac-button-primary">
                             {copy.tokenButton}
@@ -131,64 +151,54 @@ export function SetupScreen({
               )}
 
               {isGuestMode && !API_KEY && (
-                <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-5">
+                <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/82 p-4 text-sm leading-6 text-amber-800">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="mt-0.5 text-amber-600" size={20} />
+                    <AlertTriangle size={18} className="mt-1 shrink-0" />
                     <div>
-                      <h3 className="text-base font-semibold text-amber-900">{copy.guestTokenTitle}</h3>
-                      <p className="mt-1 text-sm leading-6 text-amber-800">{copy.guestTokenDescription}</p>
+                      <div className="font-semibold">{copy.guestTokenTitle}</div>
+                      <div>{copy.guestTokenDescription}</div>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <button
-                  type="button"
+              <div className="space-y-3">
+                <ActionCard
+                  icon={User}
+                  title={copy.playerMode}
+                  description={copy.playerModeDescription}
                   onClick={() => handleStartGame('player')}
                   disabled={!canStartGame}
-                  className="rounded-[28px] border border-emerald-300/60 bg-white/70 p-6 text-left shadow-[0_18px_40px_rgba(41,167,107,0.12)] transition-all hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/25">
-                    <User size={24} />
-                  </div>
-                  <div className="text-lg font-semibold text-slate-900">{copy.playerMode}</div>
-                  <div className="mt-2 text-sm leading-6 text-slate-500">{copy.playerModeDescription}</div>
-                </button>
-
-                <button
-                  type="button"
+                  tone="primary"
+                />
+                <ActionCard
+                  icon={Brain}
+                  title={copy.aiMode}
+                  description={copy.aiModeDescription(customValidation.total)}
                   onClick={() => handleStartGame('ai-only')}
                   disabled={!canStartGame}
-                  className="rounded-[28px] border border-sky-300/60 bg-white/70 p-6 text-left shadow-[0_18px_40px_rgba(40,121,255,0.12)] transition-all hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/25">
-                    <Brain size={24} />
-                  </div>
-                  <div className="text-lg font-semibold text-slate-900">{copy.aiMode}</div>
-                  <div className="mt-2 text-sm leading-6 text-slate-500">{copy.aiModeDescription(customValidation.total)}</div>
-                </button>
+                />
               </div>
 
-              <div className="mac-panel p-5">
+              <div className="mac-panel p-4">
                 <div className="mac-eyebrow">{copy.victoryRule}</div>
-                <div className="mt-4 grid gap-3">
+                <div className="mt-3 space-y-3">
                   <button
                     type="button"
                     onClick={() => setVictoryMode('edge')}
-                    className={`rounded-[22px] border p-4 text-left transition-all ${
+                    className={`w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
                       victoryMode === 'edge'
-                        ? 'border-rose-300 bg-rose-50 shadow-[0_14px_28px_rgba(234,78,70,0.12)]'
-                        : 'bg-white/70 border-slate-200'
+                        ? 'border-slate-900/12 bg-slate-900 text-white'
+                        : 'border-slate-200/80 bg-white/78 text-slate-900'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-500 text-white">
-                        <Swords size={18} />
-                      </div>
+                      <span className={`mac-icon-tile h-9 w-9 rounded-[14px] ${victoryMode === 'edge' ? '!bg-white/12 !text-white !border-white/10' : ''}`}>
+                        <Swords size={16} />
+                      </span>
                       <div>
-                        <div className="font-semibold text-slate-900">{edgeCopy.name}</div>
-                        <div className="mt-1 text-sm text-slate-500">{edgeCopy.description}</div>
+                        <div className={`text-sm font-semibold ${victoryMode === 'edge' ? 'text-white' : 'text-slate-900'}`}>{edgeCopy.name}</div>
+                        <div className={`mt-1 text-sm ${victoryMode === 'edge' ? 'text-white/72' : 'text-slate-500'}`}>{edgeCopy.description}</div>
                       </div>
                     </div>
                   </button>
@@ -196,33 +206,35 @@ export function SetupScreen({
                   <button
                     type="button"
                     onClick={() => setVictoryMode('town')}
-                    className={`rounded-[22px] border p-4 text-left transition-all ${
+                    className={`w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
                       victoryMode === 'town'
-                        ? 'border-sky-300 bg-sky-50 shadow-[0_14px_28px_rgba(40,121,255,0.12)]'
-                        : 'bg-white/70 border-slate-200'
+                        ? 'border-slate-900/12 bg-slate-900 text-white'
+                        : 'border-slate-200/80 bg-white/78 text-slate-900'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500 text-white">
-                        <Shield size={18} />
-                      </div>
+                      <span className={`mac-icon-tile h-9 w-9 rounded-[14px] ${victoryMode === 'town' ? '!bg-white/12 !text-white !border-white/10' : ''}`}>
+                        <Shield size={16} />
+                      </span>
                       <div>
-                        <div className="font-semibold text-slate-900">{townCopy.name}</div>
-                        <div className="mt-1 text-sm text-slate-500">{townCopy.description}</div>
+                        <div className={`text-sm font-semibold ${victoryMode === 'town' ? 'text-white' : 'text-slate-900'}`}>{townCopy.name}</div>
+                        <div className={`mt-1 text-sm ${victoryMode === 'town' ? 'text-white/72' : 'text-slate-500'}`}>{townCopy.description}</div>
                       </div>
                     </div>
                   </button>
                 </div>
               </div>
-            </section>
+            </aside>
 
             <section className="space-y-4">
-              <div className="rounded-[24px] border border-amber-200/70 bg-amber-50/80 p-5">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 text-amber-600" size={18} />
+              <div className="mac-panel p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-amber-900">{copy.bannerTitle}</div>
-                    <p className="mt-1 text-sm leading-6 text-amber-800">{copy.bannerDescription}</p>
+                    <div className="mac-eyebrow">{copy.configSummary}</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900">{copy.buildSummary(customValidation.description)}</div>
+                  </div>
+                  <div className="mac-badge">
+                    {copy.totalPlayers}: <span className="font-semibold text-slate-900">{customValidation.total}</span>
                   </div>
                 </div>
               </div>

@@ -1,80 +1,66 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
 import { getUiCopy } from '../../i18n/locale.js';
 
 export function AuthShell({ locale = 'zh', title, subtitle, children, footer }) {
   const authCopy = getUiCopy(locale).auth;
-  const featureA = locale === 'en'
-    ? {
-        title: 'macOS-inspired UI',
-        body: 'Rounded glass panels, restrained motion, and a lighter desktop-like hierarchy.',
-      }
-    : {
-        title: 'macOS 风格界面',
-        body: '圆角玻璃面板、克制动效和更像桌面应用的浅色层级。',
-      };
-  const featureB = locale === 'en'
-    ? {
-        title: 'Bilingual shell',
-        body: 'Switch between 中文 and English without leaving the current route.',
-      }
-    : {
-        title: '双语外壳',
-        body: '不离开当前页面即可在中文和 English 之间切换。',
-      };
+  const notes = locale === 'en'
+    ? [
+        'Minimal interface, bilingual shell.',
+        'Sign in to save stats and manage your token.',
+      ]
+    : [
+        '极简界面，支持中英切换。',
+        '登录后可保存战绩并管理令牌。',
+      ];
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-24 md:px-6">
-      <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <section className="mac-window hidden overflow-hidden p-8 lg:flex lg:flex-col lg:justify-between">
-          <div>
-            <div className="mac-window-chrome">
-              <span className="mac-window-dot mac-dot-red" />
-              <span className="mac-window-dot mac-dot-yellow" />
-              <span className="mac-window-dot mac-dot-green" />
-            </div>
-            <div className="mt-10 space-y-4">
-              <div className="mac-badge">
-                <Sparkles size={14} />
-                {authCopy.productName}
+    <div className="flex min-h-screen items-center justify-center px-4 py-16 md:px-6">
+      <div className="mac-window w-full max-w-5xl overflow-hidden">
+        <div className="grid lg:grid-cols-[0.82fr_1.18fr]">
+          <section className="hidden border-r border-slate-200/70 bg-white/42 px-8 py-10 lg:flex lg:flex-col lg:justify-between">
+            <div className="space-y-5">
+              <div className="mac-window-chrome">
+                <span className="mac-window-dot mac-dot-red" />
+                <span className="mac-window-dot mac-dot-yellow" />
+                <span className="mac-window-dot mac-dot-green" />
               </div>
-              <h1 className="text-4xl font-semibold leading-tight text-slate-900">{authCopy.heroTitle}</h1>
-              <p className="max-w-xl text-base leading-7 text-slate-500">{authCopy.heroBody}</p>
+              <div>
+                <div className="mac-eyebrow">{authCopy.productName}</div>
+                <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+                  {authCopy.heroTitle}
+                </h1>
+                <p className="mt-4 text-base leading-7 text-slate-500">{authCopy.heroBody}</p>
+              </div>
             </div>
-          </div>
-            <div className="grid gap-3">
-            <div className="mac-panel p-5">
-              <div className="text-sm font-semibold text-slate-900">{featureA.title}</div>
-              <div className="mt-2 text-sm leading-6 text-slate-500">{featureA.body}</div>
-            </div>
-            <div className="mac-panel p-5">
-              <div className="text-sm font-semibold text-slate-900">{featureB.title}</div>
-              <div className="mt-2 text-sm leading-6 text-slate-500">{featureB.body}</div>
-            </div>
-          </div>
-        </section>
 
-        <section className="mac-window overflow-hidden">
-          <div className="mac-toolbar">
-            <div className="mac-window-chrome">
-              <span className="mac-window-dot mac-dot-red" />
-              <span className="mac-window-dot mac-dot-yellow" />
-              <span className="mac-window-dot mac-dot-green" />
+            <div className="space-y-3">
+              {notes.map((note) => (
+                <div key={note} className="mac-muted-card text-sm leading-6 text-slate-500">
+                  {note}
+                </div>
+              ))}
             </div>
-            <div className="text-right">
-              <div className="mac-eyebrow">{authCopy.productName}</div>
-            </div>
-          </div>
+          </section>
 
-          <div className="px-6 py-8 md:px-8">
+          <section className="px-6 py-8 md:px-10 md:py-10">
+            <div className="mb-8 lg:hidden">
+              <div className="mac-window-chrome">
+                <span className="mac-window-dot mac-dot-red" />
+                <span className="mac-window-dot mac-dot-yellow" />
+                <span className="mac-window-dot mac-dot-green" />
+              </div>
+            </div>
+
             <div className="mb-8">
-              <h2 className="text-3xl font-semibold tracking-tight text-slate-900">{title}</h2>
+              <div className="mac-eyebrow">{authCopy.productName}</div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{title}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">{subtitle}</p>
             </div>
+
             {children}
             {footer && <div className="mt-8">{footer}</div>}
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   );

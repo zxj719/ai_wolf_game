@@ -661,6 +661,7 @@ export default function App() {
         <LocaleOverlay locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
         <Suspense fallback={<FullPageLoader text={ui.common.loading} />}>
           <WolfgameHub
+            locale={locale}
             onBackHome={handleExitToHome}
             onEnterWolfgame={handleEnterWolfgameSetup}
             onGuestWolfgame={handleGuestWolfgame}

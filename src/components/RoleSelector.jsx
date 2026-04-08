@@ -1,28 +1,50 @@
 import React from 'react';
-import { Minus, Plus, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle,
+  Crosshair,
+  Eye,
+  FlaskConical,
+  Minus,
+  Shield,
+  Sparkles,
+  Swords,
+  User,
+  Users,
+} from 'lucide-react';
 import { ROLE_METADATA, UNIQUE_ROLES, MULTI_ROLES } from '../config/roles';
 import { formatRoleSummary, getRoleDescription, getRoleLabel, getUiCopy } from '../i18n/locale.js';
 
 const ROLE_ICONS = {
-  WEREWOLF: '🐺',
-  VILLAGER: '👤',
-  SEER: '👁️',
-  WITCH: '🧪',
-  HUNTER: '🎯',
-  GUARD: '🛡️',
-  MAGICIAN: '🎩',
-  KNIGHT: '⚔️',
-  DREAMWEAVER: '🌙',
+  WEREWOLF: Swords,
+  VILLAGER: Users,
+  SEER: Eye,
+  WITCH: FlaskConical,
+  HUNTER: Crosshair,
+  GUARD: Shield,
+  MAGICIAN: Sparkles,
+  KNIGHT: Sparkles,
+  DREAMWEAVER: User,
 };
+
+function RoleIcon({ roleKey }) {
+  const Icon = ROLE_ICONS[roleKey] || User;
+  return (
+    <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
+      <Icon size={17} />
+    </span>
+  );
+}
 
 function MultiRoleCard({ roleKey, count, onChange, maxCount, locale }) {
   return (
-    <div className="mac-panel flex items-center justify-between gap-4 p-4">
-      <div className="flex items-center gap-4">
-        <span className="text-2xl">{ROLE_ICONS[roleKey]}</span>
+    <div className="mac-list-row">
+      <div className="flex items-center gap-3">
+        <RoleIcon roleKey={roleKey} />
         <div>
-          <div className="font-semibold text-slate-900">{getRoleLabel(roleKey, locale)}</div>
-          <div className="text-xs text-slate-500">{getRoleDescription(roleKey, locale)}</div>
+          <div className="text-sm font-semibold text-slate-900">{getRoleLabel(roleKey, locale)}</div>
+          <div className="text-sm text-slate-500">{getRoleDescription(roleKey, locale)}</div>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -30,18 +52,18 @@ function MultiRoleCard({ roleKey, count, onChange, maxCount, locale }) {
           type="button"
           onClick={() => onChange(Math.max(0, count - 1))}
           disabled={count <= 0}
-          className="mac-button mac-button-secondary h-10 w-10 rounded-2xl p-0"
+          className="mac-button mac-button-secondary h-9 w-9 rounded-[14px] p-0"
         >
-          <Minus size={16} />
+          <Minus size={14} />
         </button>
-        <span className="w-10 text-center text-lg font-semibold text-slate-900">{count}</span>
+        <span className="w-8 text-center text-base font-semibold text-slate-900">{count}</span>
         <button
           type="button"
           onClick={() => onChange(Math.min(maxCount, count + 1))}
           disabled={count >= maxCount}
-          className="mac-button mac-button-secondary h-10 w-10 rounded-2xl p-0"
+          className="mac-button mac-button-secondary h-9 w-9 rounded-[14px] p-0"
         >
-          <Plus size={16} />
+          <span className="text-base leading-none">+</span>
         </button>
       </div>
     </div>
@@ -53,21 +75,25 @@ function UniqueRoleCard({ roleKey, selected, onChange, locale }) {
     <button
       type="button"
       onClick={() => onChange(selected ? 0 : 1)}
-      className={`flex items-center justify-between gap-4 rounded-[22px] border p-4 text-left transition-all ${
+      className={`w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
         selected
-          ? 'bg-sky-500/10 border-sky-400/40 shadow-[0_10px_26px_rgba(40,121,255,0.14)]'
-          : 'mac-panel hover:border-slate-300'
+          ? 'border-slate-900/12 bg-slate-900 text-white'
+          : 'border-slate-200/80 bg-white/76 text-slate-900'
       }`}
     >
-      <div className="flex items-center gap-4">
-        <span className="text-2xl">{ROLE_ICONS[roleKey]}</span>
-        <div>
-          <div className="font-semibold text-slate-900">{getRoleLabel(roleKey, locale)}</div>
-          <div className="text-xs text-slate-500">{getRoleDescription(roleKey, locale)}</div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className={`mac-icon-tile h-10 w-10 rounded-[16px] ${selected ? '!bg-white/12 !text-white !border-white/10' : ''}`}>
+            {React.createElement(ROLE_ICONS[roleKey] || User, { size: 17 })}
+          </span>
+          <div>
+            <div className={`text-sm font-semibold ${selected ? 'text-white' : 'text-slate-900'}`}>{getRoleLabel(roleKey, locale)}</div>
+            <div className={`text-sm ${selected ? 'text-white/72' : 'text-slate-500'}`}>{getRoleDescription(roleKey, locale)}</div>
+          </div>
         </div>
-      </div>
-      <div className={`h-7 w-14 rounded-full p-1 transition-colors ${selected ? 'bg-sky-500' : 'bg-slate-300'}`}>
-        <div className={`h-5 w-5 rounded-full bg-white transition-transform ${selected ? 'translate-x-7' : 'translate-x-0'}`} />
+        <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selected ? 'bg-white/12 text-white' : 'bg-slate-100 text-slate-500'}`}>
+          {selected ? 'On' : 'Off'}
+        </div>
       </div>
     </button>
   );
@@ -86,11 +112,11 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
   const description = formatRoleSummary(selections, locale);
 
   return (
-    <div className="mac-window w-full max-w-3xl p-6 md:p-8">
+    <div className="mac-panel p-5 md:p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="mac-eyebrow">{copy.roleCounts}</div>
-          <h3 className="mac-section-title mt-1">{copy.customRoles}</h3>
+          <h3 className="mt-1 text-lg font-semibold text-slate-900">{copy.customRoles}</h3>
         </div>
         <div className="mac-badge">
           {copy.totalPlayers}: <span className="font-semibold text-slate-900">{validation.total}</span>
@@ -99,10 +125,7 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
 
       <div className="space-y-6">
         <section className="space-y-3">
-          <h4 className="flex items-center gap-2 text-sm font-semibold text-rose-500">
-            <span className="h-2 w-2 rounded-full bg-rose-500" />
-            {copy.wolfCamp}
-          </h4>
+          <div className="text-sm font-semibold text-slate-900">{copy.wolfCamp}</div>
           <MultiRoleCard
             roleKey="WEREWOLF"
             count={selections.WEREWOLF || 0}
@@ -113,10 +136,7 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
         </section>
 
         <section className="space-y-3">
-          <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-600">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            {copy.specialRoles}
-          </h4>
+          <div className="text-sm font-semibold text-slate-900">{copy.specialRoles}</div>
           <div className="grid gap-3 md:grid-cols-2">
             {UNIQUE_ROLES.map((roleKey) => (
               <UniqueRoleCard
@@ -131,10 +151,7 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
         </section>
 
         <section className="space-y-3">
-          <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            {copy.goodCamp}
-          </h4>
+          <div className="text-sm font-semibold text-slate-900">{copy.goodCamp}</div>
           <div className="grid gap-3 md:grid-cols-2">
             {MULTI_ROLES.filter((roleKey) => roleKey !== 'WEREWOLF').map((roleKey) => (
               <MultiRoleCard
@@ -156,7 +173,7 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
         </div>
 
         {validation.errors.length > 0 && (
-          <div className="rounded-[22px] border border-rose-200 bg-rose-50/90 p-4">
+          <div className="rounded-[18px] border border-rose-200 bg-rose-50/90 p-4">
             <div className="flex items-start gap-3 text-sm text-rose-600">
               <AlertCircle size={18} className="mt-0.5 shrink-0" />
               <div className="space-y-1">
@@ -169,7 +186,7 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
         )}
 
         {validation.warnings.length > 0 && validation.isValid && (
-          <div className="rounded-[22px] border border-amber-200 bg-amber-50/90 p-4">
+          <div className="rounded-[18px] border border-amber-200 bg-amber-50/90 p-4">
             <div className="flex items-start gap-3 text-sm text-amber-700">
               <AlertTriangle size={18} className="mt-0.5 shrink-0" />
               <div className="space-y-1">
