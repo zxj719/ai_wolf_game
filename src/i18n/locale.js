@@ -193,6 +193,10 @@ const UI_COPY = {
       guestTokenDescription: '游客模式依赖环境变量中的 AI 服务密钥，请登录后配置个人令牌。',
       buildSummary: (description) => description || '请选择角色',
       roleCounts: '角色配比',
+      selectionLabel: '已选模式',
+      selectionEmpty: '请先选择玩家模式或全 AI 模式',
+      startButton: '开始游戏',
+      startReady: (mode) => `当前将以“${mode}”开始`,
     },
     auth: {
       productName: 'Werewolf Pro',
@@ -450,6 +454,10 @@ const UI_COPY = {
       guestTokenDescription: 'Guest mode needs an environment API key. Sign in to use your own token.',
       buildSummary: (description) => description || 'Choose roles',
       roleCounts: 'Role breakdown',
+      selectionLabel: 'Selected Mode',
+      selectionEmpty: 'Select Player Mode or All-AI Mode first',
+      startButton: 'Start Game',
+      startReady: (mode) => `Ready to start in ${mode}`,
     },
     auth: {
       productName: 'Werewolf Pro',

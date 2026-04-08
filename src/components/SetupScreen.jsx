@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -20,9 +20,9 @@ import {
 } from '../config/roles';
 import { getUiCopy, getVictoryModeCopy } from '../i18n/locale.js';
 
-function ActionCard({ icon: Icon, title, description, onClick, disabled, tone = 'default' }) {
-  const toneClass = tone === 'primary'
-    ? 'border-slate-900/10 bg-slate-900 text-white'
+function ActionCard({ icon: Icon, title, description, onClick, disabled, selected = false }) {
+  const toneClass = selected
+    ? 'border-slate-900/10 bg-slate-900 text-white shadow-sm'
     : 'border-slate-200 bg-white/78 text-slate-900';
 
   return (
@@ -30,15 +30,16 @@ function ActionCard({ icon: Icon, title, description, onClick, disabled, tone = 
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={selected}
       className={`w-full rounded-[20px] border px-4 py-4 text-left transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${toneClass}`}
     >
       <div className="flex items-start gap-3">
-        <span className={`mac-icon-tile h-10 w-10 rounded-[16px] ${tone === 'primary' ? '!bg-white/12 !text-white !border-white/10' : ''}`}>
+        <span className={`mac-icon-tile h-10 w-10 rounded-[16px] ${selected ? '!bg-white/12 !text-white !border-white/10' : ''}`}>
           <Icon size={18} />
         </span>
         <div>
-          <div className={`text-sm font-semibold ${tone === 'primary' ? 'text-white' : 'text-slate-900'}`}>{title}</div>
-          <div className={`mt-1 text-sm leading-6 ${tone === 'primary' ? 'text-white/72' : 'text-slate-500'}`}>{description}</div>
+          <div className={`text-sm font-semibold ${selected ? 'text-white' : 'text-slate-900'}`}>{title}</div>
+          <div className={`mt-1 text-sm leading-6 ${selected ? 'text-white/72' : 'text-slate-500'}`}>{description}</div>
         </div>
       </div>
     </button>
@@ -62,16 +63,42 @@ export function SetupScreen({
   locale = 'zh',
 }) {
   const copy = getUiCopy(locale).setup;
+  const [selectedMode, setSelectedMode] = useState(() => gameMode || null);
 
   const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
   const customValidation = validateRoleConfig(customRoleSelections);
   const hasApiAccess = isGuestMode ? !!API_KEY : hasModelscopeToken || !!API_KEY;
+  const canStartSelectedMode = !!selectedMode && customValidation.isValid;
 
   const edgeCopy = getVictoryModeCopy('edge', locale);
   const townCopy = getVictoryModeCopy('town', locale);
+  const selectionLabel = copy.selectionLabel || (locale === 'en' ? 'Selected Mode' : '已选模式');
+  const selectionEmpty = copy.selectionEmpty || (locale === 'en' ? 'Select Player Mode or All-AI Mode first' : '请先选择玩家模式或全 AI 模式');
+  const startButtonLabel = copy.startButton || (locale === 'en' ? 'Start Game' : '开始游戏');
+  const selectedModeLabel = selectedMode === 'player'
+    ? copy.playerMode
+    : selectedMode === 'ai-only'
+      ? copy.aiMode
+      : null;
 
-  const handleStartGame = (mode) => {
+  const startHelperText = (() => {
+    if (!selectedMode) {
+      return selectionEmpty;
+    }
     if (!customValidation.isValid) {
+      return customValidation.errors[0] || copy.chooseRole;
+    }
+    if (!hasApiAccess) {
+      return isGuestMode ? copy.guestTokenDescription : copy.tokenDescription;
+    }
+    if (typeof copy.startReady === 'function') {
+      return copy.startReady(selectedModeLabel);
+    }
+    return locale === 'en' ? `Ready to start in ${selectedModeLabel}` : `当前将以“${selectedModeLabel}”开始`;
+  })();
+
+  const handleStartGame = () => {
+    if (!selectedMode || !customValidation.isValid) {
       return;
     }
 
@@ -92,7 +119,7 @@ export function SetupScreen({
         isCustom: true,
       });
     }
-    setGameMode(mode);
+    setGameMode(selectedMode);
   };
 
   return (
@@ -175,17 +202,39 @@ export function SetupScreen({
                   icon={User}
                   title={copy.playerMode}
                   description={copy.playerModeDescription}
-                  onClick={() => handleStartGame('player')}
+                  onClick={() => setSelectedMode('player')}
                   disabled={!customValidation.isValid}
-                  tone="primary"
+                  selected={selectedMode === 'player'}
                 />
                 <ActionCard
                   icon={Brain}
                   title={copy.aiMode}
                   description={copy.aiModeDescription(customValidation.total)}
-                  onClick={() => handleStartGame('ai-only')}
+                  onClick={() => setSelectedMode('ai-only')}
                   disabled={!customValidation.isValid}
+                  selected={selectedMode === 'ai-only'}
                 />
+              </div>
+
+              <div className="mac-panel p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="mac-eyebrow">{selectionLabel}</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900">
+                      {selectedModeLabel || selectionEmpty}
+                    </div>
+                  </div>
+                  {selectedModeLabel && <div className="mac-badge">{selectedModeLabel}</div>}
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-500">{startHelperText}</p>
+                <button
+                  type="button"
+                  onClick={handleStartGame}
+                  disabled={!canStartSelectedMode}
+                  className={`mac-button mt-4 w-full justify-center ${canStartSelectedMode ? 'mac-button-primary' : 'mac-button-secondary'}`}
+                >
+                  {startButtonLabel}
+                </button>
               </div>
 
               <div className="mac-panel p-4">

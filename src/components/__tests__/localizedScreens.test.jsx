@@ -60,5 +60,6 @@ describe('localized screens', () => {
     expect(html).toContain('Player Mode');
     expect(html).toContain('Custom Roles');
     expect(html).toContain('Victory Rule');
+    expect(html).toContain('Start Game');
   });
 });

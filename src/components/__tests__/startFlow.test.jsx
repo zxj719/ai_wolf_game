@@ -80,7 +80,7 @@ describe('start flow', () => {
     expect(container.querySelector('[data-testid="token-manager"]')).toBeNull();
   });
 
-  it('opens token configuration when all-ai mode is clicked without API access', () => {
+  it('uses mode selection before start and opens token configuration on start without API access', () => {
     const onConfigureToken = vi.fn();
     const setGameMode = vi.fn();
 
@@ -99,11 +99,51 @@ describe('start flow', () => {
       );
     });
 
+    expect(findButton(container, 'Start Game').disabled).toBe(true);
+
     act(() => {
       findButton(container, 'All-AI Mode').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    expect(onConfigureToken).not.toHaveBeenCalled();
+    expect(setGameMode).not.toHaveBeenCalled();
+    expect(findButton(container, 'Start Game').disabled).toBe(false);
+
+    act(() => {
+      findButton(container, 'Start Game').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
     expect(onConfigureToken).toHaveBeenCalledTimes(1);
     expect(setGameMode).not.toHaveBeenCalled();
+  });
+
+  it('starts the selected player mode only after the start button is pressed', () => {
+    const setGameMode = vi.fn();
+
+    act(() => {
+      root.render(
+        <SetupScreen
+          locale="en"
+          setGameMode={setGameMode}
+          isLoggedIn
+          hasModelscopeToken
+          customRoleSelections={DEFAULT_CUSTOM_SELECTIONS}
+          setCustomRoleSelections={vi.fn()}
+          setVictoryMode={vi.fn()}
+        />
+      );
+    });
+
+    act(() => {
+      findButton(container, 'Player Mode').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(setGameMode).not.toHaveBeenCalled();
+
+    act(() => {
+      findButton(container, 'Start Game').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(setGameMode).toHaveBeenCalledWith('player');
   });
 });
