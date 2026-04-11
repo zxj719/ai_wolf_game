@@ -38,3 +38,6 @@ npm-debug.log*
 .codex/tmp/
 .codex/logs/
 .codex/.personality_migration
+
+# Local git worktrees
+.worktrees/
