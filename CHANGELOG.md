@@ -2,6 +2,41 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-04-11] 自我进化循环：headless driver + codex 指令
+
+### 新功能
+- **Headless 游戏驱动器**：Node 侧无头 6 人迷你局驱动器，打通 review pipeline 的数据源
+  - 6 人配置：2 狼人 1 预言家 1 女巫 2 村民
+  - 夜间流程：狼刀 → 预言家查 → 女巫救/毒 → 死亡结算
+  - 白天流程：全员发言（≤80 字）→ 全员投票 → 最高票出局
+  - 胜负判定：屠边模式（神职或村民全灭 / 狼数≥好人数）
+  - 输出 game log 直接落 `src/knowledge/pending/`，无缝喂给 `reviewPipeline.mjs --local`
+  - CLI 参数：`--games=N --max-days=N --no-queue --verbose`
+- **`/evolve-codex` 斜杠命令**：把自我进化循环托付给 codex CLI 的 subagent 机制
+  - 定义 scout/analyst/surgeon 三种子代理角色分工
+  - 5 步循环：盘点 → 选建议 → 落地 → 闭环验证 → 记录
+  - 收敛条件 & 停机条件与 Phase 1 设计对齐
+  - 禁止 `git push` / 修改 workers_auth / 伪造 game log
+
+### Bug 修复
+- **`llm.mjs` Provider 映射修复**：shared LLM 封装长期与 `aiConfig.js` 默认值不一致
+  - `getApiConfig` 之前只识别 `VITE_SILICONFLOW_*` 环境变量，项目实际 `.env` 用的是 ModelScope 的 `VITE_API_URL`/`VITE_API_KEY` → 返回 401
+  - 默认模型 `Qwen/Qwen3-8B` 在 ModelScope 未托管 → API 返回 `choices: null` 空响应
+  - `callLLM` 不透传未知 options → `response_format: {type:'json_object'}` 永远达不到上游
+  - 修复后：ModelScope 优先、默认模型改为已验证的 `deepseek-ai/DeepSeek-V3.2`、options 透传
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/agents/headlessGame.mjs` | 新建 | Node 侧 6 人无头对局驱动器（~380 行） |
+| `.claude/commands/evolve-codex.md` | 新建 | `/evolve-codex` 斜杠命令，codex 自我进化循环指令 |
+| `src/agents/shared/llm.mjs` | 修改 | getApiConfig + callLLM 三处缺陷修复 |
+
+### 技术细节
+- **Phase 1 技术债**：headless driver 当前使用内联 BOOTSTRAP prompts 而不是 `src/services/promptFactory.js`。原因是 `promptFactory` 的 `from './rolePrompts'` 无后缀目录导入 Node ESM 不认，而 Vite 认。Phase 2 待用户批准后一次性给 `src/services/rolePrompts/**` 所有相对导入加 `.js` 后缀，即可把 driver 切换到生产提示词，真正闭合循环。
+- **JSON 解析鲁棒性**：`parseJson` 用平衡计数扫描所有顶层 `{...}` 块，从末尾反向逐个 try —— 对 thinking 模型输出里 "reasoning preface + final JSON" 的 pattern 天然鲁棒，即使 `response_format` 不被某些模型尊重也能兜底。
+- **验证结果**：`node src/agents/headlessGame.mjs --no-queue --verbose --max-days=2` 跑出一局完整狼人杀，狼胜（D1），产出 5 条发言 + 1 轮投票 + 2 条死亡记录 + 3 条夜间行动记录，所有 LLM 调用都返回干净 JSON，parseJson fallback 未触发。
+
 ## [2026-02-18] 实时行情系统（简单版）
 
 ### 新功能

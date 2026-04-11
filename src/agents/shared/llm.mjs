@@ -39,15 +39,27 @@ try {
  * @returns {Promise<{content: string, model: string}>}
  */
 export async function callLLM({ apiUrl, apiKey, model, systemMsg, userMsg, options = {} }) {
+  // Split known defaults from arbitrary pass-through options.
+  // Anything not explicitly pulled out (e.g. response_format, max_tokens, stop)
+  // is forwarded to the upstream API as-is.
+  const {
+    temperature = 0.7,
+    top_p = 0.7,
+    enable_thinking,
+    thinking_budget = 4096,
+    ...passthrough
+  } = options;
+
   const payload = {
     model,
     messages: [
       { role: 'system', content: systemMsg },
       { role: 'user', content: userMsg }
     ],
-    temperature: options.temperature ?? 0.7,
-    top_p: options.top_p ?? 0.7,
-    ...(options.enable_thinking ? { enable_thinking: true, thinking_budget: options.thinking_budget ?? 4096 } : {}),
+    temperature,
+    top_p,
+    ...(enable_thinking ? { enable_thinking: true, thinking_budget } : {}),
+    ...passthrough,
   };
 
   const response = await fetch(apiUrl, {
@@ -71,21 +83,25 @@ export async function callLLM({ apiUrl, apiKey, model, systemMsg, userMsg, optio
 
 /**
  * Build the API config from environment variables.
- * Uses SiliconFlow (the project's AI_PROVIDER) with a fallback model.
- * The AGENT_MODEL env var can override the default.
+ * Matches aiConfig.js: ModelScope is the project default, SiliconFlow optional.
+ * AGENT_MODEL env var can override the default model.
  */
 export function getApiConfig() {
-  // Prefer SiliconFlow (the project's primary AI provider)
-  const apiUrl = process.env.VITE_SILICONFLOW_API_URL
+  // Prefer explicit VITE_API_URL/KEY (matches aiConfig.js default provider = modelscope).
+  // Fall back to SiliconFlow-specific env vars, then to ModelScope's public endpoint.
+  const apiUrl = process.env.VITE_API_URL
+    || process.env.VITE_SILICONFLOW_API_URL
     || process.env.SILICONFLOW_API_URL
-    || 'https://api.siliconflow.cn/v1/chat/completions';
-  const apiKey = process.env.VITE_SILICONFLOW_API_KEY
+    || 'https://api-inference.modelscope.cn/v1/chat/completions';
+  const apiKey = process.env.VITE_API_KEY
+    || process.env.VITE_SILICONFLOW_API_KEY
     || process.env.SILICONFLOW_API_KEY
-    || process.env.VITE_API_KEY
     || '';
 
-  // Default model for agent analysis — Qwen3-8B (thinking-enabled, fast)
-  const model = process.env.AGENT_MODEL || 'Qwen/Qwen3-8B';
+  // Default model for agent analysis — DeepSeek-V3.2 (verified on ModelScope, non-thinking, ~4s/call with response_format).
+  // Override with AGENT_MODEL env var if you want a different model.
+  // NOTE: not every model in aiConfig.js is actually hosted on ModelScope; verify with curl first.
+  const model = process.env.AGENT_MODEL || 'deepseek-ai/DeepSeek-V3.2';
 
   return { apiUrl, apiKey, model };
 }
