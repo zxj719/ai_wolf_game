@@ -2,6 +2,35 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-04-11] 自我进化循环：闭环验证 + Windows 路径修复
+
+### Bug 修复
+- **NTFS 文件名非法字符**：`headlessGame.mjs` 和 `reviewPipeline.mjs` 的本地队列 key 格式为 `local:${ts}:${gameId}`，冒号是 NTFS 保留字符（alt stream 分隔符），在 Windows 上 `writeFileSync` 直接 ENOENT（错误信息完全看不出是路径问题）。修复：本地模式改用下划线 `local_${ts}_${gameId}`。KV 模式仍用 `review:...`（Cloudflare KV 接受冒号）。
+- **LLM target 解析过严**：`DAY_VOTE` / `NIGHT_WOLF_KILL` / `NIGHT_SEER_CHECK` / `NIGHT_WITCH` 的 target 字段原本只认 `Number(act.target)`，若 LLM 返回 `"Alice"`（名字）或 `"[1]Alice"`（带括号前缀）则 `NaN` 静默失效 → 全局 null 投票/无效夜间行动。新增 `resolveTarget()` 工具函数支持 5 种解析策略：数字、数字字符串、`[id]` 括号、`数字号`、玩家名精确/子串匹配。
+- **`--verbose` 投票诊断**：每轮投票后打印 tally 字符串和 null 票数，让"8 轮无人出局"这类系统性故障可以从日志直接看出来。
+
+### 闭环验证
+- headless driver 成功产出一局有信息量的游戏：Day 1 狼胜（真预言家 Ivy 被误投出局，女巫首夜误毒被狼刀目标 Carol）
+- reviewPipeline.mjs --local 完整跑通 BugHunter → PromptEngineer → TestWriter 三步：
+  - BugHunter 识别 5 条 issue（1 critical 女巫首夜乱毒 / 2 high 预言家空跳 + 村民误杀预言家 / 1 medium 狼人反驳空洞 / 1 low 村民过于消极）
+  - PromptEngineer 产出 3 条高置信度（0.90~0.95）prompt 改写建议，分别针对女巫、预言家、村民
+  - TestWriter 生成 3 条测试用例 + markdown 案例研究
+- `src/knowledge/case_library/` 从 2 条种子案例增长到 3 条，其中新增的 `auto-1775908658493-h8qdd7` 是第一条由完整自动化流水线产出的案例。
+
+### 已知非阻断问题
+- BugHunter / PromptEngineer 输出的 `timestamp` 字段是模型幻觉（返回 `2023-12-01` / `2024-06-09`），应由 agent 代码覆盖而不是信任 LLM 输出。下一轮修复。
+- ModelScope 模型额度是**按模型**而非按 API key 的 —— 切换到 `AGENT_MODEL="Qwen/Qwen3-Next-80B-A3B-Instruct"` 绕过了 DeepSeek-V3.2 的每日限额。验证过的备选模型已记入项目记忆。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/agents/headlessGame.mjs` | 修改 | colon→underscore / resolveTarget / verbose tally |
+| `src/agents/reviewPipeline.mjs` | 修改 | colon→underscore (queueGameLocally) |
+| `src/knowledge/case_library/bug_report_auto-*.json` | 新建 | BugHunter 产出 |
+| `src/knowledge/case_library/improved_prompts_auto-*.json` | 新建 | PromptEngineer 产出 |
+| `src/knowledge/case_library/test_cases_auto-*.json` | 新建 | TestWriter 产出 |
+| `src/knowledge/case_library/2026-04-auto-*.md` | 新建 | 案例研究 markdown |
+
 ## [2026-04-11] 自我进化循环：headless driver + codex 指令
 
 ### 新功能

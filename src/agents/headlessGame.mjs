@@ -137,6 +137,44 @@ ${speeches}
   }
 }
 
+// ── Target resolution ──────────────────────────────────────────────────────
+// LLMs sometimes return `"target": "Alice"` (name) even when prompted for an
+// ID, or `"target": "[1]Alice"` (bracketed form from the prompt). Accept any
+// of: number, numeric string, bare name, or `[id]name` / `id号` shape.
+// Returns a matched player record or null.
+function resolveTarget(rawTarget, state, opts = {}) {
+  if (rawTarget === null || rawTarget === undefined) return null;
+  const alive = opts.aliveOnly !== false
+    ? state.players.filter(p => p.isAlive)
+    : state.players;
+  // Numeric fast path
+  const asNum = Number(rawTarget);
+  if (Number.isInteger(asNum)) {
+    const p = alive.find(pl => pl.id === asNum);
+    if (p) return p;
+  }
+  // String match by name or bracketed form
+  const s = String(rawTarget).trim();
+  const bracketMatch = s.match(/\[(\d+)\]/);
+  if (bracketMatch) {
+    const id = Number(bracketMatch[1]);
+    const p = alive.find(pl => pl.id === id);
+    if (p) return p;
+  }
+  const cnIdMatch = s.match(/(\d+)\s*号/);
+  if (cnIdMatch) {
+    const id = Number(cnIdMatch[1]);
+    const p = alive.find(pl => pl.id === id);
+    if (p) return p;
+  }
+  const byName = alive.find(pl => pl.name.toLowerCase() === s.toLowerCase());
+  if (byName) return byName;
+  // Contains-name fallback (for `"Alice is the wolf"` style targets)
+  const byContains = alive.find(pl => s.toLowerCase().includes(pl.name.toLowerCase()));
+  if (byContains) return byContains;
+  return null;
+}
+
 // ── LLM helpers ────────────────────────────────────────────────────────────
 
 function parseJson(raw) {
@@ -255,13 +293,14 @@ async function nightPhase(state, apiConfig) {
     const decider = wolves[0]; // simplification: first wolf decides for the pack
     try {
       const act = await callRoleLLM('NIGHT_WOLF_KILL', decider, state, apiConfig);
-      const target = Number(act.target);
-      const valid = state.players.find(p => p.id === target && p.isAlive && p.role !== '狼人');
+      const resolved = resolveTarget(act.target, state);
+      // Wolves cannot kill another wolf
+      const valid = resolved && resolved.role !== '狼人' ? resolved : null;
       if (valid) {
-        killedId = target;
-        logAction(state, night, 'wolf_kill', decider.id, `狼队刀[${target}]${valid.name}，理由：${act.reason ?? '无'}`);
+        killedId = valid.id;
+        logAction(state, night, 'wolf_kill', decider.id, `狼队刀[${valid.id}]${valid.name}，理由：${act.reason ?? '无'}`);
       } else {
-        logAction(state, night, 'wolf_kill', decider.id, `狼队刀无效目标(${act.target})`);
+        logAction(state, night, 'wolf_kill', decider.id, `狼队刀无效目标(${JSON.stringify(act.target)})`);
       }
     } catch (err) {
       logAction(state, night, 'wolf_kill', decider.id, `狼队决策失败：${err.message}`);
@@ -273,14 +312,14 @@ async function nightPhase(state, apiConfig) {
   if (seer) {
     try {
       const act = await callRoleLLM('NIGHT_SEER_CHECK', seer, state, apiConfig);
-      const target = Number(act.target);
-      const valid = state.players.find(p => p.id === target && p.isAlive && p.id !== seer.id);
+      const resolved = resolveTarget(act.target, state);
+      const valid = resolved && resolved.id !== seer.id ? resolved : null;
       if (valid) {
         const isWolf = valid.role === '狼人';
-        state.seerChecks.push({ seerId: seer.id, night, targetId: target, isWolf });
-        logAction(state, night, 'seer_check', seer.id, `预言家查[${target}]${valid.name}=${isWolf ? '狼人' : '好人'}`);
+        state.seerChecks.push({ seerId: seer.id, night, targetId: valid.id, isWolf });
+        logAction(state, night, 'seer_check', seer.id, `预言家查[${valid.id}]${valid.name}=${isWolf ? '狼人' : '好人'}`);
       } else {
-        logAction(state, night, 'seer_check', seer.id, `预言家查无效目标(${act.target})`);
+        logAction(state, night, 'seer_check', seer.id, `预言家查无效目标(${JSON.stringify(act.target)})`);
       }
     } catch (err) {
       logAction(state, night, 'seer_check', seer.id, `预言家决策失败：${err.message}`);
@@ -300,12 +339,12 @@ async function nightPhase(state, apiConfig) {
         logAction(state, night, 'witch_save', witch.id, `女巫救[${killedId}]`);
       }
       if (act.poison !== null && act.poison !== undefined && witch.hasWitchPoison) {
-        const target = Number(act.poison);
-        const valid = state.players.find(p => p.id === target && p.isAlive && p.id !== witch.id);
+        const resolved = resolveTarget(act.poison, state);
+        const valid = resolved && resolved.id !== witch.id ? resolved : null;
         if (valid) {
-          witchPoisonId = target;
+          witchPoisonId = valid.id;
           witch.hasWitchPoison = false;
-          logAction(state, night, 'witch_poison', witch.id, `女巫毒[${target}]${valid.name}`);
+          logAction(state, night, 'witch_poison', witch.id, `女巫毒[${valid.id}]${valid.name}`);
         }
       }
     } catch (err) {
@@ -360,12 +399,12 @@ async function dayPhase(state, apiConfig) {
   for (const p of alive) {
     try {
       const act = await callRoleLLM('DAY_VOTE', p, state, apiConfig);
-      const target = Number(act.target);
-      const valid = state.players.find(pl => pl.id === target && pl.isAlive && pl.id !== p.id);
+      const resolved = resolveTarget(act.target, state);
+      const valid = resolved && resolved.id !== p.id ? resolved : null;
       if (valid) {
-        votes[p.id] = { target, reason: act.reason || '' };
+        votes[p.id] = { target: valid.id, reason: act.reason || '' };
       } else {
-        votes[p.id] = { target: null, reason: 'invalid target' };
+        votes[p.id] = { target: null, reason: `invalid target (${JSON.stringify(act.target)})` };
       }
     } catch (err) {
       votes[p.id] = { target: null, reason: `vote failed: ${err.message}` };
@@ -387,6 +426,12 @@ async function dayPhase(state, apiConfig) {
   }
 
   state.voteHistory.push({ day, votes, tally, eliminatedId });
+
+  if (VERBOSE) {
+    const tallyStr = Object.entries(tally).map(([id, c]) => `[${id}]:${c}`).join(' ') || '(no votes)';
+    const nullCount = Object.values(votes).filter(v => v.target === null).length;
+    console.log(`  tally: ${tallyStr}  null-votes:${nullCount}`);
+  }
 
   if (eliminatedId !== null) {
     const p = state.players.find(pl => pl.id === eliminatedId);
@@ -438,7 +483,9 @@ async function runOneGame(apiConfig) {
 
   if (!NO_QUEUE) {
     mkdirSync(PENDING_DIR, { recursive: true });
-    const key = `local:${Date.now()}:${state.gameSessionId}`;
+    // Use underscores, not colons — NTFS rejects colons in filenames
+    // (treated as alt-stream separator). Linux/Mac would accept either.
+    const key = `local_${Date.now()}_${state.gameSessionId}`;
     const outPath = join(PENDING_DIR, `${key}.json`);
     writeFileSync(outPath, JSON.stringify({ key, ...state }, null, 2), 'utf8');
     console.log(`  queued: ${outPath}`);

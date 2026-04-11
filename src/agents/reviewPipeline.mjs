@@ -135,7 +135,10 @@ async function removeQueueItem(key) {
 export function queueGameLocally(gameLog) {
   const { gameSessionId } = gameLog;
   if (!gameSessionId) throw new Error('gameLog must have gameSessionId');
-  const key = `local:${Date.now()}:${gameSessionId}`;
+  // Use underscores, not colons — NTFS rejects colons in filenames.
+  // KV mode still uses `review:{ts}:{gameId}` (Cloudflare KV accepts colons);
+  // this only affects the local filesystem fallback.
+  const key = `local_${Date.now()}_${gameSessionId}`;
   mkdirSync(QUEUE_DIR, { recursive: true });
   const filePath = join(QUEUE_DIR, `${key}.json`);
   writeFileSync(filePath, JSON.stringify({ key, ...gameLog }, null, 2), 'utf8');

@@ -1,0 +1,77 @@
+{
+  "gameId": "auto-1775908658493-h8qdd7",
+  "agent": "BugHunter",
+  "timestamp": "2023-12-01T00:00:00Z",
+  "issues": [
+    {
+      "id": "issue-1",
+      "severity": "critical",
+      "category": "night_misplay",
+      "role": "女巫",
+      "description": "女巫在第一夜主动毒死村民Carol，而该玩家是狼人刀的目标，导致双重死亡并误杀好人，严重破坏游戏平衡。",
+      "evidence": {
+        "source": "nightActionHistory",
+        "entryIndex": 2,
+        "quote": "女巫毒[5]Carol"
+      },
+      "rootCause": "prompt_design",
+      "suggestedFix": "在女巫提示词中明确强调：'除非有绝对证据表明目标为狼人，否则第一夜禁止使用毒药，避免误杀预言家或关键村民。'"
+    },
+    {
+      "id": "issue-2",
+      "severity": "high",
+      "category": "speech_contradiction",
+      "role": "预言家",
+      "description": "预言家Ivy在发言中声称查验了Frank是狼人，但未提供任何查验逻辑或行为依据，仅凭主观断言，违背预言家应谨慎、有理有据的发言规范。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 1,
+        "quote": "我是预言家，昨晚查验了[2]Frank，他是狼人。大家别慌，别被混淆视听，今晚请投[2]，保护好人阵营。"
+      },
+      "rootCause": "prompt_design",
+      "suggestedFix": "在预言家提示词中增加：'发言必须包含查验对象、结果和推理依据，避免仅陈述结论。例如：'我查验了X，结果是狼人，因为他的行为与村民不符，具体表现为...''"
+    },
+    {
+      "id": "issue-3",
+      "severity": "high",
+      "category": "vote_mismanagement",
+      "role": "村民",
+      "description": "多名村民（Eve、Alice、Dave）在未验证预言家真伪的情况下，集体投票淘汰预言家，反映出AI缺乏对‘预言家优先保护’基本策略的理解。",
+      "evidence": {
+        "source": "voteHistory",
+        "entryIndex": 0,
+        "quote": "Ivy自称预言家但无任何查验逻辑支撑，且Carol刚死就急着指认狼人，符合狼人跳预言家混淆视听的典型套路，优先淘汰可疑身份。"
+      },
+      "rootCause": "prompt_design",
+      "suggestedFix": "在村民提示词中强化：'第一夜预言家发言是关键信息源，除非有明确矛盾或逻辑漏洞，否则应优先保护预言家，避免因恐慌误杀关键角色。'"
+    },
+    {
+      "id": "issue-4",
+      "severity": "medium",
+      "category": "speech_contradiction",
+      "role": "狼人",
+      "description": "狼人Frank和Dave均指责Ivy是冒充预言家，但自身未提供任何反向证据（如查验逻辑、行为矛盾），仅用‘太急切’等主观判断，发言空洞，缺乏博弈深度。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 2,
+        "quote": "Ivy说我是狼人？可我完全是无辜的。预言家身份真伪难辨，别急着投票，我们该先分析Carol死因和更多线索。"
+      },
+      "rootCause": "prompt_design",
+      "suggestedFix": "在狼人提示词中增加：'跳预言家时需制造合理怀疑，例如指出查验对象的异常行为、与其他玩家发言冲突、或提出反向查验假设。'"
+    },
+    {
+      "id": "issue-5",
+      "severity": "low",
+      "category": "model_weakness",
+      "role": "村民",
+      "description": "村民Eve发言过于保守，仅表示‘观察’，未对Carol之死或预言家身份提出任何分析，暴露模型在信息整合与初步推理上的能力不足。",
+      "evidence": {
+        "source": "speechHistory",
+        "entryIndex": 0,
+        "quote": "Carol昨晚死了，我是村民。建议大家先别站边，仔细听每个人发言，找出矛盾点。我先观察。"
+      },
+      "rootCause": "model_capability",
+      "suggestedFix": "增强村民模型的初步推理能力，训练其对死亡事件进行基础归因分析（如：'Carol是第一天死亡，可能因发言活跃被刀，建议关注发言频繁者'）"
+    }
+  ]
+}
