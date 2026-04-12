@@ -105,6 +105,7 @@ export default function App() {
   const nightDecisionsRef = useRef(null);
   const gameActiveRef = useRef(false);
   const gameStateRef = useRef(null);
+  const initGameRef = useRef(null);
 
   const {
     state,
@@ -171,6 +172,7 @@ export default function App() {
   const ui = getUiCopy(locale);
 
   nightDecisionsRef.current = nightDecisions;
+  initGameRef.current = initGame;
 
   const endGame = useCallback(() => {
     gameActiveRef.current = false;
@@ -307,10 +309,11 @@ export default function App() {
     if (gameMode) {
       resetAbortController();
       gameActiveRef.current = true;
-      initGame(gameMode, selectedSetup);
+      initGameRef.current(gameMode, selectedSetup);
       setGameStartTime(Date.now());
     }
-  }, [gameMode, initGame, selectedSetup]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameMode, selectedSetup]);
 
   useEffect(() => {
     if (!gameResult || !gameMode) return;

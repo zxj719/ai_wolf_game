@@ -26,3 +26,12 @@ local_protocol = "http"
 # 生产环境静态资产
 [assets]
 directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Chords cloud service (non-secret URL only)
+# Set the shared auth token with:
+#   npx.cmd wrangler secret put CHORDS_SERVICE_TOKEN
+#
+# [vars]
+# CHORDS_SERVICE_URL = "https://your-chords-service.example.com"
