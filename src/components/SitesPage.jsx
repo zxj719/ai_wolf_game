@@ -1,5 +1,6 @@
-import { ArrowUpRight, ChevronLeft, Globe, LineChart } from 'lucide-react';
+import { ArrowUpRight, ChevronLeft, Globe, LineChart, Music4 } from 'lucide-react';
 import { useState } from 'react';
+import { ChordsPage } from './ChordsPage';
 import { StockPage } from './Stock/StockPage';
 
 function getCopy(locale) {
@@ -17,6 +18,12 @@ function getCopy(locale) {
           cta: 'Open site',
         },
         {
+          key: 'chords',
+          title: 'Music arrangement lab',
+          description: 'Upload an MP3 and turn browser audio cues into a MiniMax arrangement report.',
+          cta: 'Open lab',
+        },
+        {
           key: 'stock',
           title: 'Market tool',
           description: 'Realtime market data and watchlist utilities.',
@@ -28,8 +35,8 @@ function getCopy(locale) {
 
   return {
     title: 'Projects & Labs',
-    subtitle: '用极简方式整理公开页面和工具入口。',
-    description: '把项目页和内部工具放在同一个平静的目录里，不再为不同入口强行做两套视觉系统。',
+    subtitle: '把公开页面和实验工具放进一个统一入口。',
+    description: '项目页和工具页继续分开，但视觉语言保持一致，不再各自长成不同的站。',
     back: '返回',
     items: [
       {
@@ -37,6 +44,12 @@ function getCopy(locale) {
         title: '静态站',
         description: '文章、项目和长期介绍内容。',
         cta: '打开站点',
+      },
+      {
+        key: 'chords',
+        title: 'Music arrangement lab',
+        description: '上传 MP3，结合浏览器音频摘要和 MiniMax 输出编曲解读。',
+        cta: '打开实验室',
       },
       {
         key: 'stock',
@@ -54,6 +67,10 @@ export function SitesPage({ onBack, locale = 'zh' }) {
 
   if (view === 'stock') {
     return <StockPage onBack={() => setView('hub')} />;
+  }
+
+  if (view === 'chords') {
+    return <ChordsPage onBack={() => setView('hub')} locale={locale} />;
   }
 
   return (
@@ -114,6 +131,28 @@ export function SitesPage({ onBack, locale = 'zh' }) {
 
               <button
                 type="button"
+                onClick={() => setView('chords')}
+                className="mac-list-row w-full text-left transition-colors hover:bg-white/90"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
+                      <Music4 size={17} />
+                    </span>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">{copy.items[1].title}</div>
+                      <div className="text-sm text-slate-500">{copy.items[1].description}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                    {copy.items[1].cta}
+                    <ArrowUpRight size={15} />
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setView('stock')}
                 className="mac-list-row w-full text-left transition-colors hover:bg-white/90"
               >
@@ -123,12 +162,12 @@ export function SitesPage({ onBack, locale = 'zh' }) {
                       <LineChart size={17} />
                     </span>
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">{copy.items[1].title}</div>
-                      <div className="text-sm text-slate-500">{copy.items[1].description}</div>
+                      <div className="text-sm font-semibold text-slate-900">{copy.items[2].title}</div>
+                      <div className="text-sm text-slate-500">{copy.items[2].description}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                    {copy.items[1].cta}
+                    {copy.items[2].cta}
                     <ArrowUpRight size={15} />
                   </div>
                 </div>

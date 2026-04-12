@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:worker": "wrangler dev",
+    "dev:worker": "npx.cmd wrangler dev",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "deploy": "npx wrangler deploy --assets ./dist",
+    "deploy": "npx.cmd wrangler deploy --assets ./dist",
     "test": "vitest run",
     "test:watch": "vitest"
   },

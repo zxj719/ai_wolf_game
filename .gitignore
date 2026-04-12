@@ -8,12 +8,18 @@ dist/
 .env
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
 
 # Editor
 .vscode/*
 !.vscode/extensions.json
 *.swp
 *.swo
+
+# Python bytecode
+__pycache__/
+*.pyc
 
 # OS
 .DS_Store

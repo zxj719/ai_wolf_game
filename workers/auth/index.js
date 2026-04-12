@@ -4,6 +4,12 @@
 
 import { handleCors, errorResponse, checkGlobalIPLimit, getCorsHeaders } from './middleware.js';
 import {
+  handleChordsHealth,
+  handleCreateChordsJob,
+  handleGetChordsArtifact,
+  handleGetChordsJob,
+} from './chords.js';
+import {
   handleRegister,
   handleLogin,
   handleLogout,
@@ -162,6 +168,25 @@ export default {
       // 股票K线代理（解决 CORS）
       if (path === '/api/stock/kline' && request.method === 'POST') {
         return handleStockKlineProxy(request, env);
+      }
+
+      // 音乐编曲分轨任务
+      if (path === '/api/chords/jobs' && request.method === 'POST') {
+        return handleCreateChordsJob(request, env);
+      }
+
+      const chordsJobMatch = path.match(/^\/api\/chords\/jobs\/([^/]+)$/);
+      if (chordsJobMatch && request.method === 'GET') {
+        return handleGetChordsJob(request, env, chordsJobMatch[1]);
+      }
+
+      const chordsArtifactMatch = path.match(/^\/api\/chords\/jobs\/([^/]+)\/artifacts\/(.+)$/);
+      if (chordsArtifactMatch && request.method === 'GET') {
+        return handleGetChordsArtifact(request, env, chordsArtifactMatch[1], chordsArtifactMatch[2]);
+      }
+
+      if (path === '/api/chords/health' && request.method === 'GET') {
+        return handleChordsHealth(request, env);
       }
 
       // 健康检查
