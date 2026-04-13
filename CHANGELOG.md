@@ -2,6 +2,38 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-04-13] 个人主页平台重构 — Phase 2a：Shell + API 并行基础设施（未接线）
+
+Phase 2 拆为 2a（纯新增、零风险）与 2b（入口切换）两步。本提交只新增 Shell 与多后端 API 客户端的骨架，**`main.jsx` 仍走老 `App.jsx`**，bundle 体积与运行时行为完全不变。
+
+### 新功能
+- **Shell 层骨架 `src/shell/`**：`ShellContext` / `ShellProvider` / `Router` / `GlobalOverlays` / `ThemeScope` / `navGuards` / `ModuleRegistry` / `paths` / `useDocumentMeta` / `useAuthNav`，集中汇拢 locale、auth、路由、modal 等跨模块能力；`useShell()` 是模块唯一入口。
+- **Registry 驱动路由**：`Router.jsx` 从 `ModuleRegistry` 摊平 `routes`，匹配 → `navGuards` 决策 → `onLeave(ctx)` 清理 → `<ThemeScope theme={module.theme}><Suspense>` 包裹。
+- **扁平化路径表 `shell/paths.js`**：`ROUTES.HOME/WEREWOLF/CHORDS/STOCK/BLOG`，附 `LEGACY_PATH_MAP`（`/wolfgame → /werewolf` 等）用于 Phase 2b 做 301 式重定向。
+- **多后端 API 抽象 `src/services/api/`**：`registry.js` 注册 `cf-workers` + `aliyun-ecs`（ECS 暂留空 URL），`client.js` 导出 `createApiClient(key, { getAuthToken })` 返回已注入 JWT 的 `{ get, post, put, delete }`。模块只声明 `backend` 字段，上线切换只改 `.env`。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/shell/paths.js` | 新建 | ROUTES 常量 + 旧路径归一化 |
+| `src/shell/ShellContext.js` | 新建 | `createContext(null)` + `useShell()` 守卫钩子 |
+| `src/shell/ShellProvider.jsx` | 新建 | 汇总 locale / auth / 路由 / overlay / api 能力 |
+| `src/shell/Router.jsx` | 新建 | Registry 驱动的路由器 + `onLeave` 清理 + ThemeScope 包裹 |
+| `src/shell/ThemeScope.jsx` | 新建 | `[data-theme]` 包装器（forwardRef） |
+| `src/shell/ModuleRegistry.js` | 新建 | ModuleDescriptor 契约 + `findRoute` / `homeCards` / `listModules`（数组暂空） |
+| `src/shell/navGuards.js` | 新建 | 纯函数 `resolveNavigation({ route, isAuthed, normalizedPath })` |
+| `src/shell/useDocumentMeta.js` | 新建 | 标题 + SEO meta 副作用（从 App.jsx 抽出） |
+| `src/shell/useAuthNav.js` | 新建 | `enterGuestMode` / `handleLoginSuccess` / `handleLogout` 等导航动作 |
+| `src/shell/GlobalOverlays.jsx` | 新建 | `LanguageToggle` + `TokenManager` + `UserStats` 浮层（lazy） |
+| `src/services/api/registry.js` | 新建 | `cf-workers` / `aliyun-ecs` 后端注册表 |
+| `src/services/api/client.js` | 新建 | `createApiClient` — 注入 base URL + Authorization |
+
+### 技术细节
+- **tree-shaking 验证**：新增 ~12 个文件后 `index-*.js` / CSS gzipped 体积与 Phase 1 完全一致（69.48 kB CSS, 71.37 kB main JS），证明新文件未被 `main.jsx` 引用，Rollup 成功剔除——Phase 2a "additive only" 的构建级证据。
+- **单向依赖**：模块 → `shell/*` → `contexts/Auth` / `services/api`；Registry 不反向 import Router。Phase 3 起用 ESLint `no-restricted-imports` 固化边界。
+- **Auth token 接入**：`ShellProvider.api()` 直接调用 `utils/authToken.js::getToken`，与 `authService` 的 JWT 存储约定保持一致。
+- **下一步（Phase 2b）**：单独提交，切换 `main.jsx` 入口到 `AppShell`，`App.jsx` / `useAppRouter.js` 整体替换，狼人杀状态暂留 `AppShell` 内部占位 module，待 Phase 3 再搬进 `modules/werewolf/`。
+
 ## [2026-04-13] 个人主页平台重构 — Phase 1：设计令牌 + UI 原语层
 
 项目从「狼人杀单一应用」演进为「个人主页多模块平台」（狼人杀 / 音乐编排 / 股市 / 博客 平级），第一阶段建立设计系统底座。
