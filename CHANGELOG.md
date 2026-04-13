@@ -2,6 +2,48 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-04-13] 个人主页平台重构 — Phase 1：设计令牌 + UI 原语层
+
+项目从「狼人杀单一应用」演进为「个人主页多模块平台」（狼人杀 / 音乐编排 / 股市 / 博客 平级），第一阶段建立设计系统底座。
+
+### 新功能
+- **设计令牌系统**：`src/styles/tokens.css` 通过 `[data-theme="light|dark"]` 提供双主题 CSS 变量（`--bg`、`--ink`、`--accent`、`--border`、`--shadow-*`、`--radius-*`），为后续 Hub 浅色 + 游戏深色双主题打下基础。
+- **Tailwind 令牌映射**：`tailwind.config.js` 扩展 `colors` / `borderColor` / `borderRadius` / `boxShadow` / `ringColor`，UI 原语可用 `bg-bg-raised text-ink border-line` 等令牌类，跨主题自动适配。
+- **UI 原语层 `src/ui/`**：`Button`、`Card`、`Input`/`Textarea`/`Select`、`Modal`、`Badge`、`PageShell`、`Toolbar`、`Spinner`、`Skeleton` 共 9 个跨主题基础组件，全部 `forwardRef` + 接受 `className` 覆盖。
+- **样式文件分层**：`src/index.css` 从 475 行单文件拆为 4 个模块化文件 + 1 个导入清单。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/styles/tokens.css` | 新建 | 双主题设计令牌定义 |
+| `src/styles/base.css` | 新建 | `@tailwind` 指令 + 全局基线（body / 字体 / 通用工具） |
+| `src/styles/legacy-mac.css` | 新建 | 旧 `.mac-*` 组件类与 `--mac-*` 变量物理迁移（待 Phase 5 codemod 退役） |
+| `src/styles/game-animations.css` | 新建 | 狼人杀气泡/弹跳/星光/发光等动画 |
+| `src/index.css` | 重写 | 从 475 行实现降为 18 行的导入清单 |
+| `tailwind.config.js` | 修改 | 扩展令牌映射（colors / borderColor / radius / shadow / ring） |
+| `src/ui/Button.jsx` | 新建 | primary/secondary/ghost/danger × sm/md/lg，loading 态 |
+| `src/ui/Card.jsx` | 新建 | padding 档位 + interactive hover，支持 `as` 多态 |
+| `src/ui/Input.jsx` | 新建 | Input + Textarea + Select，统一 focus ring + error 态 |
+| `src/ui/Modal.jsx` | 新建 | createPortal + Escape + body scroll lock + backdrop 关闭 |
+| `src/ui/Badge.jsx` | 新建 | tone: neutral/accent/danger/success/warning |
+| `src/ui/PageShell.jsx` | 新建 | 模块根容器（`min-h-screen bg-bg text-ink`） |
+| `src/ui/Toolbar.jsx` | 新建 | 替代 `.mac-floating-toolbar` |
+| `src/ui/Spinner.jsx` | 新建 | sm/md/lg 三档加载态 |
+| `src/ui/Skeleton.jsx` | 新建 | 占位骨架 |
+| `src/ui/index.js` | 新建 | 桶式导出 |
+
+### 技术细节
+- **零行为变化**：所有现有 `.mac-*` 类与 `--mac-*` 变量保持原效，老组件无需改动；新令牌仅"添加在旁边"。
+- **CSS 注释陷阱**：legacy-mac.css 首版 docstring 内含 `*/` 序列（`--mac-*/--homepage-*`）触发 PostCSS 解析错误，已修正——CSS 块注释不能嵌套，描述变量名时需避免 `*/` 字面量。
+- **Bundle 影响**：CSS 66.64 → 69.48 kB（gzipped 12.58 → 13.02 kB，+0.44 kB），JS 不变（UI 原语未被引用，Vite 完成 tree-shake）。
+- **主题作用域机制**：Phase 2 引入 `shell/ThemeScope.jsx` 后，路由切换会在模块根设置 `data-theme`，CSS 变量自动重解析。
+
+### 后续阶段（已规划）
+- Phase 2 — Shell 抽离 + Router Registry 化 + 多后端 API 客户端（CF Workers + Aliyun ECS 预留）
+- Phase 3 — 狼人杀模块化（`modules/werewolf/`）
+- Phase 4 — Chords/Stock/Blog 平级化 + Home 卡片墙重构（删除 `SitesPage` 二级导航）
+- Phase 5 — `.mac-*` codemod 退役 + 模块脚手架文档
+
 ## [2026-04-11] 自我进化循环：闭环验证 + Windows 路径修复
 
 ### Bug 修复

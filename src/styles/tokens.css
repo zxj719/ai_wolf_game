@@ -1,0 +1,69 @@
+/**
+ * 设计令牌（Design Tokens）— Phase 1 新增
+ *
+ * 双主题策略：通过 [data-theme="light|dark"] 属性切换，由 shell/ThemeScope.jsx
+ * 在模块根节点设置。同一套 CSS 变量名，不同主题不同值，UI 原语自动适配。
+ *
+ * 新模块默认 light，狼人杀模块标 dark。未来可在 ShellProvider 加 toggle。
+ */
+
+:root,
+[data-theme="light"] {
+  /* 表面层 */
+  --bg:        #f3f4f6;
+  --bg-raised: #ffffff;
+  --bg-sunken: #e5e7eb;
+
+  /* 边框 */
+  --border:        #e4e4e7;
+  --border-strong: #d4d4d8;
+
+  /* 文字 */
+  --ink:        #18181b;
+  --ink-muted:  #52525b;
+  --ink-faint:  #a1a1aa;
+
+  /* 强调色 — 沿用现有 macOS 蓝 */
+  --accent:        #0a84ff;
+  --accent-hover:  #0070e0;
+  --accent-soft:   #dbeafe;
+
+  /* 语义色 */
+  --danger:  #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+
+  /* 阴影 */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.04);
+  --shadow-pop:  0 20px 48px rgb(0 0 0 / 0.12);
+
+  /* 圆角 */
+  --radius-card:   16px;
+  --radius-button: 10px;
+  --radius-pill:   9999px;
+}
+
+[data-theme="dark"] {
+  --bg:        #09090b;
+  --bg-raised: #18181b;
+  --bg-sunken: #000000;
+
+  --border:        #27272a;
+  --border-strong: #3f3f46;
+
+  --ink:        #fafafa;
+  --ink-muted:  #a1a1aa;
+  --ink-faint:  #71717a;
+
+  /* 强调色 — 沿用 CLAUDE.md 中的 amber-600 */
+  --accent:        #d97706;
+  --accent-hover:  #b45309;
+  --accent-soft:   #78350f;
+
+  --danger:  #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-pop:  0 20px 48px rgb(0 0 0 / 0.6);
+}

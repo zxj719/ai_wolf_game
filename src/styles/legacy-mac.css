@@ -1,0 +1,227 @@
+/**
+ * 旧 macOS 主题样式（待退役）
+ *
+ * 这些 mac-prefix 类与 mac-/homepage- 前缀的 CSS 变量被 Dashboard、Auth、Setup、
+ * Sites 等大量组件引用。Phase 1 仅将其物理迁移到此文件（零行为变化）。
+ *
+ * Phase 5 用 codemod 替换为 src/ui/ 原语：
+ *   .mac-button       → <Button>
+ *   .mac-window/panel → <Card>
+ *   .mac-input        → <Input>
+ *   .mac-badge        → <Badge>
+ * 待 grep 'mac-' 零结果后删除本文件。
+ */
+
+@layer base {
+  :root {
+    --homepage-bg: #f3f4f6;
+    --homepage-ink: #111827;
+    --homepage-paper: rgba(255, 255, 255, 0.84);
+    --homepage-line: rgba(15, 23, 42, 0.08);
+    --homepage-shadow: rgba(15, 23, 42, 0.08);
+
+    --mac-ink: #111827;
+    --mac-muted: #667085;
+    --mac-line: rgba(15, 23, 42, 0.08);
+    --mac-surface: rgba(255, 255, 255, 0.8);
+    --mac-surface-strong: rgba(255, 255, 255, 0.92);
+    --mac-panel: rgba(255, 255, 255, 0.68);
+    --mac-panel-strong: rgba(255, 255, 255, 0.88);
+    --mac-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+    --mac-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.05);
+    --mac-primary: #0a84ff;
+    --mac-primary-strong: #0071e3;
+    --mac-accent: #0a84ff;
+    --mac-success: #22a06b;
+    --mac-danger: #e85d5d;
+  }
+}
+
+@layer components {
+  .mac-app-shell {
+    @apply relative min-h-screen text-slate-900;
+  }
+
+  .mac-floating-toolbar {
+    @apply fixed right-4 top-4 z-[70] flex items-center gap-3;
+  }
+
+  .mac-window {
+    background: var(--mac-surface);
+    border: 1px solid var(--mac-line);
+    border-radius: 24px;
+    box-shadow: var(--mac-shadow);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+  }
+
+  .mac-panel {
+    background: var(--mac-panel);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    border-radius: 20px;
+    box-shadow: var(--mac-shadow-soft);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .mac-toolbar {
+    @apply flex items-center justify-between gap-4 px-5 py-4 md:px-6;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .mac-window-chrome {
+    @apply flex items-center gap-2;
+  }
+
+  .mac-window-dot {
+    @apply h-3 w-3 rounded-full;
+  }
+
+  .mac-dot-red {
+    background: #ff5f57;
+  }
+
+  .mac-dot-yellow {
+    background: #febc2e;
+  }
+
+  .mac-dot-green {
+    background: #28c840;
+  }
+
+  .mac-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.22em];
+    color: #6b7280;
+  }
+
+  .mac-title {
+    @apply text-3xl font-semibold tracking-tight;
+    color: var(--mac-ink);
+  }
+
+  .mac-subtitle {
+    @apply text-sm leading-6;
+    color: var(--mac-muted);
+  }
+
+  .mac-badge {
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    color: #475467;
+  }
+
+  .mac-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all duration-200;
+    border: 1px solid transparent;
+  }
+
+  .mac-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .mac-button:disabled {
+    @apply cursor-not-allowed opacity-60;
+    transform: none;
+  }
+
+  .mac-button-primary {
+    background: linear-gradient(180deg, var(--mac-primary) 0%, var(--mac-primary-strong) 100%);
+    color: white;
+    box-shadow: 0 8px 18px rgba(0, 113, 227, 0.22);
+  }
+
+  .mac-button-secondary {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(15, 23, 42, 0.08);
+    color: var(--mac-ink);
+  }
+
+  .mac-button-ghost {
+    background: rgba(255, 255, 255, 0.46);
+    border-color: rgba(15, 23, 42, 0.05);
+    color: #667085;
+  }
+
+  .mac-button-danger {
+    background: linear-gradient(180deg, #fb6a63 0%, #e65048 100%);
+    color: white;
+    box-shadow: 0 10px 22px rgba(234, 78, 70, 0.24);
+  }
+
+  .mac-input,
+  .mac-textarea,
+  .mac-select {
+    @apply w-full rounded-2xl px-4 py-3 text-sm outline-none transition-all;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    color: var(--mac-ink);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  .mac-input::placeholder,
+  .mac-textarea::placeholder {
+    color: #98a2b3;
+  }
+
+  .mac-input:focus,
+  .mac-textarea:focus,
+  .mac-select:focus {
+    border-color: rgba(40, 121, 255, 0.55);
+    box-shadow: 0 0 0 4px rgba(40, 121, 255, 0.14);
+  }
+
+  .mac-section-title {
+    @apply text-base font-semibold;
+    color: var(--mac-ink);
+  }
+
+  .mac-section-copy {
+    @apply text-sm leading-6;
+    color: var(--mac-muted);
+  }
+
+  .mac-icon-tile {
+    @apply flex h-11 w-11 items-center justify-center rounded-2xl;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    color: #344054;
+    box-shadow: var(--mac-shadow-soft);
+  }
+
+  .mac-list-row {
+    @apply flex items-center justify-between gap-4 rounded-[18px] px-4 py-3;
+    background: var(--mac-panel-strong);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .mac-muted-card {
+    @apply rounded-[20px] p-4;
+    background: rgba(255, 255, 255, 0.58);
+    border: 1px solid rgba(15, 23, 42, 0.05);
+  }
+
+  .mac-segmented-control {
+    @apply inline-flex items-center gap-1 rounded-full p-1;
+    background: rgba(255, 255, 255, 0.74);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: var(--mac-shadow-soft);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .mac-segmented-icon {
+    @apply flex h-8 w-8 items-center justify-center rounded-full text-slate-500;
+  }
+
+  .mac-segment {
+    @apply rounded-full px-3 py-1.5 text-xs font-semibold transition-colors;
+    color: #667085;
+  }
+
+  .mac-segment.is-active {
+    background: rgba(17, 24, 39, 0.88);
+    color: white;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  }
+}
