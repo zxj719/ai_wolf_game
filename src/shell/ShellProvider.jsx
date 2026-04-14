@@ -33,6 +33,16 @@ export function ShellProvider({ children }) {
   });
 
   useEffect(() => {
+    // 首次挂载：若落在遗留路径（/wolfgame、/home 等），把 URL 栏同步到新路径。
+    // useState 初始化已经把 currentPath 映射好了，这里只是让浏览器地址栏一致。
+    const raw = normalizePath(window.location.pathname);
+    const mapped = resolveLegacyPath(raw);
+    if (mapped && raw !== mapped) {
+      window.history.replaceState({}, '', mapped);
+    }
+  }, []);
+
+  useEffect(() => {
     const onPopState = () => {
       const raw = normalizePath(window.location.pathname);
       const mapped = resolveLegacyPath(raw);

@@ -1,52 +1,31 @@
-import { Suspense, lazy } from 'react';
 import { useShell } from './ShellContext';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { getUiCopy } from '../i18n/locale.js';
-
-const TokenManager = lazy(() =>
-  import('../components/TokenManager').then((m) => ({ default: m.TokenManager }))
-);
-const UserStats = lazy(() =>
-  import('../components/UserStats').then((m) => ({ default: m.UserStats }))
-);
+import { ROUTES } from './paths';
 
 /**
- * 全局浮层集合 — 跨模块可见的 UI：语言切换 + TokenManager + UserStats。
+ * 全局浮层 — 当前仅负责跨模块可见的 LanguageToggle。
  *
- * 模块内部通过 useShell().openTokenManager() 唤起，不直接依赖这些组件；
- * 这样 TokenManager 的实现（例如换成 Modal 原语）不会波及任何模块。
+ * TokenManager / UserStats 暂时留在 WerewolfModule 内部（它们唯一的消费者是
+ * 狼人杀 setup 页）。后续若有别的模块需要，再抽入这里并把 verifyModelscopeToken
+ * 的触发也挪上来。
+ *
+ * 狼人杀 setup/play 路径有自己的 routeToolbar 已经包含了 LanguageToggle，
+ * 这里在那两个路径上不再渲染语言浮层，避免 `.mac-floating-toolbar` 双元素重叠。
  */
 export function GlobalOverlays() {
-  const {
-    locale,
-    setLocale,
-    showTokenManager,
-    closeTokenManager,
-    showStats,
-    closeStats,
-  } = useShell();
-
+  const { locale, setLocale, currentPath } = useShell();
   const ui = getUiCopy(locale);
   const label = ui?.app?.localeLabel ?? (locale === 'zh' ? '界面语言' : 'Interface language');
 
+  const suppressLocaleOverlay =
+    currentPath === ROUTES.WEREWOLF_SETUP || currentPath === ROUTES.WEREWOLF_PLAY;
+  if (suppressLocaleOverlay) return null;
+
   return (
-    <>
-      <div className="mac-floating-toolbar">
-        <LanguageToggle locale={locale} onChange={setLocale} label={label} />
-      </div>
-
-      {showTokenManager && (
-        <Suspense fallback={null}>
-          <TokenManager onClose={closeTokenManager} />
-        </Suspense>
-      )}
-
-      {showStats && (
-        <Suspense fallback={null}>
-          <UserStats onClose={closeStats} />
-        </Suspense>
-      )}
-    </>
+    <div className="mac-floating-toolbar">
+      <LanguageToggle locale={locale} onChange={setLocale} label={label} />
+    </div>
   );
 }
 

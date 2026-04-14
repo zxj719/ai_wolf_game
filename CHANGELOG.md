@@ -2,6 +2,49 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-04-14] 个人主页平台重构 — Phase 3b：AppShell 切到 Router + 删 App.jsx
+
+Phase 3a 已经准备好了模块脚手架，本提交真正**切换入口**：AppShell 改渲染 `<Router /> + <GlobalOverlays />`，旧 `App.jsx` 与 `useAppRouter.js` 整体删除，ShellProvider 的遗留路径 301 重定向激活。
+
+### 变更要点
+- **`src/AppShell.jsx`**：不再包 `<App />`，直接 `<ShellProvider><Router /><GlobalOverlays /></ShellProvider>`。应用根对任何业务模块一无所知。
+- **删除 `src/App.jsx`** (~814 行) 与 **`src/hooks/useAppRouter.js`** (~110 行)：所有职责分拆到 `modules/werewolf/WerewolfModule.jsx`（游戏状态）、`shell/Router.jsx`（路由匹配）、`shell/navGuards.js`（鉴权守卫）、`shell/ShellProvider.jsx`（locale/auth/overlay/api）、`shell/useDocumentMeta.js`（SEO）、`modules/home/HomeRoute.jsx`（Dashboard 桥接）、`modules/sites/SitesRoute.jsx`（SitesPage 桥接）、`modules/auth/AuthRoute.jsx`（认证页桥接）。
+- **遗留路径 301 激活**：访问 `/wolfgame`、`/wolfgame/custom`、`/wolfgame/play`、`/home` 会在首次挂载时 `history.replaceState` 到 `/werewolf`、`/werewolf/setup`、`/werewolf/play`、`/` —— 无刷新、URL 栏原地更新。
+- **UI 浮层整理**：`GlobalOverlays` 只负责跨模块 LanguageToggle，在 werewolf setup/play 两条路径上返回 null 避免与模块内部 routeToolbar 重叠；`TokenManager`/`UserStats` 留在 WerewolfModule 内（只有它消费）；WerewolfModule 的 routeToolbar 重新带回 LanguageToggle，保持与原 App.jsx 一致的单浮条 UX。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/AppShell.jsx` | 重写 | `<ShellProvider><Router /><GlobalOverlays /></ShellProvider>` |
+| `src/App.jsx` | **删除** | 职责全部迁入 shell + modules/werewolf |
+| `src/hooks/useAppRouter.js` | **删除** | 路由逻辑迁入 Router / navGuards / ShellProvider |
+| `src/shell/GlobalOverlays.jsx` | 重写 | 只渲染 LanguageToggle；在 werewolf setup/play 上抑制避免重叠 |
+| `src/shell/ShellProvider.jsx` | 修改 | 新增「挂载时 replaceState 到规范化路径」的副作用 |
+| `src/modules/werewolf/WerewolfModule.jsx` | 修改 | routeToolbar 加回 LanguageToggle，保持单浮条 UX |
+
+### 技术细节 — Bundle 结构重塑（用户可见的性能收益）
+Phase 2b 时 gzipped main 72.57 kB（App.jsx 静态 import 拉进了所有狼人杀代码）。Phase 3b 切到 lazy module 后：
+
+| chunk | gzip | 作用 |
+|-------|------|------|
+| `index-*.js` (main) | **16.84 kB** | Shell + 路由 baseline |
+| `WerewolfModule-*.js` | 57.08 kB | 只有访问 `/werewolf/*` 时才加载 |
+| `SitesPage-*.js` | 26.45 kB | 只有访问 `/sites` 时（Phase 4 会再拆） |
+| `HomeRoute`/`SitesRoute`/`AuthRoute` | <1 kB | 每条路由独立桥接层 |
+| `gameService-*.js`、`useAuthNav-*.js` | <0.5 kB | 被多入口共享，自动抽共享 chunk |
+
+**首屏 gzip 72.57 → 16.84 kB（-77%）**：用户落在 `/`、`/login`、`/sites` 时不再下载狼人杀引擎代码；进入 `/werewolf/*` 才按需拉 57 kB 游戏 chunk。Rollup 自动抽 `gameService`/`useAuthNav` 为共享 chunk 是模块导入图变干净后的副产品。
+
+### 已知需手测
+由于入口切换影响运行时，下列场景需手测一次：
+- URL 直达：`/`、`/werewolf`、`/werewolf/setup`、`/werewolf/play`、`/sites`、`/login`、`/reset-password`、`/verify-email`
+- 遗留 URL 自动跳：`/wolfgame`、`/wolfgame/custom`、`/wolfgame/play`、`/home`（URL 栏应原地变到新路径）
+- 浏览器前进 / 后退按钮
+- 未登录访问 `/werewolf/setup` → 跳 `/login`；登录后访问 `/login` → 跳 `/`
+- 狼人杀完整对局（AI-only / 人机 / 自定义阵容 / 猎人 / 女巫 / 守卫 / 投票 / 胜负 / 导出 / 战绩入库 / 模型统计上报）
+- 游戏中点击 "结束并回首页" → 触发 endGame + 清理 → 跳 `/`
+- 语言切换在所有路由持久化
+
 ## [2026-04-14] 个人主页平台重构 — Phase 3a：模块化脚手架（未切入口）
 
 把 `App.jsx` 承担的职责按「Shell + 平级模块」的最终结构拆成 4 个 Module，所有文件齐备但 `AppShell.jsx` 还没切换到 Router。Phase 3b 再一次性完成入口切换 + 旧 `App.jsx` / `useAppRouter.js` 删除 + 遗留路径 301 重定向。

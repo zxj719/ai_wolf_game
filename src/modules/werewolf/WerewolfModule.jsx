@@ -30,6 +30,7 @@ import {
 } from '../../utils/gameUtils';
 import { exportGameLog as exportGameLogUtil } from '../../utils/exportGameLog';
 import { getUiCopy } from '../../i18n/locale.js';
+import { LanguageToggle } from '../../components/LanguageToggle';
 import { useShell } from '../../shell/ShellContext';
 import { useAuthNav } from '../../shell/useAuthNav';
 import { ROUTES } from '../../shell/paths';
@@ -75,6 +76,7 @@ function InlineLoader({ text = 'Loading...' }) {
 export default function WerewolfModule() {
   const {
     locale,
+    setLocale,
     currentPath,
     navigate,
     isGuestMode,
@@ -408,6 +410,7 @@ export default function WerewolfModule() {
           {ui.app.login}
         </button>
       )}
+      <LanguageToggle locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
     </div>
   ) : null;
 
