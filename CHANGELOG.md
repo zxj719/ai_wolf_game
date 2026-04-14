@@ -2,6 +2,37 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-04-14] 个人主页平台重构 — Phase 3a：模块化脚手架（未切入口）
+
+把 `App.jsx` 承担的职责按「Shell + 平级模块」的最终结构拆成 4 个 Module，所有文件齐备但 `AppShell.jsx` 还没切换到 Router。Phase 3b 再一次性完成入口切换 + 旧 `App.jsx` / `useAppRouter.js` 删除 + 遗留路径 301 重定向。
+
+### 新功能
+- **`src/modules/werewolf/WerewolfModule.jsx`**：狼人杀模块根组件，接管 App.jsx 的全部游戏状态 / 副作用 / hooks / handler。3 条路由（`/werewolf`、`/werewolf/setup`、`/werewolf/play`）都指向同一组件，React 跨路径切换不 unmount，游戏状态自然保留。离开 `/werewolf/*` 进入其它模块时通过 `useEffect(() => () => endGame())` 卸载清理。
+- **`src/modules/home/HomeRoute.jsx`**：Phase 3 过渡包装，暂时复用现有 `Dashboard`；Phase 4 换成 Registry 驱动的卡片墙。
+- **`src/modules/sites/SitesRoute.jsx`**：Phase 3 过渡包装，复用现有 `SitesPage`；Phase 4 拆成 chords/stock/blog 三条独立模块后整个目录删除。
+- **`src/modules/auth/AuthRoute.jsx`**：`/login`、`/reset-password`、`/verify-email` 统一挂进 Registry，方便 Router 走一套匹配流程；`home.visible=false` 不上卡片墙。
+- **`ModuleRegistry` 首次填充**：`[home, auth, werewolf, sites]`，Phase 4 新增 chords/stock/blog 后替换 sites。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/werewolf/WerewolfModule.jsx` | 新建 | 狼人杀模块根（~430 行，由 App.jsx 游戏状态全量迁入） |
+| `src/modules/werewolf/index.js` | 新建 | ModuleDescriptor（3 路由 / theme: 'dark' / order: 10） |
+| `src/modules/home/HomeRoute.jsx` | 新建 | Dashboard 的桥接层，handlers 走 useShell + useAuthNav |
+| `src/modules/home/index.js` | 新建 | Home ModuleDescriptor（路由 `/` / theme: 'light'） |
+| `src/modules/sites/SitesRoute.jsx` | 新建 | SitesPage 过渡包装，locale/onBack 走 useShell |
+| `src/modules/sites/index.js` | 新建 | Sites ModuleDescriptor（Phase 4 删除） |
+| `src/modules/auth/AuthRoute.jsx` | 新建 | AuthPage 包装 |
+| `src/modules/auth/index.js` | 新建 | Auth ModuleDescriptor（3 认证路径） |
+| `src/shell/ModuleRegistry.js` | 修改 | 导入并注册 4 个模块 |
+| `src/shell/paths.js` | 修改 | 新增 `ROUTES.SITES`（Phase 3 过渡用），并把 `/sites` 从 LEGACY 表移除 |
+
+### 技术细节
+- **为什么 3 条路由指同一组件**：React reconciler 用元素类型（`Component` 引用）判断是否保留实例。同一 `WerewolfModule` 引用在 setup→play 切换时 React 不会 unmount，`useState` 的 `players/phase/...` 自动延续——这正是我们要的行为，省掉一层 store。
+- **为什么卸载清理比 `descriptor.onLeave` 更好**：`onLeave` 需要把实例的 `endGame` 反向写回 descriptor（可变 handle，易 stale）。`useEffect(() => () => endGame())` 是纯 React 模型，生命周期与组件同步，离开 werewolf 进入 home 时 Router 换组件 → WerewolfModule unmount → cleanup 跑一次 endGame。
+- **Tree-shake 证据**：注册了 10+ 个新文件但 gzipped main 72.57 → 72.57 kB（无变化）。因为 AppShell 仍渲染 `<App />`，`ModuleRegistry` 没有消费者，Rollup 整棵新树全部 DCE 掉。Phase 3b 切 AppShell 的那一瞬间才会把这些 chunk 真正加载出来。
+- **Shell 状态升为真相源**：WerewolfModule 不再自己维护 `isGuestMode`/`showTokenManager`/`showStats`/`locale`，全部走 `useShell()`。ShellProvider 里那些「影子状态」在 3b 会正式生效。
+
 ## [2026-04-14] 个人主页平台重构 — Phase 2b：挂载 ShellProvider（缩小版）
 
 将 Phase 2b 缩小为「仅挂载 ShellProvider 到 App 外层」，**不**替换 `App.jsx`、**不**删除 `useAppRouter.js`、**不**注入 301 重定向。完整的入口切换与狼人杀模块化合并到 Phase 3，保证 URL 切换与 `modules/werewolf/` 上线同一提交落地（两者物理耦合，不可分批）。

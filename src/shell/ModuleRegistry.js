@@ -24,7 +24,12 @@
  * Phase 2a 起：数组先保持空，Phase 3/4 逐个加入真实 module。
  */
 
-const modules = [];
+import home from '../modules/home';
+import auth from '../modules/auth';
+import werewolf from '../modules/werewolf';
+import sites from '../modules/sites';
+
+const modules = [home, auth, werewolf, sites];
 
 export default modules;
 

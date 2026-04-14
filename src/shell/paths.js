@@ -22,6 +22,9 @@ export const ROUTES = {
   CHORDS: '/chords',
   STOCK:  '/stock',
   BLOG:   '/blog',
+
+  // Phase 3 过渡期保留：Phase 4 拆为 chords/stock/blog 三条路由后移除
+  SITES: '/sites',
 };
 
 export const AUTH_PATHS = new Set([ROUTES.LOGIN, ROUTES.RESET, ROUTES.VERIFY]);
@@ -34,7 +37,6 @@ export const LEGACY_PATH_MAP = {
   '/wolfgame':        ROUTES.WEREWOLF,
   '/wolfgame/custom': ROUTES.WEREWOLF_SETUP,
   '/wolfgame/play':   ROUTES.WEREWOLF_PLAY,
-  '/sites':           ROUTES.HOME,
 };
 
 export function normalizePath(path = '') {
