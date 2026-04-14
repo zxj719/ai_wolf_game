@@ -2,6 +2,26 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-04-14] 个人主页平台重构 — Phase 2b：挂载 ShellProvider（缩小版）
+
+将 Phase 2b 缩小为「仅挂载 ShellProvider 到 App 外层」，**不**替换 `App.jsx`、**不**删除 `useAppRouter.js`、**不**注入 301 重定向。完整的入口切换与狼人杀模块化合并到 Phase 3，保证 URL 切换与 `modules/werewolf/` 上线同一提交落地（两者物理耦合，不可分批）。
+
+### 新功能
+- **`src/AppShell.jsx`**：新的应用根，`<ShellProvider><App /></ShellProvider>`。Shell 的 `locale`/`user`/`navigate`/`api` 能力此刻对任何 `useShell()` 消费者可用。
+- **`src/main.jsx`**：入口从 `<App />` 切到 `<AppShell />`，唯一一行变化。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/AppShell.jsx` | 新建 | ShellProvider + 旧 App 的薄包裹，Phase 3 会改渲染 Router |
+| `src/main.jsx` | 修改 | import App → AppShell（一行） |
+
+### 技术细节
+- **运行时零行为变化**：`App.jsx` 仍调用 `useAppRouter()` 做路由；ShellProvider 的 `currentPath`/`isGuestMode`/`showTokenManager` 是此刻没有消费者的「影子状态」，不影响老逻辑。Phase 3 删掉 App.jsx 时这些状态才升为单一真相。
+- **popstate 双监听无冲突**：ShellProvider 和 useAppRouter 各自独立监听 `popstate` + 各自更新 state；`popstate` 是广播事件，多监听器互不干扰；两者的 `navigate()` 仍然只有 useAppRouter 的版本被调用，所以 Shell 的 currentPath 暂时滞后是预期行为。
+- **Bundle 变化**：gzipped main bundle 71.37 → 72.57 kB（+1.2 kB），即 ShellProvider + `utils/authToken.js` + `services/api/client.js` + paths 的进入成本，符合「Phase 1/2 增量 ≤ 2 KB」预算。
+- **为什么不现在切 Router 和加 301**：`App.jsx::useAppRouter` 仍以 `/wolfgame` 为规范路径。若提前加 `LEGACY_PATH_MAP` 把 `/wolfgame` 改写成 `/werewolf`，useAppRouter 的 `APP_ROUTES` 集合不认识新路径会把用户踢回 `/home`。路径切换必须与 Registry 里真正注册 `/werewolf` 路由同时发生——Phase 3 一起提交。
+
 ## [2026-04-13] 个人主页平台重构 — Phase 2a：Shell + API 并行基础设施（未接线）
 
 Phase 2 拆为 2a（纯新增、零风险）与 2b（入口切换）两步。本提交只新增 Shell 与多后端 API 客户端的骨架，**`main.jsx` 仍走老 `App.jsx`**，bundle 体积与运行时行为完全不变。
