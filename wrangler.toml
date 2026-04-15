@@ -37,4 +37,4 @@ not_found_handling = "single-page-application"
 # CHORDS_SERVICE_URL = "https://your-chords-service.example.com"
 # ECS BT Server 公网地址（填入实际 IP，不带尾部斜杠）
 # 例：ECS_BT_URL = "http://47.100.xxx.xxx"
-ECS_BT_URL = "http://47.111.227.91:3001"
+ECS_BT_URL = "http://47.111.227.91"
