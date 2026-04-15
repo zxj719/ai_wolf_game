@@ -41,6 +41,30 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // ── ECS BT Server 代理 ──────────────────────────────
+    // /bt/* 和 /health 转发到 ECS，其余走正常流程
+    if (env.ECS_BT_URL && (path.startsWith('/bt/') || path === '/health')) {
+      const target = env.ECS_BT_URL + path + (url.search || '');
+      const proxyReq = new Request(target, {
+        method: request.method,
+        headers: request.headers,
+        body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
+        redirect: 'follow',
+      });
+      try {
+        const resp = await fetch(proxyReq);
+        const headers = new Headers(resp.headers);
+        // 允许跨域（前端从 zhaxiaoji.com 调用同域，理论上不需要，但保险起见）
+        headers.set('Access-Control-Allow-Origin', '*');
+        return new Response(resp.body, { status: resp.status, headers });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'BT Server unreachable', detail: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const isApiRequest = path.startsWith('/api/');
     if (!isApiRequest) {
       return serveStaticAsset(request, env);
