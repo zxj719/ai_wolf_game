@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { TIMING } from '../config/constants';
 import { applyMagicianSwap, getValidSwapTargets, validateMagicianSwap, updateMagicianHistory } from '../utils/magicianUtils';
 import { validateDreamTarget, getValidDreamTargets, updateDreamweaverHistory, resolveDreamweaverEffects } from '../utils/dreamweaverUtils';
+import { btDecide } from '../services/btClient';
 
 /**
  * useNightFlow - 管理夜间阶段的所有逻辑
@@ -48,6 +49,7 @@ export function useNightFlow({
   handleAIHunterShoot,
   userPlayer,
   gameActiveRef,
+  speechHistory,
 }) {
 
   // --- proceedNight ---
@@ -313,7 +315,12 @@ export function useNightFlow({
       if (currentRoleKey === 'GUARD') {
         const cannotGuard = nightDecisions.lastGuardTarget;
         logger.debug(`[守卫AI] 开始守卫决策，存活玩家：${players.filter(p => p.isAlive).map(p => p.id).join(',')}`);
-        const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_GUARD, { cannotGuard });
+        // BT 短路：hybrid 模式下守卫走行为树（<1ms），无需 LLM
+        const _guardGameState = { players, speechHistory: speechHistory ?? [], voteHistory: [], seerChecks, dayCount };
+        const _guardBT = await btDecide(actor, 'NIGHT_GUARD', _guardGameState, { cannotGuard });
+        const res = _guardBT
+          ? { targetId: _guardBT.targetId, thought: _guardBT.reasoning }
+          : await askAI(actor, PROMPT_ACTIONS.NIGHT_GUARD, { cannotGuard });
         logger.debug(`[守卫AI] AI返回结果：`, res);
 
         if (res && (res.targetId === null || (res.targetId !== cannotGuard && (players.find(p => p.id === res.targetId)?.isAlive)))) {
@@ -508,7 +515,12 @@ export function useNightFlow({
           addLog(`预言家已验完所有目标。`, 'system');
         } else {
           logger.debug(`[预言家AI] 开始查验决策`);
-          const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_SEER, { validTargets });
+          // BT 短路：hybrid 模式下预言家查验走行为树
+          const _seerGameState = { players, speechHistory: speechHistory ?? [], voteHistory: [], seerChecks, dayCount };
+          const _seerBT = await btDecide(actor, 'NIGHT_SEER', _seerGameState, { validTargets });
+          const res = _seerBT
+            ? { targetId: _seerBT.targetId, thought: _seerBT.reasoning }
+            : await askAI(actor, PROMPT_ACTIONS.NIGHT_SEER, { validTargets });
           logger.debug(`[预言家AI] AI返回结果：`, res);
 
           if (res?.targetId !== undefined && validTargets.includes(res.targetId)) {
@@ -552,12 +564,19 @@ export function useNightFlow({
         const validPoisonTargets = players.filter(p => p.isAlive && p.id !== dyingId).map(p => p.id);
 
         logger.debug(`[女巫AI] 开始女巫决策，被刀：${dyingId}，解药：${canSave}，毒药：${actor.hasWitchPoison}`);
-        const res = await askAI(actor, PROMPT_ACTIONS.NIGHT_WITCH, {
-          dyingId,
-          canSave,
-          hasPoison: actor.hasWitchPoison,
-          witchId: actor.id
+        // BT 短路：hybrid 模式下女巫用药走行为树
+        const _witchGameState = { players, speechHistory: speechHistory ?? [], voteHistory: [], seerChecks, dayCount };
+        const _witchBT = await btDecide(actor, 'NIGHT_WITCH', _witchGameState, {
+          dyingId, canSave, hasPoison: actor.hasWitchPoison, witchId: actor.id
         });
+        const res = _witchBT
+          ? { useSave: _witchBT.useSave, usePoison: _witchBT.usePoison, thought: _witchBT.reasoning }
+          : await askAI(actor, PROMPT_ACTIONS.NIGHT_WITCH, {
+              dyingId,
+              canSave,
+              hasPoison: actor.hasWitchPoison,
+              witchId: actor.id
+            });
         logger.debug(`[女巫AI] AI返回结果：`, res);
 
         // 构建完整的夜间决策对象

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { PROMPT_ACTIONS } from '../services/aiPrompts';
 import { TIMING } from '../config/constants';
+import { btDecide } from '../services/btClient';
 
 export function useDayFlow({
   players,
@@ -201,7 +202,12 @@ export function useDayFlow({
       hunterContext += `【今日发言】${recentSpeeches}\n`;
     }
 
-    const res = await askAI(hunter, PROMPT_ACTIONS.HUNTER_SHOOT, { aliveTargets, hunterContext });
+    // BT 决策：优先走 ECS BT Server，降级到本地 BT，再降级到 LLM
+    const _hunterGameState = { players: currentPlayers, speechHistory, voteHistory: [], seerChecks, dayCount };
+    const _hunterBT = await btDecide(hunter, 'HUNTER_SHOOT', _hunterGameState, { validTargets: aliveTargets });
+    const res = _hunterBT
+      ? { targetId: _hunterBT.targetId, thought: _hunterBT.reasoning }
+      : await askAI(hunter, PROMPT_ACTIONS.HUNTER_SHOOT, { aliveTargets, hunterContext });
     if (gameActiveRef && !gameActiveRef.current) {
       setIsThinking(false);
       return;
@@ -404,20 +410,31 @@ export function useDayFlow({
         targetId = mySpeech.voteIntention;
         reasoning = '遵循发言意向';
       } else {
-        // 需要AI决策
-        let seerConstraint = '';
-        if (p.role === '预言家') {
-          const myChecks = seerChecks.filter(c => c.seerId === p.id);
-          const goodPeople = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
-          if (goodPeople.length > 0) {
-            seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】除非有极强的反逻辑证据。`;
-          }
-        }
-
         const validVoteTargets = aliveIds.filter(id => id !== p.id);
-        const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets: validVoteTargets, seerConstraint });
-        targetId = res?.targetId;
-        reasoning = res?.reasoning || '';
+
+        // 行为树短路：hybrid 模式下，注册的 (role, DAY_VOTE) 组合用 BT 决策（0ms）
+        const btResult = await btDecide(p, 'DAY_VOTE',
+          { players, speechHistory, voteHistory, seerChecks, dayCount },
+          { validTargets: validVoteTargets });
+
+        if (btResult && btResult.targetId != null) {
+          targetId = btResult.targetId;
+          reasoning = btResult.reasoning;
+        } else {
+          // 兜底：走 LLM（legacy 管线）
+          let seerConstraint = '';
+          if (p.role === '预言家') {
+            const myChecks = seerChecks.filter(c => c.seerId === p.id);
+            const goodPeople = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
+            if (goodPeople.length > 0) {
+              seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】除非有极强的反逻辑证据。`;
+            }
+          }
+
+          const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets: validVoteTargets, seerConstraint });
+          targetId = res?.targetId;
+          reasoning = res?.reasoning || '';
+        }
       }
 
       // 构建投票对象
@@ -554,19 +571,30 @@ export function useDayFlow({
         targetId = mySpeech.voteIntention;
         reasoning = '遵循发言意向';
       } else {
-        // 需要AI决策
-        let seerConstraint = '';
-        if (p.role === '预言家') {
-          const myChecks = seerChecks.filter(c => c.seerId === p.id);
-          const goodPeople = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
-          if (goodPeople.length > 0) {
-            seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】`;
-          }
-        }
+        // 行为树短路：hybrid 模式下注册的组合用 BT 决策
+        const btResult = IS_HYBRID
+          ? decideBT(p, 'DAY_VOTE',
+              { players, speechHistory, voteHistory, seerChecks, dayCount },
+              { validTargets })
+          : null;
 
-        const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets, seerConstraint });
-        targetId = res?.targetId;
-        reasoning = res?.reasoning || '';
+        if (btResult && btResult.targetId != null) {
+          targetId = btResult.targetId;
+          reasoning = btResult.reasoning;
+        } else {
+          let seerConstraint = '';
+          if (p.role === '预言家') {
+            const myChecks = seerChecks.filter(c => c.seerId === p.id);
+            const goodPeople = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
+            if (goodPeople.length > 0) {
+              seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】`;
+            }
+          }
+
+          const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets, seerConstraint });
+          targetId = res?.targetId;
+          reasoning = res?.reasoning || '';
+        }
       }
 
       // 构建投票对象

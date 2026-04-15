@@ -14,6 +14,7 @@ import {
   generateCorrectionPrompt
 } from '../services/logicValidator';
 import { sanitizeIdentityTable } from '../services/identityTableSanitizer';
+import { btWolfSpeech } from '../services/btClient';
 
 export function useAI({
   players,
@@ -159,6 +160,28 @@ export function useAI({
       currentPlayer: player,
       playerId: player.id
     };
+
+    // ── 两段式管线：狼人白天发言 → ECS BT Server 一次完成（BT策略 + LLM润色）──
+    if (player.role === '狼人' && actionType === PROMPT_ACTIONS.DAY_SPEECH) {
+      const serverResult = await btWolfSpeech(
+        player,
+        { ...gameState, speechHistory: enhancedSpeechHistory },
+        { apiKey: API_KEY, apiUrl: API_URL },
+      );
+      if (serverResult) {
+        if (serverResult.identity_table) {
+          const sanitized = sanitizeIdentityTable(serverResult.identity_table, { players, gameSetup });
+          if (sanitized.changed) serverResult.identity_table = sanitized.identityTable;
+        }
+        if (onModelUsed && serverResult._modelInfo) {
+          onModelUsed(player.id, serverResult._modelInfo.modelId, serverResult._modelInfo.modelName);
+        }
+        setIsThinking(false);
+        return serverResult;
+      }
+      // BT Server 不可用 → 静默降级到 legacy LLM 管线
+    }
+    // ── end 两段式管线 ──────────────────────────────────────────────
 
     // 获取该玩家之前的身份推理表
     const previousIdentityTable = identityTablesRef.current[player.id] || null;

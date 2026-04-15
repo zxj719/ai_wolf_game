@@ -1,0 +1,18 @@
+{
+  "name": "@wolfgame/decision-engine",
+  "version": "1.0.0",
+  "description": "Deterministic behavior-tree decision engine for AI werewolf game. Zero DOM/React dependencies — runs in browser, Node.js, and Cloudflare Workers.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./core": "./core/BehaviorTree.js",
+    "./blackboard": "./blackboard/buildBlackboard.js"
+  },
+  "keywords": ["werewolf", "behavior-tree", "game-ai", "decision-engine"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}

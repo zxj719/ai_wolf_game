@@ -303,6 +303,45 @@ export const SILICONFLOW_FALLBACK_MODELS = [
 // Thinking models 优先，用于角色扮演
 export const AI_MODELS = [...THINKING_MODELS, ...INSTRUCT_MODELS];
 
+// ============================================
+// 润色模型分池（行为树决策 + LLM 润色双层架构用）
+//
+// 设计：决策由行为树算出后，只需 LLM 把"立场+事实"包装成角色口吻的发言：
+//   - wolf  池：狼人发言承载欺骗/反悬浮等复杂语义，用大模型
+//   - other 池：神职/平民话术模式化，小模型足够且延迟更低
+//
+// 仅在 VITE_AI_MODE=hybrid 时被润色路径引用；legacy 路径不受影响。
+// ============================================
+
+// 狼人润色：从 THINKING_MODELS 里挑偏大的稳定推理模型
+const WOLF_POLISH_IDS = [
+  'Qwen/Qwen3-235B-A22B-Thinking-2507',
+  'Qwen/Qwen3-Next-80B-A3B-Thinking',
+  'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
+];
+
+// 神职/平民润色：从 INSTRUCT_MODELS 里挑快速 Instruct
+const OTHER_POLISH_IDS = [
+  'Qwen/Qwen3-235B-A22B-Instruct-2507',
+  'Qwen/Qwen2.5-72B-Instruct',
+  'Qwen/Qwen2.5-32B-Instruct',
+];
+
+export const POLISH_MODELS = {
+  wolf:  AI_MODELS.filter(m => WOLF_POLISH_IDS.includes(m.id)),
+  other: AI_MODELS.filter(m => OTHER_POLISH_IDS.includes(m.id)),
+};
+
+/**
+ * 根据玩家角色选润色模型池
+ * @param {string} role - '狼人' / '预言家' / '村民' / ...
+ * @returns {Array} 模型池（退化时返回 AI_MODELS 全集）
+ */
+export const getPolishPool = (role) => {
+  const pool = role === '狼人' ? POLISH_MODELS.wolf : POLISH_MODELS.other;
+  return pool.length > 0 ? pool : AI_MODELS;
+};
+
 // 根据用途获取模型
 export const getThinkingModel = (playerIndex = 0) => {
   return THINKING_MODELS[playerIndex % THINKING_MODELS.length];

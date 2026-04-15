@@ -319,6 +319,7 @@ export default function WerewolfModule() {
     selectedTarget, setSelectedTarget, setHunterShooting,
     checkGameEnd, askAI, setIsThinking, currentNightSequence,
     startDayDiscussion, handleAIHunterShoot, userPlayer, gameActiveRef,
+    speechHistory,
   });
 
   const { handleUserSpeak, handleUserDuel } = useSpeechFlow({
