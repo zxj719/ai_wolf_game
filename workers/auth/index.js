@@ -45,9 +45,12 @@ export default {
     // /bt/* 和 /health 转发到 ECS，其余走正常流程
     if (env.ECS_BT_URL && (path.startsWith('/bt/') || path === '/health')) {
       const target = env.ECS_BT_URL + path + (url.search || '');
+      // 去掉 Host 头，否则 Cloudflare 识别到 zhaxiaoji.com 并拦截请求（error 1003）
+      const proxyHeaders = new Headers(request.headers);
+      proxyHeaders.delete('host');
       const proxyReq = new Request(target, {
         method: request.method,
-        headers: request.headers,
+        headers: proxyHeaders,
         body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
         redirect: 'follow',
       });
