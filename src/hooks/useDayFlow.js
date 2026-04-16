@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { PROMPT_ACTIONS } from '../services/aiPrompts';
 import { TIMING } from '../config/constants';
 import { btDecide } from '../services/btClient';
+import { validateDecision } from '../services/logicValidator';
+import { actionQueue } from '../services/actionQueue';
 
 export function useDayFlow({
   players,
@@ -252,7 +254,11 @@ export function useDayFlow({
         currentPlayers = updated;
         return updated;
       });
-      setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: targetId, cause: '被猎人带走' }]);
+      setDeathHistory(prev => {
+        const key = `${dayCount}-${targetId}`;
+        if (prev.some(d => `${d.day}-${d.playerId}` === key)) return prev;
+        return [...prev, { day: dayCount, phase: '猎人枪', playerId: targetId, cause: '被猎人带走' }];
+      });
     } else {
       // 理论上不应该发生 - 必须有可开枪目标
       console.error(`[猎人AI] 错误：没有可开枪目标！`);
@@ -512,7 +518,11 @@ export function useDayFlow({
     if (gameActiveRef && !gameActiveRef.current) return;
     const updatedPlayers = players.map(p => p.id === outPlayer.id ? { ...p, isAlive: false } : p);
     setPlayers(updatedPlayers);
-    setDeathHistory(prev => [...prev, { day: dayCount, phase: '投票', playerId: outPlayer.id, cause: '被公投出局' }]);
+    setDeathHistory(prev => {
+      const key = `${dayCount}-${outPlayer.id}`;
+      if (prev.some(d => `${d.day}-${d.playerId}` === key)) return prev; // 幂等
+      return [...prev, { day: dayCount, phase: '投票', playerId: outPlayer.id, cause: '被公投出局' }];
+    });
     const isHunter = outPlayer.role === ROLE_DEFINITIONS.HUNTER && outPlayer.canHunterShoot;
 
     setTimeout(() => {

@@ -5,6 +5,9 @@ import { TIMING } from '../config/constants';
 import { applyMagicianSwap, getValidSwapTargets, validateMagicianSwap, updateMagicianHistory } from '../utils/magicianUtils';
 import { validateDreamTarget, getValidDreamTargets, updateDreamweaverHistory, resolveDreamweaverEffects } from '../utils/dreamweaverUtils';
 import { btDecide } from '../services/btClient';
+import { buildSnapshot, isSnapshotFresh, getCurrentVersion, buildActionKey } from '../services/snapshotBuilder';
+import { validateDecision } from '../services/logicValidator';
+import { actionQueue } from '../services/actionQueue';
 
 /**
  * useNightFlow - 管理夜间阶段的所有逻辑
@@ -177,13 +180,16 @@ export function useNightFlow({
 
     const uniqueDeads = [...new Set(deadIds)];
 
-    // 记录死亡历史
-    const deathRecords = uniqueDeads.map(id => ({
-      day: dayCount,
-      phase: '夜',
-      playerId: id,
-      cause: deathReasons[id] || '死亡'
-    }));
+    // 记录死亡历史（幂等：跳过本轮已有的 playerId+day 重复条目）
+    const existingKeys = new Set(deathHistory.map(d => `${d.day}-${d.playerId}`));
+    const deathRecords = uniqueDeads
+      .filter(id => !existingKeys.has(`${dayCount}-${id}`))
+      .map(id => ({
+        day: dayCount,
+        phase: '夜',
+        playerId: id,
+        cause: deathReasons[id] || '死亡'
+      }));
     setDeathHistory([...deathHistory, ...deathRecords]);
 
     // 更新玩家状态
@@ -267,6 +273,16 @@ export function useNightFlow({
       const roleOrder = currentNightSequence;
       const currentRoleKey = roleOrder[nightStep];
 
+      // 幂等保护：同一夜间步骤不能重复执行
+      const stepKey = `night:d${dayCount}:s${nightStep}:${currentRoleKey ?? 'unknown'}`;
+      if (actionQueue.isDuplicate(stepKey)) {
+        logger.warn(`[夜间行动] 重复触发被拦截: ${stepKey}`);
+        return;
+      }
+      actionQueue.mark(stepKey);
+
+      // 包裹在 try/finally 中，确保失败时释放 key 允许重试
+      try {
       logger.debug(`[夜间行动] nightStep=${nightStep}, dayCount=${dayCount}, 当前角色=${ROLE_DEFINITIONS[currentRoleKey] || '未知'}`);
       logger.debug(`[夜间行动] 当前 nightDecisions:`, nightDecisions);
 
@@ -468,6 +484,16 @@ export function useNightFlow({
         logger.debug(`[狼人AI] AI返回结果：`, res);
 
         if (res && validTargets.includes(res.targetId)) {
+          // 验证狼刀目标（防止刀队友等无效目标）
+          const wolfSnapshot = buildSnapshot(
+            { players, dayCount, nightDecisions, seerChecks, speechHistory: speechHistory ?? [], voteHistory: [], deathHistory },
+            { nightStep, phase }
+          );
+          const wolfValidation = validateDecision('NIGHT_WOLF', wolfSnapshot, { targetId: res.targetId });
+          if (!wolfValidation.valid) {
+            logger.warn(`[狼人AI] 击杀验证拒绝：${wolfValidation.reason}`);
+            res.targetId = validTargets[Math.floor(Math.random() * validTargets.length)];
+          }
           logger.debug(`[狼人AI] 狼人袭击目标：${res.targetId}号`);
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 狼人选择袭击 ${res.targetId}号`, 'system');
@@ -524,6 +550,16 @@ export function useNightFlow({
           logger.debug(`[预言家AI] AI返回结果：`, res);
 
           if (res?.targetId !== undefined && validTargets.includes(res.targetId)) {
+            // 在 commit 前构建快照并验证（防止重复查验）
+            const seerSnapshot = buildSnapshot(
+              { players, dayCount, nightDecisions, seerChecks, speechHistory: speechHistory ?? [], voteHistory: [], deathHistory },
+              { nightStep, phase }
+            );
+            const seerValidation = validateDecision('NIGHT_SEER', seerSnapshot, { targetId: res.targetId });
+            if (!seerValidation.valid) {
+              logger.warn(`[预言家AI] 验证拒绝：${seerValidation.reason}`);
+              if (gameMode === 'ai-only') addLog(`[${actor.id}号] 预言家查验被拒（${seerValidation.reason}）`, 'system');
+            } else {
             // 应用魔术师交换重定向查验目标
             const originalTarget = res.targetId;
             const finalSeerTarget = applyMagicianSwap(originalTarget, nightDecisions.magicianSwap);
@@ -550,6 +586,7 @@ export function useNightFlow({
             } else {
               logger.error(`[预言家AI] 无法找到目标玩家 ${res.targetId}`);
             }
+            } // end seerValidation.valid
           } else {
             logger.debug(`[预言家AI] AI决策无效或被过滤:`, res);
             if (gameMode === 'ai-only') {
@@ -583,6 +620,18 @@ export function useNightFlow({
         const finalDecisions = { ...nightDecisions };
 
         if (res) {
+          // 构建女巫快照，附上药水使用状态（补充 snapshot 没有的字段）
+          const witchSnapshot = buildSnapshot(
+            { players, dayCount, nightDecisions, seerChecks, speechHistory: speechHistory ?? [], voteHistory: [], deathHistory },
+            { nightStep, phase, witchAntidoteUsed: !actor.hasWitchSave, witchPoisonUsed: !actor.hasWitchPoison }
+          );
+          if (res.useSave && canSave) {
+            const saveValidation = validateDecision('NIGHT_WITCH_SAVE', witchSnapshot, { targetId: dyingId });
+            if (!saveValidation.valid) {
+              logger.warn(`[女巫AI] 解药验证拒绝：${saveValidation.reason}`);
+              res.useSave = false; // 阻断，继续走不使用逻辑
+            }
+          }
           if (res.useSave && canSave) {
             logger.debug(`[女巫AI] 使用解药救${dyingId}号`);
             if (gameMode === 'ai-only') {
@@ -601,6 +650,11 @@ export function useNightFlow({
             mergeNightDecisions({ witchSave: true });
             setWitchHistory(prev => ({ ...prev, savedIds: [...prev.savedIds, dyingId] }));
           } else if (res.usePoison !== null && actor.hasWitchPoison && !res.useSave && validPoisonTargets.includes(res.usePoison)) {
+            const poisonValidation = validateDecision('NIGHT_WITCH_POISON', witchSnapshot, { targetId: res.usePoison });
+            if (!poisonValidation.valid) {
+              logger.warn(`[女巫AI] 毒药验证拒绝：${poisonValidation.reason}`);
+              // 降级为不使用药水
+            } else
             logger.debug(`[女巫AI] 使用毒药毒${res.usePoison}号`);
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 女巫使用毒药毒了 ${res.usePoison}号`, 'system');
@@ -634,10 +688,16 @@ export function useNightFlow({
       }
 
       logger.debug(`[夜间行动] ${ROLE_DEFINITIONS[currentRoleKey]}行动完成，1.5秒后进入下一步`);
+      actionQueue.complete(stepKey, { done: true });
       setTimeout(() => {
         if (!gameActiveRef.current) return;
         proceedNight();
       }, TIMING.NIGHT_ACTION_DELAY);
+      } catch (err) {
+        logger.error(`[夜间行动] 步骤 ${stepKey} 异常，释放 key 允许重试:`, err);
+        actionQueue.fail(stepKey);
+        throw err;
+      }
     };
 
     executeNightAction();
