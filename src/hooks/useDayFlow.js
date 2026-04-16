@@ -57,6 +57,7 @@ export function useDayFlow({
       witchPoison: null,
       guardTarget: null,
       seerResult: null,
+      seerCheckedThisNight: false,  // 重置一晚一验锁
       dreamTarget: null,
       // 保留 lastGuardTarget，它在 resolveNight 中已被正确设置
     });

@@ -17,6 +17,7 @@ const initialState = {
     guardTarget: null,
     lastGuardTarget: null,
     seerResult: null,
+    seerCheckedThisNight: false,  // 一晚一验锁：提交后锁死
     magicianSwap: null,  // { player1Id, player2Id }
     dreamTarget: null    // 摄梦人入梦目标ID
   },
@@ -108,8 +109,19 @@ function reducer(state, action) {
       return { ...state, logs: apply('logs', action.payload) };
     case types.PUSH_LOG:
       return { ...state, logs: [action.payload, ...state.logs] };
-    case types.SET_SEER_CHECKS:
-      return { ...state, seerChecks: apply('seerChecks', action.payload) };
+    case types.SET_SEER_CHECKS: {
+      // ── 预言家一晚一验硬约束 ──
+      // 无论调用方传什么，reducer 保证每个 (night, seerId) 只有一条记录
+      const rawChecks = apply('seerChecks', action.payload);
+      const seen = new Set();
+      const dedupedChecks = rawChecks.filter(c => {
+        const key = `${c.night}:${c.seerId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return { ...state, seerChecks: dedupedChecks };
+    }
     case types.SET_GUARD_HISTORY:
       return { ...state, guardHistory: apply('guardHistory', action.payload) };
     case types.SET_WITCH_HISTORY:
@@ -122,8 +134,19 @@ function reducer(state, action) {
       return { ...state, speechHistory: apply('speechHistory', action.payload) };
     case types.SET_VOTE_HISTORY:
       return { ...state, voteHistory: apply('voteHistory', action.payload) };
-    case types.SET_DEATH_HISTORY:
-      return { ...state, deathHistory: apply('deathHistory', action.payload) };
+    case types.SET_DEATH_HISTORY: {
+      // ── 死亡记录幂等硬约束 ──
+      // 同一 (day, playerId) 只允许一条记录，后续重复写入被静默丢弃
+      const rawDeaths = apply('deathHistory', action.payload);
+      const deathSeen = new Set();
+      const dedupedDeaths = rawDeaths.filter(d => {
+        const key = `${d.day}-${d.playerId}`;
+        if (deathSeen.has(key)) return false;
+        deathSeen.add(key);
+        return true;
+      });
+      return { ...state, deathHistory: dedupedDeaths };
+    }
     case types.SET_NIGHT_ACTION_HISTORY:
       return { ...state, nightActionHistory: apply('nightActionHistory', action.payload) };
     case types.SET_CURRENT_PHASE_DATA:

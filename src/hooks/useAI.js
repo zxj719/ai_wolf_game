@@ -15,6 +15,7 @@ import {
 } from '../services/logicValidator';
 import { sanitizeIdentityTable } from '../services/identityTableSanitizer';
 import { btWolfSpeech } from '../services/btClient';
+import { buildPublicFacts } from '../services/publicFacts';
 
 export function useAI({
   players,
@@ -190,12 +191,16 @@ export function useAI({
       victoryMode,
       previousIdentityTable
     });
+    // ── 权威事实块：从游戏状态直接生成，防止 AI 幻觉事实 ──
+    const authoritativeFacts = buildPublicFacts(gameState, player);
+
     // 将所有增强上下文附加到用户提示词
     // generateUserPrompt 现在会根据玩家角色路由到不同的提示词模板
     let userPrompt = generateUserPrompt(actionType, gameState, enhancedParams);
-    const allContexts = [ragContext, inferenceContext, dualSystemContext].filter(Boolean);
+    // 权威事实置于最前（最高优先级），然后是 RAG/推理上下文，最后是任务指令
+    const allContexts = [authoritativeFacts, ragContext, inferenceContext, dualSystemContext].filter(Boolean);
     if (allContexts.length > 0) {
-      userPrompt = allContexts.join('\n') + '\n' + userPrompt;
+      userPrompt = allContexts.join('\n\n') + '\n\n' + userPrompt;
     }
 
     // ============================================

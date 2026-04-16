@@ -221,6 +221,7 @@ export function useNightFlow({
       witchPoison: null,
       guardTarget: null,
       seerResult: null,
+      seerCheckedThisNight: false,
       dreamTarget: null
     });
 
@@ -536,7 +537,12 @@ export function useNightFlow({
         const validTargets = players.filter(p => p.isAlive && p.id !== actor.id && !checkedIds.includes(p.id)).map(p => p.id);
         logger.debug(`[预言家AI] 已查验：${checkedIds.join(',') || '无'}，可验：${validTargets.join(',')}`);
 
-        if (validTargets.length === 0) {
+        // ── 一晚一验硬锁 ──
+        // nightDecisions.seerCheckedThisNight 在第一次查验 commit 后被设为 true
+        // 即使 useEffect 重触发、LLM 重试，第二次调用直接短路
+        if (nightDecisions.seerCheckedThisNight) {
+          logger.warn(`[预言家AI] 本晚已查验过，硬锁拦截（seerCheckedThisNight=true）`);
+        } else if (validTargets.length === 0) {
           logger.debug(`[预言家AI] 所有目标已验完`);
           addLog(`预言家已验完所有目标。`, 'system');
         } else {
@@ -580,7 +586,7 @@ export function useNightFlow({
                 description: `查验 ${originalTarget}号，结果是${isWolf ? '狼人' : '好人'}${finalSeerTarget !== originalTarget ? ` (实际查验${finalSeerTarget}号)` : ''}`,
                 timestamp: Date.now()
               });
-              mergeNightDecisions({ seerResult: { targetId: originalTarget, isWolf } });
+              mergeNightDecisions({ seerResult: { targetId: originalTarget, isWolf }, seerCheckedThisNight: true });
               // 预言家的记忆中存储原始目标，但结果是实际目标的（制造混乱）
               setSeerChecks(prev => [...prev, { night: dayCount, targetId: originalTarget, isWolf, seerId: actor.id, thought: res.thought }]);
             } else {
