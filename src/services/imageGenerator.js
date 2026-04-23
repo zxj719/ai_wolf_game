@@ -1,12 +1,21 @@
 // Image generation service for player avatars
 // Supports multiple providers with automatic fallback
-import { MODELSCOPE_API_KEY, SILICONFLOW_API_KEY } from '../config/aiConfig';
+import { MODELSCOPE_API_KEY, SILICONFLOW_API_KEY, MINIMAX_API_KEY, MINIMAX_IMAGE_API_URL } from '../config/aiConfig';
 
 // ============================================
 // Provider Configuration
 // ============================================
 
 const PROVIDERS = {
+  // MiniMax image-01 - 同步模式，Bearer 鉴权，image_urls 直出
+  minimax: {
+    name: 'MiniMax',
+    url: MINIMAX_IMAGE_API_URL,
+    apiKey: MINIMAX_API_KEY,
+    models: ['image-01'],
+    async: false,
+  },
+
   // ModelScope - 需要异步模式
   modelscope: {
     name: 'ModelScope',
@@ -38,12 +47,16 @@ const PROVIDERS = {
 
 // 当前提供商状态
 let providerStatus = {
+  minimax: { available: true, failCount: 0, lastError: null },
   modelscope: { available: true, failCount: 0, lastError: null },
   siliconflow: { available: true, failCount: 0, lastError: null },
 };
 
 // 提供商优先级顺序
-let providerOrder = ['siliconflow', 'modelscope']; // 优先使用同步的 SiliconFlow
+// 如果配置了 MINIMAX_API_KEY，优先用 MiniMax（与文本模型同源，鉴权统一）
+let providerOrder = MINIMAX_API_KEY
+  ? ['minimax', 'siliconflow', 'modelscope']
+  : ['siliconflow', 'modelscope'];
 
 // ============================================
 // Provider Management
@@ -88,6 +101,54 @@ const markProviderFailed = (providerId, error) => {
 const markProviderSuccess = (providerId) => {
   providerStatus[providerId].failCount = 0;
   providerStatus[providerId].lastError = null;
+};
+
+// ============================================
+// Image Generation - MiniMax (Sync, image-01)
+// ============================================
+
+/**
+ * MiniMax 同步图像生成（头像用 1:1，背景用 16:9）
+ * 端点：POST https://api.minimax.io/v1/image_generation
+ * 响应：{ data: { image_urls: [...] }, base_resp: { status_code, status_msg } }
+ */
+const generateWithMiniMax = async (prompt, provider, { aspectRatio = '1:1' } = {}) => {
+  const model = provider.models[0];
+  console.log(`[ImageGen] Generating with MiniMax: ${model} (${aspectRatio})`);
+
+  const response = await fetch(provider.url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${provider.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      prompt,
+      aspect_ratio: aspectRatio,
+      n: 1,
+      response_format: 'url',
+      prompt_optimizer: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`MiniMax image gen failed: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+
+  // base_resp.status_code 非 0 表示业务层失败
+  if (result.base_resp && result.base_resp.status_code !== 0) {
+    throw new Error(`MiniMax biz error: ${result.base_resp.status_code} - ${result.base_resp.status_msg}`);
+  }
+
+  const imageUrl = result.data?.image_urls?.[0];
+  if (!imageUrl) {
+    throw new Error('MiniMax returned no image_urls');
+  }
+  return imageUrl;
 };
 
 // ============================================
@@ -350,7 +411,9 @@ export const generatePlayerAvatar = async (player, isUserPlayer = false, gameMod
       console.log(`[ImageGen] Trying provider: ${provider.name}`);
 
       let imageUrl;
-      if (providerId === 'modelscope') {
+      if (providerId === 'minimax') {
+        imageUrl = await generateWithMiniMax(prompt, provider, { aspectRatio: '1:1' });
+      } else if (providerId === 'modelscope') {
         imageUrl = await generateWithModelScope(prompt, provider);
       } else if (providerId === 'siliconflow') {
         imageUrl = await generateWithSiliconFlow(prompt, provider);
@@ -459,7 +522,9 @@ export const generateGameBackground = async () => {
       console.log(`[ImageGen] Generating background with ${provider.name}`);
 
       let imageUrl;
-      if (providerId === 'modelscope') {
+      if (providerId === 'minimax') {
+        imageUrl = await generateWithMiniMax(randomTheme, provider, { aspectRatio: '16:9' });
+      } else if (providerId === 'modelscope') {
         imageUrl = await generateWithModelScope(randomTheme, provider);
       } else if (providerId === 'siliconflow') {
         imageUrl = await generateBackgroundWithSiliconFlow(randomTheme, provider);

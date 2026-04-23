@@ -235,17 +235,59 @@ export function validateNightAction(result, actionType, ctx = {}) {
 }
 
 /**
+ * 验证 AI 发言输出结构（旧 API 形状，供 useAI.js 逻辑剪枝重试使用）
+ * 注意：这与 FSM 层的 validateSpeech(snapshot, decision) 不同——
+ * 前者检查规则合法性，这里检查 LLM 原始 JSON 字段是否合规。
+ *
+ * @param {object} result  LLM 解析后的结果（应含 speech 字段）
+ * @param {object} ctx     { players, ... }
+ * @returns {{ isValid: boolean, violations: string[], suggestions: string[] }}
+ */
+export function validateSpeechStructure(result, ctx = {}) {
+  const violations = [];
+  const suggestions = [];
+
+  if (!result) {
+    violations.push('AI 返回空结果');
+    suggestions.push('检查 API 连通性与 JSON 解析');
+    return { isValid: false, violations, suggestions };
+  }
+
+  const speech = result.speech;
+  if (typeof speech !== 'string' || speech.trim().length === 0) {
+    violations.push('speech 字段为空或非字符串');
+    suggestions.push('请在 JSON 中返回非空的 speech 字符串');
+  } else if (speech.trim().length > 500) {
+    violations.push(`speech 长度 ${speech.trim().length} 超过 500 字上限`);
+    suggestions.push('请压缩发言至 500 字以内');
+  }
+
+  // 若返回了 targetId（如投票/指控某人），校验是否在存活列表
+  if (result.targetId !== undefined && result.targetId !== null) {
+    const aliveIds = (ctx.players ?? []).filter(p => p.isAlive).map(p => p.id);
+    if (!aliveIds.includes(result.targetId)) {
+      violations.push(`引用目标 ${result.targetId} 不在存活列表中`);
+      suggestions.push(`存活玩家：${aliveIds.join(', ')}`);
+    }
+  }
+
+  return { isValid: violations.length === 0, violations, suggestions };
+}
+
+/**
  * 生成修正提示词（供 useAI.js 重试时使用）
  * @param {string[]} violations
  * @param {string[]} suggestions
  * @returns {string}
  */
 export function generateCorrectionPrompt(violations, suggestions) {
+  const vList = Array.isArray(violations) ? violations : [];
+  const sList = Array.isArray(suggestions) ? suggestions : [];
   const parts = ['【逻辑修正】请严格遵守以下要求重新回答：'];
-  violations.forEach((v, i) => parts.push(`${i + 1}. 错误：${v}`));
-  if (suggestions.length) {
+  vList.forEach((v, i) => parts.push(`${i + 1}. 错误：${v}`));
+  if (sList.length) {
     parts.push('建议修正：');
-    suggestions.forEach(s => parts.push(`  - ${s}`));
+    sList.forEach(s => parts.push(`  - ${s}`));
   }
   parts.push('请重新输出符合格式要求的 JSON。');
   return parts.join('\n');

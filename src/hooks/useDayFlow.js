@@ -4,13 +4,14 @@ import { TIMING } from '../config/constants';
 import { btDecide } from '../services/btClient';
 import { validateDecision } from '../services/logicValidator';
 import { actionQueue } from '../services/actionQueue';
+import { buildSnapshot, buildActionKey } from '../services/snapshotBuilder';
+import { dispatchCommand } from '../services/commandDispatcher';
 
 export function useDayFlow({
   players,
   setPlayers,
   gameMode,
   addLog,
-  addCurrentPhaseAction,
   ROLE_DEFINITIONS,
   setPhase,
   setNightStep,
@@ -41,7 +42,11 @@ export function useDayFlow({
   askAI,
   clearCurrentPhaseData,
   proceedToNextNightExternal, // optional override from night flow
-  gameActiveRef
+  gameActiveRef,
+  // 柱一：幂等原子 action
+  killPlayer,
+  recordVoteRound,
+  recordNightAction,
 }) {
   const proceedToNextNight = useCallback((clearPhaseData) => {
     if (gameActiveRef && !gameActiveRef.current) return;
@@ -233,33 +238,42 @@ export function useDayFlow({
       const reason = res?.reason ? `(${res.reason})` : '';
       addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${targetId}号]！${reason}`, 'danger');
 
-      addCurrentPhaseAction({
-        playerId: hunter.id,
-        type: '猎人开枪',
-        target: targetId,
-        day: dayCount,
-        source: normalizedSource,
-        thought: res?.thought,
-        description: `猎人开枪带走 ${targetId}号${res?.reason ? `（${res.reason}）` : ''}`,
-        timestamp: Date.now(),
-        persist: true
+      // 柱二：HUNTER_SHOOT 经分发器闸门（目标合法、射手仍可开枪、非自射）
+      const hunterSnapshot = buildSnapshot(
+        { players: currentPlayers, dayCount, nightDecisions, seerChecks, speechHistory, voteHistory: [], deathHistory: [] },
+        { phase: 'hunter_shoot', chainDepth }
+      );
+      const hunterKey = buildActionKey({ day: dayCount, phase: 'hunter_shoot', step: chainDepth, playerId: hunter.id, actionType: 'HUNTER_SHOOT' });
+      const hunterDispatch = dispatchCommand({
+        actionType: 'HUNTER_SHOOT',
+        snapshot: hunterSnapshot,
+        decision: { targetId, shooterId: hunter.id },
+        actorId: hunter.id,
+        key: hunterKey,
+        skipFreshness: true, // 猎人开枪 UI 串行触发
+        commit: () => {
+          recordNightAction({
+            playerId: hunter.id,
+            type: '猎人开枪',
+            target: targetId,
+            day: dayCount,
+            source: normalizedSource,
+            thought: res?.thought,
+            description: `猎人开枪带走 ${targetId}号${res?.reason ? `（${res.reason}）` : ''}`,
+            timestamp: Date.now(),
+            persist: true
+          });
+          // 柱一：原子 kill（同 dispatch 内完成 isAlive + deathHistory）
+          killPlayer({ playerId: targetId, day: dayCount, phase: '猎人枪', cause: '被猎人带走' });
+        },
       });
-
-      // 找到被带走的玩家
+      if (!hunterDispatch.accepted) {
+        addLog(`猎人开枪被系统拒绝：${hunterDispatch.reason}`, 'error');
+      }
+      // 找到被带走的玩家（无论是否 accepted，后续 UI 流程需知道目标）
       targetPlayer = currentPlayers.find(p => p.id === targetId);
-
-      // 使用函数式更新，确保基于最新状态（避免覆盖夜间死亡的玩家状态）
-      setPlayers(prev => {
-        const updated = prev.map(p => p.id === targetId ? { ...p, isAlive: false } : p);
-        // 同步更新局部变量，用于后续的 checkGameEnd 等逻辑
-        currentPlayers = updated;
-        return updated;
-      });
-      setDeathHistory(prev => {
-        const key = `${dayCount}-${targetId}`;
-        if (prev.some(d => `${d.day}-${d.playerId}` === key)) return prev;
-        return [...prev, { day: dayCount, phase: '猎人枪', playerId: targetId, cause: '被猎人带走' }];
-      });
+      // 局部变量同步，仅用于后续闭包内逻辑
+      currentPlayers = currentPlayers.map(p => p.id === targetId ? { ...p, isAlive: false } : p);
     } else {
       // 理论上不应该发生 - 必须有可开枪目标
       console.error(`[猎人AI] 错误：没有可开枪目标！`);
@@ -308,7 +322,7 @@ export function useDayFlow({
         startDayDiscussion(currentPlayers, nightDeads, players.length, clearCurrentPhaseData);
       }
     }, TIMING.DAY_TRANSITION_DELAY);
-  }, [addCurrentPhaseAction, addLog, askAI, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, players, proceedToNextNightExternal, ROLE_DEFINITIONS, seerChecks, setDeathHistory, setHunterShooting, setIsThinking, setPhase, setPlayers, speechHistory, startDayDiscussion]);
+  }, [recordNightAction, addLog, askAI, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, killPlayer, players, proceedToNextNightExternal, ROLE_DEFINITIONS, seerChecks, setHunterShooting, setIsThinking, setPhase, speechHistory, startDayDiscussion]);
 
   const handleUserHunterShoot = useCallback((source, nightDeads = [], flowSource = null, chainDepth = 0) => {
     if (gameActiveRef && !gameActiveRef.current) return;
@@ -328,26 +342,40 @@ export function useDayFlow({
     } else {
       addLog(`你是猎人！开枪带走了 [${selectedTarget}号]！`, 'danger');
 
-      addCurrentPhaseAction({
-        playerId: userPlayer.id,
-        type: '猎人开枪',
-        target: selectedTarget,
-        day: dayCount,
-        source: normalizedSource,
-        description: `猎人开枪带走 ${selectedTarget}号`,
-        timestamp: Date.now(),
-        persist: true
+      // 柱二：HUNTER_SHOOT 经分发器闸门
+      const uHunterSnapshot = buildSnapshot(
+        { players: currentPlayers, dayCount, nightDecisions, seerChecks, speechHistory, voteHistory: [], deathHistory: [] },
+        { phase: 'hunter_shoot', chainDepth }
+      );
+      const uHunterKey = buildActionKey({ day: dayCount, phase: 'hunter_shoot', step: chainDepth, playerId: userPlayer.id, actionType: 'HUNTER_SHOOT' });
+      const uHunterDispatch = dispatchCommand({
+        actionType: 'HUNTER_SHOOT',
+        snapshot: uHunterSnapshot,
+        decision: { targetId: selectedTarget, shooterId: userPlayer.id },
+        actorId: userPlayer.id,
+        key: uHunterKey,
+        skipFreshness: true,
+        commit: () => {
+          recordNightAction({
+            playerId: userPlayer.id,
+            type: '猎人开枪',
+            target: selectedTarget,
+            day: dayCount,
+            source: normalizedSource,
+            description: `猎人开枪带走 ${selectedTarget}号`,
+            timestamp: Date.now(),
+            persist: true
+          });
+          killPlayer({ playerId: selectedTarget, day: dayCount, phase: '猎人枪', cause: '被猎人带走' });
+        },
       });
+      if (!uHunterDispatch.accepted) {
+        addLog(`猎人开枪被系统拒绝：${uHunterDispatch.reason}`, 'error');
+        return;
+      }
 
       const targetPlayer = currentPlayers.find(p => p.id === selectedTarget);
-
-      // 使用函数式更新，确保基于最新状态
-      setPlayers(prev => {
-        const updated = prev.map(p => p.id === selectedTarget ? { ...p, isAlive: false } : p);
-        currentPlayers = updated;
-        return updated;
-      });
-      setDeathHistory(prev => [...prev, { day: dayCount, phase: '猎人枪', playerId: selectedTarget, cause: '被猎人带走' }]);
+      currentPlayers = currentPlayers.map(p => p.id === selectedTarget ? { ...p, isAlive: false } : p);
 
       // 连锁开枪：带走的玩家如果也是猎人且能开枪
       if (
@@ -397,7 +425,7 @@ export function useDayFlow({
         startDayDiscussion(currentPlayers, nightDeads, players.length, clearCurrentPhaseData);
       }
     }, TIMING.DAY_TRANSITION_DELAY);
-  }, [addCurrentPhaseAction, addLog, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, selectedTarget, setDeathHistory, setHunterShooting, setPhase, setPlayers, setSelectedTarget, startDayDiscussion, userPlayer]);
+  }, [recordNightAction, addLog, checkGameEnd, clearCurrentPhaseData, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, killPlayer, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, selectedTarget, setHunterShooting, setPhase, setSelectedTarget, startDayDiscussion, userPlayer]);
 
   const handleAutoVote = useCallback(async () => {
     if (gameActiveRef && !gameActiveRef.current) return;
@@ -410,6 +438,7 @@ export function useDayFlow({
     const votePromises = alive.map(async (p) => {
       let targetId = null;
       let reasoning = '';
+      let thought = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
 
       // 优先使用发言意向
@@ -441,15 +470,16 @@ export function useDayFlow({
           const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets: validVoteTargets, seerConstraint });
           targetId = res?.targetId;
           reasoning = res?.reasoning || '';
+          thought = res?.thought || '';
         }
       }
 
       // 构建投票对象
       if (targetId !== undefined && aliveIds.includes(targetId)) {
-        return { voterId: p.id, voterName: p.name, targetId, reasoning };
+        return { voterId: p.id, voterName: p.name, targetId, reasoning, thought };
       } else if (targetId !== undefined) {
         const fallback = aliveIds.filter(id => id !== p.id)[0] || aliveIds[0];
-        return { voterId: p.id, voterName: p.name, targetId: fallback, reasoning: reasoning || '备用选择' };
+        return { voterId: p.id, voterName: p.name, targetId: fallback, reasoning: reasoning || '备用选择', thought };
       }
       return null;
     });
@@ -476,7 +506,8 @@ export function useDayFlow({
 
     if (Object.keys(counts).length === 0) {
       addLog('无人投票，平安日。', 'info');
-      setVoteHistory([...voteHistory, { day: dayCount, votes: [], eliminated: null }]);
+      // 柱一：按 day 幂等记录投票轮
+      recordVoteRound({ day: dayCount, votes: [], eliminatedId: null });
       setIsThinking(false);
       setSelectedTarget(null);
       const result = checkGameEnd();
@@ -507,23 +538,42 @@ export function useDayFlow({
     }
 
     addLog(`[${outPlayer.id}号] ${outPlayer.name} 被公投出局。`, 'danger');
-    const updatedVoteHistory = [...voteHistory, { day: dayCount, votes: votes.map(v => ({ from: v.voterId, to: v.targetId })), eliminated: outPlayer.id }];
-    setVoteHistory(updatedVoteHistory);
-    setPhase('day_processing');
-    handlePlayerElimination(outPlayer);
+    // 柱二：DAY_VOTE 经分发器闸门（快照+合法性+actor活性）后再提交
+    const voteSnapshot = buildSnapshot(
+      { players, dayCount, nightDecisions, seerChecks, speechHistory, voteHistory, deathHistory },
+      { phase: 'day_voting' }
+    );
+    const voteKey = buildActionKey({ day: dayCount, phase: 'day_vote', playerId: outPlayer.id, actionType: 'DAY_VOTE' });
+    const voteDispatch = dispatchCommand({
+      actionType: 'DAY_VOTE',
+      snapshot: voteSnapshot,
+      decision: { targetId: outPlayer.id },
+      actorId: null, // 放逐是全体行为，无单一 actor
+      key: voteKey,
+      skipFreshness: true, // 投票流程本身串行，无需版本闸
+      commit: () => {
+        // 柱一：按 day 幂等记录投票轮，保留每票 reasoning/thought
+        recordVoteRound({
+          day: dayCount,
+          votes: votes.map(v => ({ from: v.voterId, to: v.targetId, reasoning: v.reasoning || '', thought: v.thought || '' })),
+          eliminatedId: outPlayer.id,
+        });
+        setPhase('day_processing');
+        handlePlayerElimination(outPlayer);
+      },
+    });
+    if (!voteDispatch.accepted) {
+      addLog(`投票被系统拒绝：${voteDispatch.reason}`, 'error');
+    }
     setIsThinking(false);
     setSelectedTarget(null);
-  }, [addLog, checkGameEnd, dayCount, gameActiveRef, players, setIsThinking, setPhase, setSelectedTarget, setVoteHistory, voteHistory]);
+  }, [addLog, checkGameEnd, dayCount, gameActiveRef, players, recordVoteRound, setIsThinking, setPhase, setSelectedTarget]);
 
   const handlePlayerElimination = useCallback((outPlayer) => {
     if (gameActiveRef && !gameActiveRef.current) return;
+    // 柱一：原子 kill（atomicity replaces separate setPlayers + setDeathHistory）
+    killPlayer({ playerId: outPlayer.id, day: dayCount, phase: '投票', cause: '被公投出局' });
     const updatedPlayers = players.map(p => p.id === outPlayer.id ? { ...p, isAlive: false } : p);
-    setPlayers(updatedPlayers);
-    setDeathHistory(prev => {
-      const key = `${dayCount}-${outPlayer.id}`;
-      if (prev.some(d => `${d.day}-${d.playerId}` === key)) return prev; // 幂等
-      return [...prev, { day: dayCount, phase: '投票', playerId: outPlayer.id, cause: '被公投出局' }];
-    });
     const isHunter = outPlayer.role === ROLE_DEFINITIONS.HUNTER && outPlayer.canHunterShoot;
 
     setTimeout(() => {
@@ -544,7 +594,7 @@ export function useDayFlow({
         (proceedToNextNightExternal || proceedToNextNight)();
       }
     }, TIMING.DAY_TRANSITION_DELAY);
-  }, [checkGameEnd, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, setDeathHistory, setHunterShooting, setPhase, setPlayers]);
+  }, [checkGameEnd, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, killPlayer, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, setHunterShooting, setPhase]);
 
   const handleVote = useCallback(async () => {
     if (gameActiveRef && !gameActiveRef.current) return;

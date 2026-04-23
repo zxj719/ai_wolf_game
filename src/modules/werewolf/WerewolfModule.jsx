@@ -119,10 +119,14 @@ export default function WerewolfModule() {
     mergeNightDecisions, setSeerChecks, setGuardHistory, setWitchHistory, setMagicianHistory,
     dreamweaverHistory, setDreamweaverHistory,
     setSpeechHistory, setVoteHistory, setDeathHistory,
-    addCurrentPhaseSpeech, addCurrentPhaseAction, clearCurrentPhaseData,
+    addCurrentPhaseSpeech, clearCurrentPhaseData,
     setLogs, addLog, initGame,
     processedVoteDayRef, gameInitializedRef,
     updatePlayerModel, updateActionResult,
+    // 柱一：幂等原子 action
+    killPlayer, recordVoteRound, recordSpeech, recordNightAction,
+    // 柱三：结构化声明事件
+    recordClaim,
   } = useWerewolfGame({
     ROLE_DEFINITIONS, STANDARD_ROLES, GAME_SETUPS, PERSONALITIES, NAMES,
     TOTAL_PLAYERS: DEFAULT_TOTAL_PLAYERS,
@@ -132,6 +136,7 @@ export default function WerewolfModule() {
     phase, nightStep, dayCount, players, userPlayer, logs,
     nightDecisions, seerChecks, guardHistory, witchHistory, magicianHistory,
     speechHistory, voteHistory, deathHistory, nightActionHistory,
+    claimHistory,
     currentPhaseData, gameBackground, modelUsage,
   } = state;
 
@@ -291,6 +296,7 @@ export default function WerewolfModule() {
     seerChecks, guardHistory, witchHistory, dayCount, phase,
     setIsThinking, disabledModelsRef, API_URL, API_KEY: effectiveApiKey,
     AI_MODELS: aiModels, gameSetup: selectedSetup, nightActionHistory,
+    claimHistory,
     onModelUsed: updatePlayerModel, victoryMode, gameActiveRef,
   });
 
@@ -299,7 +305,7 @@ export default function WerewolfModule() {
     handleUserHunterShoot, handleAIHunterShoot,
     moveToNextSpeaker, proceedToNextNight,
   } = useDayFlow({
-    players, setPlayers, gameMode, addLog, addCurrentPhaseAction,
+    players, setPlayers, gameMode, addLog,
     ROLE_DEFINITIONS, setPhase, setNightStep, nightDecisions, mergeNightDecisions,
     dayCount, setDayCount, seerChecks, speechHistory, setSpeechHistory,
     voteHistory, setVoteHistory, deathHistory, setDeathHistory,
@@ -307,10 +313,11 @@ export default function WerewolfModule() {
     speakerIndex, setSpeakerIndex, speakingOrder, setSpeakingOrder,
     spokenCount, setSpokenCount, userPlayer, isThinking, setIsThinking,
     checkGameEnd, askAI, clearCurrentPhaseData, gameActiveRef,
+    killPlayer, recordVoteRound, recordNightAction,
   });
 
   const { proceedNight } = useNightFlow({
-    players, setPlayers, gameMode, addLog, addCurrentPhaseAction, updateActionResult,
+    players, setPlayers, gameMode, addLog, updateActionResult,
     ROLE_DEFINITIONS, setPhase, phase, nightStep, setNightStep, dayCount,
     nightDecisions, nightDecisionsRef, mergeNightDecisions,
     seerChecks, setSeerChecks, guardHistory, setGuardHistory,
@@ -320,6 +327,7 @@ export default function WerewolfModule() {
     checkGameEnd, askAI, setIsThinking, currentNightSequence,
     startDayDiscussion, handleAIHunterShoot, userPlayer, gameActiveRef,
     speechHistory,
+    killPlayer, recordNightAction,
   });
 
   const { handleUserSpeak, handleUserDuel } = useSpeechFlow({
@@ -328,6 +336,8 @@ export default function WerewolfModule() {
     userPlayer, userInput, setUserInput, addLog, addCurrentPhaseSpeech,
     setPhase, askAI, moveToNextSpeaker, gameActiveRef, ROLE_DEFINITIONS,
     setDeathHistory, checkGameEnd, proceedToNextNight,
+    killPlayer, recordSpeech,
+    recordClaim,
   });
 
   useEffect(() => {
@@ -346,6 +356,7 @@ export default function WerewolfModule() {
   const exportGameLog = () => exportGameLogUtil({
     players, dayCount, deathHistory, speechHistory, voteHistory,
     seerChecks, guardHistory, witchHistory, victoryMode,
+    nightActionHistory,
   });
 
   const restartGame = () => {

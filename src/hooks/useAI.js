@@ -9,7 +9,7 @@ import {
   generateSituationSummary
 } from '../services/ragRetrieval';
 import {
-  validateSpeech,
+  validateSpeechStructure,
   validateNightAction,
   generateCorrectionPrompt
 } from '../services/logicValidator';
@@ -37,6 +37,8 @@ export function useAI({
   gameSetup = null,
   // 整局夜间行动历史（用于完整的行动记录追踪）
   nightActionHistory = [],
+  // 柱三：结构化声明事件流
+  claimHistory = [],
   // P1增强：信任与推断上下文获取函数（可选）
   getInferenceContext = null,
   // P2增强：双系统上下文获取函数（可选）
@@ -140,7 +142,9 @@ export function useAI({
       // 游戏配置（用于区分6人局/8人局等不同规则）
       gameSetup,
       // 整局夜间行动历史（包含所有夜晚的行动记录）
-      nightActionHistory
+      nightActionHistory,
+      // 柱三：结构化声明事件流（权威公共事实替代正则NLP）
+      claimHistory
     };
 
     // P0增强：添加RAG上下文到params
@@ -289,7 +293,7 @@ export function useAI({
       if (isNightAction) {
         validation = validateNightAction(result, actionType, validationContext);
       } else {
-        validation = validateSpeech(result, validationContext);
+        validation = validateSpeechStructure(result, validationContext);
       }
 
       // 如果验证失败，尝试重新生成（最多重试2次）
@@ -316,7 +320,7 @@ export function useAI({
           if (isNightAction) {
             validation = validateNightAction(result, actionType, validationContext);
           } else {
-            validation = validateSpeech(result, validationContext);
+            validation = validateSpeechStructure(result, validationContext);
           }
 
           if (validation.isValid) {

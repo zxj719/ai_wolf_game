@@ -3,6 +3,8 @@ import { PROMPT_ACTIONS } from '../services/aiPrompts';
 import { TIMING } from '../config/constants';
 import { logger } from '../utils/logger';
 import { validateKnightDuel, executeDuel, applyDuelResult } from '../utils/knightUtils';
+import { buildSnapshot, buildActionKey } from '../services/snapshotBuilder';
+import { dispatchCommand } from '../services/commandDispatcher';
 
 /**
  * useSpeechFlow - 管理白天发言系统
@@ -31,6 +33,11 @@ export function useSpeechFlow({
   setDeathHistory,
   checkGameEnd,
   proceedToNextNight,
+  // 柱一：幂等原子 action
+  killPlayer,
+  recordSpeech,
+  // 柱三：结构化声明事件
+  recordClaim,
 }) {
   const speakingLockRef = useRef(false);
   const currentDayRef = useRef(1);
@@ -88,19 +95,16 @@ export function useSpeechFlow({
     addLog(duelResult.message, 'important');
     addLog(`${target.id}号的真实身份是：${target.role}`, 'reveal');
 
-    // 应用决斗结果到玩家状态
+    // 柱一：先原子 killPlayer（atomic isAlive + deathHistory），再 setPlayers 应用骑士 hasUsedDuel 等额外字段
+    // 顺序重要：killPlayer 依赖 reducer 中 target 仍 isAlive 才触发；setPlayers 随后覆写的玩家数组里 isAlive 已为 false，与 killPlayer 结果一致
+    killPlayer({
+      playerId: duelResult.killedPlayer.id,
+      day: dayCount,
+      phase: '决斗',
+      cause: duelResult.targetIsWolf ? '决斗（狼人被猎杀）' : '决斗失败（骑士自刎）',
+    });
     const updatedPlayers = applyDuelResult(players, duelResult, knight.id);
     setPlayers(updatedPlayers);
-
-    // 记录死亡
-    setDeathHistory(prev => [...prev, {
-      playerId: duelResult.killedPlayer.id,
-      name: duelResult.killedPlayer.name,
-      role: duelResult.killedPlayer.role,
-      day: dayCount,
-      reason: duelResult.targetIsWolf ? '决斗（狼人）' : '决斗失败（自刎）',
-      timestamp: Date.now()
-    }]);
 
     await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -129,7 +133,7 @@ export function useSpeechFlow({
       // 继续下一个人发言（跳过已死的骑士）
       moveToNextSpeaker();
     }
-  }, [players, setPlayers, dayCount, setDeathHistory, checkGameEnd, addLog, ROLE_DEFINITIONS, proceedToNextNight, moveToNextSpeaker, gameActiveRef]);
+  }, [players, setPlayers, dayCount, killPlayer, checkGameEnd, addLog, ROLE_DEFINITIONS, proceedToNextNight, moveToNextSpeaker, gameActiveRef]);
 
   // AI 发言 useEffect
   useEffect(() => {
@@ -193,35 +197,61 @@ export function useSpeechFlow({
             }
 
             if (res.speech) {
-              addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
-
-              addCurrentPhaseSpeech({
-                playerId: currentSpeaker.id,
-                name: currentSpeaker.name,
-                content: res.speech,
-                thought: res.thought,
-                day: dayCount,
-                timestamp: Date.now()
+              // 柱二：DAY_SPEECH 经分发器闸门（内容合规 + 说话人仍存活）
+              const speechSnapshot = buildSnapshot(
+                { players, dayCount, nightDecisions: {}, seerChecks: [], speechHistory, voteHistory: [], deathHistory: [] },
+                { phase: 'day_discussion', speakerIndex }
+              );
+              const speechKey = buildActionKey({ day: dayCount, phase: 'day_speech', playerId: currentSpeaker.id, actionType: 'DAY_SPEECH' });
+              const speechDispatch = dispatchCommand({
+                actionType: 'DAY_SPEECH',
+                snapshot: speechSnapshot,
+                decision: { speech: res.speech },
+                actorId: currentSpeaker.id,
+                key: speechKey,
+                skipFreshness: true,
+                commit: () => {
+                  addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
+                  addCurrentPhaseSpeech({
+                    playerId: currentSpeaker.id,
+                    name: currentSpeaker.name,
+                    content: res.speech,
+                    thought: res.thought,
+                    day: dayCount,
+                    timestamp: Date.now()
+                  });
+                  // 立即标记为已发言
+                  spokenIdsRef.current.add(currentSpeaker.id);
+                  // 柱一：幂等原子写入发言（reducer 按 (day, playerId) 去重）
+                  recordSpeech({
+                    playerId: currentSpeaker.id,
+                    name: currentSpeaker.name,
+                    content: res.speech,
+                    thought: res.thought,
+                    identity_table: res.identity_table,
+                    day: dayCount,
+                    summary: res.summary || res.speech.slice(0, 20),
+                    voteIntention: res.voteIntention,
+                  });
+                  // 柱三：结构化声明事件落盘（replace 正则 NLP）
+                  if (Array.isArray(res.claims) && recordClaim) {
+                    res.claims.forEach(c => {
+                      if (!c || typeof c !== 'object' || !c.type) return;
+                      const { type, ...payload } = c;
+                      recordClaim({
+                        day: dayCount,
+                        playerId: currentSpeaker.id,
+                        type,
+                        payload,
+                        timestamp: Date.now(),
+                      });
+                    });
+                  }
+                },
               });
-
-              // 立即标记为已发言
-              spokenIdsRef.current.add(currentSpeaker.id);
-
-              setSpeechHistory(prev => {
-                if (prev.some(s => s.day === dayCount && s.playerId === currentSpeaker.id)) {
-                  return prev;
-                }
-                return [...prev, {
-                  playerId: currentSpeaker.id,
-                  name: currentSpeaker.name,
-                  content: res.speech,
-                  thought: res.thought,
-                  identity_table: res.identity_table,
-                  day: dayCount,
-                  summary: res.summary || res.speech.slice(0, 20),
-                  voteIntention: res.voteIntention
-                }];
-              });
+              if (!speechDispatch.accepted) {
+                logger.warn(`[发言控制] ${currentSpeaker.id}号 发言被分发器拒绝：${speechDispatch.reason}`);
+              }
             }
 
             // 骑士决斗处理
@@ -267,30 +297,42 @@ export function useSpeechFlow({
     speakingLockRef.current = true;
 
     try {
-      addLog(userInput, "chat", "你");
-
-      addCurrentPhaseSpeech({
-        playerId: userId,
-        name: "你",
-        content: userInput,
-        day: dayCount,
-        timestamp: Date.now()
+      // 柱二：DAY_SPEECH 经分发器闸门
+      const uSpeechSnapshot = buildSnapshot(
+        { players, dayCount, nightDecisions: {}, seerChecks: [], speechHistory, voteHistory: [], deathHistory: [] },
+        { phase: 'day_discussion' }
+      );
+      const uSpeechKey = buildActionKey({ day: dayCount, phase: 'day_speech', playerId: userId, actionType: 'DAY_SPEECH' });
+      const uSpeechDispatch = dispatchCommand({
+        actionType: 'DAY_SPEECH',
+        snapshot: uSpeechSnapshot,
+        decision: { speech: userInput },
+        actorId: userId,
+        key: uSpeechKey,
+        skipFreshness: true,
+        commit: () => {
+          addLog(userInput, "chat", "你");
+          addCurrentPhaseSpeech({
+            playerId: userId,
+            name: "你",
+            content: userInput,
+            day: dayCount,
+            timestamp: Date.now()
+          });
+          spokenIdsRef.current.add(userId);
+          // 柱一：幂等原子写入发言
+          recordSpeech({
+            playerId: userId,
+            name: "你",
+            content: userInput,
+            day: dayCount,
+          });
+          setUserInput("");
+        },
       });
-
-      spokenIdsRef.current.add(userId);
-
-      setSpeechHistory(prev => {
-        if (prev.some(s => s.day === dayCount && s.playerId === userId)) {
-          return prev;
-        }
-        return [...prev, {
-          playerId: userId,
-          name: "你",
-          content: userInput,
-          day: dayCount
-        }];
-      });
-      setUserInput("");
+      if (!uSpeechDispatch.accepted) {
+        addLog(`发言被系统拒绝：${uSpeechDispatch.reason}`, 'warning');
+      }
     } finally {
       speakingLockRef.current = false;
       Promise.resolve().then(() => {
@@ -299,7 +341,7 @@ export function useSpeechFlow({
         }
       });
     }
-  }, [userInput, speechHistory, dayCount, userPlayer, addLog, addCurrentPhaseSpeech, setSpeechHistory, setUserInput, moveToNextSpeaker]);
+  }, [userInput, speechHistory, dayCount, userPlayer, addLog, addCurrentPhaseSpeech, recordSpeech, setUserInput, moveToNextSpeaker]);
 
   /** 用户骑士决斗 */
   const handleUserDuel = useCallback((targetId) => {

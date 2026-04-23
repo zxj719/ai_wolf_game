@@ -148,6 +148,33 @@ ${isWolf ? `狼人目标: ${victoryModeInfo.wolfGoal}` : `好人目标: ${victor
 };
 
 /**
+ * 柱三：结构化声明 schema（所有角色 DAY_SPEECH 必须附加）
+ * 若发言中包含任何身份声明/对跳/报验/报药，AI 必须在 JSON 顶层返回 claims[] 数组，
+ * 系统据此落入 claimHistory，不再用正则 NLP 从 speech 文本里猜。
+ */
+export const CLAIMS_SCHEMA_SUFFIX = `
+
+【🔑 结构化声明 claims[]（必需字段）】
+若本次发言涉及身份跳报/对跳/报验/报药使用，请在输出 JSON 顶层追加 "claims" 数组字段，
+结构化重复同一事实。若发言不包含任何声明，返回空数组 []。
+
+支持的 claim 类型（任选多个，按实际发言填入）：
+- 跳预言家: {"type":"jump_seer","checks":[{"night":1,"targetId":3,"isWolf":true}]}
+- 跳女巫: {"type":"jump_witch","antidoteUsed":true,"antidoteTarget":5,"poisonUsed":false,"poisonTarget":null}
+- 跳守卫: {"type":"jump_guard","lastGuardTarget":4}
+- 跳猎人: {"type":"jump_hunter"}
+- 跳骑士: {"type":"jump_knight"}
+- 跳摄梦人: {"type":"jump_dreamweaver"}
+- 跳魔术师: {"type":"jump_magician"}
+- 声称民: {"type":"claim_villager"}
+- 对跳/反指对方: {"type":"counter_claim","targetPlayerId":2,"claimedRole":"预言家"}
+
+【严禁】在 speech 文本中做出声明但在 claims 中省略——这会导致系统判定你说谎。
+【严禁】在 claims 中声明但 speech 文本未匹配——这会导致事实漂移。
+发言与 claims 必须一一对应。
+`;
+
+/**
  * 获取基础上下文（所有角色共用）
  */
 export const getBaseContext = (ctx) => `第${ctx.dayCount}天${ctx.phase}。

@@ -1,7 +1,7 @@
 /**
  * 导出游戏日志为 .txt 文件并触发下载
  */
-export function exportGameLog({ players, dayCount, deathHistory, speechHistory, voteHistory, seerChecks, guardHistory, witchHistory, victoryMode }) {
+export function exportGameLog({ players, dayCount, deathHistory, speechHistory, voteHistory, seerChecks, guardHistory, witchHistory, victoryMode, nightActionHistory = [] }) {
   const timestamp = new Date().toLocaleString('zh-CN');
   let logContent = `========================================\n`;
   logContent += `狼人杀游戏记录\n`;
@@ -69,6 +69,12 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
         const fromPlayer = players.find(p => p.id === vote.from);
         const toPlayer = players.find(p => p.id === vote.to);
         logContent += `  ${vote.from}号(${fromPlayer?.role || '?'}) -> ${vote.to}号(${toPlayer?.role || '?'})\n`;
+        if (vote.reasoning) {
+          logContent += `    📣 公开理由: ${vote.reasoning}\n`;
+        }
+        if (vote.thought) {
+          logContent += `    💭 思考过程: ${vote.thought}\n`;
+        }
       });
       const eliminated = players.find(p => p.id === v.eliminated);
       logContent += `  结果: ${v.eliminated}号 ${eliminated?.name || ''} (${eliminated?.role || '未知'}) 被放逐\n`;
@@ -121,6 +127,41 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
         return `${id}号(${p?.name || ''})`;
       }).join(', ')}\n`;
     }
+  }
+  logContent += `\n`;
+
+  // AI 夜间/行动决策思考过程（来自 nightActionHistory，覆盖所有角色每晚的思考）
+  logContent += `【AI 决策思考过程】\n`;
+  logContent += `----------------------------------------\n`;
+  if (!nightActionHistory || nightActionHistory.length === 0) {
+    logContent += `无决策记录\n`;
+  } else {
+    // 按 (night || day) 分组，时间轴还原
+    const groups = {};
+    nightActionHistory.forEach(a => {
+      const key = a.night != null
+        ? `第${a.night}夜`
+        : a.day != null
+          ? `第${a.day}天`
+          : '未知阶段';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(a);
+    });
+    Object.keys(groups).forEach(phaseKey => {
+      logContent += `\n--- ${phaseKey} ---\n`;
+      groups[phaseKey].forEach(a => {
+        const player = players.find(p => p.id === a.playerId);
+        const role = player?.role || '未知';
+        const name = player?.name || '';
+        const head = `[${a.playerId}号 ${name} (${role})] ${a.type || '行动'}`;
+        const desc = a.description ? ` · ${a.description}` : (a.target != null ? ` · 目标 ${a.target}号` : '');
+        const extra = a.result ? ` · 结果：${a.result}` : '';
+        logContent += `${head}${desc}${extra}\n`;
+        if (a.thought) {
+          logContent += `  💭 思考过程: ${a.thought}\n`;
+        }
+      });
+    });
   }
   logContent += `\n`;
 

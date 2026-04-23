@@ -47,3 +47,7 @@ npm-debug.log*
 
 # Local git worktrees
 .worktrees/
+.gstack/
+
+# Transient tool output (OPPO profiler, etc.)
+.tmp_*

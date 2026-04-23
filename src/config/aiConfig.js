@@ -2,25 +2,42 @@
 // NOTE: Do NOT hardcode API keys in source. Use Vite env vars instead.
 //
 // Supported providers:
-// - modelscope (legacy default)
-// - siliconflow
-export const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || 'modelscope';
+// - modelscope (legacy default, OpenAI-format)
+// - siliconflow (OpenAI-format)
+// - minimax    (Anthropic-format via /anthropic/v1/messages)
+//
+// 本地开发优先：如果定义了 VITE_MINIMAX_API_KEY，默认切换到 minimax
+const HAS_MINIMAX_KEY = !!import.meta.env.VITE_MINIMAX_API_KEY;
+export const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || (HAS_MINIMAX_KEY ? 'minimax' : 'modelscope');
 
 // Provider-specific keys
-export const MODELSCOPE_API_KEY = import.meta.env.VITE_API_KEY || '';
+export const MODELSCOPE_API_KEY  = import.meta.env.VITE_API_KEY || '';
 export const SILICONFLOW_API_KEY = import.meta.env.VITE_SILICONFLOW_API_KEY || '';
+export const MINIMAX_API_KEY     = import.meta.env.VITE_MINIMAX_API_KEY || '';
 
 // Provider-specific URLs
-export const MODELSCOPE_API_URL = import.meta.env.VITE_API_URL || 'https://api-inference.modelscope.cn/v1/chat/completions';
+export const MODELSCOPE_API_URL  = import.meta.env.VITE_API_URL || 'https://api-inference.modelscope.cn/v1/chat/completions';
 export const SILICONFLOW_API_URL = import.meta.env.VITE_SILICONFLOW_API_URL || 'https://api.siliconflow.cn/v1/chat/completions';
+export const MINIMAX_API_URL     = import.meta.env.VITE_MINIMAX_API_URL || 'https://api.minimaxi.com/anthropic/v1/messages';
+export const MINIMAX_IMAGE_API_URL = import.meta.env.VITE_MINIMAX_IMAGE_API_URL || 'https://api.minimaxi.com/v1/image_generation';
 
 // Back-compat exports used by the app
-export const API_KEY = AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_KEY : MODELSCOPE_API_KEY;
-export const API_URL = AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_URL : MODELSCOPE_API_URL;
+export const API_KEY =
+  AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_KEY :
+  AI_PROVIDER === 'minimax'     ? MINIMAX_API_KEY :
+  MODELSCOPE_API_KEY;
+
+export const API_URL =
+  AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_URL :
+  AI_PROVIDER === 'minimax'     ? MINIMAX_API_URL :
+  MODELSCOPE_API_URL;
 
 // Warn if API key is missing (development aid)
 if (!API_KEY && typeof window !== 'undefined') {
-  const hint = AI_PROVIDER === 'siliconflow' ? 'VITE_SILICONFLOW_API_KEY' : 'VITE_API_KEY';
+  const hint =
+    AI_PROVIDER === 'siliconflow' ? 'VITE_SILICONFLOW_API_KEY' :
+    AI_PROVIDER === 'minimax'     ? 'VITE_MINIMAX_API_KEY' :
+    'VITE_API_KEY';
   console.warn(`[Config] ${hint} is not set. Please check your env vars.`);
 }
 
@@ -299,9 +316,27 @@ export const SILICONFLOW_FALLBACK_MODELS = [
   }
 ];
 
+// ============================================
+// MiniMax 模型（Anthropic 兼容端点）
+// 端点：https://api.minimaxi.com/anthropic/v1/messages
+// 请求体格式：Anthropic（system 顶层、messages + max_tokens 必填）
+// 注意：国内平台 platform.minimaxi.com 当前可用模型是 MiniMax-M2
+// ============================================
+export const MINIMAX_MODELS = [
+  {
+    id: 'MiniMax-M2',
+    name: 'MiniMax-M2',
+    options: { temperature: 0.7, top_p: 0.95, max_tokens: 4096 },
+    isThinking: true,
+  },
+];
+
 // 合并的模型列表 (兼容原有代码)
-// Thinking models 优先，用于角色扮演
-export const AI_MODELS = [...THINKING_MODELS, ...INSTRUCT_MODELS];
+// MiniMax 提供商：只使用 MiniMax 模型池
+// 其他提供商：Thinking models 优先，用于角色扮演
+export const AI_MODELS = AI_PROVIDER === 'minimax'
+  ? MINIMAX_MODELS
+  : [...THINKING_MODELS, ...INSTRUCT_MODELS];
 
 // ============================================
 // 润色模型分池（行为树决策 + LLM 润色双层架构用）

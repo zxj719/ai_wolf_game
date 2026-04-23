@@ -1,3 +1,5 @@
+import { enforceWolfCapOnTable, computeInvariants } from './gameInvariants.js';
+
 const UNKNOWN_ROLE = '未知';
 
 const getRoleCountsFromSetup = (gameSetup) => {
@@ -128,6 +130,14 @@ export const sanitizeIdentityTable = (identityTable, { players = [], gameSetup =
     sanitized[normalizedKey] = next;
     if (normalizedKey !== rawKey) changed = true;
   });
+
+  // 柱四：狼人数上限裁剪
+  // players 自身即是 state 切片够用；computeInvariants 只读 players/deathHistory
+  const { wolfCap } = computeInvariants({ players, deathHistory: [] });
+  const capped = enforceWolfCapOnTable(sanitized, wolfCap);
+  if (capped.changed) {
+    return { identityTable: capped.identityTable, changed: true };
+  }
 
   return { identityTable: sanitized, changed };
 };

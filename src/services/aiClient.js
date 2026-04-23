@@ -98,6 +98,42 @@ export const resetAbortController = () => {
   globalAbortController = new AbortController();
 };
 
+/**
+ * 判定端点是否为 Anthropic 兼容（MiniMax /anthropic/v1/messages 等）
+ */
+const isAnthropicEndpoint = (url) => /\/anthropic\/v\d+\/messages/.test(String(url || ''));
+
+/**
+ * 构造 Anthropic 格式请求体：system 顶层、messages 只含 user/assistant、max_tokens 必填
+ * 把 modelConfig.options 里可映射的字段原样透传（temperature/top_p/max_tokens）
+ */
+const buildAnthropicPayload = (modelConfig, systemInstruction, prompt) => {
+  const opts = modelConfig.options || {};
+  // 禁止把 OpenAI 专属字段泄进来（response_format/extra_body 等）
+  const { temperature, top_p, max_tokens = 4096, top_k } = opts;
+  const payload = {
+    model: modelConfig.id,
+    system: systemInstruction,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens,
+  };
+  if (typeof temperature === 'number') payload.temperature = temperature;
+  if (typeof top_p === 'number') payload.top_p = top_p;
+  if (typeof top_k === 'number') payload.top_k = top_k;
+  return payload;
+};
+
+/**
+ * 从 Anthropic 响应中抽文本：content 是数组，取 type=text 的 text 字段
+ */
+const extractAnthropicContent = (result) => {
+  const blocks = Array.isArray(result?.content) ? result.content : [];
+  return blocks
+    .filter(b => b && b.type === 'text' && typeof b.text === 'string')
+    .map(b => b.text)
+    .join('\n');
+};
+
 export const fetchLLM = async (
   { player, prompt, systemInstruction, retries = 3, backoff = 2000, forcedModelIndex = null, signal = null },
   { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
@@ -125,6 +161,7 @@ export const fetchLLM = async (
   }
 
   const modelConfig = AI_MODELS[modelIndex];
+  const useAnthropic = isAnthropicEndpoint(API_URL);
 
   let requestOptions = { ...modelConfig.options };
   if (requestOptions.extra_body) {
@@ -132,23 +169,28 @@ export const fetchLLM = async (
     requestOptions = { ...rest, ...extra_body };
   }
 
-  const payload = {
-    model: modelConfig.id,
-    messages: [
-      { role: 'system', content: systemInstruction },
-      { role: 'user', content: prompt }
-    ],
-    ...requestOptions
+  const payload = useAnthropic
+    ? buildAnthropicPayload(modelConfig, systemInstruction, prompt)
+    : {
+        model: modelConfig.id,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: prompt }
+        ],
+        ...requestOptions
+      };
+
+  // MiniMax Anthropic-compat endpoint 不要求 anthropic-version 头
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${API_KEY}`,
   };
 
   const startTime = Date.now();
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${API_KEY}`
-      },
+      headers,
       body: JSON.stringify(payload),
       signal: abortSignal
     });
@@ -164,7 +206,9 @@ export const fetchLLM = async (
     }
     const result = await response.json();
 
-    const content = result.choices?.[0]?.message?.content;
+    const content = useAnthropic
+      ? extractAnthropicContent(result)
+      : result.choices?.[0]?.message?.content;
     const parsed = safeParseJSON(content);
 
     if (!parsed) {

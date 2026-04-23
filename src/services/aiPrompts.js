@@ -9,6 +9,8 @@ import {
     detectExistingRoles,
     getRoleModule
 } from './rolePrompts';
+// 柱三：结构化 claims schema，追加到所有 DAY_SPEECH 提示词末尾
+import { CLAIMS_SCHEMA_SUFFIX } from './rolePrompts/baseRules';
 
 // --- CONSTANTS ---
 export const PROMPT_ACTIONS = {
@@ -1079,8 +1081,8 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                 gameSetup: gameState.gameSetup
             };
 
-            // 返回角色特定的提示词
-            return rolePromptGenerator(ctx, roleParams);
+            // 返回角色特定的提示词 + 结构化 claims schema（柱三）
+            return rolePromptGenerator(ctx, roleParams) + CLAIMS_SCHEMA_SUFFIX;
 
         case PROMPT_ACTIONS.NIGHT_GUARD:
             const { cannotGuard } = params;

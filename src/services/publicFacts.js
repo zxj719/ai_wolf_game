@@ -9,6 +9,7 @@
  * 注入 prompt 头部并附带"只允许基于这些事实推理"指令。
  * AI 不再需要从发言记录里自行提取公共信息。
  */
+import { renderInvariantFacts } from './gameInvariants.js';
 
 /**
  * 构建权威公共事实块
@@ -17,7 +18,7 @@
  * @returns {string}          结构化文本，可直接拼入 prompt
  */
 export function buildPublicFacts(gameState, player) {
-  const { players, deathHistory, voteHistory, speechHistory, dayCount, phase } = gameState;
+  const { players, deathHistory, voteHistory, speechHistory, claimHistory, dayCount, phase } = gameState;
 
   const alive = players.filter(p => p.isAlive);
   const dead = players.filter(p => !p.isAlive);
@@ -78,8 +79,11 @@ export function buildPublicFacts(gameState, player) {
     sections.push(`【投票记录】\n${voteLines.join('\n')}`);
   }
 
-  // ── 5. 公开声明摘要（从 speechHistory 提取 claim 类型，不含原始内容）──
-  const claims = extractPublicClaims(speechHistory, dayCount);
+  // ── 5. 公开声明摘要 ──
+  // 柱三：优先读结构化 claimHistory；若为空（旧存档/首局冷启动）降级到正则 NLP
+  const claims = (Array.isArray(claimHistory) && claimHistory.length > 0)
+    ? formatStructuredClaims(claimHistory)
+    : extractPublicClaims(speechHistory, dayCount);
   if (claims.length > 0) {
     sections.push(`【公开声明】${claims.join('; ')}`);
   }
@@ -88,6 +92,12 @@ export function buildPublicFacts(gameState, player) {
   const privateInfo = buildPrivateInfo(gameState, player);
   if (privateInfo) {
     sections.push(`【你的私有信息】${privateInfo}`);
+  }
+
+  // ── 7. 柱四：全局不变量（剩余狼上限、残局模式、狼多警告）──
+  const invariantBlock = renderInvariantFacts(gameState);
+  if (invariantBlock) {
+    sections.push(invariantBlock);
   }
 
   // ── 组装 + 指令 ──
@@ -99,8 +109,50 @@ ${sections.join('\n')}
 }
 
 /**
- * 从 speechHistory 提取公开声明（跳预言家、跳女巫等）
- * 只提取声明类事件，不提取发言原文
+ * 柱三：格式化结构化声明事件（从 claimHistory）
+ * 每条 claim 形如 { day, playerId, type, payload }
+ */
+function formatStructuredClaims(claimHistory) {
+  const roleNameMap = {
+    jump_seer: '预言家',
+    jump_witch: '女巫',
+    jump_guard: '守卫',
+    jump_hunter: '猎人',
+    jump_knight: '骑士',
+    jump_dreamweaver: '摄梦人',
+    jump_magician: '魔术师',
+    claim_villager: '村民',
+  };
+  const lines = [];
+  for (const c of claimHistory) {
+    const base = `${c.playerId}号(D${c.day})`;
+    if (roleNameMap[c.type]) {
+      let detail = `声称是${roleNameMap[c.type]}`;
+      const p = c.payload || {};
+      if (c.type === 'jump_seer' && Array.isArray(p.checks) && p.checks.length > 0) {
+        const checksStr = p.checks.map(ck =>
+          `N${ck.night}查${ck.targetId}=${ck.isWolf ? '狼' : '好'}`
+        ).join(',');
+        detail += `【${checksStr}】`;
+      } else if (c.type === 'jump_witch') {
+        const parts = [];
+        if (p.antidoteUsed) parts.push(`救${p.antidoteTarget ?? '?'}`);
+        if (p.poisonUsed) parts.push(`毒${p.poisonTarget ?? '?'}`);
+        if (parts.length) detail += `【${parts.join(',')}】`;
+      } else if (c.type === 'jump_guard' && p.lastGuardTarget != null) {
+        detail += `【守${p.lastGuardTarget}】`;
+      }
+      lines.push(`${base}${detail}`);
+    } else if (c.type === 'counter_claim') {
+      lines.push(`${base}反指${c.payload?.targetPlayerId}号是${c.payload?.claimedRole || '狼'}`);
+    }
+  }
+  return lines;
+}
+
+/**
+ * 旧版：从 speechHistory 提取公开声明（跳预言家、跳女巫等）
+ * 保留作为降级路径；主路径走 formatStructuredClaims
  */
 function extractPublicClaims(speechHistory, dayCount) {
   const claims = [];

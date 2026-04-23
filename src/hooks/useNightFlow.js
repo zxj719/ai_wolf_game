@@ -18,7 +18,6 @@ export function useNightFlow({
   setPlayers,
   gameMode,
   addLog,
-  addCurrentPhaseAction,
   updateActionResult,
   ROLE_DEFINITIONS,
   setPhase,
@@ -53,6 +52,9 @@ export function useNightFlow({
   userPlayer,
   gameActiveRef,
   speechHistory,
+  // 柱一：幂等原子 action
+  killPlayer,
+  recordNightAction,
 }) {
 
   // --- proceedNight ---
@@ -180,19 +182,20 @@ export function useNightFlow({
 
     const uniqueDeads = [...new Set(deadIds)];
 
-    // 记录死亡历史（幂等：跳过本轮已有的 playerId+day 重复条目）
-    const existingKeys = new Set(deathHistory.map(d => `${d.day}-${d.playerId}`));
-    const deathRecords = uniqueDeads
-      .filter(id => !existingKeys.has(`${dayCount}-${id}`))
-      .map(id => ({
+    // 柱一：每个死亡独立走原子 killPlayer（reducer 内幂等：已有死亡记录的 playerId 自动 no-op）
+    uniqueDeads.forEach(id => {
+      killPlayer({
+        playerId: id,
         day: dayCount,
         phase: '夜',
-        playerId: id,
-        cause: deathReasons[id] || '死亡'
-      }));
-    setDeathHistory([...deathHistory, ...deathRecords]);
+        cause: deathReasons[id] || '死亡',
+      });
+    });
 
-    // 更新玩家状态
+    // 更新玩家额外属性（女巫药水消耗、中毒标记、猎人开枪许可）
+    // isAlive 已由 killPlayer 原子更新；此 setPlayers 只负责携带非 isAlive 字段的变化
+    // 注意：这里读取 players 是闭包快照，但 killPlayer 已先 dispatch 完成 isAlive 更新，
+    // 两步 dispatch 顺序由 React 批处理保证不会撕裂（同一 tick 内串行 apply）
     let updatedPlayers = players.map(p => {
       let newP = { ...p };
 
@@ -346,7 +349,7 @@ export function useNightFlow({
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 守卫守护了 ${res.targetId}号`, 'system');
             }
-            addCurrentPhaseAction({
+            recordNightAction({
               playerId: actor.id,
               type: '守护',
               target: res.targetId,
@@ -392,7 +395,7 @@ export function useNightFlow({
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 魔术师交换了 ${res.player1Id}号 和 ${res.player2Id}号`, 'system');
             }
-            addCurrentPhaseAction({
+            recordNightAction({
               playerId: actor.id,
               type: '交换',
               target: `${res.player1Id}-${res.player2Id}`,
@@ -442,7 +445,7 @@ export function useNightFlow({
               const modeText = res.dreamMode === 'defense' ? '防御' : res.dreamMode === 'offense' ? '进攻' : '殉情';
               addLog(`[${actor.id}号] 摄梦人入梦 ${res.dreamTarget}号（${modeText}模式）`, 'system');
             }
-            addCurrentPhaseAction({
+            recordNightAction({
               playerId: actor.id,
               type: '入梦',
               target: res.dreamTarget,
@@ -499,7 +502,7 @@ export function useNightFlow({
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 狼人选择袭击 ${res.targetId}号`, 'system');
           }
-          addCurrentPhaseAction({
+          recordNightAction({
             playerId: actor.id,
             type: '袭击',
             target: res.targetId,
@@ -517,7 +520,7 @@ export function useNightFlow({
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 狼人选择袭击 ${fallbackTarget}号`, 'system');
             }
-            addCurrentPhaseAction({
+            recordNightAction({
               playerId: actor.id,
               type: '袭击',
               target: fallbackTarget,
@@ -576,7 +579,7 @@ export function useNightFlow({
               if (gameMode === 'ai-only') {
                 addLog(`[${actor.id}号] 预言家查验了 ${originalTarget}号，结果是${isWolf ? '狼人' : '好人'}`, 'system');
               }
-              addCurrentPhaseAction({
+              recordNightAction({
                 playerId: actor.id,
                 type: '查验',
                 target: originalTarget,
@@ -643,7 +646,7 @@ export function useNightFlow({
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 女巫使用解药救了 ${dyingId}号`, 'system');
             }
-            addCurrentPhaseAction({
+            recordNightAction({
               playerId: actor.id,
               type: '解药',
               target: dyingId,
@@ -665,7 +668,7 @@ export function useNightFlow({
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 女巫使用毒药毒了 ${res.usePoison}号`, 'system');
             }
-            addCurrentPhaseAction({
+            recordNightAction({
               playerId: actor.id,
               type: '毒药',
               target: res.usePoison,

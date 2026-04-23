@@ -38,6 +38,10 @@ const initialState = {
   deathHistory: [],
   // 新增：夜间行动历史，用于记录每个角色的夜间行动和思考过程
   nightActionHistory: [],
+  // 柱三：结构化声明事件流（替代 publicFacts 的正则 NLP 提取）
+  // 每条记录形如 { day, playerId, type: 'jump_seer'|'jump_witch'|..., payload: {...} }
+  // reducer 按 (day, playerId, type) 去重，first-write-wins
+  claimHistory: [],
   // 新增：当前阶段的发言/行动（用于显示在气泡中）
   currentPhaseData: {
     speeches: [],
@@ -84,6 +88,13 @@ const types = {
   SET_PENDING_HUNTER_SHOOT: 'SET_PENDING_HUNTER_SHOOT',
   // 更新夜间行动结果（用于显示袭击是否成功）
   UPDATE_ACTION_RESULT: 'UPDATE_ACTION_RESULT',
+  // 柱一：幂等原子写入
+  KILL_PLAYER: 'KILL_PLAYER',                 // 原子：players.isAlive=false + deathHistory.append
+  RECORD_VOTE_ROUND: 'RECORD_VOTE_ROUND',     // 按 day 去重，first-write-wins
+  RECORD_SPEECH: 'RECORD_SPEECH',             // 按 (day, playerId) 去重
+  RECORD_NIGHT_ACTION: 'RECORD_NIGHT_ACTION', // 按 (night||day, playerId, type) 去重
+  // 柱三：结构化声明事件
+  RECORD_CLAIM: 'RECORD_CLAIM',               // 按 (day, playerId, type) 去重
 };
 
 function reducer(state, action) {
@@ -136,13 +147,12 @@ function reducer(state, action) {
       return { ...state, voteHistory: apply('voteHistory', action.payload) };
     case types.SET_DEATH_HISTORY: {
       // ── 死亡记录幂等硬约束 ──
-      // 同一 (day, playerId) 只允许一条记录，后续重复写入被静默丢弃
+      // 不变量：一个 playerId 只能死一次（全局唯一），first-write-wins
       const rawDeaths = apply('deathHistory', action.payload);
       const deathSeen = new Set();
       const dedupedDeaths = rawDeaths.filter(d => {
-        const key = `${d.day}-${d.playerId}`;
-        if (deathSeen.has(key)) return false;
-        deathSeen.add(key);
+        if (deathSeen.has(d.playerId)) return false;
+        deathSeen.add(d.playerId);
         return true;
       });
       return { ...state, deathHistory: dedupedDeaths };
@@ -197,6 +207,96 @@ function reducer(state, action) {
     // 任务1：猎人延迟开枪
     case types.SET_PENDING_HUNTER_SHOOT:
       return { ...state, pendingHunterShoot: action.payload };
+    // ── 柱一：KILL_PLAYER 原子写入 ──
+    // 不变量：
+    //   1) 死亡记录按 playerId 全局唯一（first-write-wins）
+    //   2) 改 isAlive 与写 deathHistory 同一 dispatch 完成，不可撕裂
+    //   3) 若 player 已 isAlive=false 或 deathHistory 已存在该 playerId，整体 no-op
+    case types.KILL_PLAYER: {
+      const { playerId, day, phase, cause } = action.payload;
+      const already = state.deathHistory.some(d => d.playerId === playerId);
+      const targetPlayer = state.players.find(p => p.id === playerId);
+      if (already || !targetPlayer || !targetPlayer.isAlive) {
+        return state; // no-op，保持状态
+      }
+      return {
+        ...state,
+        players: state.players.map(p =>
+          p.id === playerId ? { ...p, isAlive: false } : p
+        ),
+        deathHistory: [...state.deathHistory, { playerId, day, phase, cause }],
+      };
+    }
+    // ── 柱一：RECORD_VOTE_ROUND 幂等写入 ──
+    // 不变量：同一 day 的投票轮只能记录一次（first-write-wins）
+    case types.RECORD_VOTE_ROUND: {
+      const { day, votes, eliminatedId } = action.payload;
+      if (state.voteHistory.some(v => v.day === day)) {
+        return state; // 本日已记录，拒绝重写
+      }
+      return {
+        ...state,
+        voteHistory: [...state.voteHistory, {
+          day,
+          votes: votes || [],
+          eliminated: eliminatedId ?? null,
+        }],
+      };
+    }
+    // ── 柱一：RECORD_SPEECH 幂等写入 ──
+    // 不变量：(day, playerId) 唯一（first-write-wins）
+    case types.RECORD_SPEECH: {
+      const entry = action.payload;
+      if (state.speechHistory.some(s => s.day === entry.day && s.playerId === entry.playerId)) {
+        return state;
+      }
+      return { ...state, speechHistory: [...state.speechHistory, entry] };
+    }
+    // ── 柱一：RECORD_NIGHT_ACTION 幂等写入 ──
+    // 不变量：(night||day, playerId, type) 唯一（first-write-wins）
+    // 同步写入 currentPhaseData.actions 与 nightActionHistory（与 ADD_CURRENT_PHASE_ACTION 一致）
+    case types.RECORD_NIGHT_ACTION: {
+      const entry = action.payload;
+      const bucket = entry.night ?? entry.day;
+      const dup = state.nightActionHistory.some(a =>
+        (a.night ?? a.day) === bucket &&
+        a.playerId === entry.playerId &&
+        a.type === entry.type
+      );
+      if (dup) return state;
+      const shouldPersist = (entry.night !== undefined && entry.night !== null) || entry.persist;
+      return {
+        ...state,
+        currentPhaseData: {
+          ...state.currentPhaseData,
+          actions: [...state.currentPhaseData.actions, entry],
+        },
+        nightActionHistory: shouldPersist
+          ? [...state.nightActionHistory, entry]
+          : state.nightActionHistory,
+      };
+    }
+    // ── 柱三：RECORD_CLAIM 结构化声明幂等写入 ──
+    // 不变量：(day, playerId, type) 唯一（first-write-wins）。
+    // type 为 'jump_seer' / 'jump_witch' / 'counter_claim' 等；payload 承载角色专属字段。
+    case types.RECORD_CLAIM: {
+      const entry = action.payload;
+      if (entry == null || entry.playerId == null || !entry.type) return state;
+      const dup = state.claimHistory.some(c =>
+        c.day === entry.day && c.playerId === entry.playerId && c.type === entry.type
+      );
+      if (dup) return state;
+      return {
+        ...state,
+        claimHistory: [...state.claimHistory, {
+          day: entry.day,
+          playerId: entry.playerId,
+          type: entry.type,
+          payload: entry.payload ?? {},
+          timestamp: entry.timestamp ?? Date.now(),
+        }],
+      };
+    }
     // 更新夜间行动结果（如袭击成功/失败）
     case types.UPDATE_ACTION_RESULT: {
       const { night, type, playerId, result, resultDescription } = action.payload;
@@ -273,6 +373,13 @@ export function useWerewolfGame(config) {
   });
   // 任务1：猎人延迟开枪
   const setPendingHunterShoot = (value) => dispatch({ type: types.SET_PENDING_HUNTER_SHOOT, payload: value });
+  // ── 柱一：幂等原子 action 的 dispatcher ──
+  const killPlayer = (payload) => dispatch({ type: types.KILL_PLAYER, payload });
+  const recordVoteRound = (payload) => dispatch({ type: types.RECORD_VOTE_ROUND, payload });
+  const recordSpeech = (payload) => dispatch({ type: types.RECORD_SPEECH, payload });
+  const recordNightAction = (payload) => dispatch({ type: types.RECORD_NIGHT_ACTION, payload });
+  // ── 柱三：结构化声明事件 dispatcher ──
+  const recordClaim = (payload) => dispatch({ type: types.RECORD_CLAIM, payload });
   // 更新夜间行动结果（如袭击成功/失败）
   const updateActionResult = (night, type, playerId, result, resultDescription) => dispatch({
     type: types.UPDATE_ACTION_RESULT,
@@ -420,5 +527,12 @@ export function useWerewolfGame(config) {
     setPendingHunterShoot,
     // 更新行动结果
     updateActionResult,
+    // 柱一：幂等原子 action
+    killPlayer,
+    recordVoteRound,
+    recordSpeech,
+    recordNightAction,
+    // 柱三：结构化声明事件
+    recordClaim,
   };
 }

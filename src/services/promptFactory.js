@@ -19,6 +19,7 @@ import {
   isMiniGame,
   isLargeGame
 } from './rolePrompts';
+import { CLAIMS_SCHEMA_SUFFIX } from './rolePrompts/baseRules';
 
 /**
  * 构建渐进式人格提示词
@@ -224,7 +225,8 @@ export const getProgressiveActionPrompt = (actionType, player, gameState, params
     case 'DAY_SPEECH':
       if (roleModule.daySpeech) {
         const ctx = gameState?.context || {};
-        return roleModule.daySpeech(ctx, enhancedParams);
+        // 柱三：所有角色的 DAY_SPEECH 统一追加 claims 结构化 schema
+        return roleModule.daySpeech(ctx, enhancedParams) + CLAIMS_SCHEMA_SUFFIX;
       }
       break;
 
