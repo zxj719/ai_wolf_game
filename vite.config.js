@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/.worktrees/**'],
   },
   build: {
     // 使用 esbuild 压缩 (Vite 内置，无需额外安装)

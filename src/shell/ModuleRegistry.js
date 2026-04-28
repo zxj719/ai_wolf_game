@@ -28,8 +28,9 @@ import home from '../modules/home';
 import auth from '../modules/auth';
 import werewolf from '../modules/werewolf';
 import sites from '../modules/sites';
+import novel from '../modules/novel';
 
-const modules = [home, auth, werewolf, sites];
+const modules = [home, auth, werewolf, novel, sites];
 
 export default modules;
 

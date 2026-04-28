@@ -41,6 +41,14 @@ import { buildPolishSystemPrompt, buildPolishUserPrompt } from '../src/services/
 // ── 游戏日志 ──────────────────────────────────────────────
 import { createGame, logDecision, logSpeech, endGame,
          statsByVersion, exportGames } from './db.js';
+import {
+  getCodexJob,
+  getNovelChapter,
+  getNovelProject,
+  listNovelProjects,
+  resolveNovelWorkspaceRoot,
+  startCodexGeneration,
+} from './novelWorkspace.js';
 
 // ── 行为树路由表 ──────────────────────────────────────────
 const TREE_REGISTRY = {
@@ -293,6 +301,63 @@ app.get('/bt/export', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// 小说工作台。Cloudflare Worker 会在 /api/novel/* 做鉴权后代理到这里。
+app.get('/novel/projects', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    res.json({ success: true, projects: listNovelProjects(workspaceRoot) });
+  } catch (err) {
+    console.error('[Novel projects]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/novel/projects/:project/chapters/:chapter', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    const chapter = getNovelChapter(workspaceRoot, req.params.project, req.params.chapter);
+    res.json({ success: true, chapter });
+  } catch (err) {
+    console.error('[Novel chapter]', err.message);
+    res.status(err.message.includes('not found') ? 404 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/novel/projects/:project', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    const project = getNovelProject(workspaceRoot, req.params.project);
+    res.json({ success: true, project });
+  } catch (err) {
+    console.error('[Novel project]', err.message);
+    res.status(err.message.includes('not found') ? 404 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/novel/projects/:project/generate', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    const job = startCodexGeneration({
+      workspaceRoot,
+      projectName: req.params.project,
+      guidance: typeof req.body?.guidance === 'string' ? req.body.guidance : '',
+    });
+    res.status(202).json({ success: true, job });
+  } catch (err) {
+    console.error('[Novel generate]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/novel/jobs/:jobId', (req, res) => {
+  const job = getCodexJob(req.params.jobId);
+  if (!job) {
+    res.status(404).json({ success: false, error: 'Job not found' });
+    return;
+  }
+  res.json({ success: true, job });
 });
 
 // ── 启动 ─────────────────────────────────────────────────

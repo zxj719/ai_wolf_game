@@ -33,6 +33,7 @@ export default function HomeRoute() {
   }, [user, isGuestMode, navigate, enterGuestMode]);
 
   const onEnterSites = useCallback(() => navigate(ROUTES.SITES), [navigate]);
+  const onEnterNovel = useCallback(() => navigate(ROUTES.NOVEL), [navigate]);
   const onLogin = useCallback(() => {
     if (isGuestMode) {
       setIsGuestMode(false);
@@ -53,6 +54,7 @@ export default function HomeRoute() {
           locale={locale}
           onEnterWolfgame={onEnterWolfgame}
           onEnterSites={onEnterSites}
+          onEnterNovel={onEnterNovel}
           onLogout={handleLogout}
           isGuestMode={isGuestMode}
           onLogin={onLogin}

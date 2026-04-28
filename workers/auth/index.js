@@ -9,6 +9,7 @@ import {
   handleGetChordsArtifact,
   handleGetChordsJob,
 } from './chords.js';
+import { handleNovelProxy } from './novel.js';
 import {
   handleRegister,
   handleLogin,
@@ -154,6 +155,10 @@ export default {
 
       if (path === '/api/model-leaderboard' && request.method === 'GET') {
         return handleGetModelLeaderboard(request, env);
+      }
+
+      if (path.startsWith('/api/novel/') && ['GET', 'POST'].includes(request.method)) {
+        return handleNovelProxy(request, env, path);
       }
 
       // 头像相关（公开接口）

@@ -1,10 +1,10 @@
 /**
- * PM2 生态配置文件
+ * PM2 production config.
  *
- * 在 ECS 上启动：
+ * On ECS:
  *   pm2 start ecosystem.config.cjs
  *   pm2 save
- *   pm2 startup   # 设置开机自启
+ *   pm2 startup
  */
 module.exports = {
   apps: [
@@ -20,10 +20,12 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3001,
         ALLOWED_ORIGIN: 'https://zhaxiaoji.com',
-        // 从 /var/www/wolfgame/server/.env 读取 secrets
-        // 也可直接在这里写入（不推荐提交到 git）
+        NOVEL_WORKSPACE_DIR: '/var/www/novel_generator/meta_writing',
+        CODEX_HOME: '/home/www/.codex',
+        NOVEL_CODEX_ARGS: 'exec --full-auto --skip-git-repo-check',
+        // OPENAI_API_KEY / CRS_API_KEY must be provided by the host environment.
+        // Do not commit the live cr_ key.
       },
-      // 日志路径
       out_file: '/var/log/wolfgame/bt-server-out.log',
       error_file: '/var/log/wolfgame/bt-server-err.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',

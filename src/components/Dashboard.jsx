@@ -13,6 +13,7 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  PenLine,
   Ticket,
   Trophy,
   User,
@@ -45,6 +46,7 @@ function UtilityButton({ icon: Icon, title, description, onClick }) {
 export function Dashboard({
   onEnterWolfgame,
   onEnterSites,
+  onEnterNovel,
   onLogout,
   isGuestMode = false,
   onLogin,
@@ -216,6 +218,12 @@ export function Dashboard({
                   <Globe size={16} />
                   {copy.enterSites}
                 </button>
+                {isLoggedIn && !isGuestMode && (
+                  <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
+                    <PenLine size={16} />
+                    小说工作台
+                  </button>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">

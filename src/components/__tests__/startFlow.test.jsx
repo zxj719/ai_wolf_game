@@ -18,6 +18,11 @@ vi.mock('../../services/authService.js', () => ({
   },
 }));
 
+vi.mock('../../config/aiConfig.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  API_KEY: '',
+}));
+
 vi.mock('../TokenManager.jsx', () => ({
   TokenManager: () => React.createElement('div', { 'data-testid': 'token-manager' }, 'token manager'),
 }));
