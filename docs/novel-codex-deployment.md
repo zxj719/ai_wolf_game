@@ -1,5 +1,8 @@
 # Novel Codex Deployment
 
+For the full deployment troubleshooting record and lessons learned, see
+[`novel-deployment-postmortem.md`](./novel-deployment-postmortem.md).
+
 This site exposes the novel workspace through:
 
 - Frontend route: `/novel`
@@ -276,6 +279,78 @@ ECS_NOVEL_URL = "https://novel.zhaxiaoji.com"
 
 Keep the public API base on the frontend as `https://zhaxiaoji.com` or same-origin. Do not use `*.workers.dev` for production.
 
+If Worker proxying to `https://bt.zhaxiaoji.com` returns Cloudflare `525`, avoid Cloudflare-to-Cloudflare origin fetches. Create a DNS-only origin hostname and point the Worker to that:
+
+1. Add a Cloudflare DNS record:
+
+```text
+Type: A
+Name: origin-bt
+Content: <ECS public IP>
+Proxy status: DNS only
+```
+
+When proxy environment variables are set on the ECS host, do not use plain `curl ifconfig.me` to discover the ECS public IP; it may show the proxy exit IP. Use Aliyun metadata or bypass proxy explicitly:
+
+```bash
+curl --noproxy '*' -s http://100.100.100.200/latest/meta-data/eipv4
+curl --noproxy '*' -s http://100.100.100.200/latest/meta-data/public-ipv4
+curl --noproxy '*' -4 ifconfig.me
+```
+
+Also bypass proxy when testing the DNS-only origin hostname from the ECS host:
+
+```bash
+curl --noproxy '*' http://origin-bt.zhaxiaoji.com/health
+curl --noproxy '*' http://origin-bt.zhaxiaoji.com/novel/projects
+getent hosts origin-bt.zhaxiaoji.com
+```
+
+2. Add an nginx HTTP server for that origin hostname:
+
+```nginx
+server {
+    listen 80;
+    server_name origin-bt.zhaxiaoji.com;
+
+    location /novel/ {
+        proxy_pass http://127.0.0.1:3001/novel/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:3001/health;
+    }
+}
+```
+
+3. Reload nginx and verify:
+
+```bash
+nginx -t
+systemctl reload nginx
+curl http://origin-bt.zhaxiaoji.com/novel/projects
+```
+
+4. Point Worker vars to the origin hostname:
+
+```toml
+[vars]
+ECS_BT_URL = "http://origin-bt.zhaxiaoji.com"
+ECS_NOVEL_URL = "http://origin-bt.zhaxiaoji.com"
+```
+
+Then redeploy:
+
+```bash
+npm exec -- wrangler deploy --assets ./dist
+```
+
 ## Runtime Behavior
 
 The browser starts generation with `POST /api/novel/projects/:project/generate`. The ECS server starts a Codex process in `novels/<project>` and immediately returns a job id. The browser polls `/api/novel/jobs/:jobId` and refreshes the project after completion.
@@ -355,4 +430,52 @@ Check the ECS backend can read the novels:
 
 ```bash
 curl http://127.0.0.1:3001/novel/projects
+```
+
+## Deploy Frontend And Worker
+
+On Linux / Aliyun ECS, use the cross-platform npm script:
+
+```bash
+cd /var/www/wolfgame
+export CLOUDFLARE_ACCOUNT_ID="82100d8ce7e9461a014fd5509570b4a6"
+npm run build
+npm run deploy
+```
+
+If an older checkout still has `npx.cmd` in `package.json`, deploy directly with:
+
+```bash
+npm exec -- wrangler deploy --assets ./dist
+```
+
+`npx.cmd` is Windows-only. It works in PowerShell but fails on Linux with `sh: line 1: npx.cmd: command not found`.
+
+If `wrangler whoami` works but deploy fails on `/memberships` with `Authentication failed (code: 9106)`, set `CLOUDFLARE_ACCOUNT_ID` explicitly so Wrangler does not need to infer the account from memberships:
+
+```bash
+export CLOUDFLARE_ACCOUNT_ID="82100d8ce7e9461a014fd5509570b4a6"
+export CLOUDFLARE_API_TOKEN="YOUR_TOKEN"
+npm exec -- wrangler deploy --assets ./dist
+```
+
+If local `127.0.0.1:3001/novel/projects` works but `https://bt.zhaxiaoji.com/novel/projects` returns the Vite HTML page, nginx is serving the frontend fallback instead of proxying the novel backend. Add a `/novel/` proxy location to the `bt.zhaxiaoji.com` nginx server block:
+
+```nginx
+location /novel/ {
+    proxy_pass http://127.0.0.1:3001/novel/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Keep the existing `/health` proxy if it already works. Then reload nginx:
+
+```bash
+nginx -t
+systemctl reload nginx
+curl -L https://bt.zhaxiaoji.com/novel/projects
 ```

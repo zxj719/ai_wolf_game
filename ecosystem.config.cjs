@@ -21,7 +21,7 @@ module.exports = {
         PORT: 3001,
         ALLOWED_ORIGIN: 'https://zhaxiaoji.com',
         NOVEL_WORKSPACE_DIR: '/var/www/novel_generator/meta_writing',
-        CODEX_HOME: '/home/www/.codex',
+        CODEX_HOME: '/root/.codex',
         NOVEL_CODEX_ARGS: 'exec --full-auto --skip-git-repo-check',
         // OPENAI_API_KEY / CRS_API_KEY must be provided by the host environment.
         // Do not commit the live cr_ key.

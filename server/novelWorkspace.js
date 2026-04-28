@@ -7,6 +7,8 @@ const PROJECT_NAME_RE = /^[\p{L}\p{N}._-]+$/u;
 const CHAPTER_ID_RE = /^[\p{L}\p{N}._-]+$/u;
 const DEFAULT_CODEX_ARGS = ['exec', '--full-auto', '--skip-git-repo-check'];
 const jobs = new Map();
+const MAX_JOB_TEXT_LENGTH = 40000;
+const MAX_JOB_MESSAGES = 120;
 
 export function resolveNovelWorkspaceRoot(env = process.env, cwd = process.cwd()) {
   return resolve(env.NOVEL_WORKSPACE_DIR || join(cwd, '..', 'novel_generator', 'meta_writing'));
@@ -181,6 +183,16 @@ function parseCodexArgs(rawArgs) {
   return rawArgs.match(/"[^"]+"|'[^']+'|\S+/g)?.map((part) => part.replace(/^['"]|['"]$/g, '')) || DEFAULT_CODEX_ARGS;
 }
 
+function appendJobMessage(job, message) {
+  job.messages.push({
+    at: new Date().toISOString(),
+    ...message,
+  });
+  if (job.messages.length > MAX_JOB_MESSAGES) {
+    job.messages = job.messages.slice(-MAX_JOB_MESSAGES);
+  }
+}
+
 export function startCodexGeneration({ workspaceRoot, projectName, guidance = '', env = process.env }) {
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
   const project = getNovelProject(workspaceRoot, projectName);
@@ -194,15 +206,29 @@ export function startCodexGeneration({ workspaceRoot, projectName, guidance = ''
     startedAt: new Date().toISOString(),
     finishedAt: null,
     exitCode: null,
+    guidance,
+    nextChapter: latestNumber + 1,
+    messages: [],
     output: '',
     error: '',
   };
+  appendJobMessage(job, {
+    role: 'user',
+    source: 'request',
+    content: guidance.trim() || `Generate chapter ${latestNumber + 1}.`,
+  });
+  appendJobMessage(job, {
+    role: 'assistant',
+    source: 'system',
+    content: `Starting Codex in ${projectDir}`,
+  });
   jobs.set(jobId, job);
 
   const codexBin = env.CODEX_BIN || 'codex';
   const codexArgs = [...parseCodexArgs(env.NOVEL_CODEX_ARGS), prompt];
   const child = spawn(codexBin, codexArgs, {
     cwd: projectDir,
+    stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...env,
       OPENAI_API_KEY: env.OPENAI_API_KEY || env.CODEX_API_KEY || env.CRS_API_KEY || '',
@@ -212,20 +238,30 @@ export function startCodexGeneration({ workspaceRoot, projectName, guidance = ''
   });
 
   child.stdout.on('data', (chunk) => {
-    job.output = `${job.output}${chunk.toString()}`.slice(-20000);
+    const content = chunk.toString();
+    job.output = `${job.output}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
+    appendJobMessage(job, { role: 'assistant', source: 'stdout', content });
   });
   child.stderr.on('data', (chunk) => {
-    job.error = `${job.error}${chunk.toString()}`.slice(-20000);
+    const content = chunk.toString();
+    job.error = `${job.error}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
+    appendJobMessage(job, { role: 'assistant', source: 'stderr', content });
   });
   child.on('error', (error) => {
     job.status = 'failed';
     job.finishedAt = new Date().toISOString();
     job.error = `${job.error}\n${error.message}`.trim();
+    appendJobMessage(job, { role: 'assistant', source: 'error', content: error.message });
   });
   child.on('close', (code) => {
     job.status = code === 0 ? 'completed' : 'failed';
     job.exitCode = code;
     job.finishedAt = new Date().toISOString();
+    appendJobMessage(job, {
+      role: 'assistant',
+      source: 'system',
+      content: code === 0 ? 'Codex finished successfully.' : `Codex exited with code ${code}.`,
+    });
   });
 
   return job;

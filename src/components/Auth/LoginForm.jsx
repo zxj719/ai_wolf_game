@@ -18,14 +18,16 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
     event.preventDefault();
     setLocalError('');
 
-    if (!email || !password) {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail || !password) {
       setLocalError(authCopy.fillEmailPassword);
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await login(email, password);
+      const result = await login(normalizedEmail, password);
       if (!result.success) {
         setLocalError(result.error || authCopy.loginFailed);
       }
@@ -56,6 +58,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
             placeholder={authCopy.emailPlaceholder}
             disabled={isLoading}
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
           />
         </label>
 

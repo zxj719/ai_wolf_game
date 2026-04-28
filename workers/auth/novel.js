@@ -17,10 +17,12 @@ export async function handleNovelProxy(request, env, pathname) {
   const url = new URL(request.url);
   const upstreamPath = pathname.replace(/^\/api\/novel/, '/novel');
   const upstreamUrl = `${base}${upstreamPath}${url.search}`;
-  const headers = new Headers(request.headers);
+  const headers = new Headers();
+  const contentType = request.headers.get('Content-Type');
+  if (contentType) headers.set('Content-Type', contentType);
+  headers.set('Accept', 'application/json');
   headers.set('X-Zhaxiaoji-User-Id', String(user.sub));
   headers.set('X-Zhaxiaoji-Username', user.username || '');
-  headers.delete('host');
 
   try {
     const upstreamResponse = await fetch(upstreamUrl, {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Novel Deploy Debug"
+  short_description: "排查小说工作台 Cloudflare Worker 到 ECS 回源部署问题。"
+  default_prompt: "排查小说工作台部署或回源异常"

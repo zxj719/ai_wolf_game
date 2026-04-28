@@ -3,10 +3,12 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  getCodexJob,
   getNovelChapter,
   getNovelProject,
   listNovelProjects,
   resolveProjectDir,
+  startCodexGeneration,
 } from '../novelWorkspace.js';
 
 const tempRoots = [];
@@ -78,5 +80,42 @@ describe('novelWorkspace', () => {
     });
     expect(() => resolveProjectDir(root, '../secret')).toThrow(/Invalid project name/);
     expect(() => getNovelChapter(root, 'alpha', '../002')).toThrow(/Invalid chapter id/);
+  });
+
+  it('starts Codex jobs with stdin closed so exec mode does not hang waiting for input', async () => {
+    const root = makeWorkspace();
+    const scriptPath = join(root, 'fake-codex.js');
+    writeFileSync(
+      scriptPath,
+      [
+        "process.stdin.resume();",
+        "process.stdin.on('end', () => {",
+        "  console.log('stdin-closed');",
+        "});",
+      ].join('\n'),
+      'utf8',
+    );
+
+    const job = startCodexGeneration({
+      workspaceRoot: root,
+      projectName: 'alpha',
+      guidance: 'Keep the next chapter quiet.',
+      env: {
+        ...process.env,
+        CODEX_BIN: process.execPath,
+        NOVEL_CODEX_ARGS: `"${scriptPath}"`,
+      },
+    });
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const current = getCodexJob(job.id);
+      if (current?.status !== 'running') break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    const finished = getCodexJob(job.id);
+    expect(finished).toMatchObject({ status: 'completed', exitCode: 0 });
+    expect(finished.output).toContain('stdin-closed');
+    expect(finished.messages.map((message) => message.source)).toContain('stdout');
   });
 });
