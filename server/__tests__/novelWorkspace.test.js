@@ -118,4 +118,44 @@ describe('novelWorkspace', () => {
     expect(finished.output).toContain('stdin-closed');
     expect(finished.messages.map((message) => message.source)).toContain('stdout');
   });
+
+  it('keeps non-error Codex stderr as trace output and scopes prompts to the selected project', async () => {
+    const root = makeWorkspace();
+    const scriptPath = join(root, 'fake-codex-trace.js');
+    writeFileSync(
+      scriptPath,
+      [
+        "const prompt = process.argv.at(-1);",
+        "process.stderr.write('model thinking preview\\n');",
+        "console.log(prompt);",
+      ].join('\n'),
+      'utf8',
+    );
+
+    const job = startCodexGeneration({
+      workspaceRoot: root,
+      projectName: 'alpha',
+      guidance: 'Use only this project.',
+      env: {
+        ...process.env,
+        CODEX_BIN: process.execPath,
+        NOVEL_CODEX_ARGS: `"${scriptPath}"`,
+      },
+    });
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const current = getCodexJob(job.id);
+      if (current?.status !== 'running') break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    const finished = getCodexJob(job.id);
+    expect(finished).toMatchObject({ status: 'completed', exitCode: 0, projectSlug: 'alpha' });
+    expect(finished.output).toContain('Target project slug: alpha');
+    expect(finished.output).toContain('sibling novel projects');
+    expect(finished.trace).toContain('model thinking preview');
+    expect(finished.error).toBe('');
+    expect(finished.messages.map((message) => message.source)).toContain('trace');
+    expect(finished.messages.map((message) => message.source)).not.toContain('stderr');
+  });
 });

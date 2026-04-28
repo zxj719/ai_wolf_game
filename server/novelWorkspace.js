@@ -9,6 +9,7 @@ const DEFAULT_CODEX_ARGS = ['exec', '--full-auto', '--skip-git-repo-check'];
 const jobs = new Map();
 const MAX_JOB_TEXT_LENGTH = 40000;
 const MAX_JOB_MESSAGES = 120;
+const MAX_VISIBLE_TRACE_LENGTH = 1600;
 
 export function resolveNovelWorkspaceRoot(env = process.env, cwd = process.cwd()) {
   return resolve(env.NOVEL_WORKSPACE_DIR || join(cwd, '..', 'novel_generator', 'meta_writing'));
@@ -178,6 +179,22 @@ export function buildCodexPrompt({ projectName, guidance = '', nextChapter = nul
   ].join('\n');
 }
 
+function buildProjectScopedCodexPrompt({ projectName, projectSlug, projectDir, guidance = '', nextChapter = null }) {
+  const target = nextChapter ? `chapter ${nextChapter}` : 'the next chapter';
+  const extra = guidance.trim() ? `\n\nUser guidance:\n${guidance.trim()}` : '';
+  return [
+    `You are maintaining the meta_writing novel project "${projectName}".`,
+    `Target project slug: ${projectSlug}`,
+    `Target project directory: ${projectDir}`,
+    'Only read and modify this target project.',
+    'Do not use characters, Story Bible files, chapters, or plot requirements from sibling novel projects.',
+    'If the user guidance clearly belongs to a different project, stop and say the project selector must be changed before writing.',
+    `Generate ${target} with the Manual Chapter Workflow: read the latest chapters, creator_guidance.md, learned_rules.md, and story_data; write the new chapters/<number>.md file; update chapter_summaries, characters, timeline, pacing, foreshadowing, and other Story Bible files as needed.`,
+    'Do not switch to automatic mode. Do not create a git commit.',
+    extra,
+  ].filter(Boolean).join('\n');
+}
+
 function parseCodexArgs(rawArgs) {
   if (!rawArgs || !rawArgs.trim()) return DEFAULT_CODEX_ARGS;
   return rawArgs.match(/"[^"]+"|'[^']+'|\S+/g)?.map((part) => part.replace(/^['"]|['"]$/g, '')) || DEFAULT_CODEX_ARGS;
@@ -193,15 +210,37 @@ function appendJobMessage(job, message) {
   }
 }
 
+function stripAnsi(value) {
+  return value.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '');
+}
+
+function compactStreamText(value, limit = MAX_VISIBLE_TRACE_LENGTH) {
+  const text = stripAnsi(String(value || '')).trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit).trimEnd()}\n\n[truncated ${text.length - limit} chars from live process output]`;
+}
+
+function isErrorLikeStderr(value) {
+  return /\b(error|fatal|exception|traceback|panic|failed|permission denied|not found|enoent|eacces)\b/i.test(value);
+}
+
 export function startCodexGeneration({ workspaceRoot, projectName, guidance = '', env = process.env }) {
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
   const project = getNovelProject(workspaceRoot, projectName);
+  const projectSlug = basename(projectDir);
   const latestNumber = Math.max(0, ...project.chapters.map((chapter) => Number.parseInt(chapter.id, 10)).filter(Number.isFinite));
-  const prompt = buildCodexPrompt({ projectName: project.name, guidance, nextChapter: latestNumber + 1 });
+  const prompt = buildProjectScopedCodexPrompt({
+    projectName: project.name,
+    projectSlug,
+    projectDir,
+    guidance,
+    nextChapter: latestNumber + 1,
+  });
   const jobId = randomUUID();
   const job = {
     id: jobId,
     projectName: project.name,
+    projectSlug,
     status: 'running',
     startedAt: new Date().toISOString(),
     finishedAt: null,
@@ -210,6 +249,7 @@ export function startCodexGeneration({ workspaceRoot, projectName, guidance = ''
     nextChapter: latestNumber + 1,
     messages: [],
     output: '',
+    trace: '',
     error: '',
   };
   appendJobMessage(job, {
@@ -240,12 +280,17 @@ export function startCodexGeneration({ workspaceRoot, projectName, guidance = ''
   child.stdout.on('data', (chunk) => {
     const content = chunk.toString();
     job.output = `${job.output}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
-    appendJobMessage(job, { role: 'assistant', source: 'stdout', content });
+    appendJobMessage(job, { role: 'assistant', source: 'stdout', content: compactStreamText(content, 2200) });
   });
   child.stderr.on('data', (chunk) => {
     const content = chunk.toString();
-    job.error = `${job.error}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
-    appendJobMessage(job, { role: 'assistant', source: 'stderr', content });
+    if (isErrorLikeStderr(content)) {
+      job.error = `${job.error}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
+      appendJobMessage(job, { role: 'assistant', source: 'stderr', content: compactStreamText(content, 2200) });
+      return;
+    }
+    job.trace = `${job.trace}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
+    appendJobMessage(job, { role: 'assistant', source: 'trace', content: compactStreamText(content) });
   });
   child.on('error', (error) => {
     job.status = 'failed';

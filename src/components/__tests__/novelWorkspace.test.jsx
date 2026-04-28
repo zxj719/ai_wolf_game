@@ -48,5 +48,51 @@ describe('NovelWorkspaceView', () => {
     expect(html).toContain('A sharper turn.');
     expect(html).toContain('Story Bible');
     expect(html).toContain('story_core.yaml');
+    expect(html).toContain('Active project');
+    expect(html).toContain('Target project');
+    expect(html).toContain('Codex conversation');
+  });
+
+  it('renders Codex trace output without marking it as a stderr error', () => {
+    const html = renderToStaticMarkup(
+      <NovelWorkspaceView
+        user={{ username: 'xingj' }}
+        loading={false}
+        error=""
+        projects={[{ name: 'alpha', slug: 'alpha', workflowMode: 'manual', chapterCount: 2 }]}
+        selectedProject="alpha"
+        project={{
+          name: 'alpha',
+          slug: 'alpha',
+          workflowMode: 'manual',
+          chapters: [],
+          storyBible: { sections: [] },
+          creatorGuidance: '',
+          learnedRules: '',
+        }}
+        selectedChapter={null}
+        guidance=""
+        job={{
+          id: 'job-1',
+          projectName: 'alpha',
+          projectSlug: 'alpha',
+          status: 'running',
+          messages: [
+            { role: 'assistant', source: 'trace', content: 'model thinking preview' },
+          ],
+        }}
+        busy={false}
+        onBack={() => {}}
+        onSelectProject={() => {}}
+        onSelectChapter={() => {}}
+        onGuidanceChange={() => {}}
+        onGenerate={() => {}}
+        onRefresh={() => {}}
+      />,
+    );
+
+    expect(html).toContain('Codex trace');
+    expect(html).toContain('model thinking preview');
+    expect(html).not.toContain('Codex error');
   });
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BookOpen,
@@ -119,10 +119,22 @@ function ChatBubble({ role, label, source, children }) {
   );
 }
 
-function CodexChat({ guidance, job, busy, disabled, onGuidanceChange, onGenerate }) {
+function messageLabel(message) {
+  if (message.role === 'user') return 'You';
+  if (message.source === 'trace') return 'Codex trace';
+  if (message.source === 'stderr') return 'Codex error';
+  if (message.source === 'stdout') return 'Codex';
+  return message.source || 'Codex';
+}
+
+function CodexChat({ guidance, job, project, busy, disabled, onGuidanceChange, onGenerate }) {
   const isRunning = job && ['running', 'queued'].includes(job.status);
   const messages = useMemo(() => {
-    if (job?.messages?.length) return job.messages;
+    if (job?.messages?.length) {
+      return job.messages.map((message) => (
+        message.source === 'request' ? { ...message, role: 'user' } : { ...message, role: message.role || 'assistant' }
+      ));
+    }
     if (!job) {
       return [{
         role: 'assistant',
@@ -133,6 +145,7 @@ function CodexChat({ guidance, job, busy, disabled, onGuidanceChange, onGenerate
     const fallback = [];
     if (job.guidance) fallback.push({ role: 'user', source: 'request', content: job.guidance });
     if (job.output) fallback.push({ role: 'assistant', source: 'stdout', content: job.output });
+    if (job.trace) fallback.push({ role: 'assistant', source: 'trace', content: previewText(job.trace, 1600) });
     if (job.error) fallback.push({ role: 'assistant', source: 'stderr', content: job.error });
     if (!fallback.length) fallback.push({ role: 'assistant', source: 'system', content: `Codex job ${job.status}.` });
     return fallback;
@@ -159,7 +172,7 @@ function CodexChat({ guidance, job, busy, disabled, onGuidanceChange, onGenerate
             key={`${message.at || index}-${message.source || 'message'}`}
             role={message.role || 'assistant'}
             source={message.source}
-            label={message.role === 'user' ? 'You' : (message.source || 'Codex')}
+            label={messageLabel(message)}
           >
             {message.content}
           </ChatBubble>
@@ -178,8 +191,12 @@ function CodexChat({ guidance, job, busy, disabled, onGuidanceChange, onGenerate
           className="mac-textarea min-h-[104px] resize-none"
           placeholder="这一章要推进的情绪、冲突或伏笔"
         />
+        <div className="mt-2 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          Target project: <span className="font-semibold text-slate-900">{project?.name || 'select a project'}</span>
+          {project?.slug && <span className="ml-2 text-slate-400">/{project.slug}</span>}
+        </div>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500">
             {isRunning ? <Clock3 size={14} /> : <MessageSquare size={14} />}
             {isRunning ? 'Codex 正在生成，完成后会刷新章节。' : '输出会像聊天记录一样保留在上方。'}
           </div>
@@ -353,6 +370,25 @@ export function NovelWorkspaceView({
                 </div>
               </div>
 
+              <label className="mb-5 block">
+                <span className="mac-eyebrow mb-2 block">Active project</span>
+                <select
+                  value={selectedProject}
+                  onChange={(event) => onSelectProject(event.target.value)}
+                  disabled={jobRunning}
+                  className="mac-input h-11 w-full text-sm"
+                >
+                  {projects.map((item) => (
+                    <option key={item.slug || item.name} value={item.slug || item.name}>
+                      {item.name} ({item.chapterCount} chapters)
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2 text-xs leading-5 text-slate-500">
+                  New chapters will be generated only for this selected project.
+                </div>
+              </label>
+
               <div className="space-y-3">
                 <div className="mac-eyebrow">Projects</div>
                 {projects.map((item) => (
@@ -360,6 +396,7 @@ export function NovelWorkspaceView({
                     key={item.slug || item.name}
                     type="button"
                     onClick={() => onSelectProject(item.slug || item.name)}
+                    disabled={jobRunning}
                     className={`mac-list-row w-full text-left transition-colors ${
                       selectedProject === (item.slug || item.name) ? 'bg-white shadow-sm' : 'hover:bg-white/90'
                     }`}
@@ -430,6 +467,7 @@ export function NovelWorkspaceView({
               <CodexChat
                 guidance={guidance}
                 job={job}
+                project={project}
                 busy={busy}
                 disabled={busy || jobRunning || !project}
                 onGuidanceChange={onGuidanceChange}
@@ -455,6 +493,7 @@ export function NovelWorkspace({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const loadRequestRef = useRef(0);
 
   const refreshProjects = useCallback(async () => {
     setError('');
@@ -473,24 +512,37 @@ export function NovelWorkspace({ onBack }) {
 
   const loadProject = useCallback(async (name) => {
     if (!name) return;
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
     setError('');
     setLoading(true);
     try {
       const response = await novelService.getProject(name);
+      if (requestId !== loadRequestRef.current) return;
       const nextProject = response.project;
       setProject(nextProject);
       const latest = nextProject.chapters?.at(-1);
       if (latest) {
         const chapter = await novelService.getChapter(name, latest.id);
+        if (requestId !== loadRequestRef.current) return;
         setSelectedChapter(chapter.chapter);
       } else {
         setSelectedChapter(null);
       }
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       setError(err.message || 'Failed to load project');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestRef.current) setLoading(false);
     }
+  }, []);
+
+  const selectProject = useCallback((name) => {
+    setSelectedProject(name);
+    setProject(null);
+    setSelectedChapter(null);
+    setJob(null);
+    setError('');
   }, []);
 
   const selectChapter = useCallback(async (chapterId) => {
@@ -558,7 +610,7 @@ export function NovelWorkspace({ onBack }) {
       job={job}
       busy={busy}
       onBack={onBack}
-      onSelectProject={setSelectedProject}
+      onSelectProject={selectProject}
       onSelectChapter={selectChapter}
       onGuidanceChange={setGuidance}
       onGenerate={generate}
