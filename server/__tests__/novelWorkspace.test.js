@@ -3,12 +3,15 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  createNovelProject,
   getCodexJob,
   getNovelChapter,
   getNovelProject,
   listNovelProjects,
   resolveProjectDir,
   startCodexGeneration,
+  updateNovelChapter,
+  updateNovelMemoryFile,
 } from '../novelWorkspace.js';
 
 const tempRoots = [];
@@ -80,6 +83,48 @@ describe('novelWorkspace', () => {
     });
     expect(() => resolveProjectDir(root, '../secret')).toThrow(/Invalid project name/);
     expect(() => getNovelChapter(root, 'alpha', '../002')).toThrow(/Invalid chapter id/);
+  });
+
+  it('creates new projects with initial story bible files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'novel-workspace-'));
+    tempRoots.push(root);
+
+    const project = createNovelProject(root, {
+      name: 'New Story',
+      slug: 'new-story',
+      worldview: 'A moonlit city.',
+      style: 'Quiet and sharp.',
+      concept: 'A rescue that becomes a haunting.',
+      outline: 'Chapter one opens with a bargain.',
+    });
+
+    expect(project).toMatchObject({
+      name: 'New Story',
+      slug: 'new-story',
+      workflowMode: 'manual',
+    });
+    expect(project.chapters).toEqual([]);
+    expect(project.storyBible.sections.map((section) => section.name)).toContain('story_bible.md');
+    expect(project.storyBible.sections.find((section) => section.name === 'story_bible.md')?.content).toContain('A moonlit city.');
+    expect(() => createNovelProject(root, { name: 'New Story', slug: 'new-story' })).toThrow(/already exists/);
+  });
+
+  it('updates chapter and project memory files without path traversal', () => {
+    const root = makeWorkspace();
+
+    const chapter = updateNovelChapter(root, 'alpha', '002', '# Revised\n\nManual edit.');
+    expect(chapter).toMatchObject({
+      id: '002',
+      title: 'Revised',
+      content: expect.stringContaining('Manual edit.'),
+    });
+
+    const memory = updateNovelMemoryFile(root, 'alpha', 'story_core.yaml', 'current_chapter: 3\n');
+    expect(memory).toEqual({ path: 'story_core.yaml', content: 'current_chapter: 3\n' });
+    expect(getNovelProject(root, 'alpha').storyBible.sections.find((section) => section.name === 'story_core.yaml')?.content)
+      .toContain('current_chapter: 3');
+
+    expect(() => updateNovelMemoryFile(root, 'alpha', '../secret.md', 'nope')).toThrow(/Invalid memory file path/);
   });
 
   it('starts Codex jobs with stdin closed so exec mode does not hang waiting for input', async () => {

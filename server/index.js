@@ -42,12 +42,15 @@ import { buildPolishSystemPrompt, buildPolishUserPrompt } from '../src/services/
 import { createGame, logDecision, logSpeech, endGame,
          statsByVersion, exportGames } from './db.js';
 import {
+  createNovelProject,
   getCodexJob,
   getNovelChapter,
   getNovelProject,
   listNovelProjects,
   resolveNovelWorkspaceRoot,
   startCodexGeneration,
+  updateNovelChapter,
+  updateNovelMemoryFile,
 } from './novelWorkspace.js';
 
 // ── 行为树路由表 ──────────────────────────────────────────
@@ -314,6 +317,17 @@ app.get('/novel/projects', (req, res) => {
   }
 });
 
+app.post('/novel/projects', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    const project = createNovelProject(workspaceRoot, req.body || {});
+    res.status(201).json({ success: true, project });
+  } catch (err) {
+    console.error('[Novel create project]', err.message);
+    res.status(err.message.includes('already exists') ? 409 : 400).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/novel/projects/:project/chapters/:chapter', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
@@ -325,6 +339,22 @@ app.get('/novel/projects/:project/chapters/:chapter', (req, res) => {
   }
 });
 
+app.patch('/novel/projects/:project/chapters/:chapter', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    const chapter = updateNovelChapter(
+      workspaceRoot,
+      req.params.project,
+      req.params.chapter,
+      typeof req.body?.content === 'string' ? req.body.content : '',
+    );
+    res.json({ success: true, chapter });
+  } catch (err) {
+    console.error('[Novel update chapter]', err.message);
+    res.status(err.message.includes('not found') ? 404 : 400).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/novel/projects/:project', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
@@ -332,6 +362,22 @@ app.get('/novel/projects/:project', (req, res) => {
     res.json({ success: true, project });
   } catch (err) {
     console.error('[Novel project]', err.message);
+    res.status(err.message.includes('not found') ? 404 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.patch('/novel/projects/:project/memory', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    const file = updateNovelMemoryFile(
+      workspaceRoot,
+      req.params.project,
+      req.body?.path,
+      typeof req.body?.content === 'string' ? req.body.content : '',
+    );
+    res.json({ success: true, file });
+  } catch (err) {
+    console.error('[Novel update memory]', err.message);
     res.status(err.message.includes('not found') ? 404 : 400).json({ success: false, error: err.message });
   }
 });

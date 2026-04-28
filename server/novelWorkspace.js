@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const PROJECT_NAME_RE = /^[\p{L}\p{N}._-]+$/u;
 const CHAPTER_ID_RE = /^[\p{L}\p{N}._-]+$/u;
+const MEMORY_FILE_RE = /^[\p{L}\p{N}._\-/ ]+\.(md|txt|ya?ml|json)$/u;
 const DEFAULT_CODEX_ARGS = ['exec', '--full-auto', '--skip-git-repo-check'];
 const jobs = new Map();
 const MAX_JOB_TEXT_LENGTH = 40000;
@@ -35,6 +36,19 @@ function ensureChapterId(id) {
   const value = String(id || '').trim();
   if (!CHAPTER_ID_RE.test(value) || value.includes('..')) {
     throw new Error('Invalid chapter id');
+  }
+  return value;
+}
+
+function ensureMemoryFilePath(path) {
+  const value = String(path || '').trim().replaceAll('\\', '/').replace(/^\/+/, '');
+  if (
+    !value ||
+    value.includes('..') ||
+    value.startsWith('/') ||
+    !MEMORY_FILE_RE.test(value)
+  ) {
+    throw new Error('Invalid memory file path');
   }
   return value;
 }
@@ -100,6 +114,38 @@ function walkStoryData(root, current = root, sections = []) {
   return sections;
 }
 
+function slugifyProjectName(name) {
+  return String(name || 'new-book')
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}._-]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 72) || 'new-book';
+}
+
+function writeProjectText(path, content = '') {
+  writeFileSync(path, String(content || ''), 'utf8');
+}
+
+function buildInitialStoryBible({ name, worldview, style, concept, outline }) {
+  return [
+    `# ${name}`,
+    '',
+    '## Worldview',
+    worldview || '',
+    '',
+    '## Voice And Style',
+    style || '',
+    '',
+    '## Core Idea',
+    concept || '',
+    '',
+    '## Story Line',
+    outline || '',
+    '',
+  ].join('\n');
+}
+
 export function resolveProjectDir(workspaceRoot, projectName) {
   const safeName = ensureProjectName(projectName);
   const root = resolve(workspaceRoot);
@@ -109,6 +155,66 @@ export function resolveProjectDir(workspaceRoot, projectName) {
     throw new Error(`Project not found: ${safeName}`);
   }
   return projectDir;
+}
+
+export function createNovelProject(workspaceRoot, input = {}) {
+  const name = String(input.name || '').trim();
+  if (!name) {
+    throw new Error('Project name is required');
+  }
+
+  const safeSlug = ensureProjectName(input.slug || slugifyProjectName(name));
+  const root = resolve(workspaceRoot);
+  const novelsDir = resolve(root, 'novels');
+  const projectDir = resolve(novelsDir, safeSlug);
+  assertInside(novelsDir, projectDir);
+  if (existsSync(projectDir)) {
+    throw new Error(`Project already exists: ${safeSlug}`);
+  }
+
+  mkdirSync(resolve(projectDir, 'chapters'), { recursive: true });
+  mkdirSync(resolve(projectDir, 'story_data', 'chapter_summaries'), { recursive: true });
+  mkdirSync(resolve(projectDir, 'story_data', 'characters'), { recursive: true });
+
+  writeProjectText(
+    resolve(projectDir, '.meta-writing-project.json'),
+    `${JSON.stringify({ name, workflow_mode: 'manual' }, null, 2)}\n`,
+  );
+  writeProjectText(
+    resolve(projectDir, 'creator_guidance.md'),
+    [
+      `# ${name} Creator Guidance`,
+      '',
+      '## Style',
+      input.style || '',
+      '',
+      '## Creative Direction',
+      input.concept || '',
+      '',
+    ].join('\n'),
+  );
+  writeProjectText(resolve(projectDir, 'learned_rules.md'), '# Learned Rules\n\n');
+  writeProjectText(
+    resolve(projectDir, 'story_data', 'story_bible.md'),
+    buildInitialStoryBible({
+      name,
+      worldview: input.worldview,
+      style: input.style,
+      concept: input.concept,
+      outline: input.outline,
+    }),
+  );
+  writeProjectText(
+    resolve(projectDir, 'story_data', 'story_core.yaml'),
+    [
+      `title: ${JSON.stringify(name)}`,
+      'current_chapter: 0',
+      'status: drafting_story_bible',
+      '',
+    ].join('\n'),
+  );
+
+  return getNovelProject(workspaceRoot, safeSlug);
 }
 
 export function listNovelProjects(workspaceRoot) {
@@ -165,6 +271,44 @@ export function getNovelChapter(workspaceRoot, projectName, chapterId) {
     filename: `${safeChapterId}.md`,
     title: firstHeading(content, `Chapter ${safeChapterId}`),
     content,
+  };
+}
+
+export function updateNovelChapter(workspaceRoot, projectName, chapterId, content = '') {
+  const safeChapterId = ensureChapterId(chapterId);
+  const projectDir = resolveProjectDir(workspaceRoot, projectName);
+  const chaptersDir = resolve(projectDir, 'chapters');
+  const chapterPath = resolve(chaptersDir, `${safeChapterId}.md`);
+  assertInside(chaptersDir, chapterPath);
+  if (!existsSync(chapterPath)) {
+    throw new Error(`Chapter not found: ${safeChapterId}`);
+  }
+  writeProjectText(chapterPath, content);
+  return getNovelChapter(workspaceRoot, projectName, safeChapterId);
+}
+
+export function updateNovelMemoryFile(workspaceRoot, projectName, filePath, content = '') {
+  const safePath = ensureMemoryFilePath(filePath);
+  const projectDir = resolveProjectDir(workspaceRoot, projectName);
+  const allowedRoot = resolve(projectDir, 'story_data');
+  let targetPath;
+
+  if (safePath === 'creator_guidance.md' || safePath === 'learned_rules.md') {
+    targetPath = resolve(projectDir, safePath);
+    assertInside(projectDir, targetPath);
+  } else {
+    const storyPath = safePath.startsWith('story_data/') ? safePath.slice('story_data/'.length) : safePath;
+    targetPath = resolve(allowedRoot, storyPath);
+    assertInside(allowedRoot, targetPath);
+  }
+
+  if (!existsSync(targetPath)) {
+    throw new Error(`Memory file not found: ${safePath}`);
+  }
+  writeProjectText(targetPath, content);
+  return {
+    path: safePath,
+    content: readText(targetPath),
   };
 }
 

@@ -37,12 +37,33 @@ export const novelService = {
     return request('/projects');
   },
 
+  createProject(payload) {
+    return request('/projects', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   getProject(projectName) {
     return request(`/projects/${encodeURIComponent(projectName)}`);
   },
 
   getChapter(projectName, chapterId) {
     return request(`/projects/${encodeURIComponent(projectName)}/chapters/${encodeURIComponent(chapterId)}`);
+  },
+
+  saveChapter(projectName, chapterId, content) {
+    return request(`/projects/${encodeURIComponent(projectName)}/chapters/${encodeURIComponent(chapterId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  saveMemoryFile(projectName, path, content) {
+    return request(`/projects/${encodeURIComponent(projectName)}/memory`, {
+      method: 'PATCH',
+      body: JSON.stringify({ path, content }),
+    });
   },
 
   generateNextChapter(projectName, guidance) {
