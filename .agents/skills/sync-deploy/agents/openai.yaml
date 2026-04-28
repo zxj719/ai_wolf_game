@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync Deploy"
+  short_description: "本地改动同步到 GitHub、阿里云 ECS、PM2 与 Cloudflare。"
+  default_prompt: "同步部署本地改动到 GitHub、阿里云和 Cloudflare"
