@@ -9,7 +9,7 @@ import {
   Swords,
   User,
 } from 'lucide-react';
-import { API_KEY } from '../config/aiConfig';
+import { API_KEY, WEREWOLF_AI_MODE } from '../config/aiConfig';
 import { RoleSelector } from './RoleSelector';
 import {
   validateRoleConfig,
@@ -65,9 +65,10 @@ export function SetupScreen({
   const copy = getUiCopy(locale).setup;
   const [selectedMode, setSelectedMode] = useState(() => gameMode || null);
 
-  const needsTokenConfig = isLoggedIn && !isGuestMode && !hasModelscopeToken;
+  const usesServerSessionAI = WEREWOLF_AI_MODE === 'session' || WEREWOLF_AI_MODE === 'claude-session';
+  const needsTokenConfig = !usesServerSessionAI && isLoggedIn && !isGuestMode && !hasModelscopeToken;
   const customValidation = validateRoleConfig(customRoleSelections);
-  const hasApiAccess = isGuestMode ? !!API_KEY : hasModelscopeToken || !!API_KEY;
+  const hasApiAccess = usesServerSessionAI || (isGuestMode ? !!API_KEY : hasModelscopeToken || !!API_KEY);
   const canStartSelectedMode = !!selectedMode && customValidation.isValid;
 
   const edgeCopy = getVictoryModeCopy('edge', locale);
@@ -185,7 +186,7 @@ export function SetupScreen({
                 </div>
               )}
 
-              {isGuestMode && !API_KEY && (
+              {isGuestMode && !usesServerSessionAI && !API_KEY && (
                 <div className="rounded-[20px] border border-amber-200/80 bg-amber-50/82 p-4 text-sm leading-6 text-amber-800">
                   <div className="flex items-start gap-3">
                     <AlertTriangle size={18} className="mt-1 shrink-0" />

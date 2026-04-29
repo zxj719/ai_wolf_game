@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { fetchLLM } from '../services/aiClient';
+import { WEREWOLF_AI_MODE } from '../config/aiConfig';
 import { generateSystemPrompt, generateUserPrompt, PROMPT_ACTIONS } from '../services/aiPrompts';
 import { enhanceSpeechHistory } from '../services/ragSchema';
 import {
@@ -15,6 +16,7 @@ import {
 } from '../services/logicValidator';
 import { sanitizeIdentityTable } from '../services/identityTableSanitizer';
 import { btWolfSpeech } from '../services/btClient';
+import { askWerewolfSessionAI, isWerewolfSessionAIEnabled } from '../services/werewolfSessionClient';
 import { buildPublicFacts } from '../services/publicFacts';
 
 export function useAI({
@@ -45,6 +47,7 @@ export function useAI({
   getDualSystemContext = null,
   // 模型追踪回调函数
   onModelUsed = null,
+  gameSessionId = null,
   // 胜利模式
   victoryMode = 'edge',
   gameActiveRef = null
@@ -167,7 +170,7 @@ export function useAI({
     };
 
     // ── 两段式管线：狼人白天发言 → ECS BT Server 一次完成（BT策略 + LLM润色）──
-    if (player.role === '狼人' && actionType === PROMPT_ACTIONS.DAY_SPEECH) {
+    if (!isWerewolfSessionAIEnabled() && player.role === '狼人' && actionType === PROMPT_ACTIONS.DAY_SPEECH) {
       const serverResult = await btWolfSpeech(
         player,
         { ...gameState, speechHistory: enhancedSpeechHistory },
@@ -229,10 +232,33 @@ export function useAI({
     }
     console.groupEnd();
 
-    let result = await fetchLLM(
-      { player, prompt: userPrompt, systemInstruction: systemPrompt },
-      { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
-    );
+    let result = null;
+
+    if (isWerewolfSessionAIEnabled()) {
+      try {
+        result = await askWerewolfSessionAI({
+          gameSessionId: gameSessionId || `local-${Date.now()}`,
+          player,
+          actionType,
+          systemInstruction: systemPrompt,
+          prompt: userPrompt,
+          gameStateMeta: {
+            dayCount,
+            phase,
+            alivePlayerIds: players.filter((p) => p.isAlive).map((p) => p.id),
+          },
+        });
+      } catch (err) {
+        console.warn(`[Werewolf session AI] ${WEREWOLF_AI_MODE} failed, falling back to legacy client:`, err);
+      }
+    }
+
+    if (!result) {
+      result = await fetchLLM(
+        { player, prompt: userPrompt, systemInstruction: systemPrompt },
+        { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
+      );
+    }
 
     if (gameActiveRef && !gameActiveRef.current) {
       setIsThinking(false);
@@ -389,7 +415,7 @@ export function useAI({
 
     setIsThinking(false);
     return result;
-  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext, gameActiveRef, onModelUsed, victoryMode]);
+  }, [players, enhancedSpeechHistory, voteHistory, deathHistory, nightDecisions, seerChecks, guardHistory, witchHistory, dayCount, phase, API_KEY, AI_MODELS, API_URL, setIsThinking, disabledModelsRef, buildRAGContext, getInferenceContext, getDualSystemContext, gameActiveRef, onModelUsed, gameSessionId, victoryMode]);
 
   /**
    * P0增强：获取局势摘要

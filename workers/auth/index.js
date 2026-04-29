@@ -10,6 +10,7 @@ import {
   handleGetChordsJob,
 } from './chords.js';
 import { handleNovelProxy } from './novel.js';
+import { handleWerewolfSessionProxy } from './werewolf.js';
 import {
   handleRegister,
   handleLogin,
@@ -157,8 +158,12 @@ export default {
         return handleGetModelLeaderboard(request, env);
       }
 
-      if (path.startsWith('/api/novel/') && ['GET', 'POST'].includes(request.method)) {
+      if (path.startsWith('/api/novel/') && ['GET', 'POST', 'PATCH'].includes(request.method)) {
         return handleNovelProxy(request, env, path);
+      }
+
+      if (path.startsWith('/api/werewolf/session/') && request.method === 'POST') {
+        return handleWerewolfSessionProxy(request, env, path);
       }
 
       // 头像相关（公开接口）

@@ -5,10 +5,13 @@
 // - modelscope (legacy default, OpenAI-format)
 // - siliconflow (OpenAI-format)
 // - minimax    (Anthropic-format via /anthropic/v1/messages)
+// - ecs-session (server-side single-match multi-agent session; no browser API key)
 //
 // 本地开发优先：如果定义了 VITE_MINIMAX_API_KEY，默认切换到 minimax
 const HAS_MINIMAX_KEY = !!import.meta.env.VITE_MINIMAX_API_KEY;
 export const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || (HAS_MINIMAX_KEY ? 'minimax' : 'modelscope');
+export const WEREWOLF_AI_MODE = import.meta.env.VITE_WEREWOLF_AI_MODE
+  || (AI_PROVIDER === 'ecs-session' ? 'session' : 'legacy');
 
 // Provider-specific keys
 export const MODELSCOPE_API_KEY  = import.meta.env.VITE_API_KEY || '';

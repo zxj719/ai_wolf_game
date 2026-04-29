@@ -52,6 +52,11 @@ import {
   updateNovelChapter,
   updateNovelMemoryFile,
 } from './novelWorkspace.js';
+import {
+  askWerewolfSession,
+  getWerewolfSessionSnapshot,
+  resetWerewolfSession,
+} from './werewolfSession.js';
 
 // ── 行为树路由表 ──────────────────────────────────────────
 const TREE_REGISTRY = {
@@ -119,7 +124,7 @@ const app = express();
 
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN || 'https://zhaxiaoji.com',
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
 }));
 app.use(express.json({ limit: '2mb' }));
 
@@ -278,6 +283,36 @@ app.post('/bt/game/speech', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.post('/bt/session/ask', async (req, res) => {
+  try {
+    const result = await askWerewolfSession({
+      gameSessionId: req.body?.gameSessionId,
+      player: req.body?.player,
+      actionType: req.body?.actionType,
+      systemInstruction: req.body?.systemInstruction,
+      prompt: req.body?.prompt,
+      gameStateMeta: req.body?.gameStateMeta || {},
+      env: process.env,
+    });
+    res.json({ success: true, result, session: result._sessionInfo });
+  } catch (err) {
+    console.error('[Werewolf session ask]', err.message);
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/bt/session/reset', (req, res) => {
+  const ok = resetWerewolfSession(req.body?.gameSessionId);
+  res.json({ success: true, reset: ok });
+});
+
+app.post('/bt/session/status', (req, res) => {
+  res.json({
+    success: true,
+    session: getWerewolfSessionSnapshot(req.body?.gameSessionId),
+  });
 });
 
 /**

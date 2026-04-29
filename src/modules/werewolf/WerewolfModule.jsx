@@ -15,7 +15,7 @@ import {
   DEFAULT_CUSTOM_SELECTIONS,
   DEFAULT_VICTORY_MODE,
 } from '../../config/roles';
-import { API_KEY, API_URL } from '../../config/aiConfig';
+import { API_KEY, API_URL, WEREWOLF_AI_MODE } from '../../config/aiConfig';
 import { useAI } from '../../hooks/useAI';
 import { useDayFlow } from '../../hooks/useDayFlow';
 import { useNightFlow } from '../../hooks/useNightFlow';
@@ -147,7 +147,8 @@ export default function WerewolfModule() {
   const isPlayRoute  = currentPath === ROUTES.WEREWOLF_PLAY;
   const isGameActive = phase !== 'setup' || !!gameMode;
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
-  const effectiveApiKey = modelscopeToken || API_KEY;
+  const usesServerSessionAI = WEREWOLF_AI_MODE === 'session' || WEREWOLF_AI_MODE === 'claude-session';
+  const effectiveApiKey = usesServerSessionAI ? '' : (modelscopeToken || API_KEY);
 
   nightDecisionsRef.current = nightDecisions;
   initGameRef.current = initGame;
@@ -297,7 +298,7 @@ export default function WerewolfModule() {
     setIsThinking, disabledModelsRef, API_URL, API_KEY: effectiveApiKey,
     AI_MODELS: aiModels, gameSetup: selectedSetup, nightActionHistory,
     claimHistory,
-    onModelUsed: updatePlayerModel, victoryMode, gameActiveRef,
+    onModelUsed: updatePlayerModel, gameSessionId: modelUsage.gameSessionId, victoryMode, gameActiveRef,
   });
 
   const {
@@ -400,7 +401,7 @@ export default function WerewolfModule() {
       <button type="button" onClick={handleExitToHome} className="mac-button mac-button-secondary">
         {isPlayRoute ? ui.app.endAndHome : ui.app.backHome}
       </button>
-      {isSetupRoute && !isGuestMode && user && (
+      {isSetupRoute && !isGuestMode && user && !usesServerSessionAI && (
         <>
           <button
             type="button"
@@ -470,7 +471,7 @@ export default function WerewolfModule() {
               setGameMode={setGameMode}
               isLoggedIn={!!user}
               isGuestMode={isGuestMode}
-              hasModelscopeToken={tokenStatus.hasToken}
+              hasModelscopeToken={usesServerSessionAI || tokenStatus.hasToken}
               onConfigureToken={() => {
                 if (isGuestMode) { handleGuestExitToLogin(); return; }
                 openTokenManager();
