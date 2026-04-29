@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-const DEFAULT_MODEL = 'MiniMax-M2';
+const DEFAULT_MODEL = 'MiniMax-M2.7';
 const DEFAULT_MINIMAX_URL = 'https://api.minimaxi.com/anthropic/v1/messages';
 const DEFAULT_MINIMAX_BASE_URL = 'https://api.minimaxi.com/anthropic';
 const DEFAULT_PROVIDER = 'claude-code';

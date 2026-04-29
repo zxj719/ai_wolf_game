@@ -8,7 +8,7 @@ Browser
 -> Cloudflare Worker
 -> ECS bt-server /bt/session/ask
 -> Claude Code CLI
--> MiniMax Anthropic-compatible provider / coding plan
+-> MiniMax Coding Plan / Anthropic-compatible provider
 ```
 
 核心目标：
@@ -72,17 +72,17 @@ CLAUDE_CODE_ARGS="--print --output-format json"
 CLAUDE_CODE_SESSION_ROOT="/var/lib/wolfgame/claude-sessions"
 CLAUDE_CODE_RESUME="true"
 
-# MiniMax Anthropic-compatible provider used by Claude Code.
-MINIMAX_API_KEY="your-rotated-minimax-key"
-ANTHROPIC_AUTH_TOKEN="your-rotated-minimax-key"
-ANTHROPIC_API_KEY="your-rotated-minimax-key"
+# MiniMax Coding Plan key used by Claude Code. Use your sk-cp-... key here.
+MINIMAX_API_KEY="sk-cp-your-rotated-codingplan-key"
+ANTHROPIC_AUTH_TOKEN="sk-cp-your-rotated-codingplan-key"
+ANTHROPIC_API_KEY="sk-cp-your-rotated-codingplan-key"
 ANTHROPIC_BASE_URL="https://api.minimaxi.com/anthropic"
-ANTHROPIC_MODEL="MiniMax-M2"
+ANTHROPIC_MODEL="MiniMax-M2.7"
 
 # Direct API fallback only. Keep it configured, but do not use it unless
 # WEREWOLF_SESSION_PROVIDER is changed to minimax-api.
 MINIMAX_API_URL="https://api.minimaxi.com/anthropic/v1/messages"
-MINIMAX_MODEL="MiniMax-M2"
+MINIMAX_MODEL="MiniMax-M2.7"
 ```
 
 如果你的 Claude Code/MiniMax 接入把 `codingplan` 暴露成模型名或 profile，可以用 `CLAUDE_CODE_ARGS` 覆盖默认参数，例如：
@@ -91,7 +91,7 @@ MINIMAX_MODEL="MiniMax-M2"
 CLAUDE_CODE_ARGS="--print --output-format json --model codingplan"
 ```
 
-代码会自动给没有 `--model` 的 `CLAUDE_CODE_ARGS` 追加 `--model $ANTHROPIC_MODEL`；如果你手动写了 `--model codingplan`，就会以手动参数为准。
+代码会自动给没有 `--model` 的 `CLAUDE_CODE_ARGS` 追加 `--model $ANTHROPIC_MODEL`；默认模型是 `MiniMax-M2.7`。如果你手动写了 `--model codingplan`，就会以手动参数为准。
 
 创建 Claude Code 单局 workspace 根目录：
 

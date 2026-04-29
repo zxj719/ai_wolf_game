@@ -65,13 +65,13 @@ describe('werewolfSession', () => {
         CLAUDE_CODE_SESSION_ROOT: '.tmp/test-claude-sessions',
         ANTHROPIC_AUTH_TOKEN: 'test-key',
         ANTHROPIC_BASE_URL: 'https://api.minimaxi.com/anthropic',
-        ANTHROPIC_MODEL: 'MiniMax-M2',
+        ANTHROPIC_MODEL: 'MiniMax-M2.7',
       },
     });
 
     expect(result).toMatchObject({
       speech: 'from claude',
-      _modelInfo: { modelId: 'MiniMax-M2', provider: 'claude-code-minimax-codingplan' },
+      _modelInfo: { modelId: 'MiniMax-M2.7', provider: 'claude-code-minimax-codingplan' },
       _sessionInfo: {
         gameSessionId: 'test-game',
         mode: 'claude-code-single-match-multi-agent',
@@ -80,7 +80,7 @@ describe('werewolfSession', () => {
     });
     expect(spawn).toHaveBeenCalledWith(
       'claude',
-      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2'],
+      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7'],
       expect.objectContaining({
         windowsHide: true,
         env: expect.objectContaining({
@@ -109,7 +109,7 @@ describe('werewolfSession', () => {
       CLAUDE_CODE_ARGS: '--print --output-format json',
       CLAUDE_CODE_SESSION_ROOT: '.tmp/test-claude-sessions',
       ANTHROPIC_AUTH_TOKEN: 'test-key',
-      ANTHROPIC_MODEL: 'MiniMax-M2',
+      ANTHROPIC_MODEL: 'MiniMax-M2.7',
     };
 
     await askWerewolfSession({
@@ -135,7 +135,7 @@ describe('werewolfSession', () => {
     expect(spawn).toHaveBeenNthCalledWith(
       2,
       'claude',
-      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2', '--resume', 'claude-session-1'],
+      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7', '--resume', 'claude-session-1'],
       expect.any(Object),
     );
   });
@@ -161,13 +161,13 @@ describe('werewolfSession', () => {
         WEREWOLF_SESSION_PROVIDER: 'minimax-api',
         MINIMAX_API_KEY: 'test-key',
         MINIMAX_API_URL: 'https://api.minimaxi.com/anthropic/v1/messages',
-        MINIMAX_MODEL: 'MiniMax-M2',
+        MINIMAX_MODEL: 'MiniMax-M2.7',
       },
     });
 
     expect(result).toMatchObject({
       speech: 'hello',
-      _modelInfo: { modelId: 'MiniMax-M2', provider: 'minimax-anthropic-api' },
+      _modelInfo: { modelId: 'MiniMax-M2.7', provider: 'minimax-anthropic-api' },
       _sessionInfo: { gameSessionId: 'test-game', mode: 'single-match-multi-agent' },
     });
     expect(getWerewolfSessionSnapshot('test-game')).toMatchObject({
@@ -178,7 +178,7 @@ describe('werewolfSession', () => {
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(requestBody).toMatchObject({
-      model: 'MiniMax-M2',
+      model: 'MiniMax-M2.7',
       max_tokens: 4096,
     });
     expect(requestBody.system).toContain('Single-match multi-agent session context');
