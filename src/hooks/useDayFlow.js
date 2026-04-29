@@ -7,6 +7,32 @@ import { actionQueue } from '../services/actionQueue';
 import { buildSnapshot, buildActionKey } from '../services/snapshotBuilder';
 import { dispatchCommand } from '../services/commandDispatcher';
 
+const ABSTAIN_TARGET = -1;
+
+function normalizeVoteTarget(value) {
+  if (value === null || value === undefined || value === '') return undefined;
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric)) return undefined;
+  return numeric;
+}
+
+function buildVoteRecord({ voter, targetId, validTargets, reasoning, thought = '' }) {
+  const normalizedTarget = normalizeVoteTarget(targetId);
+  if (normalizedTarget === ABSTAIN_TARGET) {
+    return { voterId: voter.id, voterName: voter.name, targetId: ABSTAIN_TARGET, reasoning: reasoning || '弃票', thought };
+  }
+  if (validTargets.includes(normalizedTarget)) {
+    return { voterId: voter.id, voterName: voter.name, targetId: normalizedTarget, reasoning, thought };
+  }
+  if (targetId !== undefined && targetId !== null) {
+    const fallback = validTargets[0];
+    if (fallback !== undefined) {
+      return { voterId: voter.id, voterName: voter.name, targetId: fallback, reasoning: reasoning || '备用选择', thought };
+    }
+  }
+  return null;
+}
+
 export function useDayFlow({
   players,
   setPlayers,
@@ -441,12 +467,14 @@ export function useDayFlow({
       let thought = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
 
-      // 优先使用发言意向
-      if (mySpeech && mySpeech.voteIntention !== undefined && aliveIds.includes(mySpeech.voteIntention)) {
-        targetId = mySpeech.voteIntention;
+      const validVoteTargets = aliveIds.filter(id => id !== p.id);
+
+      // 优先使用发言意向，-1 表示公开弃票，不再随机改票。
+      const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
+      if (speechVoteTarget === ABSTAIN_TARGET || validVoteTargets.includes(speechVoteTarget)) {
+        targetId = speechVoteTarget;
         reasoning = '遵循发言意向';
       } else {
-        const validVoteTargets = aliveIds.filter(id => id !== p.id);
 
         // 行为树短路：hybrid 模式下，注册的 (role, DAY_VOTE) 组合用 BT 决策（0ms）
         const btResult = await btDecide(p, 'DAY_VOTE',
@@ -474,14 +502,13 @@ export function useDayFlow({
         }
       }
 
-      // 构建投票对象
-      if (targetId !== undefined && aliveIds.includes(targetId)) {
-        return { voterId: p.id, voterName: p.name, targetId, reasoning, thought };
-      } else if (targetId !== undefined) {
-        const fallback = aliveIds.filter(id => id !== p.id)[0] || aliveIds[0];
-        return { voterId: p.id, voterName: p.name, targetId: fallback, reasoning: reasoning || '备用选择', thought };
-      }
-      return null;
+      return buildVoteRecord({
+        voter: p,
+        targetId,
+        validTargets: validVoteTargets,
+        reasoning,
+        thought,
+      });
     });
 
     // 等待所有投票完成
@@ -493,7 +520,8 @@ export function useDayFlow({
 
   const processVoteResults = useCallback((votes, aliveIds) => {
     if (gameActiveRef && !gameActiveRef.current) return;
-    const counts = votes.reduce((acc, v) => {
+    const countedVotes = votes.filter((v) => aliveIds.includes(v.targetId));
+    const counts = countedVotes.reduce((acc, v) => {
       acc[v.targetId] = (acc[v.targetId] || 0) + 1;
       return acc;
     }, {});
@@ -501,7 +529,8 @@ export function useDayFlow({
     addLog('--- 投票记录 ---', 'system');
     votes.forEach(v => {
       const reasonText = v.reasoning ? ` (${v.reasoning})` : '';
-      addLog(`[${v.voterId}号] 投给 -> [${v.targetId}号]${reasonText}`, 'info');
+      const targetText = v.targetId === ABSTAIN_TARGET ? '弃票' : `[${v.targetId}号]`;
+      addLog(`[${v.voterId}号] 投给 -> ${targetText}${reasonText}`, 'info');
     });
 
     if (Object.keys(counts).length === 0) {
@@ -628,8 +657,9 @@ export function useDayFlow({
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
 
       // 优先使用发言意向
-      if (mySpeech && mySpeech.voteIntention !== undefined && validTargets.includes(mySpeech.voteIntention)) {
-        targetId = mySpeech.voteIntention;
+      const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
+      if (speechVoteTarget === ABSTAIN_TARGET || validTargets.includes(speechVoteTarget)) {
+        targetId = speechVoteTarget;
         reasoning = '遵循发言意向';
       } else {
         // 行为树短路：hybrid 模式下注册的组合用 BT 决策
@@ -658,14 +688,12 @@ export function useDayFlow({
         }
       }
 
-      // 构建投票对象
-      if (targetId !== undefined && validTargets.includes(targetId)) {
-        return { voterId: p.id, voterName: p.name, targetId, reasoning };
-      } else if (targetId !== undefined) {
-        const fallback = validTargets[Math.floor(Math.random() * validTargets.length)];
-        return { voterId: p.id, voterName: p.name, targetId: fallback, reasoning: reasoning || '备用选择' };
-      }
-      return null;
+      return buildVoteRecord({
+        voter: p,
+        targetId,
+        validTargets,
+        reasoning,
+      });
     });
 
     // 等待所有AI投票完成

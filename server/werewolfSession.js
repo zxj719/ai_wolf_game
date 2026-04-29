@@ -108,6 +108,7 @@ function getSession(gameSessionId) {
       publicTurns: [],
       agentMemories: new Map(),
       claudeSessionId: null,
+      claudeSessionIds: new Map(),
       runtime: null,
     });
   }
@@ -166,7 +167,7 @@ function buildSessionContext({ session, player, actionType, gameStateMeta }) {
 
   const agentMemory = (session.agentMemories.get(String(player.id)) || [])
     .slice(-MAX_AGENT_MEMORY)
-    .map((turn, index) => `${index + 1}. ${turn.actionType}: ${turn.summary}`)
+    .map((turn, index) => `${index + 1}. ${turn.actionType}: ${turn.privateSummary || turn.summary}`)
     .join('\n');
 
   return [
@@ -353,18 +354,24 @@ function extractClaudeCodeResult(stdout) {
   return { text: stdout, runtimeSessionId };
 }
 
-async function callClaudeCode({ system, user, env, config, session }) {
-  const sessionDir = path.join(config.claudeSessionRoot, sanitizePathPart(session.id));
+async function callClaudeCode({ system, user, env, config, session, player }) {
+  const agentKey = String(player.id);
+  const sessionDir = path.join(
+    config.claudeSessionRoot,
+    sanitizePathPart(session.id),
+    `player_${sanitizePathPart(agentKey)}`,
+  );
   await mkdir(sessionDir, { recursive: true, mode: 0o700 });
 
+  const agentClaudeSessionId = session.claudeSessionIds?.get(agentKey) || null;
   const args = [...config.claudeArgs];
   if (
     config.claudeResume
-    && session.claudeSessionId
+    && agentClaudeSessionId
     && !hasArg(args, '--resume')
     && !hasArg(args, '--continue')
   ) {
-    args.push('--resume', session.claudeSessionId);
+    args.push('--resume', agentClaudeSessionId);
   }
 
   const child = spawn(config.claudeCodeBin, args, {
@@ -377,6 +384,7 @@ async function callClaudeCode({ system, user, env, config, session }) {
   const { stdout } = await collectProcess({ child, prompt, timeoutMs: config.timeoutMs });
   const { text, runtimeSessionId } = extractClaudeCodeResult(stdout);
   if (runtimeSessionId) {
+    session.claudeSessionIds.set(agentKey, runtimeSessionId);
     session.claudeSessionId = runtimeSessionId;
   }
 
@@ -384,22 +392,39 @@ async function callClaudeCode({ system, user, env, config, session }) {
     text,
     model: config.model,
     provider: 'claude-code-minimax-codingplan',
-    runtimeSessionId: session.claudeSessionId,
+    runtimeSessionId: session.claudeSessionIds.get(agentKey) || null,
   };
 }
 
-async function callSessionModel({ system, user, env, session }) {
+async function callSessionModel({ system, user, env, session, player }) {
   const config = getProviderConfig(env);
   session.runtime = config.provider;
 
   if (config.provider === 'claude-code') {
-    return callClaudeCode({ system, user, env, config, session });
+    return callClaudeCode({ system, user, env, config, session, player });
   }
 
   return callDirectModel({ system, user, config });
 }
 
-function summarizeResult(result) {
+function summarizePublicResult(result, actionType) {
+  if (!result) return 'no result';
+  const fields = [];
+
+  if (actionType === 'DAY_SPEECH') {
+    if (result.speech) fields.push(`speech=${compact(result.speech, 360)}`);
+    if (result.voteIntention !== undefined) fields.push(`vote=${result.voteIntention}`);
+  } else if (actionType === 'DAY_VOTE') {
+    if (result.targetId !== undefined) fields.push(`vote=${result.targetId}`);
+  } else if (actionType === 'HUNTER_SHOOT') {
+    if (result.targetId !== undefined) fields.push(`target=${result.targetId}`);
+    if (result.shoot !== undefined) fields.push(`shoot=${result.shoot}`);
+  }
+
+  return fields.join('; ') || 'no public output';
+}
+
+function summarizePrivateResult(result) {
   if (!result) return 'no result';
   const fields = [];
   if (result.speech) fields.push(`speech=${compact(result.speech, 360)}`);
@@ -407,7 +432,7 @@ function summarizeResult(result) {
   if (result.targetId !== undefined) fields.push(`target=${result.targetId}`);
   if (result.useSave !== undefined) fields.push(`save=${result.useSave}`);
   if (result.usePoison !== undefined) fields.push(`poison=${result.usePoison}`);
-  if (result.thought || result.reasoning) fields.push(`reason=${compact(result.thought || result.reasoning, 360)}`);
+  if (result.thought || result.reasoning) fields.push(`privateReason=${compact(result.thought || result.reasoning, 360)}`);
   return fields.join('; ') || compact(JSON.stringify(result), 600);
 }
 
@@ -416,7 +441,8 @@ function isPublicAction(actionType) {
 }
 
 function recordTurn({ session, player, actionType, gameStateMeta, result }) {
-  const summary = summarizeResult(result);
+  const summary = summarizePublicResult(result, actionType);
+  const privateSummary = summarizePrivateResult(result);
   const turn = {
     at: new Date().toISOString(),
     day: gameStateMeta?.dayCount ?? null,
@@ -425,6 +451,7 @@ function recordTurn({ session, player, actionType, gameStateMeta, result }) {
     role: player.role,
     actionType,
     summary,
+    privateSummary,
   };
 
   const agentKey = String(player.id);
@@ -432,8 +459,8 @@ function recordTurn({ session, player, actionType, gameStateMeta, result }) {
   memory.push(turn);
   session.agentMemories.set(agentKey, memory.slice(-MAX_AGENT_MEMORY));
 
-  if (isPublicAction(actionType)) {
-    session.publicTurns.push(turn);
+  if (isPublicAction(actionType) && summary) {
+    session.publicTurns.push({ ...turn, privateSummary: undefined });
     session.publicTurns = session.publicTurns.slice(-MAX_SESSION_TURNS);
   }
   session.updatedAt = new Date().toISOString();
@@ -470,7 +497,7 @@ export async function askWerewolfSession({
     prompt,
   ].join('\n\n');
 
-  const response = await callSessionModel({ system, user, env, session });
+  const response = await callSessionModel({ system, user, env, session, player });
   const parsed = safeParseJSON(response.text);
   if (!parsed) {
     throw new Error(`Invalid JSON from werewolf session AI: ${compact(response.text, 500)}`);
@@ -512,5 +539,6 @@ export function getWerewolfSessionSnapshot(gameSessionId) {
     agentCount: session.agentMemories.size,
     runtime: session.runtime,
     runtimeSessionId: session.claudeSessionId,
+    runtimeSessionIds: Object.fromEntries(session.claudeSessionIds || []),
   };
 }

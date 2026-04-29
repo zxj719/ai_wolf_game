@@ -68,7 +68,8 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
       v.votes.forEach(vote => {
         const fromPlayer = players.find(p => p.id === vote.from);
         const toPlayer = players.find(p => p.id === vote.to);
-        logContent += `  ${vote.from}号(${fromPlayer?.role || '?'}) -> ${vote.to}号(${toPlayer?.role || '?'})\n`;
+        const voteTargetText = vote.to === -1 ? '弃票' : `${vote.to}号(${toPlayer?.role || '?'})`;
+        logContent += `  ${vote.from}号(${fromPlayer?.role || '?'}) -> ${voteTargetText}\n`;
         if (vote.reasoning) {
           logContent += `    📣 公开理由: ${vote.reasoning}\n`;
         }
@@ -76,8 +77,12 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
           logContent += `    💭 思考过程: ${vote.thought}\n`;
         }
       });
-      const eliminated = players.find(p => p.id === v.eliminated);
-      logContent += `  结果: ${v.eliminated}号 ${eliminated?.name || ''} (${eliminated?.role || '未知'}) 被放逐\n`;
+      if (v.eliminated === null || v.eliminated === undefined || v.eliminated === -1) {
+        logContent += `  结果: 无人被放逐\n`;
+      } else {
+        const eliminated = players.find(p => p.id === v.eliminated);
+        logContent += `  结果: ${v.eliminated}号 ${eliminated?.name || ''} (${eliminated?.role || '未知'}) 被放逐\n`;
+      }
     });
   }
   logContent += `\n`;

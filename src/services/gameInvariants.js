@@ -70,7 +70,7 @@ export function renderInvariantFacts(state) {
  * @param {number} wolfCap        当前存活狼上限
  * @returns {{ identityTable: object, changed: boolean }}
  */
-export function enforceWolfCapOnTable(identityTable, wolfCap) {
+export function enforceWolfCapOnTable(identityTable, wolfCap, { candidateIds = null } = {}) {
   if (!identityTable || typeof identityTable !== 'object') {
     return { identityTable, changed: false };
   }
@@ -78,9 +78,12 @@ export function enforceWolfCapOnTable(identityTable, wolfCap) {
     return { identityTable, changed: false };
   }
 
-  // 收集所有 suspect 涉及"狼人"的条目
+  const candidateSet = candidateIds ? new Set([...candidateIds].map(String)) : null;
+
+  // 只裁剪仍存活、未确认的候选项；已死亡/已翻牌/狼队友等历史事实不能被改成“未知”。
   const wolfEntries = [];
   Object.entries(identityTable).forEach(([id, value]) => {
+    if (candidateSet && !candidateSet.has(String(id))) return;
     const suspect = value?.suspect;
     if (typeof suspect === 'string' && suspect.includes('狼人')) {
       wolfEntries.push({ id, confidence: typeof value.confidence === 'number' ? value.confidence : 0 });
@@ -99,7 +102,12 @@ export function enforceWolfCapOnTable(identityTable, wolfCap) {
   let changed = false;
   Object.entries(identityTable).forEach(([id, value]) => {
     const suspect = value?.suspect;
-    if (typeof suspect === 'string' && suspect.includes('狼人') && !keepIds.has(id)) {
+    if (
+      typeof suspect === 'string'
+      && suspect.includes('狼人')
+      && (!candidateSet || candidateSet.has(String(id)))
+      && !keepIds.has(id)
+    ) {
       sanitized[id] = { ...value, suspect: '未知' };
       changed = true;
     } else {

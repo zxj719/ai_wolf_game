@@ -132,9 +132,10 @@ export const sanitizeIdentityTable = (identityTable, { players = [], gameSetup =
   });
 
   // 柱四：狼人数上限裁剪
-  // players 自身即是 state 切片够用；computeInvariants 只读 players/deathHistory
+  // 只裁剪存活玩家里的疑似狼，避免把已出局/已确认狼队友改成“未知”。
   const { wolfCap } = computeInvariants({ players, deathHistory: [] });
-  const capped = enforceWolfCapOnTable(sanitized, wolfCap);
+  const alivePlayerIds = players.filter((p) => p.isAlive).map((p) => p.id);
+  const capped = enforceWolfCapOnTable(sanitized, wolfCap, { candidateIds: alivePlayerIds });
   if (capped.changed) {
     return { identityTable: capped.identityTable, changed: true };
   }

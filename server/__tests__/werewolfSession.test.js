@@ -22,24 +22,31 @@ afterEach(() => {
   resetWerewolfSession('test-game');
 });
 
-function mockClaudeCode({ stdout, stderr = '', code = 0 } = {}) {
-  spawnMock.mockImplementation(() => {
-    const child = new EventEmitter();
-    child.stdout = new EventEmitter();
-    child.stderr = new EventEmitter();
-    child.stdin = {
-      write: vi.fn(),
-      end: vi.fn(() => {
-        setTimeout(() => {
-          if (stdout) child.stdout.emit('data', Buffer.from(stdout));
-          if (stderr) child.stderr.emit('data', Buffer.from(stderr));
-          child.emit('close', code);
-        }, 0);
-      }),
-    };
-    child.kill = vi.fn();
-    return child;
-  });
+function createMockChild({ stdout, stderr = '', code = 0 } = {}) {
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.stdin = {
+    write: vi.fn(),
+    end: vi.fn(() => {
+      setTimeout(() => {
+        if (stdout) child.stdout.emit('data', Buffer.from(stdout));
+        if (stderr) child.stderr.emit('data', Buffer.from(stderr));
+        child.emit('close', code);
+      }, 0);
+    }),
+  };
+  child.kill = vi.fn();
+  return child;
+}
+
+function mockClaudeCode(response = {}) {
+  spawnMock.mockImplementation(() => createMockChild(response));
+}
+
+function mockClaudeCodeSequence(responses) {
+  const queue = [...responses];
+  spawnMock.mockImplementation(() => createMockChild(queue.shift() || {}));
 }
 
 describe('werewolfSession', () => {
@@ -95,7 +102,7 @@ describe('werewolfSession', () => {
     });
   });
 
-  it('resumes the prior Claude Code session on the next action', async () => {
+  it('resumes the prior Claude Code session for the same player', async () => {
     mockClaudeCode({
       stdout: JSON.stringify({
         type: 'result',
@@ -138,6 +145,89 @@ describe('werewolfSession', () => {
       ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7', '--resume', 'claude-session-1'],
       expect.any(Object),
     );
+  });
+
+  it('uses separate Claude Code resume sessions per player', async () => {
+    mockClaudeCodeSequence([
+      {
+        stdout: JSON.stringify({
+          type: 'result',
+          session_id: 'player-1-session',
+          result: '{"speech":"p1","voteIntention":null,"identity_table":{}}',
+        }),
+      },
+      {
+        stdout: JSON.stringify({
+          type: 'result',
+          session_id: 'player-2-session',
+          result: '{"speech":"p2","voteIntention":null,"identity_table":{}}',
+        }),
+      },
+      {
+        stdout: JSON.stringify({
+          type: 'result',
+          session_id: 'player-1-session',
+          result: '{"targetId":2,"reasoning":"vote","identity_table":{}}',
+        }),
+      },
+    ]);
+
+    const env = {
+      CLAUDE_CODE_BIN: 'claude',
+      CLAUDE_CODE_ARGS: '--print --output-format json',
+      CLAUDE_CODE_SESSION_ROOT: '.tmp/test-claude-sessions',
+      ANTHROPIC_AUTH_TOKEN: 'test-key',
+      ANTHROPIC_MODEL: 'MiniMax-M2.7',
+    };
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, name: 'AI-1', role: '狼人' },
+      actionType: 'DAY_SPEECH',
+      systemInstruction: 'system prompt',
+      prompt: 'first prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_discussion' },
+      env,
+    });
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 2, name: 'AI-2', role: '村民' },
+      actionType: 'DAY_SPEECH',
+      systemInstruction: 'system prompt',
+      prompt: 'second prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_discussion' },
+      env,
+    });
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, name: 'AI-1', role: '狼人' },
+      actionType: 'DAY_VOTE',
+      systemInstruction: 'system prompt',
+      prompt: 'third prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_vote' },
+      env,
+    });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      'claude',
+      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7'],
+      expect.any(Object),
+    );
+    expect(spawn).toHaveBeenNthCalledWith(
+      3,
+      'claude',
+      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7', '--resume', 'player-1-session'],
+      expect.any(Object),
+    );
+    expect(getWerewolfSessionSnapshot('test-game')).toMatchObject({
+      runtimeSessionIds: {
+        1: 'player-1-session',
+        2: 'player-2-session',
+      },
+    });
   });
 
   it('calls MiniMax Anthropic endpoint and returns parsed JSON with session metadata', async () => {
@@ -229,5 +319,56 @@ describe('werewolfSession', () => {
     const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
     expect(secondBody.system).not.toContain('private night action');
     expect(secondBody.system).not.toContain('target=2');
+  });
+
+  it('keeps private speech thoughts out of the public transcript', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: [{
+            type: 'text',
+            text: '{"speech":"我是村民，先观察。","voteIntention":-1,"thought":"我是狼人，队友是1号，准备倒钩","identity_table":{}}',
+          }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: '{"speech":"收到公开发言","voteIntention":null,"identity_table":{}}' }],
+        }),
+      });
+
+    const env = {
+      WEREWOLF_SESSION_PROVIDER: 'minimax-api',
+      MINIMAX_API_KEY: 'test-key',
+      MINIMAX_API_URL: 'https://api.minimaxi.com/anthropic/v1/messages',
+    };
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, name: 'AI-1', role: '狼人' },
+      actionType: 'DAY_SPEECH',
+      systemInstruction: 'wolf system',
+      prompt: 'wolf day prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_discussion' },
+      env,
+    });
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 2, name: 'AI-2', role: '村民' },
+      actionType: 'DAY_SPEECH',
+      systemInstruction: 'villager system',
+      prompt: 'villager day prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_discussion' },
+      env,
+    });
+
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(secondBody.system).toContain('speech=我是村民，先观察。');
+    expect(secondBody.system).not.toContain('我是狼人');
+    expect(secondBody.system).not.toContain('队友是1号');
+    expect(secondBody.system).not.toContain('准备倒钩');
   });
 });
