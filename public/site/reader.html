@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Markdown Reader</title>
+    <meta name="description" content="Reader for sorted markdown notes." />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body class="reader-page">
+    <header class="reader-topbar">
+      <a class="back-link" href="index.html">Library</a>
+      <div class="reader-title" id="reader-title">Markdown Reader</div>
+      <a class="back-link" id="raw-link" href="#">Raw</a>
+    </header>
+
+    <main class="reader-layout">
+      <aside class="reader-nav" aria-label="documents">
+        <a href="reader.html?doc=obsidian-vault/00-index.md">Field Guide</a>
+        <a href="reader.html?doc=obsidian-vault/01-robotics-ros-navigation.md">Robotics</a>
+        <a href="reader.html?doc=obsidian-vault/02-ai-coding-and-platforms.md">AI Workflow</a>
+        <a href="reader.html?doc=obsidian-vault/03-company-career-and-principles.md">Company</a>
+        <a href="reader.html?doc=obsidian-vault/04-content-life-and-misc.md">Life Notes</a>
+        <a href="reader.html?doc=obsidian-vault/05-daily-notes-and-plans.md">Daily Notes</a>
+        <a href="reader.html?doc=obsidian-vault/06-source-inventory.md">Inventory</a>
+      </aside>
+
+      <article class="markdown-reader reveal">
+        <div id="markdown-content" data-doc-default="obsidian-vault/00-index.md">
+          <p>Loading...</p>
+        </div>
+      </article>
+    </main>
+
+    <script src="assets/script.js"></script>
+  </body>
+</html>

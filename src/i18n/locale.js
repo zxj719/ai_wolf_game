@@ -118,7 +118,7 @@ const UI_COPY = {
       greetingPrefix: '欢迎回来，',
       guestMode: '游客模式',
       workspace: '我的空间',
-      workspaceDescription: '在一个窗口里管理对局、站点与反馈',
+      workspaceDescription: '在一个窗口里管理对局、阅读、写作与反馈',
       quickStartTitle: '新手快速上手',
       quickStartDescription: '3 步完成首局狼人杀 AI 对战',
       quickSteps: [
@@ -138,6 +138,7 @@ const UI_COPY = {
       sitesTitle: '站点入口',
       sitesDescription: '汇总你的内容入口与外部站点，便于统一跳转与管理。',
       enterSites: '进入站点',
+      thinkingLibrary: 'Thinking Library',
       feedbackTitle: '意见箱',
       feedbackDescription: '欢迎反馈问题、建议或新想法',
       feedbackLabel: '反馈内容',
@@ -379,7 +380,7 @@ const UI_COPY = {
       greetingPrefix: 'Welcome back, ',
       guestMode: 'Guest mode',
       workspace: 'Workspace',
-      workspaceDescription: 'Manage matches, sites, and feedback in a single glass window',
+      workspaceDescription: 'Manage matches, reading, writing, and feedback in a single glass window',
       quickStartTitle: 'Quick start',
       quickStartDescription: 'Get into your first AI werewolf match in 3 steps',
       quickSteps: [
@@ -399,6 +400,7 @@ const UI_COPY = {
       sitesTitle: 'Site entry',
       sitesDescription: 'Collect content portals and external links in one place.',
       enterSites: 'Open sites',
+      thinkingLibrary: 'Thinking Library',
       feedbackTitle: 'Feedback box',
       feedbackDescription: 'Share issues, ideas, or requests with the project',
       feedbackLabel: 'Feedback',

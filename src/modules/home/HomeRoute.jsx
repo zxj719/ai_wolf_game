@@ -34,6 +34,9 @@ export default function HomeRoute() {
 
   const onEnterSites = useCallback(() => navigate(ROUTES.SITES), [navigate]);
   const onEnterNovel = useCallback(() => navigate(ROUTES.NOVEL), [navigate]);
+  const onEnterThinkingLibrary = useCallback(() => {
+    window.location.assign('/site/index.html');
+  }, []);
   const onLogin = useCallback(() => {
     if (isGuestMode) {
       setIsGuestMode(false);
@@ -55,6 +58,7 @@ export default function HomeRoute() {
           onEnterWolfgame={onEnterWolfgame}
           onEnterSites={onEnterSites}
           onEnterNovel={onEnterNovel}
+          onEnterThinkingLibrary={onEnterThinkingLibrary}
           onLogout={handleLogout}
           isGuestMode={isGuestMode}
           onLogin={onLogin}

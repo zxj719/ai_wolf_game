@@ -5,6 +5,7 @@ import { TokenManager } from './TokenManager';
 import { UserStats } from './UserStats';
 import {
   ArrowUpRight,
+  BookOpenText,
   Check,
   ChevronRight,
   Gamepad2,
@@ -47,6 +48,7 @@ export function Dashboard({
   onEnterWolfgame,
   onEnterSites,
   onEnterNovel,
+  onEnterThinkingLibrary,
   onLogout,
   isGuestMode = false,
   onLogin,
@@ -224,6 +226,10 @@ export function Dashboard({
                     小说工作台
                   </button>
                 )}
+                <button type="button" onClick={onEnterThinkingLibrary} className="mac-button mac-button-secondary">
+                  <BookOpenText size={16} />
+                  {copy.thinkingLibrary}
+                </button>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">

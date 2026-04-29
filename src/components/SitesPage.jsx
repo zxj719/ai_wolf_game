@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronLeft, Globe, LineChart, Music4 } from 'lucide-react';
+import { ArrowUpRight, ChevronLeft, LineChart, Music4 } from 'lucide-react';
 import { useState } from 'react';
 import { ChordsPage } from './ChordsPage';
 import { StockPage } from './Stock/StockPage';
@@ -11,12 +11,6 @@ function getCopy(locale) {
       description: 'Keep public links in one calm place. Project pages and internal tools are separated, but they no longer need different visual systems.',
       back: 'Back',
       items: [
-        {
-          key: 'site',
-          title: 'Static site',
-          description: 'Articles, projects, and long-form profile content.',
-          cta: 'Open site',
-        },
         {
           key: 'chords',
           title: 'Music arrangement lab',
@@ -39,12 +33,6 @@ function getCopy(locale) {
     description: '项目页和工具页继续分开，但视觉语言保持一致，不再各自长成不同的站。',
     back: '返回',
     items: [
-      {
-        key: 'site',
-        title: '静态站',
-        description: '文章、项目和长期介绍内容。',
-        cta: '打开站点',
-      },
       {
         key: 'chords',
         title: 'Music arrangement lab',
@@ -106,29 +94,6 @@ export function SitesPage({ onBack, locale = 'zh' }) {
             </section>
 
             <section className="space-y-3">
-              <a
-                href="/site/index.html"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mac-list-row block transition-colors hover:bg-white/90"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
-                      <Globe size={17} />
-                    </span>
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">{copy.items[0].title}</div>
-                      <div className="text-sm text-slate-500">{copy.items[0].description}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                    {copy.items[0].cta}
-                    <ArrowUpRight size={15} />
-                  </div>
-                </div>
-              </a>
-
               <button
                 type="button"
                 onClick={() => setView('chords')}
@@ -140,12 +105,12 @@ export function SitesPage({ onBack, locale = 'zh' }) {
                       <Music4 size={17} />
                     </span>
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">{copy.items[1].title}</div>
-                      <div className="text-sm text-slate-500">{copy.items[1].description}</div>
+                      <div className="text-sm font-semibold text-slate-900">{copy.items[0].title}</div>
+                      <div className="text-sm text-slate-500">{copy.items[0].description}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                    {copy.items[1].cta}
+                    {copy.items[0].cta}
                     <ArrowUpRight size={15} />
                   </div>
                 </div>
@@ -162,12 +127,12 @@ export function SitesPage({ onBack, locale = 'zh' }) {
                       <LineChart size={17} />
                     </span>
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">{copy.items[2].title}</div>
-                      <div className="text-sm text-slate-500">{copy.items[2].description}</div>
+                      <div className="text-sm font-semibold text-slate-900">{copy.items[1].title}</div>
+                      <div className="text-sm text-slate-500">{copy.items[1].description}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                    {copy.items[2].cta}
+                    {copy.items[1].cta}
                     <ArrowUpRight size={15} />
                   </div>
                 </div>
