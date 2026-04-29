@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events';
+import { spawn } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   askWerewolfSession,
@@ -5,12 +7,139 @@ import {
   resetWerewolfSession,
 } from '../werewolfSession.js';
 
+const { spawnMock } = vi.hoisted(() => ({
+  spawnMock: vi.fn(),
+}));
+
+vi.mock('node:child_process', () => ({
+  spawn: spawnMock,
+  default: { spawn: spawnMock },
+}));
+
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.clearAllMocks();
   resetWerewolfSession('test-game');
 });
 
+function mockClaudeCode({ stdout, stderr = '', code = 0 } = {}) {
+  spawnMock.mockImplementation(() => {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.stdin = {
+      write: vi.fn(),
+      end: vi.fn(() => {
+        setTimeout(() => {
+          if (stdout) child.stdout.emit('data', Buffer.from(stdout));
+          if (stderr) child.stderr.emit('data', Buffer.from(stderr));
+          child.emit('close', code);
+        }, 0);
+      }),
+    };
+    child.kill = vi.fn();
+    return child;
+  });
+}
+
 describe('werewolfSession', () => {
+  it('invokes Claude Code CLI as the default session runtime', async () => {
+    mockClaudeCode({
+      stdout: JSON.stringify({
+        type: 'result',
+        session_id: 'claude-session-1',
+        result: '{"speech":"from claude","voteIntention":null,"identity_table":{}}',
+      }),
+    });
+
+    const result = await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, name: 'AI-1', role: '村民' },
+      actionType: 'DAY_SPEECH',
+      systemInstruction: 'system prompt',
+      prompt: 'user prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_discussion' },
+      env: {
+        CLAUDE_CODE_BIN: 'claude',
+        CLAUDE_CODE_ARGS: '--print --output-format json',
+        CLAUDE_CODE_SESSION_ROOT: '.tmp/test-claude-sessions',
+        ANTHROPIC_AUTH_TOKEN: 'test-key',
+        ANTHROPIC_BASE_URL: 'https://api.minimaxi.com/anthropic',
+        ANTHROPIC_MODEL: 'MiniMax-M2',
+      },
+    });
+
+    expect(result).toMatchObject({
+      speech: 'from claude',
+      _modelInfo: { modelId: 'MiniMax-M2', provider: 'claude-code-minimax-codingplan' },
+      _sessionInfo: {
+        gameSessionId: 'test-game',
+        mode: 'claude-code-single-match-multi-agent',
+        runtimeSessionId: 'claude-session-1',
+      },
+    });
+    expect(spawn).toHaveBeenCalledWith(
+      'claude',
+      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2'],
+      expect.objectContaining({
+        windowsHide: true,
+        env: expect.objectContaining({
+          ANTHROPIC_AUTH_TOKEN: 'test-key',
+          ANTHROPIC_BASE_URL: 'https://api.minimaxi.com/anthropic',
+        }),
+      }),
+    );
+    expect(getWerewolfSessionSnapshot('test-game')).toMatchObject({
+      runtime: 'claude-code',
+      runtimeSessionId: 'claude-session-1',
+    });
+  });
+
+  it('resumes the prior Claude Code session on the next action', async () => {
+    mockClaudeCode({
+      stdout: JSON.stringify({
+        type: 'result',
+        session_id: 'claude-session-1',
+        result: '{"speech":"from claude","voteIntention":null,"identity_table":{}}',
+      }),
+    });
+
+    const env = {
+      CLAUDE_CODE_BIN: 'claude',
+      CLAUDE_CODE_ARGS: '--print --output-format json',
+      CLAUDE_CODE_SESSION_ROOT: '.tmp/test-claude-sessions',
+      ANTHROPIC_AUTH_TOKEN: 'test-key',
+      ANTHROPIC_MODEL: 'MiniMax-M2',
+    };
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, name: 'AI-1', role: '村民' },
+      actionType: 'DAY_SPEECH',
+      systemInstruction: 'system prompt',
+      prompt: 'first prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_discussion' },
+      env,
+    });
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, name: 'AI-1', role: '村民' },
+      actionType: 'DAY_VOTE',
+      systemInstruction: 'system prompt',
+      prompt: 'second prompt',
+      gameStateMeta: { dayCount: 1, phase: 'day_vote' },
+      env,
+    });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      'claude',
+      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2', '--resume', 'claude-session-1'],
+      expect.any(Object),
+    );
+  });
+
   it('calls MiniMax Anthropic endpoint and returns parsed JSON with session metadata', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
@@ -29,6 +158,7 @@ describe('werewolfSession', () => {
       prompt: 'user prompt',
       gameStateMeta: { dayCount: 1, phase: 'day_discussion' },
       env: {
+        WEREWOLF_SESSION_PROVIDER: 'minimax-api',
         MINIMAX_API_KEY: 'test-key',
         MINIMAX_API_URL: 'https://api.minimaxi.com/anthropic/v1/messages',
         MINIMAX_MODEL: 'MiniMax-M2',
@@ -37,7 +167,7 @@ describe('werewolfSession', () => {
 
     expect(result).toMatchObject({
       speech: 'hello',
-      _modelInfo: { modelId: 'MiniMax-M2', provider: 'minimax-anthropic' },
+      _modelInfo: { modelId: 'MiniMax-M2', provider: 'minimax-anthropic-api' },
       _sessionInfo: { gameSessionId: 'test-game', mode: 'single-match-multi-agent' },
     });
     expect(getWerewolfSessionSnapshot('test-game')).toMatchObject({
@@ -71,6 +201,7 @@ describe('werewolfSession', () => {
       });
 
     const env = {
+      WEREWOLF_SESSION_PROVIDER: 'minimax-api',
       MINIMAX_API_KEY: 'test-key',
       MINIMAX_API_URL: 'https://api.minimaxi.com/anthropic/v1/messages',
     };
