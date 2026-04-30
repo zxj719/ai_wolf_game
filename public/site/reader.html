@@ -3,35 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Markdown Reader</title>
-    <meta name="description" content="Reader for sorted markdown notes." />
+    <title>资料库 | Thinking Library</title>
+    <meta name="description" content="A bilingual reader for edited Obsidian notes." />
     <link rel="stylesheet" href="assets/style.css" />
   </head>
-  <body class="reader-page">
+  <body class="reader-page" data-page="reader">
     <header class="reader-topbar">
-      <a class="back-link" href="index.html">Library</a>
-      <div class="reader-title" id="reader-title">Markdown Reader</div>
-      <a class="back-link" id="raw-link" href="#">Raw</a>
+      <a class="back-link" href="/home" data-copy="home">返回首页</a>
+      <a class="back-link" href="index.html" data-copy="libraryHome">图书馆首页</a>
+      <div class="reader-title" id="reader-title">资料库</div>
+      <a class="back-link" id="raw-link" href="#" data-copy="raw">原始文件</a>
+      <div class="language-switch" aria-label="Language">
+        <button type="button" data-lang-set="zh" data-lang-label="chinese">中文</button>
+        <button type="button" data-lang-set="en" data-lang-label="english">英文</button>
+      </div>
     </header>
 
     <main class="reader-layout">
-      <aside class="reader-nav" aria-label="documents">
-        <a href="reader.html?doc=obsidian-vault/00-index.md">Field Guide</a>
-        <a href="reader.html?doc=obsidian-vault/01-robotics-ros-navigation.md">Robotics</a>
-        <a href="reader.html?doc=obsidian-vault/02-ai-coding-and-platforms.md">AI Workflow</a>
-        <a href="reader.html?doc=obsidian-vault/03-company-career-and-principles.md">Company</a>
-        <a href="reader.html?doc=obsidian-vault/04-content-life-and-misc.md">Life Notes</a>
-        <a href="reader.html?doc=obsidian-vault/05-daily-notes-and-plans.md">Daily Notes</a>
-        <a href="reader.html?doc=obsidian-vault/06-source-inventory.md">Inventory</a>
-      </aside>
-
+      <aside class="reader-nav" id="reader-nav" aria-label="Documents"></aside>
       <article class="markdown-reader reveal">
+        <p class="archive-note" data-copy="archiveNote"></p>
         <div id="markdown-content" data-doc-default="obsidian-vault/00-index.md">
-          <p>Loading...</p>
+          <p data-copy="loading">正在载入...</p>
         </div>
       </article>
     </main>
 
+    <script src="assets/content.js"></script>
     <script src="assets/script.js"></script>
   </body>
 </html>

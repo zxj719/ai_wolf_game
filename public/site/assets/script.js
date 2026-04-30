@@ -1,72 +1,244 @@
 (() => {
-  const els = Array.from(document.querySelectorAll(".reveal"));
-  if (els.length === 0) return;
+  const DATA = window.THINKING_LIBRARY;
+  if (!DATA) return;
 
-  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduce) {
-    els.forEach((el) => el.classList.add("is-visible"));
-    return;
-  }
+  const supported = ["zh", "en"];
+  const page = document.body?.dataset.page || "home";
 
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        e.target.classList.add("is-visible");
-        io.unobserve(e.target);
-      }
-    },
-    { root: null, threshold: 0.08 }
-  );
-
-  els.forEach((el) => io.observe(el));
-})();
-
-(() => {
-  const mount = document.getElementById("markdown-content");
-  if (!mount) return;
-
-  const allowedDocs = new Map([
-    ["obsidian-vault/00-index.md", "Obsidian Vault: A Field Guide"],
-    ["obsidian-vault/01-robotics-ros-navigation.md", "The Robot Is Not An Algorithm"],
-    ["obsidian-vault/02-ai-coding-and-platforms.md", "AI Is A Workflow, Not A Shortcut"],
-    ["obsidian-vault/03-company-career-and-principles.md", "A Company Is A Machine For Preserving Experience"],
-    ["obsidian-vault/04-content-life-and-misc.md", "Life Notes Are Raw Material"],
-    ["obsidian-vault/05-daily-notes-and-plans.md", "Daily Notes Are A Black Box Recorder"],
-    ["obsidian-vault/06-source-inventory.md", "Source Inventory Without Links"],
-  ]);
-
-  const params = new URLSearchParams(window.location.search);
-  const fallback = mount.dataset.docDefault || "obsidian-vault/00-index.md";
-  const requested = params.get("doc") || fallback;
-  const doc = allowedDocs.has(requested) ? requested : fallback;
-  const title = allowedDocs.get(doc) || "Markdown Reader";
-  const titleEl = document.getElementById("reader-title");
-  const rawLink = document.getElementById("raw-link");
-
-  if (titleEl) titleEl.textContent = title;
-  if (rawLink) rawLink.href = `notes/${doc}`;
-
-  fetch(`notes/${doc}`)
-    .then((res) => {
-      if (!res.ok) throw new Error(`Unable to load ${doc}`);
-      return res.text();
-    })
-    .then((text) => {
-      mount.innerHTML = renderMarkdown(text);
-      document.title = `${title} | Thinking Library`;
-    })
-    .catch(() => {
-      mount.innerHTML = "<h1>Document unavailable</h1><p>The requested markdown file could not be loaded.</p>";
-    });
-
-  function escapeHtml(value) {
-    return value
+  const escapeHtml = (value = "") =>
+    String(value)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+
+  const readLang = () => {
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("lang");
+    if (supported.includes(requested)) return requested;
+    const stored = window.localStorage?.getItem(DATA.storageKey);
+    if (supported.includes(stored)) return stored;
+    return "zh";
+  };
+
+  let lang = readLang();
+
+  function common() {
+    return DATA.common[lang] || DATA.common.zh;
+  }
+
+  function localizeShell() {
+    const copy = common();
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    document.querySelectorAll("[data-copy]").forEach((el) => {
+      const key = el.dataset.copy;
+      if (copy[key]) el.textContent = copy[key];
+    });
+    document.querySelectorAll("[data-lang-set]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.langSet === lang);
+      button.setAttribute("aria-pressed", button.dataset.langSet === lang ? "true" : "false");
+      const label = button.dataset.langLabel;
+      if (label && copy[label]) button.textContent = copy[label];
+    });
+  }
+
+  function setLang(nextLang) {
+    if (!supported.includes(nextLang) || nextLang === lang) return;
+    lang = nextLang;
+    window.localStorage?.setItem(DATA.storageKey, lang);
+    renderPage();
+  }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-lang-set]");
+    if (!button) return;
+    event.preventDefault();
+    setLang(button.dataset.langSet);
+  });
+
+  function renderArchiveLinks(container, compact = false) {
+    if (!container) return;
+    container.innerHTML = DATA.archive.docs
+      .map((doc) => {
+        const title = lang === "zh" ? doc.zhTitle : doc.enTitle;
+        if (compact) {
+          return `<a class="sidebar-item" href="reader.html?doc=${encodeURIComponent(doc.id)}">${escapeHtml(title)}</a>`;
+        }
+        const kind = lang === "zh" ? doc.zhKind : doc.enKind;
+        const desc = lang === "zh" ? doc.zhDesc : doc.enDesc;
+        return `
+          <a class="doc-card ${doc.color}" href="reader.html?doc=${encodeURIComponent(doc.id)}">
+            <span class="doc-kind">${escapeHtml(kind)}</span>
+            <h2>${escapeHtml(title)}</h2>
+            <p>${escapeHtml(desc)}</p>
+          </a>
+        `;
+      })
+      .join("");
+  }
+
+  function renderHome() {
+    const copy = DATA.home[lang];
+    const cover = document.getElementById("home-cover");
+    const grid = document.getElementById("home-feature-grid");
+    const sectionsTitle = document.getElementById("home-sections-title");
+    const sections = document.getElementById("home-sections");
+
+    document.title = `${common().library} | Zhaxiaoji Studio`;
+    renderArchiveLinks(document.getElementById("archive-sidebar"), true);
+
+    if (cover) {
+      cover.innerHTML = `
+        <section class="cover-story">
+          <div>
+            <div class="cover-kicker">${escapeHtml(copy.kicker)}</div>
+            <h1 class="cover-title">${escapeHtml(copy.title)}</h1>
+            <p class="cover-dek">${escapeHtml(copy.dek)}</p>
+            <p class="cover-meta">${escapeHtml(copy.meta)}</p>
+            <div class="cover-actions">
+              <a class="primary-pill primary" href="essay.html">${escapeHtml(copy.primary)}</a>
+              <a class="primary-pill" href="views.html">${escapeHtml(copy.secondary)}</a>
+              <a class="primary-pill" href="reader.html">${escapeHtml(copy.archiveCta)}</a>
+            </div>
+          </div>
+          <aside class="issue-label">
+            <strong>${escapeHtml(common().issue)}</strong>
+            ${escapeHtml(common().library)}
+          </aside>
+        </section>
+      `;
+    }
+
+    if (grid) {
+      grid.innerHTML = copy.cards
+        .map((card) => `
+          <article class="feature-card">
+            <div class="card-kicker">${escapeHtml(card.label)}</div>
+            <h2>${escapeHtml(card.title)}</h2>
+            <p>${escapeHtml(card.body)}</p>
+          </article>
+        `)
+        .join("");
+    }
+
+    if (sectionsTitle) sectionsTitle.textContent = copy.sectionsTitle;
+    if (sections) {
+      sections.innerHTML = copy.sections
+        .map((item) => `<li>${escapeHtml(item)}</li>`)
+        .join("");
+    }
+  }
+
+  function renderEssay() {
+    const essay = DATA.essay[lang];
+    const root = document.getElementById("essay-root");
+    const toc = document.getElementById("essay-toc");
+    document.title = `${essay.title} | ${common().library}`;
+
+    if (toc) {
+      toc.innerHTML = `
+        <strong>${escapeHtml(common().issue)}</strong>
+        ${essay.sections.map((section) => `<a href="#${escapeHtml(section.id)}">${escapeHtml(section.title)}</a>`).join("")}
+      `;
+    }
+
+    if (!root) return;
+    root.innerHTML = `
+      <header class="article-header">
+        <div class="essay-kicker">${escapeHtml(common().library)}</div>
+        <h1 class="article-title">${escapeHtml(essay.title)}</h1>
+        <p class="article-subtitle">${escapeHtml(essay.subtitle)}</p>
+        <div class="article-meta">${escapeHtml(essay.byline)} · ${escapeHtml(essay.date)}</div>
+      </header>
+      <p class="standfirst">${escapeHtml(essay.standfirst)}</p>
+      <aside class="pull-quote">${escapeHtml(essay.pullQuote)}</aside>
+      ${essay.sections.map((section, index) => renderEssaySection(section, index === 0)).join("")}
+    `;
+  }
+
+  function renderEssaySection(section, first) {
+    return `
+      <section class="article-section ${first ? "first" : ""}" id="${escapeHtml(section.id)}">
+        <div class="section-label">${escapeHtml(section.label)}</div>
+        <h2>${escapeHtml(section.title)}</h2>
+        ${section.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+        ${section.quote ? `<blockquote class="section-quote">${escapeHtml(section.quote)}</blockquote>` : ""}
+      </section>
+    `;
+  }
+
+  function renderViews() {
+    const views = DATA.views[lang];
+    const title = document.getElementById("views-title");
+    const subtitle = document.getElementById("views-subtitle");
+    const grid = document.getElementById("views-grid");
+
+    document.title = `${views.title} | ${common().library}`;
+    if (title) title.textContent = views.title;
+    if (subtitle) subtitle.textContent = views.subtitle;
+    if (!grid) return;
+
+    grid.innerHTML = views.cards
+      .map(([cardTitle, body], index) => `
+        <article class="argument-card reveal">
+          <div class="number">${String(index + 1).padStart(2, "0")}</div>
+          <h2>${escapeHtml(cardTitle)}</h2>
+          <p>${escapeHtml(body)}</p>
+        </article>
+      `)
+      .join("");
+  }
+
+  function renderReader() {
+    const mount = document.getElementById("markdown-content");
+    if (!mount) return;
+
+    const nav = document.getElementById("reader-nav");
+    const params = new URLSearchParams(window.location.search);
+    const fallback = mount.dataset.docDefault || "obsidian-vault/00-index.md";
+    const allowed = new Set(DATA.archive.docs.map((doc) => doc.id));
+    const requested = params.get("doc") || fallback;
+    const docId = allowed.has(requested) ? requested : fallback;
+    const docMeta = DATA.archive.docs.find((doc) => doc.id === docId) || DATA.archive.docs[0];
+    const title = lang === "zh" ? docMeta.zhTitle : docMeta.enTitle;
+    const titleEl = document.getElementById("reader-title");
+    const rawLink = document.getElementById("raw-link");
+
+    document.title = `${title} | ${common().library}`;
+    if (titleEl) titleEl.textContent = title;
+    if (rawLink) rawLink.href = `notes/${docId}`;
+
+    if (nav) {
+      nav.innerHTML = `
+        <strong>${escapeHtml(common().archive)}</strong>
+        ${DATA.archive.docs.map((doc) => {
+          const itemTitle = lang === "zh" ? doc.zhTitle : doc.enTitle;
+          const active = doc.id === docId ? "active" : "";
+          return `<a class="${active}" href="reader.html?doc=${encodeURIComponent(doc.id)}">${escapeHtml(itemTitle)}</a>`;
+        }).join("")}
+      `;
+    }
+
+    mount.innerHTML = `<p>${escapeHtml(common().loading)}</p>`;
+
+    const localizedMarkdown = DATA.archive[`${lang}Markdown`]?.[docId];
+    if (localizedMarkdown) {
+      mount.innerHTML = renderMarkdown(localizedMarkdown);
+      return;
+    }
+
+    fetch(`notes/${docId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Unable to load ${docId}`);
+        return res.text();
+      })
+      .then((text) => {
+        mount.innerHTML = renderMarkdown(text);
+      })
+      .catch(() => {
+        mount.innerHTML = `<h1>${escapeHtml(common().unavailable)}</h1><p>${escapeHtml(common().unavailableBody)}</p>`;
+      });
   }
 
   function inline(value) {
@@ -172,4 +344,42 @@
 
     return html.join("\n");
   }
+
+  function initReveal() {
+    const els = Array.from(document.querySelectorAll(".reveal"));
+    if (els.length === 0) return;
+
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) {
+      els.forEach((el) => el.classList.add("is-visible"));
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add("is-visible");
+          io.unobserve(entry.target);
+        }
+      },
+      { root: null, threshold: 0.08 }
+    );
+
+    els.forEach((el) => {
+      el.classList.remove("is-visible");
+      io.observe(el);
+    });
+  }
+
+  function renderPage() {
+    localizeShell();
+    if (page === "home") renderHome();
+    if (page === "essay") renderEssay();
+    if (page === "views") renderViews();
+    if (page === "reader") renderReader();
+    initReveal();
+  }
+
+  renderPage();
 })();

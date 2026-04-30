@@ -3,96 +3,58 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Thinking Library</title>
-    <meta name="description" content="A macOS-style reading hub for sorted markdown notes." />
+    <title>思考图书馆 | Thinking Library</title>
+    <meta name="description" content="A bilingual magazine-style reading room for essays, arguments, and edited notes." />
     <link rel="stylesheet" href="assets/style.css" />
   </head>
-  <body class="home-page">
+  <body class="home-page" data-page="home">
     <main class="desktop-shell">
-      <section class="mac-window reveal" aria-label="thinking library">
+      <section class="mac-window reveal" aria-label="Thinking Library">
         <header class="window-bar">
           <div class="traffic-lights" aria-hidden="true">
             <span class="close"></span>
             <span class="minimize"></span>
             <span class="zoom"></span>
           </div>
-          <div class="window-title">Thinking Library</div>
+          <div class="window-title" data-copy="library">思考图书馆</div>
           <div class="toolbar-actions">
-            <a href="essay.html">Essay</a>
-            <a href="views.html">Views</a>
+            <a href="/home" data-copy="home">返回首页</a>
+            <a href="essay.html" data-copy="essay">阅读长文</a>
+            <a href="views.html" data-copy="views">观点索引</a>
+            <div class="language-switch" aria-label="Language">
+              <button type="button" data-lang-set="zh" data-lang-label="chinese">中文</button>
+              <button type="button" data-lang-set="en" data-lang-label="english">英文</button>
+            </div>
           </div>
         </header>
 
         <div class="window-body">
-          <aside class="finder-sidebar" aria-label="library sections">
+          <aside class="finder-sidebar" aria-label="Library sections">
             <div class="sidebar-section">
-              <div class="sidebar-label">Library</div>
-              <a class="sidebar-item active" href="#vault">Obsidian Vault</a>
-              <a class="sidebar-item" href="reader.html?doc=obsidian-vault/00-index.md">Field Guide</a>
-              <a class="sidebar-item" href="reader.html?doc=obsidian-vault/06-source-inventory.md">Inventory</a>
+              <div class="sidebar-label" data-copy="issue">第 01 期</div>
+              <a class="sidebar-item active" href="index.html" data-copy="libraryHome">图书馆首页</a>
+              <a class="sidebar-item" href="essay.html" data-copy="essay">阅读长文</a>
+              <a class="sidebar-item" href="views.html" data-copy="views">观点索引</a>
             </div>
             <div class="sidebar-section">
-              <div class="sidebar-label">Original Site</div>
-              <a class="sidebar-item" href="essay.html">Long Essay</a>
-              <a class="sidebar-item" href="views.html">View Cards</a>
+              <div class="sidebar-label" data-copy="archive">资料库</div>
+              <div id="archive-sidebar"></div>
             </div>
           </aside>
 
-          <section class="library-main" id="vault">
-            <div class="library-hero">
-              <div>
-                <p class="eyebrow">Sorted markdown collection</p>
-                <h1>Obsidian Vault, rewritten as readable essays.</h1>
-                <p>
-                  A compact reading desk for robotics, AI workflow, company thinking,
-                  life notes, and daily engineering records.
-                </p>
-              </div>
-              <a class="primary-pill" href="reader.html?doc=obsidian-vault/00-index.md">Open guide</a>
-            </div>
-
-            <div class="doc-grid" aria-label="markdown documents">
-              <a class="doc-card blue" href="reader.html?doc=obsidian-vault/00-index.md">
-                <span class="doc-kind">Guide</span>
-                <h2>Obsidian Vault: A Field Guide</h2>
-                <p>The starting point for the whole sorted collection.</p>
-              </a>
-              <a class="doc-card green" href="reader.html?doc=obsidian-vault/01-robotics-ros-navigation.md">
-                <span class="doc-kind">Robotics</span>
-                <h2>The Robot Is Not An Algorithm</h2>
-                <p>G1, Go2w, Nav2, SLAM, costmap, interfaces, and calibration.</p>
-              </a>
-              <a class="doc-card violet" href="reader.html?doc=obsidian-vault/02-ai-coding-and-platforms.md">
-                <span class="doc-kind">AI Workflow</span>
-                <h2>AI Is A Workflow, Not A Shortcut</h2>
-                <p>Claude Code, OpenClaw, long-running agents, and platform thinking.</p>
-              </a>
-              <a class="doc-card orange" href="reader.html?doc=obsidian-vault/03-company-career-and-principles.md">
-                <span class="doc-kind">Work</span>
-                <h2>A Company Is A Machine For Preserving Experience</h2>
-                <p>Company memory, leadership, cost, quality, and partner mindset.</p>
-              </a>
-              <a class="doc-card pink" href="reader.html?doc=obsidian-vault/04-content-life-and-misc.md">
-                <span class="doc-kind">Life</span>
-                <h2>Life Notes Are Raw Material</h2>
-                <p>Music, travel, reading, rough notes, and unfinished ideas.</p>
-              </a>
-              <a class="doc-card teal" href="reader.html?doc=obsidian-vault/05-daily-notes-and-plans.md">
-                <span class="doc-kind">Timeline</span>
-                <h2>Daily Notes Are A Black Box Recorder</h2>
-                <p>Daily notes as engineering evidence and weekly extraction fuel.</p>
-              </a>
-              <a class="doc-card graphite" href="reader.html?doc=obsidian-vault/06-source-inventory.md">
-                <span class="doc-kind">Inventory</span>
-                <h2>Source Inventory Without Links</h2>
-                <p>Plain filenames and coverage notes for the copied markdown set.</p>
-              </a>
-            </div>
+          <section class="library-main">
+            <div id="home-cover"></div>
+            <div id="home-feature-grid" class="feature-grid"></div>
+            <section class="issue-map" aria-label="Issue structure">
+              <h2 id="home-sections-title">本期结构</h2>
+              <ol id="home-sections"></ol>
+            </section>
           </section>
         </div>
       </section>
     </main>
 
+    <script src="assets/content.js"></script>
     <script src="assets/script.js"></script>
   </body>
 </html>
