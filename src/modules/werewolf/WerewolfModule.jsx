@@ -6,6 +6,12 @@ import { saveGameRecord } from '../../services/gameService';
 import { submitGameLog } from '../../services/submitGameLog';
 import { authService } from '../../services/authService';
 import {
+  clearWerewolfGameSnapshot,
+  createWerewolfGameSnapshot,
+  loadWerewolfGameSnapshot,
+  saveWerewolfGameSnapshot,
+} from '../../services/werewolfGameSnapshot';
+import {
   ROLE_DEFINITIONS,
   STANDARD_ROLES,
   GAME_SETUPS,
@@ -15,7 +21,7 @@ import {
   DEFAULT_CUSTOM_SELECTIONS,
   DEFAULT_VICTORY_MODE,
 } from '../../config/roles';
-import { API_KEY, API_URL, WEREWOLF_AI_MODE } from '../../config/aiConfig';
+import { API_KEY, API_URL, WEREWOLF_AI_MODE, WEREWOLF_SESSION_MODELS } from '../../config/aiConfig';
 import { useAI } from '../../hooks/useAI';
 import { useDayFlow } from '../../hooks/useDayFlow';
 import { useNightFlow } from '../../hooks/useNightFlow';
@@ -106,11 +112,13 @@ export default function WerewolfModule() {
   const [gameStartTime, setGameStartTime] = useState(null);
   const [customRoleSelections, setCustomRoleSelections] = useState(DEFAULT_CUSTOM_SELECTIONS);
   const [victoryMode, setVictoryMode] = useState(DEFAULT_VICTORY_MODE);
+  const [pendingSnapshot, setPendingSnapshot] = useState(null);
 
   const nightDecisionsRef = useRef(null);
   const gameActiveRef = useRef(false);
   const gameStateRef = useRef(null);
   const initGameRef = useRef(null);
+  const restoringSnapshotRef = useRef(false);
 
   const {
     state,
@@ -120,7 +128,7 @@ export default function WerewolfModule() {
     dreamweaverHistory, setDreamweaverHistory,
     setSpeechHistory, setVoteHistory, setDeathHistory,
     addCurrentPhaseSpeech, clearCurrentPhaseData,
-    setLogs, addLog, initGame,
+    setLogs, addLog, initGame, hydrateGameState,
     processedVoteDayRef, gameInitializedRef,
     updatePlayerModel, updateActionResult,
     // 柱一：幂等原子 action
@@ -148,6 +156,7 @@ export default function WerewolfModule() {
   const isGameActive = phase !== 'setup' || !!gameMode;
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
   const usesServerSessionAI = WEREWOLF_AI_MODE === 'session' || WEREWOLF_AI_MODE === 'claude-session';
+  const serverSessionModel = WEREWOLF_SESSION_MODELS[0];
   const effectiveApiKey = usesServerSessionAI ? '' : (modelscopeToken || API_KEY);
 
   nightDecisionsRef.current = nightDecisions;
@@ -178,12 +187,59 @@ export default function WerewolfModule() {
   }, [clearCurrentPhaseData, setDayCount, setLogs, setNightStep, setPhase, closeStats, closeTokenManager,
       processedVoteDayRef, gameInitializedRef]);
 
+  const snapshotCurrentGame = useCallback(() => {
+    if (gameResult) return false;
+    const snapshot = createWerewolfGameSnapshot({
+      state: gameStateRef.current || state,
+      moduleState: {
+        gameMode,
+        selectedSetup,
+        customRoleSelections,
+        victoryMode,
+        gameStartTime,
+        hunterShooting,
+        selectedTarget,
+        speakerIndex,
+        speakingOrder,
+        spokenCount,
+        userInput,
+        gameResult,
+      },
+    });
+    if (!snapshot) return false;
+    const saved = saveWerewolfGameSnapshot({ user, isGuestMode, snapshot });
+    if (saved) setPendingSnapshot(snapshot);
+    return saved;
+  }, [
+    customRoleSelections,
+    gameMode,
+    gameResult,
+    gameStartTime,
+    hunterShooting,
+    isGuestMode,
+    selectedSetup,
+    selectedTarget,
+    speakerIndex,
+    speakingOrder,
+    spokenCount,
+    state,
+    user,
+    userInput,
+    victoryMode,
+  ]);
+
+  const snapshotCurrentGameRef = useRef(snapshotCurrentGame);
+  useEffect(() => { snapshotCurrentGameRef.current = snapshotCurrentGame; }, [snapshotCurrentGame]);
+
   // === 卸载时兜底：离开 werewolf/* 到别的模块，组件 unmount → 清理游戏 ===
   const endGameRef = useRef(endGame);
   useEffect(() => { endGameRef.current = endGame; }, [endGame]);
   useEffect(() => {
     return () => {
-      if (gameActiveRef.current) endGameRef.current?.();
+      if (gameActiveRef.current) {
+        snapshotCurrentGameRef.current?.();
+        endGameRef.current?.();
+      }
     };
   }, []);
 
@@ -206,7 +262,10 @@ export default function WerewolfModule() {
   }, [isGameActive]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => abortAllRequests();
+    const handleBeforeUnload = () => {
+      snapshotCurrentGameRef.current?.();
+      abortAllRequests();
+    };
     const handleVisibilityChange = () => {
       if (document.hidden) abortAllRequests();
       else resetAbortController();
@@ -223,6 +282,10 @@ export default function WerewolfModule() {
     if (gameMode) {
       resetAbortController();
       gameActiveRef.current = true;
+      if (restoringSnapshotRef.current) {
+        restoringSnapshotRef.current = false;
+        return;
+      }
       initGameRef.current(gameMode, selectedSetup);
       setGameStartTime(Date.now());
     }
@@ -278,6 +341,17 @@ export default function WerewolfModule() {
   }, [gameMode, gameResult, gameStartTime, isGuestMode, modelUsage, players, user]);
 
   useEffect(() => { gameStateRef.current = state; });
+
+  useEffect(() => {
+    if (phase !== 'setup' || gameMode) return;
+    setPendingSnapshot(loadWerewolfGameSnapshot({ user, isGuestMode }));
+  }, [gameMode, isGuestMode, phase, user]);
+
+  useEffect(() => {
+    if (!gameResult) return;
+    clearWerewolfGameSnapshot({ user, isGuestMode });
+    setPendingSnapshot(null);
+  }, [gameResult, isGuestMode, user]);
 
   useEffect(() => {
     if (!gameResult || !gameStateRef.current) return;
@@ -361,15 +435,70 @@ export default function WerewolfModule() {
   });
 
   const restartGame = () => {
+    clearWerewolfGameSnapshot({ user, isGuestMode });
+    setPendingSnapshot(null);
     endGame();
     navigate(ROUTES.WEREWOLF_SETUP, { replace: true });
   };
 
   // === Handlers ===
+  const handleResumeSnapshot = useCallback(() => {
+    const snapshot = pendingSnapshot || loadWerewolfGameSnapshot({ user, isGuestMode });
+    if (!snapshot?.state) return;
+    const moduleState = snapshot.moduleState || {};
+    const hydratedState = usesServerSessionAI
+      ? {
+          ...snapshot.state,
+          modelUsage: {
+            ...(snapshot.state.modelUsage || {}),
+            playerModels: Object.fromEntries(
+              (snapshot.state.players || [])
+                .filter((p) => !p.isUser)
+                .map((p) => [p.id, {
+                  modelId: serverSessionModel.id,
+                  modelName: serverSessionModel.name,
+                }])
+            ),
+          },
+        }
+      : snapshot.state;
+
+    restoringSnapshotRef.current = true;
+    resetAbortController();
+    hydrateGameState(hydratedState);
+    setGameMode(moduleState.gameMode || 'player');
+    if (moduleState.selectedSetup) setSelectedSetup(moduleState.selectedSetup);
+    if (moduleState.customRoleSelections) setCustomRoleSelections(moduleState.customRoleSelections);
+    if (moduleState.victoryMode) setVictoryMode(moduleState.victoryMode);
+    setGameStartTime(moduleState.gameStartTime || Date.now());
+    setHunterShooting(moduleState.hunterShooting || null);
+    setSelectedTarget(moduleState.selectedTarget ?? null);
+    setSpeakerIndex(moduleState.speakerIndex ?? -1);
+    setSpeakingOrder(moduleState.speakingOrder || 'left');
+    setSpokenCount(moduleState.spokenCount ?? 0);
+    setUserInput(moduleState.userInput || '');
+    setGameResult(moduleState.gameResult || null);
+    processedVoteDayRef.current = -1;
+    gameInitializedRef.current = true;
+    gameActiveRef.current = true;
+    setPendingSnapshot(null);
+    navigate(ROUTES.WEREWOLF_PLAY, { replace: true });
+  }, [gameInitializedRef, hydrateGameState, isGuestMode, navigate, pendingSnapshot, processedVoteDayRef, user, usesServerSessionAI]);
+
+  const handleDiscardSnapshot = useCallback(() => {
+    clearWerewolfGameSnapshot({ user, isGuestMode });
+    setPendingSnapshot(null);
+  }, [isGuestMode, user]);
+
+  const handleStartNewGame = useCallback(() => {
+    handleDiscardSnapshot();
+  }, [handleDiscardSnapshot]);
+
   const handleExitToHome = useCallback(() => {
+    snapshotCurrentGame();
     endGame();
     navigate(ROUTES.HOME, { replace: true });
-  }, [endGame, navigate]);
+  }, [endGame, navigate, snapshotCurrentGame]);
 
   const handleEnterWolfgameSetup = useCallback(() => {
     navigate(ROUTES.WEREWOLF_SETUP);
@@ -381,19 +510,21 @@ export default function WerewolfModule() {
   }, [enterGuestMode, navigate]);
 
   const handleGuestExitToLogin = useCallback(() => {
+    snapshotCurrentGame();
     endGame();
     setIsGuestMode(false);
     navigate(ROUTES.LOGIN, { replace: true });
-  }, [endGame, navigate, setIsGuestMode]);
+  }, [endGame, navigate, setIsGuestMode, snapshotCurrentGame]);
 
   const handleGoToLogin = useCallback(() => {
     navigate(ROUTES.LOGIN);
   }, [navigate]);
 
   const handleLogout = useCallback(async () => {
+    snapshotCurrentGame();
     endGame();
     await baseHandleLogout();
-  }, [endGame, baseHandleLogout]);
+  }, [endGame, baseHandleLogout, snapshotCurrentGame]);
 
   // === Render ===
   const routeToolbar = (isSetupRoute || isPlayRoute) ? (
@@ -481,6 +612,10 @@ export default function WerewolfModule() {
               onBuildCustomSetup={setSelectedSetup}
               victoryMode={victoryMode}
               setVictoryMode={setVictoryMode}
+              pendingSnapshot={pendingSnapshot}
+              onResumeSnapshot={handleResumeSnapshot}
+              onDiscardSnapshot={handleDiscardSnapshot}
+              onStartNewGame={handleStartNewGame}
             />
           </Suspense>
         )}

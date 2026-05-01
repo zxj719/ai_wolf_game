@@ -21,6 +21,7 @@ vi.mock('../../services/authService.js', () => ({
 vi.mock('../../config/aiConfig.js', async (importOriginal) => ({
   ...(await importOriginal()),
   API_KEY: '',
+  WEREWOLF_AI_MODE: 'legacy',
 }));
 
 vi.mock('../TokenManager.jsx', () => ({

@@ -83,6 +83,7 @@ const types = {
   CLEAR_CURRENT_PHASE_DATA: 'CLEAR_CURRENT_PHASE_DATA',
   SET_GAME_BACKGROUND: 'SET_GAME_BACKGROUND',
   SET_MODEL_USAGE: 'SET_MODEL_USAGE',
+  HYDRATE_STATE: 'HYDRATE_STATE',
   UPDATE_PLAYER_MODEL: 'UPDATE_PLAYER_MODEL',
   // 任务1：猎人延迟开枪状态
   SET_PENDING_HUNTER_SHOOT: 'SET_PENDING_HUNTER_SHOOT',
@@ -102,6 +103,23 @@ function reducer(state, action) {
     typeof payload === 'function' ? payload(state[key]) : payload;
 
   switch (action.type) {
+    case types.HYDRATE_STATE:
+      return {
+        ...initialState,
+        ...action.payload,
+        nightDecisions: {
+          ...initialState.nightDecisions,
+          ...(action.payload?.nightDecisions || {}),
+        },
+        currentPhaseData: {
+          ...initialState.currentPhaseData,
+          ...(action.payload?.currentPhaseData || {}),
+        },
+        modelUsage: {
+          ...initialState.modelUsage,
+          ...(action.payload?.modelUsage || {}),
+        },
+      };
     case types.SET_PHASE:
       return { ...state, phase: apply('phase', action.payload) };
     case types.SET_NIGHT_STEP:
@@ -365,6 +383,7 @@ export function useWerewolfGame(config) {
   const clearCurrentPhaseData = () => dispatch({ type: types.CLEAR_CURRENT_PHASE_DATA });
   const setGameBackground = (value) => dispatch({ type: types.SET_GAME_BACKGROUND, payload: value });
   const setLogs = (value) => dispatch({ type: types.SET_LOGS, payload: value });
+  const hydrateGameState = (value) => dispatch({ type: types.HYDRATE_STATE, payload: value });
   const pushLog = (value) => dispatch({ type: types.PUSH_LOG, payload: value });
   const setModelUsage = (value) => dispatch({ type: types.SET_MODEL_USAGE, payload: value });
   const updatePlayerModel = (playerId, modelId, modelName) => dispatch({
@@ -517,6 +536,7 @@ export function useWerewolfGame(config) {
     clearCurrentPhaseData,
     setGameBackground,
     setLogs,
+    hydrateGameState,
     addLog,
     initGame,
     processedVoteDayRef,

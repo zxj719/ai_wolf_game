@@ -65,3 +65,22 @@ export async function askWerewolfSessionAI({
 export async function resetWerewolfSessionAI(gameSessionId) {
   return postSession('/reset', { gameSessionId });
 }
+
+export async function generateWerewolfSessionAsset({
+  gameSessionId = 'visual-assets',
+  assetType,
+  visualPrompt,
+  player = null,
+  gameMode = 'ai-only',
+  aspectRatio = null,
+}) {
+  const data = await postSession('/asset', {
+    gameSessionId,
+    assetType,
+    visualPrompt,
+    player,
+    gameMode,
+    aspectRatio,
+  });
+  return data.result || null;
+}

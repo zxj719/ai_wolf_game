@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   askWerewolfSession,
+  generateWerewolfVisualAsset,
   getWerewolfSessionSnapshot,
   resetWerewolfSession,
 } from '../werewolfSession.js';
@@ -370,5 +371,51 @@ describe('werewolfSession', () => {
     expect(secondBody.system).not.toContain('我是狼人');
     expect(secondBody.system).not.toContain('队友是1号');
     expect(secondBody.system).not.toContain('准备倒钩');
+  });
+});
+
+describe('werewolf visual assets', () => {
+  it('generates visual assets through Claude Code and returns an SVG data URI', async () => {
+    mockClaudeCode({
+      stdout: JSON.stringify({
+        type: 'result',
+        session_id: 'visual-session-1',
+        result: JSON.stringify({
+          svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#111827"/></svg>',
+          alt: 'hooded villager portrait',
+        }),
+      }),
+    });
+
+    const result = await generateWerewolfVisualAsset({
+      gameSessionId: 'test-game',
+      assetType: 'avatar',
+      visualPrompt: 'A hooded villager portrait',
+      player: { id: 2, name: 'AI-2', role: '村民' },
+      env: {
+        CLAUDE_CODE_BIN: 'claude',
+        CLAUDE_CODE_ARGS: '--print --output-format json',
+        CLAUDE_CODE_SESSION_ROOT: '.tmp/test-claude-sessions',
+        ANTHROPIC_AUTH_TOKEN: 'test-key',
+        ANTHROPIC_MODEL: 'MiniMax-M2.7',
+      },
+    });
+
+    expect(result).toMatchObject({
+      assetType: 'avatar',
+      alt: 'hooded villager portrait',
+      _modelInfo: {
+        modelId: 'MiniMax-M2.7',
+        modelName: 'Server Claude Code · MiniMax-M2.7',
+        provider: 'claude-code-minimax-codingplan',
+      },
+    });
+    expect(result.imageUrl).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+    expect(decodeURIComponent(result.imageUrl.split(',')[1])).toContain('<svg');
+    expect(spawn).toHaveBeenCalledWith(
+      'claude',
+      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7'],
+      expect.objectContaining({ windowsHide: true }),
+    );
   });
 });

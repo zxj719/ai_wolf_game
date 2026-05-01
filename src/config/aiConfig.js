@@ -2,14 +2,13 @@
 // NOTE: Do NOT hardcode API keys in source. Use Vite env vars instead.
 //
 // Supported providers:
-// - modelscope (legacy default, OpenAI-format)
+// - ecs-session (server-side single-match multi-agent session; no browser API key)
+// - modelscope (legacy OpenAI-format)
 // - siliconflow (OpenAI-format)
 // - minimax    (Anthropic-format via /anthropic/v1/messages)
-// - ecs-session (server-side single-match multi-agent session; no browser API key)
 //
-// 本地开发优先：如果定义了 VITE_MINIMAX_API_KEY，默认切换到 minimax
-const HAS_MINIMAX_KEY = !!import.meta.env.VITE_MINIMAX_API_KEY;
-export const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || (HAS_MINIMAX_KEY ? 'minimax' : 'modelscope');
+// Werewolf production defaults to the ECS Claude Code session proxy.
+export const AI_PROVIDER = import.meta.env.VITE_AI_PROVIDER || 'ecs-session';
 export const WEREWOLF_AI_MODE = import.meta.env.VITE_WEREWOLF_AI_MODE
   || (AI_PROVIDER === 'ecs-session' ? 'session' : 'legacy');
 
@@ -26,22 +25,28 @@ export const MINIMAX_IMAGE_API_URL = import.meta.env.VITE_MINIMAX_IMAGE_API_URL 
 
 // Back-compat exports used by the app
 export const API_KEY =
+  AI_PROVIDER === 'ecs-session' ? '' :
   AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_KEY :
   AI_PROVIDER === 'minimax'     ? MINIMAX_API_KEY :
   MODELSCOPE_API_KEY;
 
 export const API_URL =
+  AI_PROVIDER === 'ecs-session' ? '' :
   AI_PROVIDER === 'siliconflow' ? SILICONFLOW_API_URL :
   AI_PROVIDER === 'minimax'     ? MINIMAX_API_URL :
   MODELSCOPE_API_URL;
 
 // Warn if API key is missing (development aid)
 if (!API_KEY && typeof window !== 'undefined') {
+  if (AI_PROVIDER === 'ecs-session') {
+    console.info('[Config] Werewolf AI uses the server Claude Code session proxy.');
+  } else {
   const hint =
     AI_PROVIDER === 'siliconflow' ? 'VITE_SILICONFLOW_API_KEY' :
     AI_PROVIDER === 'minimax'     ? 'VITE_MINIMAX_API_KEY' :
     'VITE_API_KEY';
   console.warn(`[Config] ${hint} is not set. Please check your env vars.`);
+  }
 }
 
 // ============================================
@@ -327,9 +332,20 @@ export const SILICONFLOW_FALLBACK_MODELS = [
 // ============================================
 export const MINIMAX_MODELS = [
   {
-    id: 'MiniMax-M2',
-    name: 'MiniMax-M2',
+    id: 'MiniMax-M2.7',
+    name: 'MiniMax-M2.7',
     options: { temperature: 0.7, top_p: 0.95, max_tokens: 4096 },
+    isThinking: true,
+  },
+];
+
+export const WEREWOLF_SESSION_MODELS = [
+  {
+    id: 'server-claude-code',
+    name: 'Server Claude Code · MiniMax-M2.7',
+    provider: 'claude-code-minimax-codingplan',
+    runtimeModel: 'MiniMax-M2.7',
+    options: {},
     isThinking: true,
   },
 ];
@@ -337,9 +353,10 @@ export const MINIMAX_MODELS = [
 // 合并的模型列表 (兼容原有代码)
 // MiniMax 提供商：只使用 MiniMax 模型池
 // 其他提供商：Thinking models 优先，用于角色扮演
-export const AI_MODELS = AI_PROVIDER === 'minimax'
-  ? MINIMAX_MODELS
-  : [...THINKING_MODELS, ...INSTRUCT_MODELS];
+export const AI_MODELS =
+  AI_PROVIDER === 'ecs-session' ? WEREWOLF_SESSION_MODELS :
+  AI_PROVIDER === 'minimax' ? MINIMAX_MODELS :
+  [...THINKING_MODELS, ...INSTRUCT_MODELS];
 
 // ============================================
 // 润色模型分池（行为树决策 + LLM 润色双层架构用）

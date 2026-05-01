@@ -3,7 +3,7 @@
  * 从数据库获取预生成的头像
  */
 
-import { getPlaceholderAvatar } from './imageGenerator';
+import { generatePlayerAvatar, getPlaceholderAvatar } from './imageGenerator';
 import { buildApiUrl } from './apiBase';
 
 /**
@@ -50,7 +50,13 @@ export async function fetchAvatarsBatch(players) {
 export async function assignPlayerAvatars(players, gameMode) {
   console.log('[AvatarService] 开始分配头像...');
 
-  const allHaveAvatars = players.every(player => !!player.avatarUrl);
+  const isReplaceablePlaceholder = (avatarUrl = '') => (
+    typeof avatarUrl === 'string'
+    && avatarUrl.startsWith('data:image/svg+xml,%3Csvg')
+  );
+  const hasStableAvatar = (player) => !!player.avatarUrl && !isReplaceablePlaceholder(player.avatarUrl);
+
+  const allHaveAvatars = players.every(hasStableAvatar);
   if (allHaveAvatars) {
     console.log('[AvatarService] 已存在头像，保留开局头像');
     return players;
@@ -62,8 +68,8 @@ export async function assignPlayerAvatars(players, gameMode) {
   );
 
   // 2. 为每个玩家分配头像
-  const playersWithAvatars = players.map(player => {
-    if (player.avatarUrl) {
+  const playersWithAvatars = await Promise.all(players.map(async (player) => {
+    if (hasStableAvatar(player)) {
       return player;
     }
 
@@ -75,17 +81,26 @@ export async function assignPlayerAvatars(players, gameMode) {
       };
     }
 
-    // 否则使用占位符
-    // 玩家模式下使用中性占位符，AI模式下使用角色占位符
-    const placeholder = gameMode === 'ai-only'
-      ? getPlaceholderAvatar(player.role)
-      : getPlaceholderAvatar('neutral');
+    // Prefer generated session assets; fall back to placeholders if generation fails.
+    try {
+      const isUserPlayer = !!player.isUser && gameMode !== 'ai-only';
+      const generatedAvatar = await generatePlayerAvatar(player, isUserPlayer, gameMode);
+      return {
+        ...player,
+        avatarUrl: generatedAvatar
+      };
+    } catch (error) {
+      console.warn('[AvatarService] Claude Code avatar generation failed:', error.message);
+      const placeholder = gameMode === 'ai-only'
+        ? getPlaceholderAvatar(player.role)
+        : getPlaceholderAvatar('neutral');
 
-    return {
-      ...player,
-      avatarUrl: placeholder
-    };
-  });
+      return {
+        ...player,
+        avatarUrl: placeholder
+      };
+    }
+  }));
 
   const dbCount = Object.keys(avatarsFromDB).length;
   console.log(`[AvatarService] 分配完成: ${dbCount} 个来自数据库, ${players.length - dbCount} 个使用占位符`);

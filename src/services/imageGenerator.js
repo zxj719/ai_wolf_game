@@ -1,12 +1,26 @@
 // Image generation service for player avatars
 // Supports multiple providers with automatic fallback
-import { MODELSCOPE_API_KEY, SILICONFLOW_API_KEY, MINIMAX_API_KEY, MINIMAX_IMAGE_API_URL } from '../config/aiConfig';
+import {
+  MODELSCOPE_API_KEY,
+  SILICONFLOW_API_KEY,
+  MINIMAX_API_KEY,
+  MINIMAX_IMAGE_API_URL,
+  WEREWOLF_AI_MODE,
+} from '../config/aiConfig';
+import { generateWerewolfSessionAsset } from './werewolfSessionClient';
 
 // ============================================
 // Provider Configuration
 // ============================================
 
 const PROVIDERS = {
+  'claude-code': {
+    name: 'Server Claude Code',
+    serverSession: true,
+    models: ['MiniMax-M2.7'],
+    async: true,
+  },
+
   // MiniMax image-01 - 同步模式，Bearer 鉴权，image_urls 直出
   minimax: {
     name: 'MiniMax',
@@ -19,8 +33,8 @@ const PROVIDERS = {
   // ModelScope - 需要异步模式
   modelscope: {
     name: 'ModelScope',
-    baseUrl: 'https://api-inference.modelscope.cn/v1',
-    apiKey: MODELSCOPE_API_KEY,
+    baseUrl: import.meta.env.VITE_ENABLE_MODELSCOPE === 'true' ? 'https://api-inference.modelscope.cn/v1' : '',
+    apiKey: import.meta.env.VITE_ENABLE_MODELSCOPE === 'true' ? MODELSCOPE_API_KEY : '',
     models: [
       'Tongyi-MAI/Z-Image-Turbo',        // 免费无限调用
       'MusePublic/FLUX.1-Kontext-Dev',   // FLUX 通用模型
@@ -47,6 +61,7 @@ const PROVIDERS = {
 
 // 当前提供商状态
 let providerStatus = {
+  'claude-code': { available: true, failCount: 0, lastError: null },
   minimax: { available: true, failCount: 0, lastError: null },
   modelscope: { available: true, failCount: 0, lastError: null },
   siliconflow: { available: true, failCount: 0, lastError: null },
@@ -54,9 +69,22 @@ let providerStatus = {
 
 // 提供商优先级顺序
 // 如果配置了 MINIMAX_API_KEY，优先用 MiniMax（与文本模型同源，鉴权统一）
-let providerOrder = MINIMAX_API_KEY
-  ? ['minimax', 'siliconflow', 'modelscope']
-  : ['siliconflow', 'modelscope'];
+const ALLOW_MODELSCOPE = import.meta.env.VITE_ENABLE_MODELSCOPE === 'true';
+const USE_CLAUDE_CODE_VISUALS = WEREWOLF_AI_MODE === 'session' || WEREWOLF_AI_MODE === 'claude-session';
+
+export function buildProviderOrder({ useClaudeCode = false, hasMiniMaxKey, allowModelScope }) {
+  if (useClaudeCode) {
+    return ['claude-code'];
+  }
+  const order = hasMiniMaxKey ? ['minimax', 'siliconflow'] : ['siliconflow'];
+  return allowModelScope ? [...order, 'modelscope'] : order;
+}
+
+let providerOrder = buildProviderOrder({
+  useClaudeCode: USE_CLAUDE_CODE_VISUALS,
+  hasMiniMaxKey: !!MINIMAX_API_KEY,
+  allowModelScope: ALLOW_MODELSCOPE,
+});
 
 // ============================================
 // Provider Management
@@ -67,6 +95,8 @@ let providerOrder = MINIMAX_API_KEY
  */
 export const resetProviderStatus = () => {
   providerStatus = {
+    'claude-code': { available: true, failCount: 0, lastError: null },
+    minimax: { available: true, failCount: 0, lastError: null },
     modelscope: { available: true, failCount: 0, lastError: null },
     siliconflow: { available: true, failCount: 0, lastError: null },
   };
@@ -78,6 +108,7 @@ export const resetProviderStatus = () => {
  */
 const markProviderFailed = (providerId, error) => {
   const status = providerStatus[providerId];
+  if (!status) return;
   status.failCount++;
   status.lastError = error.message;
 
@@ -99,8 +130,13 @@ const markProviderFailed = (providerId, error) => {
  * 标记提供商成功
  */
 const markProviderSuccess = (providerId) => {
+  if (!providerStatus[providerId]) return;
   providerStatus[providerId].failCount = 0;
   providerStatus[providerId].lastError = null;
+};
+
+const isProviderUsable = (provider, status) => {
+  return !!provider && status?.available && (provider.serverSession || !!provider.apiKey);
 };
 
 // ============================================
@@ -149,6 +185,27 @@ const generateWithMiniMax = async (prompt, provider, { aspectRatio = '1:1' } = {
     throw new Error('MiniMax returned no image_urls');
   }
   return imageUrl;
+};
+
+const generateWithClaudeCodeAsset = async (
+  prompt,
+  { assetType = 'avatar', player = null, gameMode = 'ai-only', aspectRatio = '1:1' } = {},
+) => {
+  console.log(`[ImageGen] Generating ${assetType} with Server Claude Code (${aspectRatio})`);
+  const result = await generateWerewolfSessionAsset({
+    gameSessionId: 'visual-assets',
+    assetType,
+    visualPrompt: prompt,
+    player,
+    gameMode,
+    aspectRatio,
+  });
+
+  if (!result?.imageUrl) {
+    throw new Error('Server Claude Code returned no imageUrl');
+  }
+
+  return result.imageUrl;
 };
 
 // ============================================
@@ -403,7 +460,7 @@ export const generatePlayerAvatar = async (player, isUserPlayer = false, gameMod
     const status = providerStatus[providerId];
 
     // 跳过不可用或没有 API key 的提供商
-    if (!status.available || !provider.apiKey) {
+    if (!isProviderUsable(provider, status)) {
       continue;
     }
 
@@ -411,7 +468,14 @@ export const generatePlayerAvatar = async (player, isUserPlayer = false, gameMod
       console.log(`[ImageGen] Trying provider: ${provider.name}`);
 
       let imageUrl;
-      if (providerId === 'minimax') {
+      if (providerId === 'claude-code') {
+        imageUrl = await generateWithClaudeCodeAsset(prompt, {
+          assetType: 'avatar',
+          player,
+          gameMode,
+          aspectRatio: '1:1',
+        });
+      } else if (providerId === 'minimax') {
         imageUrl = await generateWithMiniMax(prompt, provider, { aspectRatio: '1:1' });
       } else if (providerId === 'modelscope') {
         imageUrl = await generateWithModelScope(prompt, provider);
@@ -459,7 +523,7 @@ export const getPlaceholderAvatar = (role) => {
 export const generateAllPlayerAvatars = async (players, gameMode) => {
   console.log('[ImageGen] Starting batch avatar generation...');
   console.log('[ImageGen] Available providers:',
-    providerOrder.filter(id => PROVIDERS[id].apiKey && providerStatus[id].available)
+    providerOrder.filter(id => isProviderUsable(PROVIDERS[id], providerStatus[id]))
   );
 
   const promises = players.map(player => {
@@ -485,8 +549,9 @@ export const generateAllPlayerAvatars = async (players, gameMode) => {
 export const getProviderStatus = () => {
   return Object.entries(providerStatus).map(([id, status]) => ({
     id,
-    name: PROVIDERS[id].name,
-    hasApiKey: !!PROVIDERS[id].apiKey,
+    name: PROVIDERS[id]?.name || id,
+    hasApiKey: !!PROVIDERS[id]?.apiKey,
+    serverSession: !!PROVIDERS[id]?.serverSession,
     ...status,
   }));
 };
@@ -514,7 +579,7 @@ export const generateGameBackground = async () => {
     const provider = PROVIDERS[providerId];
     const status = providerStatus[providerId];
 
-    if (!status.available || !provider.apiKey) {
+    if (!isProviderUsable(provider, status)) {
       continue;
     }
 
@@ -522,7 +587,13 @@ export const generateGameBackground = async () => {
       console.log(`[ImageGen] Generating background with ${provider.name}`);
 
       let imageUrl;
-      if (providerId === 'minimax') {
+      if (providerId === 'claude-code') {
+        imageUrl = await generateWithClaudeCodeAsset(randomTheme, {
+          assetType: 'background',
+          gameMode: 'ai-only',
+          aspectRatio: '16:9',
+        });
+      } else if (providerId === 'minimax') {
         imageUrl = await generateWithMiniMax(randomTheme, provider, { aspectRatio: '16:9' });
       } else if (providerId === 'modelscope') {
         imageUrl = await generateWithModelScope(randomTheme, provider);

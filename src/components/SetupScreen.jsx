@@ -4,7 +4,10 @@ import {
   ArrowLeft,
   Brain,
   ExternalLink,
+  History,
   Key,
+  Play,
+  PlusCircle,
   Shield,
   Swords,
   User,
@@ -61,6 +64,10 @@ export function SetupScreen({
   onExit = null,
   exitLabel,
   locale = 'zh',
+  pendingSnapshot = null,
+  onResumeSnapshot = null,
+  onDiscardSnapshot = null,
+  onStartNewGame = null,
 }) {
   const copy = getUiCopy(locale).setup;
   const [selectedMode, setSelectedMode] = useState(() => gameMode || null);
@@ -76,6 +83,9 @@ export function SetupScreen({
   const selectionLabel = copy.selectionLabel || (locale === 'en' ? 'Selected Mode' : '已选模式');
   const selectionEmpty = copy.selectionEmpty || (locale === 'en' ? 'Select Player Mode or All-AI Mode first' : '请先选择玩家模式或全 AI 模式');
   const startButtonLabel = copy.startButton || (locale === 'en' ? 'Start Game' : '开始游戏');
+  const resumeCopy = locale === 'en'
+    ? { title: 'Unfinished match', day: 'Day', continue: 'Continue', fresh: 'New match' }
+    : { title: '未完成对局', day: '第', continue: '继续', fresh: '新开一局' };
   const selectedModeLabel = selectedMode === 'player'
     ? copy.playerMode
     : selectedMode === 'ai-only'
@@ -120,6 +130,7 @@ export function SetupScreen({
         isCustom: true,
       });
     }
+    onStartNewGame?.();
     setGameMode(selectedMode);
   };
 
@@ -193,6 +204,34 @@ export function SetupScreen({
                     <div>
                       <div className="font-semibold">{copy.guestTokenTitle}</div>
                       <div>{copy.guestTokenDescription}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {pendingSnapshot && (
+                <div className="mac-panel p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
+                      <History size={18} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-900">{resumeCopy.title}</div>
+                      <div className="mt-1 text-sm leading-6 text-slate-500">
+                        {locale === 'en'
+                          ? `${resumeCopy.day} ${pendingSnapshot.state?.dayCount || 1} · ${pendingSnapshot.state?.phase || 'setup'}`
+                          : `${resumeCopy.day}${pendingSnapshot.state?.dayCount || 1}天 · ${pendingSnapshot.state?.phase || 'setup'}`}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button type="button" onClick={onResumeSnapshot} className="mac-button mac-button-primary">
+                          <Play size={15} />
+                          {resumeCopy.continue}
+                        </button>
+                        <button type="button" onClick={onDiscardSnapshot} className="mac-button mac-button-secondary">
+                          <PlusCircle size={15} />
+                          {resumeCopy.fresh}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

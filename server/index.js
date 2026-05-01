@@ -54,6 +54,7 @@ import {
 } from './novelWorkspace.js';
 import {
   askWerewolfSession,
+  generateWerewolfVisualAsset,
   getWerewolfSessionSnapshot,
   resetWerewolfSession,
 } from './werewolfSession.js';
@@ -299,6 +300,24 @@ app.post('/bt/session/ask', async (req, res) => {
     res.json({ success: true, result, session: result._sessionInfo });
   } catch (err) {
     console.error('[Werewolf session ask]', err.message);
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/bt/session/asset', async (req, res) => {
+  try {
+    const result = await generateWerewolfVisualAsset({
+      gameSessionId: req.body?.gameSessionId,
+      assetType: req.body?.assetType,
+      visualPrompt: req.body?.visualPrompt,
+      player: req.body?.player || null,
+      gameMode: req.body?.gameMode,
+      aspectRatio: req.body?.aspectRatio,
+      env: process.env,
+    });
+    res.json({ success: true, result, session: result._sessionInfo });
+  } catch (err) {
+    console.error('[Werewolf session asset]', err.message);
     res.status(502).json({ success: false, error: err.message });
   }
 });

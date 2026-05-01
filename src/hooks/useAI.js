@@ -17,6 +17,7 @@ import {
 import { sanitizeIdentityTable } from '../services/identityTableSanitizer';
 import { btWolfSpeech } from '../services/btClient';
 import { askWerewolfSessionAI, isWerewolfSessionAIEnabled } from '../services/werewolfSessionClient';
+import { requestWerewolfAI } from '../services/werewolfAITransport';
 import { buildPublicFacts } from '../services/publicFacts';
 
 export function useAI({
@@ -233,31 +234,46 @@ export function useAI({
     console.groupEnd();
 
     let result = null;
-
-    if (isWerewolfSessionAIEnabled()) {
-      try {
-        result = await askWerewolfSessionAI({
-          gameSessionId: gameSessionId || `local-${Date.now()}`,
+    const sessionEnabled = isWerewolfSessionAIEnabled();
+    const requestModel = (promptText, options = {}) => requestWerewolfAI({
+      sessionEnabled,
+      sessionRequest: () => askWerewolfSessionAI({
+        gameSessionId: gameSessionId || `local-${Date.now()}`,
+        player,
+        actionType,
+        systemInstruction: systemPrompt,
+        prompt: promptText,
+        gameStateMeta: {
+          dayCount,
+          phase,
+          alivePlayerIds: players.filter((p) => p.isAlive).map((p) => p.id),
+        },
+      }),
+      legacyRequest: () => fetchLLM(
+        {
           player,
-          actionType,
+          prompt: promptText,
           systemInstruction: systemPrompt,
-          prompt: userPrompt,
-          gameStateMeta: {
-            dayCount,
-            phase,
-            alivePlayerIds: players.filter((p) => p.isAlive).map((p) => p.id),
-          },
-        });
-      } catch (err) {
-        console.warn(`[Werewolf session AI] ${WEREWOLF_AI_MODE} failed, falling back to legacy client:`, err);
-      }
+          forcedModelIndex: options.forcedModelIndex,
+        },
+        { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
+      ),
+    });
+
+    try {
+      result = await requestModel(userPrompt);
+    } catch (err) {
+      console.warn(
+        sessionEnabled
+          ? `[Werewolf session AI] ${WEREWOLF_AI_MODE} failed; legacy browser LLM fallback is disabled:`
+          : '[AI] legacy client failed:',
+        err
+      );
     }
 
-    if (!result) {
-      result = await fetchLLM(
-        { player, prompt: userPrompt, systemInstruction: systemPrompt },
-        { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
-      );
+    if (sessionEnabled && !result) {
+      setIsThinking(false);
+      return null;
     }
 
     if (gameActiveRef && !gameActiveRef.current) {
@@ -268,7 +284,7 @@ export function useAI({
     // ============================================
     // 无效响应时自动切换模型重试
     // ============================================
-    if (!result) {
+    if (!sessionEnabled && !result) {
       console.warn(`⚠️ [重试] ${player.id}号 ${player.name} 首次请求无效，尝试切换模型重试...`);
 
       // 清空黑名单，从下一个模型开始重新尝试
@@ -281,10 +297,7 @@ export function useAI({
 
       console.log(`🔄 [切换] 从模型索引 ${alternateModelIndex} (${AI_MODELS[alternateModelIndex]?.name}) 开始重试`);
 
-      result = await fetchLLM(
-        { player, prompt: userPrompt, systemInstruction: systemPrompt, forcedModelIndex: alternateModelIndex },
-        { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
-      );
+      result = await requestModel(userPrompt, { forcedModelIndex: alternateModelIndex });
 
       // 如果仍然失败，记录并恢复部分黑名单
       if (!result) {
@@ -335,10 +348,17 @@ export function useAI({
           const correctedUserPrompt = correctionPrompt + '\n\n' + userPrompt;
 
           // 重新请求AI
-          result = await fetchLLM(
-            { player, prompt: correctedUserPrompt, systemInstruction: systemPrompt },
-            { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
-          );
+          try {
+            result = await requestModel(correctedUserPrompt);
+          } catch (err) {
+            console.warn(
+              sessionEnabled
+                ? `[Werewolf session AI] ${WEREWOLF_AI_MODE} correction retry failed; legacy browser LLM fallback is disabled:`
+                : '[AI] correction retry failed:',
+              err
+            );
+            result = null;
+          }
 
           if (!result) break;
 
