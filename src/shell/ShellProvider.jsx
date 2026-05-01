@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { ShellContext } from './ShellContext';
 import { useAuth } from '../contexts/AuthContext';
-import { readStoredLocale, writeStoredLocale } from '../i18n/locale.js';
+import { LOCALE_STORAGE_KEY, normalizeLocale, readStoredLocale, writeStoredLocale } from '../i18n/locale.js';
 import { createApiClient } from '../services/api/client';
 import { getToken as getStoredAuthToken } from '../utils/authToken';
 import { normalizePath, resolveLegacyPath } from './paths';
@@ -59,11 +59,20 @@ export function ShellProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+    writeStoredLocale(locale);
   }, [locale]);
 
   const setLocale = useCallback((next) => {
-    writeStoredLocale(next);
-    setLocaleState(next);
+    setLocaleState(normalizeLocale(next));
+  }, []);
+
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key !== LOCALE_STORAGE_KEY) return;
+      setLocaleState(normalizeLocale(event.newValue));
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const navigate = useCallback((path, { replace = false } = {}) => {

@@ -1,5 +1,6 @@
 window.THINKING_LIBRARY = {
-  storageKey: "thinking-library-locale",
+  storageKey: "wolfgame-locale",
+  legacyStorageKey: "thinking-library-locale",
   common: {
     zh: {
       library: "思考图书馆",

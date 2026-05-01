@@ -19,10 +19,20 @@
     if (supported.includes(requested)) return requested;
     const stored = window.localStorage?.getItem(DATA.storageKey);
     if (supported.includes(stored)) return stored;
+    const legacyStored = window.localStorage?.getItem(DATA.legacyStorageKey);
+    if (supported.includes(legacyStored)) return legacyStored;
     return "zh";
   };
 
   let lang = readLang();
+
+  function persistLang(nextLang) {
+    if (!supported.includes(nextLang)) return;
+    window.localStorage?.setItem(DATA.storageKey, nextLang);
+    if (DATA.legacyStorageKey) {
+      window.localStorage?.removeItem(DATA.legacyStorageKey);
+    }
+  }
 
   function common() {
     return DATA.common[lang] || DATA.common.zh;
@@ -46,9 +56,15 @@
   function setLang(nextLang) {
     if (!supported.includes(nextLang) || nextLang === lang) return;
     lang = nextLang;
-    window.localStorage?.setItem(DATA.storageKey, lang);
+    persistLang(lang);
     renderPage();
   }
+
+  window.addEventListener("storage", (event) => {
+    if (event.key !== DATA.storageKey || !supported.includes(event.newValue) || event.newValue === lang) return;
+    lang = event.newValue;
+    renderPage();
+  });
 
   document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-lang-set]");
@@ -373,6 +389,7 @@
   }
 
   function renderPage() {
+    persistLang(lang);
     localizeShell();
     if (page === "home") renderHome();
     if (page === "essay") renderEssay();

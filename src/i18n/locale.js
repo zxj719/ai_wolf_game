@@ -1,6 +1,7 @@
 import { ROLE_DEFINITIONS } from '../config/roles.js';
 
 export const LOCALE_STORAGE_KEY = 'wolfgame-locale';
+export const LEGACY_THINKING_LIBRARY_LOCALE_STORAGE_KEY = 'thinking-library-locale';
 export const DEFAULT_LOCALE = 'zh';
 export const SUPPORTED_LOCALES = ['zh', 'en'];
 
@@ -605,7 +606,24 @@ export function readStoredLocale() {
   if (typeof window === 'undefined' || !window.localStorage) {
     return DEFAULT_LOCALE;
   }
-  return normalizeLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY));
+
+  const params = new URLSearchParams(window.location.search || '');
+  const requested = params.get('lang');
+  if (SUPPORTED_LOCALES.includes(requested)) {
+    return requested;
+  }
+
+  const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+  if (SUPPORTED_LOCALES.includes(stored)) {
+    return stored;
+  }
+
+  const legacyStored = window.localStorage.getItem(LEGACY_THINKING_LIBRARY_LOCALE_STORAGE_KEY);
+  if (SUPPORTED_LOCALES.includes(legacyStored)) {
+    return legacyStored;
+  }
+
+  return DEFAULT_LOCALE;
 }
 
 export function writeStoredLocale(locale) {
@@ -613,6 +631,7 @@ export function writeStoredLocale(locale) {
     return;
   }
   window.localStorage.setItem(LOCALE_STORAGE_KEY, normalizeLocale(locale));
+  window.localStorage.removeItem(LEGACY_THINKING_LIBRARY_LOCALE_STORAGE_KEY);
 }
 
 export function getUiCopy(locale = DEFAULT_LOCALE) {

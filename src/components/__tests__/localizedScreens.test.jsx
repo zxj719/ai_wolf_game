@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Dashboard } from '../Dashboard.jsx';
+import { LanguageToggle } from '../LanguageToggle.jsx';
 import { SetupScreen } from '../SetupScreen.jsx';
 import { DEFAULT_CUSTOM_SELECTIONS } from '../../config/roles.js';
 
@@ -30,6 +31,16 @@ vi.mock('../UserStats.jsx', () => ({
 const noop = () => {};
 
 describe('localized screens', () => {
+  it('renders language names in the active interface language', () => {
+    const zhHtml = renderToStaticMarkup(<LanguageToggle locale="zh" onChange={noop} />);
+    const enHtml = renderToStaticMarkup(<LanguageToggle locale="en" onChange={noop} />);
+
+    expect(zhHtml).toContain('中文');
+    expect(zhHtml).toContain('英文');
+    expect(enHtml).toContain('Chinese');
+    expect(enHtml).toContain('English');
+  });
+
   it('renders the dashboard in English when locale is en', () => {
     const html = renderToStaticMarkup(
       <Dashboard

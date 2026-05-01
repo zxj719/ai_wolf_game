@@ -215,7 +215,7 @@
   }
 
   .mac-segment {
-    @apply rounded-full px-3 py-1.5 text-xs font-semibold transition-colors;
+    @apply whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors;
     color: #667085;
   }
 
