@@ -104,7 +104,14 @@ describe('werewolfSession', () => {
     });
   });
 
-  it('resumes the prior Claude Code session for the same player', async () => {
+  it('does NOT --resume across game-action calls (each contract has its own OUTPUT SCHEMA)', async () => {
+    // Game-action prompts have wildly different OUTPUT SCHEMAs per
+    // actionType (NIGHT_SEER expects {targetId,...}, DAY_SPEECH expects
+    // {speech,...}). Resuming claude's prior session feeds it the previous
+    // turn's prompt as context and consistently yields the wrong shape.
+    // The v1 adapter packs all needed memory into the prompt explicitly,
+    // so claude session memory is redundant. Assert no --resume on the
+    // 2nd call.
     mockClaudeCode({
       stdout: JSON.stringify({
         type: 'result',
@@ -141,15 +148,18 @@ describe('werewolfSession', () => {
       env,
     });
 
-    expect(spawn).toHaveBeenNthCalledWith(
-      2,
-      'claude',
-      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7', '--resume', 'claude-session-1'],
-      expect.any(Object),
-    );
+    // Both spawns must be fresh — exact same arg list, no --resume token.
+    const FRESH_ARGS = ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7'];
+    expect(spawn).toHaveBeenNthCalledWith(1, 'claude', FRESH_ARGS, expect.any(Object));
+    expect(spawn).toHaveBeenNthCalledWith(2, 'claude', FRESH_ARGS, expect.any(Object));
+    // Snapshot still tracks the runtime session id we got back, for
+    // observability — just doesn't reuse it as --resume input.
+    expect(getWerewolfSessionSnapshot('test-game')).toMatchObject({
+      runtimeSessionIds: { 1: 'claude-session-1' },
+    });
   });
 
-  it('uses separate Claude Code resume sessions per player', async () => {
+  it('keeps per-player runtime session ids isolated even though no --resume is used', async () => {
     mockClaudeCodeSequence([
       {
         stdout: JSON.stringify({
@@ -212,18 +222,12 @@ describe('werewolfSession', () => {
       env,
     });
 
-    expect(spawn).toHaveBeenNthCalledWith(
-      2,
-      'claude',
-      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7'],
-      expect.any(Object),
-    );
-    expect(spawn).toHaveBeenNthCalledWith(
-      3,
-      'claude',
-      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7', '--resume', 'player-1-session'],
-      expect.any(Object),
-    );
+    // Every spawn is fresh — same arg list, no --resume — but session ids
+    // remain tracked separately per player for observability.
+    const FRESH_ARGS = ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7'];
+    expect(spawn).toHaveBeenNthCalledWith(1, 'claude', FRESH_ARGS, expect.any(Object));
+    expect(spawn).toHaveBeenNthCalledWith(2, 'claude', FRESH_ARGS, expect.any(Object));
+    expect(spawn).toHaveBeenNthCalledWith(3, 'claude', FRESH_ARGS, expect.any(Object));
     expect(getWerewolfSessionSnapshot('test-game')).toMatchObject({
       runtimeSessionIds: {
         1: 'player-1-session',

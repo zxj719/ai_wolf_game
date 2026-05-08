@@ -427,10 +427,22 @@ async function callClaudeCode({ system, user, env, config, session, player, game
   );
   await mkdir(sessionDir, { recursive: true, mode: 0o700 });
 
+  // For live game actions we never `--resume`. Each contract action has a
+  // distinct OUTPUT SCHEMA (NIGHT_SEER expects {targetId,...}; DAY_SPEECH
+  // expects {speech,...}); resuming a prior session feeds claude its
+  // previous turn's prompt as context and consistently produces the wrong
+  // shape (e.g. seer's day speech echoing night-action JSON), which then
+  // burns repair attempts and falls back. The v1 adapter already packs all
+  // needed memory (public/private/episodic/strategy) into the prompt
+  // explicitly, so claude's own session memory is redundant. Visual assets
+  // are deterministic local SVG and never spawn claude. Only the legacy
+  // (non-game-action) path keeps --resume so its prior contract is
+  // preserved.
   const agentClaudeSessionId = session.claudeSessionIds?.get(agentKey) || null;
   const args = [...config.claudeArgs];
   if (
-    config.claudeResume
+    !gameAction
+    && config.claudeResume
     && agentClaudeSessionId
     && !hasArg(args, '--resume')
     && !hasArg(args, '--continue')
