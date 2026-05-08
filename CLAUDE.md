@@ -174,6 +174,57 @@ npm run deploy
 npx wrangler deploy --assets ./dist
 ```
 
+## 构建与部署陷阱（必读）
+
+> 2026-05-08 我们生产线踩过这一组坑、花了一晚上才找出来。下面规则不是建议，是「不遵守就会再次把生产打挂」的硬约束。
+
+### A. Vite env 文件加载语义（反直觉）
+
+| 文件名 | dev mode 加载 | production build 加载 |
+|---|---|---|
+| `.env` | ✅ | ✅ |
+| `.env.local` | ✅ | ✅ ⚠️ **会进生产 bundle** |
+| `.env.development` | ✅ | ❌ |
+| `.env.development.local` | ✅ | ❌ |
+| `.env.production` | ❌ | ✅ |
+| `.env.production.local` | ❌ | ✅ |
+
+**铁律**：任何只想本地用、绝对不能进生产的 override（典型如 `VITE_WEREWOLF_SESSION_API_URL=http://localhost:3001/...`），文件名必须是 `.env.development.local`，**永远不要叫 `.env.local`**。
+
+历史 incident：2026-05-08 一个 `.env.local` 把 `localhost:3001` 写进了 prod bundle，prod 浏览器 `fetch('localhost:3001/...')` 失败、UI 卡住、4 轮 debug 才找到。
+
+### B. 部署后的 fingerprint check（必做）
+
+`wrangler deploy` 输出 `Uploaded` / `No updated asset files to upload` 都不能 100% 信，CDN 缓存 + asset deduper 偶尔会让 prod serve 旧 bundle。每次 `npm run deploy` 之后跑：
+
+```bash
+ENTRY=$(curl -s "https://zhaxiaoji.com/?nocache=$(date +%s)" | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+PROD_WW=$(curl -s "https://zhaxiaoji.com/$ENTRY" | grep -oE 'WerewolfModule-[A-Za-z0-9_-]+\.js' | head -1)
+LOCAL_WW=$(ls dist/assets/WerewolfModule-*.js | xargs -n1 basename)
+[ "$PROD_WW" = "$LOCAL_WW" ] && echo "✅ prod = local" || echo "❌ MISMATCH prod=$PROD_WW local=$LOCAL_WW"
+curl -s "https://zhaxiaoji.com/assets/$PROD_WW" | grep -c "localhost\|127.0.0.1"   # 必须 0
+```
+
+`prod = local` 才能宣称「上线了」。
+
+### C. 自动化静态守门：[scripts/check-build.mjs](scripts/check-build.mjs)
+
+`npm run build` 之后会自动跑 `scripts/check-build.mjs`，它扫 `dist/assets/*.js` 找：
+- `localhost`、`127.0.0.1`、`http://192.`、`file://`
+- 任何 dev-only 标记（如未来加的 `__DEV_FLAG__`）
+
+发现就 **fail build**。这是最后一道防线，让你来不及部署到 prod。
+
+### D. 「前端不响应」三层定位顺序
+
+每次 prod「AI 思考中」卡住，按这顺序最快：
+
+1. **API 直连**：`curl https://zhaxiaoji.com/api/werewolf/session/ask` 带 smoke payload。返 200 + valid action → 后端整链 OK，问题 100% 在前端 build/config。
+2. **浏览器 Network 标签**：看前端到底 `fetch` 了什么 URL。如果是 SPA 当前页 URL（如 `/werewolf/play`）、localhost、`file://` 等，**一律是 build-time env 漏到 bundle 的问题**。
+3. **后端日志**：`pm2 logs bt-server --lines 50 --nostream`。完全静默 = 前端没打到后端；超时/502 = ECS 端 LLM 链路问题（典型：token 缺失、Claude CLI 配置错）。
+
+跳过任意一步直接猜，平均多花 30 分钟。
+
 ## 数据库 Schema 要点
 
 ```sql
