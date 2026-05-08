@@ -568,47 +568,47 @@ describe('werewolfSession adapter (contract v1)', () => {
 });
 
 describe('werewolf visual assets', () => {
-  it('generates visual assets through Claude Code and returns an SVG data URI', async () => {
-    mockClaudeCode({
-      stdout: JSON.stringify({
-        type: 'result',
-        session_id: 'visual-session-1',
-        result: JSON.stringify({
-          svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#111827"/></svg>',
-          alt: 'hooded villager portrait',
-        }),
-      }),
-    });
-
+  it('generates a deterministic SVG avatar without calling any LLM', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const result = await generateWerewolfVisualAsset({
       gameSessionId: 'test-game',
       assetType: 'avatar',
       visualPrompt: 'A hooded villager portrait',
       player: { id: 2, name: 'AI-2', role: '村民' },
-      env: {
-        CLAUDE_CODE_BIN: 'claude',
-        CLAUDE_CODE_ARGS: '--print --output-format json',
-        CLAUDE_CODE_SESSION_ROOT: '.tmp/test-claude-sessions',
-        ANTHROPIC_AUTH_TOKEN: 'test-key',
-        ANTHROPIC_MODEL: 'MiniMax-M2.7',
-      },
+      env: {},
     });
 
     expect(result).toMatchObject({
       assetType: 'avatar',
-      alt: 'hooded villager portrait',
-      _modelInfo: {
-        modelId: 'MiniMax-M2.7',
-        modelName: 'Server Claude Code · MiniMax-M2.7',
-        provider: 'claude-code-minimax-codingplan',
-      },
+      _modelInfo: { provider: 'local-svg', modelId: 'local-deterministic-svg' },
+      _sessionInfo: { gameSessionId: 'test-game:visuals', runtimeSessionId: null },
     });
+    expect(result.alt).toContain('AI-2');
     expect(result.imageUrl).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
-    expect(decodeURIComponent(result.imageUrl.split(',')[1])).toContain('<svg');
-    expect(spawn).toHaveBeenCalledWith(
-      'claude',
-      ['--print', '--output-format', 'json', '--model', 'MiniMax-M2.7'],
-      expect.objectContaining({ windowsHide: true }),
-    );
+    const decoded = decodeURIComponent(result.imageUrl.split(',')[1]);
+    expect(decoded).toContain('<svg');
+    expect(decoded).toContain('viewBox="0 0 512 512"');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it('returns the same image bytes for the same player input (determinism)', async () => {
+    const a = await generateWerewolfVisualAsset({
+      gameSessionId: 'g1', assetType: 'avatar',
+      player: { id: 5, name: 'Snape', role: '守卫' }, env: {},
+    });
+    const b = await generateWerewolfVisualAsset({
+      gameSessionId: 'g2', assetType: 'avatar',
+      player: { id: 5, name: 'Snape', role: '守卫' }, env: {},
+    });
+    expect(a.svg).toBe(b.svg);
+  });
+
+  it('produces a 1280x720 background for assetType=background', async () => {
+    const result = await generateWerewolfVisualAsset({
+      gameSessionId: 'g3', assetType: 'background',
+      player: { id: 1, name: 'AI-1', role: '狼人' }, env: {},
+    });
+    expect(decodeURIComponent(result.imageUrl.split(',')[1])).toContain('viewBox="0 0 1280 720"');
   });
 });

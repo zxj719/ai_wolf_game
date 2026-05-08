@@ -703,76 +703,132 @@ function svgToDataUri(svg) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function buildVisualAssetRequest({ assetType, visualPrompt, player, gameMode, aspectRatio }) {
-  const isBackground = assetType === 'background';
-  const size = isBackground ? '1280x720' : '512x512';
-  const roleLine = player
-    ? `Player: id=${player.id}, name=${player.name || 'unknown'}, role=${player.role || 'unknown'}, gameMode=${gameMode || 'unknown'}`
-    : `Game mode: ${gameMode || 'unknown'}`;
+// ── Deterministic SVG asset generator ───────────────────────────────────
+// Replaces the prior LLM-based generator. The reasoning LLM (MiniMax-M2.7)
+// burned 60–90 s + thousands of tokens per avatar and the upstream cut the
+// stream at ~70 s, so the call was a near-100 % failure that the frontend
+// had to paper over with placeholders anyway. A deterministic generator
+// is faster, cheaper, never fails, and produces consistent visuals.
 
+const ROLE_GLYPHS = {
+  '狼人': '🐺',
+  '预言家': '🔮',
+  '女巫': '⚗️',
+  '守卫': '🛡️',
+  '猎人': '🏹',
+  '村民': '🧑',
+  '魔术师': '🎩',
+  '骑士': '⚔️',
+  '摄梦人': '🌙',
+};
+const DEFAULT_GLYPH = '🎭';
+
+const PALETTE = [
+  ['#6366f1', '#312e81'], // indigo
+  ['#ec4899', '#831843'], // pink
+  ['#10b981', '#064e3b'], // emerald
+  ['#f59e0b', '#78350f'], // amber
+  ['#06b6d4', '#164e63'], // cyan
+  ['#a855f7', '#581c87'], // purple
+  ['#ef4444', '#7f1d1d'], // red
+  ['#14b8a6', '#134e4a'], // teal
+];
+
+function pickPalette(seedKey) {
+  let h = 5381;
+  const text = String(seedKey ?? 'x');
+  for (let i = 0; i < text.length; i += 1) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildAvatarSvg({ player, glyph, palette }) {
+  const [c1, c2] = palette;
+  const id = player?.id ?? 0;
+  const name = player?.name || `P${id}`;
+  const initial = (name.match(/[\p{L}\p{N}]/u)?.[0] || String(id))
+    .slice(0, 2)
+    .toUpperCase();
+  const safeGlyph = escapeXml(glyph);
+  const safeInitial = escapeXml(initial);
+  const gradientId = `g_${Math.abs(id)}_${escapeXml(palette.join('')).replace(/[^a-z0-9]/gi, '').slice(0, 8)}`;
   return [
-    `Create a Werewolf game ${assetType} image as SVG.`,
-    `Canvas: ${size}. Aspect ratio: ${aspectRatio || (isBackground ? '16:9' : '1:1')}.`,
-    roleLine,
-    `Visual brief: ${visualPrompt || 'dark fantasy werewolf social deduction game art'}`,
-    '',
-    'Return exactly one JSON object with this shape:',
-    '{"svg":"<svg ...>...</svg>","alt":"short accessible description"}',
-    '',
-    'Rules:',
-    '- SVG only. No markdown. No external images. No scripts. No event attributes. No foreignObject.',
-    '- Use compact vector shapes, gradients, masks, and text-free composition.',
-    '- Keep the style polished, dark-fantasy, readable at small sizes.',
-  ].join('\n');
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="${escapeXml(name)} avatar">`,
+    `<defs><radialGradient id="${gradientId}" cx="50%" cy="35%" r="65%"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></radialGradient></defs>`,
+    `<rect width="512" height="512" fill="${c2}"/>`,
+    `<circle cx="256" cy="256" r="232" fill="url(#${gradientId})"/>`,
+    `<text x="256" y="290" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, sans-serif" font-size="200" text-anchor="middle" fill="rgba(255,255,255,0.92)">${safeGlyph}</text>`,
+    `<text x="478" y="478" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, sans-serif" font-size="64" font-weight="700" text-anchor="end" fill="rgba(255,255,255,0.85)">${safeInitial}</text>`,
+    `</svg>`,
+  ].join('');
+}
+
+function buildBackgroundSvg({ player, gameMode, palette }) {
+  const [c1, c2] = palette;
+  const seed = `${player?.role || gameMode || 'werewolf'}-${player?.id ?? 0}`;
+  const safeSeed = escapeXml(seed);
+  const gradientId = `bg_${Math.abs(seed.length)}`;
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="${safeSeed} background">`,
+    `<defs><linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${c2}"/><stop offset="100%" stop-color="${c1}"/></linearGradient></defs>`,
+    `<rect width="1280" height="720" fill="url(#${gradientId})"/>`,
+    `<circle cx="180" cy="180" r="60" fill="rgba(255,255,255,0.08)"/>`,
+    `<circle cx="1080" cy="540" r="140" fill="rgba(255,255,255,0.06)"/>`,
+    `<circle cx="900" cy="120" r="40" fill="rgba(255,255,255,0.05)"/>`,
+    `</svg>`,
+  ].join('');
+}
+
+function generateLocalVisualAsset({ assetType, player, gameMode }) {
+  const role = player?.role;
+  const glyph = ROLE_GLYPHS[role] || DEFAULT_GLYPH;
+  const palette = pickPalette(`${assetType}:${player?.id ?? 'x'}:${role || ''}`);
+  const svg = assetType === 'background'
+    ? buildBackgroundSvg({ player, gameMode, palette })
+    : buildAvatarSvg({ player, glyph, palette });
+  const sanitized = sanitizeSvg(svg);
+  const alt = assetType === 'background'
+    ? `${role || gameMode || 'Werewolf'} background`
+    : `${player?.name || 'Player'} (${role || 'unknown'}) avatar`;
+  return { svg: sanitized, alt };
 }
 
 export async function generateWerewolfVisualAsset({
   gameSessionId,
   assetType = 'avatar',
-  visualPrompt = '',
+  visualPrompt = '',  // unused; kept for API compatibility
   player = null,
   gameMode = 'ai-only',
-  aspectRatio = null,
-  env = process.env,
+  aspectRatio = null, // unused; kept for API compatibility
+  env = process.env,  // unused; kept for API compatibility
 }) {
   if (!['avatar', 'background'].includes(assetType)) {
     throw new Error('assetType must be avatar or background');
   }
-
   const session = getSession(`${gameSessionId || 'visual-assets'}:visuals`);
-  const visualAgent = {
-    id: player?.id !== undefined ? `visual-${assetType}-${player.id}` : `visual-${assetType}`,
-    name: `Visual ${assetType} generator`,
-    role: 'visual-artist',
-  };
-  const system = [
-    'You are the visual asset generator for a Werewolf game.',
-    'Return valid JSON only. Do not include markdown fences.',
-  ].join('\n');
-  const user = buildVisualAssetRequest({ assetType, visualPrompt, player, gameMode, aspectRatio });
-  const response = await callSessionModel({ system, user, env, session, player: visualAgent });
-  const parsed = safeParseJSON(response.text);
-  if (!parsed) {
-    throw new Error(`Invalid JSON from visual asset generator: ${compact(response.text, 500)}`);
-  }
-
-  const svg = sanitizeSvg(parsed.svg);
+  const { svg, alt } = generateLocalVisualAsset({ assetType, player, gameMode });
   return {
     assetType,
     imageUrl: svgToDataUri(svg),
     svg,
-    alt: parsed.alt || `${assetType} generated by Claude Code`,
+    alt,
     _modelInfo: {
-      modelId: response.model,
-      modelName: modelDisplayName(response),
-      provider: response.provider,
+      modelId: 'local-deterministic-svg',
+      modelName: 'Deterministic SVG',
+      provider: 'local-svg',
     },
     _sessionInfo: {
       gameSessionId: session.id,
-      mode: response.provider === 'claude-code-minimax-codingplan'
-        ? 'claude-code-visual-asset'
-        : 'visual-asset',
-      runtimeSessionId: response.runtimeSessionId || null,
+      mode: 'visual-asset',
+      runtimeSessionId: null,
     },
   };
 }
