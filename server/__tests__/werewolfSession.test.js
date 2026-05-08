@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   askWerewolfSession,
+  checkProviderConfig,
   generateWerewolfVisualAsset,
   getWerewolfSessionSnapshot,
   resetWerewolfSession,
@@ -610,5 +611,42 @@ describe('werewolf visual assets', () => {
       player: { id: 1, name: 'AI-1', role: '狼人' }, env: {},
     });
     expect(decodeURIComponent(result.imageUrl.split(',')[1])).toContain('viewBox="0 0 1280 720"');
+  });
+});
+
+describe('checkProviderConfig (fail-fast token sanity)', () => {
+  it('flags missing token with a loud warning instead of crashing', () => {
+    const r = checkProviderConfig({ WEREWOLF_SESSION_PROVIDER: 'claude-code' });
+    expect(r.ok).toBe(false);
+    expect(r.hasToken).toBe(false);
+    expect(r.presentSource).toBeNull();
+    expect(r.warning).toMatch(/FATAL/);
+    expect(r.warning).toMatch(/claude-code/);
+    expect(r.warning).toMatch(/ANTHROPIC_AUTH_TOKEN/);
+  });
+
+  it('accepts ANTHROPIC_AUTH_TOKEN as a valid source', () => {
+    const r = checkProviderConfig({ ANTHROPIC_AUTH_TOKEN: 'sk-test' });
+    expect(r.ok).toBe(true);
+    expect(r.presentSource).toBe('ANTHROPIC_AUTH_TOKEN');
+    expect(r.warning).toBeNull();
+  });
+
+  it('accepts MINIMAX_API_KEY as a valid source', () => {
+    const r = checkProviderConfig({
+      WEREWOLF_SESSION_PROVIDER: 'minimax-api',
+      MINIMAX_API_KEY: 'sk-test',
+    });
+    expect(r.ok).toBe(true);
+    expect(r.provider).toBe('minimax-api');
+    expect(r.presentSource).toBe('MINIMAX_API_KEY');
+  });
+
+  it('treats empty-string env values as missing', () => {
+    const r = checkProviderConfig({
+      ANTHROPIC_AUTH_TOKEN: '',
+      MINIMAX_API_KEY: '',
+    });
+    expect(r.ok).toBe(false);
   });
 });

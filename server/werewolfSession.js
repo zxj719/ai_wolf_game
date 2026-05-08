@@ -132,6 +132,40 @@ function getSession(gameSessionId) {
   return sessions.get(id);
 }
 
+/**
+ * Fail-fast provider sanity check, run at server boot.
+ *
+ * Returns { ok, provider, hasToken, warning }. Caller (server/index.js) is
+ * expected to print `warning` LOUDLY when ok=false. We do not crash the
+ * process: /health, /bt/decide, /bt/session/asset (deterministic SVG) and
+ * the BT decision routes all keep working without a token. Only
+ * /bt/session/ask needs the LLM. This way a misconfigured ECS still serves
+ * everything else and the missing-token signal shows up in `pm2 logs`
+ * within seconds rather than hidden behind the 90 s spawn timeout.
+ */
+export function checkProviderConfig(env = process.env) {
+  const provider = (env.WEREWOLF_SESSION_PROVIDER || env.WEREWOLF_AI_RUNTIME || DEFAULT_PROVIDER)
+    .trim()
+    .toLowerCase();
+  const tokenSources = [
+    'ANTHROPIC_AUTH_TOKEN',
+    'ANTHROPIC_API_KEY',
+    'MINIMAX_API_KEY',
+    'WEREWOLF_SESSION_API_KEY',
+  ];
+  const presentSource = tokenSources.find((k) => typeof env[k] === 'string' && env[k].length > 0) || null;
+  const hasToken = Boolean(presentSource);
+  return {
+    provider,
+    hasToken,
+    presentSource,
+    ok: hasToken,
+    warning: hasToken
+      ? null
+      : `[werewolfSession] FATAL: provider="${provider}" requires one of [${tokenSources.join(', ')}] in env, but none are set. /bt/session/ask will time out at ${env.WEREWOLF_SESSION_TIMEOUT_MS || '90000'}ms with "Claude Code timed out" until configured.`,
+  };
+}
+
 function getProviderConfig(env = process.env) {
   const provider = (env.WEREWOLF_SESSION_PROVIDER || env.WEREWOLF_AI_RUNTIME || DEFAULT_PROVIDER)
     .trim()

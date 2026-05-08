@@ -55,6 +55,7 @@ import {
 import {
   askWerewolfSession,
   generateWerewolfVisualAsset,
+  checkProviderConfig,
   getWerewolfSessionSnapshot,
   resetWerewolfSession,
 } from './werewolfSession.js';
@@ -489,4 +490,15 @@ app.listen(PORT, () => {
   console.log(`[BT Server v${AI_VERSION}] 监听端口 :${PORT}`);
   console.log(`[BT Server] BT引擎版本: ${BT_VERSION}`);
   console.log(`[BT Server] 允许来源: ${process.env.ALLOWED_ORIGIN || 'https://zhaxiaoji.com'}`);
+  // Fail-fast token sanity check. Logged loudly to stderr so
+  // `pm2 logs bt-server` surfaces misconfiguration within seconds rather
+  // than hiding behind a 90 s spawn timeout.
+  const providerCheck = checkProviderConfig(process.env);
+  if (providerCheck.ok) {
+    console.log(`[BT Server] LLM provider="${providerCheck.provider}", token source=${providerCheck.presentSource}`);
+  } else {
+    console.error('━'.repeat(80));
+    console.error(providerCheck.warning);
+    console.error('━'.repeat(80));
+  }
 });
