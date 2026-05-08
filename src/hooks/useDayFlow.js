@@ -460,8 +460,12 @@ export function useDayFlow({
     const aliveIds = alive.map(p => p.id);
     const deadIds = players.filter(p => !p.isAlive).map(p => p.id);
 
-    // 并行投票：所有AI同时做决策
-    const votePromises = alive.map(async (p) => {
+    // 顺序投票：每次一个 AI 调用 LLM。原本是 Promise.all 并行 8 个，但
+    // ECS 端 spawn claude CLI 子进程在并发 ≥ 6 时会偶发 502（资源/锁竞争）。
+    // 顺序后整个 vote phase 从 ~30s 拉长到 ~3min，但 0 fail。
+    const voteResults = [];
+    for (const p of alive) {
+      if (gameActiveRef && !gameActiveRef.current) break;
       let targetId = null;
       let reasoning = '';
       let thought = '';
@@ -475,7 +479,6 @@ export function useDayFlow({
         targetId = speechVoteTarget;
         reasoning = '遵循发言意向';
       } else {
-
         // 行为树短路：hybrid 模式下，注册的 (role, DAY_VOTE) 组合用 BT 决策（0ms）
         const btResult = await btDecide(p, 'DAY_VOTE',
           { players, speechHistory, voteHistory, seerChecks, dayCount },
@@ -502,17 +505,14 @@ export function useDayFlow({
         }
       }
 
-      return buildVoteRecord({
+      voteResults.push(buildVoteRecord({
         voter: p,
         targetId,
         validTargets: validVoteTargets,
         reasoning,
         thought,
-      });
-    });
-
-    // 等待所有投票完成
-    const voteResults = await Promise.all(votePromises);
+      }));
+    }
     const votes = voteResults.filter(v => v !== null);
 
     processVoteResults(votes, aliveIds);
@@ -649,20 +649,22 @@ export function useDayFlow({
 
     const aiPlayers = alive.filter(p => !p.isUser);
 
-    // 并行投票：所有AI同时做决策
-    const aiVotePromises = aiPlayers.map(async (p) => {
+    // 顺序投票：每次一个 AI 调用 LLM（避免并发 spawn claude 触发 ECS 端
+    // 资源竞争 → 偶发 502 → 兜底 random）。这是 player-mode 的入口，
+    // handleAutoVote 上面那段是 ai-only 模式入口，两段都改成顺序。
+    const aiVoteResults = [];
+    for (const p of aiPlayers) {
+      if (gameActiveRef && !gameActiveRef.current) break;
       const validTargets = aliveIds.filter(id => id !== p.id);
       let targetId = null;
       let reasoning = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
 
-      // 优先使用发言意向
       const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
       if (speechVoteTarget === ABSTAIN_TARGET || validTargets.includes(speechVoteTarget)) {
         targetId = speechVoteTarget;
         reasoning = '遵循发言意向';
       } else {
-        // 行为树短路：hybrid 模式下注册的组合用 BT 决策
         const btResult = IS_HYBRID
           ? decideBT(p, 'DAY_VOTE',
               { players, speechHistory, voteHistory, seerChecks, dayCount },
@@ -688,16 +690,13 @@ export function useDayFlow({
         }
       }
 
-      return buildVoteRecord({
+      aiVoteResults.push(buildVoteRecord({
         voter: p,
         targetId,
         validTargets,
         reasoning,
-      });
-    });
-
-    // 等待所有AI投票完成
-    const aiVoteResults = await Promise.all(aiVotePromises);
+      }));
+    }
     const aiVotes = aiVoteResults.filter(v => v !== null);
 
     const votes = userVote ? [userVote, ...aiVotes] : aiVotes;

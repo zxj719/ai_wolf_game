@@ -310,7 +310,35 @@ app.post('/bt/game/speech', (req, res) => {
   }
 });
 
+// Concurrency limiter for /bt/session/ask. Each call spawns `claude` CLI as
+// a child process which itself opens an HTTP connection to MiniMax; running
+// many in parallel triggers 502s under resource pressure. Cap to N inflight,
+// queue the rest. Frontend already serializes per-phase, but defense in
+// depth catches buggy clients (or future parallel-fan-out features).
+const ASK_MAX_CONCURRENT = Number.parseInt(process.env.WEREWOLF_ASK_MAX_CONCURRENT || '2', 10);
+let askInflight = 0;
+const askQueue = [];
+function acquireAskSlot() {
+  return new Promise((resolve) => {
+    if (askInflight < ASK_MAX_CONCURRENT) {
+      askInflight += 1;
+      resolve();
+    } else {
+      askQueue.push(resolve);
+    }
+  });
+}
+function releaseAskSlot() {
+  const next = askQueue.shift();
+  if (next) {
+    next();
+  } else {
+    askInflight = Math.max(0, askInflight - 1);
+  }
+}
+
 app.post('/bt/session/ask', async (req, res) => {
+  await acquireAskSlot();
   try {
     const result = await askWerewolfSession({
       gameSessionId: req.body?.gameSessionId,
@@ -331,6 +359,8 @@ app.post('/bt/session/ask', async (req, res) => {
     // askWerewolfSession. A thrown error here is a runtime/transport problem.
     console.error('[Werewolf session ask]', err.message);
     res.status(502).json({ success: false, error: err.message });
+  } finally {
+    releaseAskSlot();
   }
 });
 
