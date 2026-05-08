@@ -123,8 +123,23 @@ async function callLLM({ apiKey, apiUrl, model, role, system, user }) {
 // ── Express ───────────────────────────────────────────────
 const app = express();
 
+// CORS — production locks to zhaxiaoji.com via ALLOWED_ORIGIN; dev mode
+// allows the configured origin plus any 127.0.0.1/localhost port so a local
+// vite (`http://localhost:5173`) can hit this server directly without going
+// through the Cloudflare Worker.
+const ALLOWED_ORIGIN_LIST = (process.env.ALLOWED_ORIGIN || 'https://zhaxiaoji.com')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || 'https://zhaxiaoji.com',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);          // server-to-server / curl
+    if (ALLOWED_ORIGIN_LIST.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS rejected origin: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
 }));
 app.use(express.json({ limit: '2mb' }));
