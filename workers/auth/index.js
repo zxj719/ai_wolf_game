@@ -287,7 +287,7 @@ async function serveStaticAsset(request, env) {
 
   const assetResponse = await env.ASSETS.fetch(request);
   if (assetResponse.status !== 404) {
-    return assetResponse;
+    return addHtmlCacheHeaders(assetResponse);
   }
 
   const url = new URL(request.url);
@@ -298,5 +298,25 @@ async function serveStaticAsset(request, env) {
   }
 
   const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
-  return env.ASSETS.fetch(fallbackRequest);
+  const fallbackResponse = await env.ASSETS.fetch(fallbackRequest);
+  return addHtmlCacheHeaders(fallbackResponse);
+}
+
+// Prevent CF edge from caching HTML responses — every deploy must be
+// visible immediately, not after a stale TTL. Content-hashed JS/CSS are
+// fine to cache long (filename changes on rebuild); only HTML entry points
+// need this because they contain the <script src="assets/index-HASH.js">
+// reference that must point to the freshly deployed chunks.
+function addHtmlCacheHeaders(response) {
+  const ct = response.headers.get('Content-Type') || '';
+  if (!ct.includes('text/html')) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  headers.set('CDN-Cache-Control', 'no-store');
+  headers.set('Cloudflare-CDN-Cache-Control', 'no-store');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
