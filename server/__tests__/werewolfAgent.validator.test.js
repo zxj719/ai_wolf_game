@@ -175,7 +175,7 @@ describe('werewolfAgent validator', () => {
     expect(result.errors.some((e) => e.type === ERROR_TYPES.ACTION_RULE)).toBe(true);
   });
 
-  it('rejects identity_table referencing unknown players or roles', () => {
+  it('sanitizes identity_table entries instead of rejecting unknown roles or players', () => {
     const { contract, capabilities } = capsFor('DAY_SPEECH', {}, { id: 7, role: '村民' });
     const result = validate({
       contract,
@@ -183,17 +183,21 @@ describe('werewolfAgent validator', () => {
         speech: 'hi',
         identity_table: {
           1: { suspect: '狼人', confidence: 80 },
-          99: { suspect: '村民' },
-          3: { suspect: '吸血鬼', confidence: 50 },
+          99: { suspect: '村民' },               // unknown player → dropped
+          3: { suspect: 'unknown', confidence: 50 }, // unknown role → coerced to "未知"
+          4: { suspect: '吸血鬼', confidence: 110 }, // unknown role + out-of-range conf
         },
       }),
       capabilities,
       params: {},
       gameSetup,
     });
-    expect(result.ok).toBe(false);
-    const types = result.errors.map((e) => e.type);
-    expect(types).toContain(ERROR_TYPES.IDENTITY_TABLE);
+    expect(result.ok).toBe(true);
+    expect(result.sanitizedIdentityTable['1'].suspect).toBe('狼人');
+    expect(result.sanitizedIdentityTable['99']).toBeUndefined();
+    expect(result.sanitizedIdentityTable['3'].suspect).toBe('未知');
+    expect(result.sanitizedIdentityTable['4'].suspect).toBe('未知');
+    expect(result.sanitizedIdentityTable['4'].confidence).toBe(100);
   });
 
   it('accepts a valid example for every supported action', () => {

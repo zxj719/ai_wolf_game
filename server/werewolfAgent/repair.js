@@ -105,6 +105,12 @@ export async function runWithRepair({
       };
     }
 
+    if (process.env.WEREWOLF_AGENT_DEBUG) {
+      const summary = (validation.errors || []).map((e) => `[${e.type}] ${e.detail}`).join(' | ');
+      const head = String(modelResult.text || '').slice(0, 240).replace(/\s+/g, ' ');
+      console.warn(`[werewolfAgent] ${contract.actionType} attempt ${attempt + 1} failed: ${summary} | head=${head}`);
+    }
+
     lastValidation = validation;
 
     if (attempt >= MAX_REPAIR_ATTEMPTS) break;

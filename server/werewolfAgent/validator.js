@@ -76,6 +76,11 @@ function checkType(value, expected) {
 }
 
 function validateIdentityTable(table, { playerIds, allowedRoles }) {
+  // identity_table is decorative metadata, not game-legal state. Treat
+  // mismatches as sanitization opportunities, not validation failures —
+  // unknown role labels (e.g. MiniMax emitting "unknown" / "likely_village")
+  // get coerced to "未知" rather than triggering a repair round-trip. Only
+  // shape (table must be an object) is a hard error.
   if (table == null) return { ok: true, sanitized: null, errors: [] };
   if (typeof table !== 'object' || Array.isArray(table)) {
     return {
@@ -84,7 +89,6 @@ function validateIdentityTable(table, { playerIds, allowedRoles }) {
       errors: [{ type: ERROR_TYPES.IDENTITY_TABLE, detail: 'identity_table must be an object' }],
     };
   }
-  const errors = [];
   const sanitized = {};
   const playerIdSet = new Set(playerIds.map((id) => String(id)));
   const allowedRoleSet = new Set(allowedRoles);
@@ -93,19 +97,12 @@ function validateIdentityTable(table, { playerIds, allowedRoles }) {
     const match = String(rawKey).match(/\d+/);
     if (!match) continue;
     const normalizedKey = match[0];
-    if (playerIdSet.size > 0 && !playerIdSet.has(normalizedKey)) {
-      errors.push({ type: ERROR_TYPES.IDENTITY_TABLE, detail: `unknown player id: ${rawKey}` });
-      continue;
-    }
+    if (playerIdSet.size > 0 && !playerIdSet.has(normalizedKey)) continue;
     const value = rawValue && typeof rawValue === 'object' ? rawValue : {};
     let suspect = typeof value.suspect === 'string' ? value.suspect.trim() : '';
     if (suspect && allowedRoleSet.size > 0) {
       const present = [...allowedRoleSet].filter((r) => suspect.includes(r));
       if (present.length === 0) {
-        errors.push({
-          type: ERROR_TYPES.IDENTITY_TABLE,
-          detail: `unknown role label "${suspect}" for player ${normalizedKey}`,
-        });
         suspect = '未知';
       } else if (present.length === 1) {
         suspect = present[0];
@@ -124,7 +121,7 @@ function validateIdentityTable(table, { playerIds, allowedRoles }) {
       ...(typeof value.reason === 'string' ? { reason: value.reason.slice(0, 600) } : {}),
     };
   }
-  return { ok: errors.length === 0, sanitized, errors };
+  return { ok: true, sanitized, errors: [] };
 }
 
 function findMissingFields(parsed, contract) {
