@@ -295,10 +295,16 @@ app.post('/bt/session/ask', async (req, res) => {
       systemInstruction: req.body?.systemInstruction,
       prompt: req.body?.prompt,
       gameStateMeta: req.body?.gameStateMeta || {},
+      gameState: req.body?.gameState || null,
+      params: req.body?.params || null,
+      contractVersion: req.body?.contractVersion,
+      capabilityMode: req.body?.capabilityMode,
       env: process.env,
     });
     res.json({ success: true, result, session: result._sessionInfo });
   } catch (err) {
+    // Validation failures are repaired or converted to safe fallback inside
+    // askWerewolfSession. A thrown error here is a runtime/transport problem.
     console.error('[Werewolf session ask]', err.message);
     res.status(502).json({ success: false, error: err.message });
   }
@@ -443,6 +449,8 @@ app.post('/novel/projects/:project/generate', (req, res) => {
       workspaceRoot,
       projectName: req.params.project,
       guidance: typeof req.body?.guidance === 'string' ? req.body.guidance : '',
+      mode: typeof req.body?.mode === 'string' ? req.body.mode : 'next_chapter',
+      targetDocument: req.body?.targetDocument || null,
     });
     res.status(202).json({ success: true, job });
   } catch (err) {

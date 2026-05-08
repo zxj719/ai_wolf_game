@@ -3,6 +3,17 @@ import { mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import {
+  CONTRACT_VERSION,
+  CAPABILITY_MODE,
+  isSupportedAction,
+  getContract,
+  buildCapabilities,
+  buildMemoryView,
+  composePrompt,
+  runWithRepair,
+} from './werewolfAgent/index.js';
+
 const DEFAULT_MODEL = 'MiniMax-M2.7';
 const DEFAULT_MINIMAX_URL = 'https://api.minimaxi.com/anthropic/v1/messages';
 const DEFAULT_MINIMAX_BASE_URL = 'https://api.minimaxi.com/anthropic';
@@ -260,12 +271,25 @@ async function callDirectModel({ system, user, config }) {
   };
 }
 
-function buildClaudePrompt({ system, user }) {
+function buildClaudePrompt({ system, user, gameAction = false }) {
+  const header = gameAction
+    ? [
+      'You are being invoked by an HTTP game server as a non-interactive Claude Code runtime.',
+      'Live-game constraints (mandatory):',
+      '  - No filesystem, no shell, no network, no tools, no MCP, no follow-up questions.',
+      '  - No cross-player memory: only this prompt is your context.',
+      '  - JSON only: stdout must be exactly one JSON object that satisfies the OUTPUT SCHEMA.',
+      '  - Do not include markdown fences, explanations, trace output, system text, or the user prompt in the final result.',
+    ].join('\n')
+    : [
+      'You are being invoked by an HTTP game server as a non-interactive Claude Code runtime.',
+      'Do not edit files, do not run tools, and do not ask follow-up questions.',
+      'Think privately if needed, but the final stdout result must contain exactly one JSON object for the game engine.',
+      'Do not include markdown fences, explanations, trace output, system text, or the user prompt in the final result.',
+    ].join('\n');
+
   return [
-    'You are being invoked by an HTTP game server as a non-interactive Claude Code runtime.',
-    'Do not edit files, do not run tools, and do not ask follow-up questions.',
-    'Think privately if needed, but the final stdout result must contain exactly one JSON object for the game engine.',
-    'Do not include markdown fences, explanations, trace output, system text, or the user prompt in the final result.',
+    header,
     '',
     'SYSTEM INSTRUCTIONS:',
     system,
@@ -360,7 +384,7 @@ function extractClaudeCodeResult(stdout) {
   return { text: stdout, runtimeSessionId };
 }
 
-async function callClaudeCode({ system, user, env, config, session, player }) {
+async function callClaudeCode({ system, user, env, config, session, player, gameAction = false }) {
   const agentKey = String(player.id);
   const sessionDir = path.join(
     config.claudeSessionRoot,
@@ -386,7 +410,7 @@ async function callClaudeCode({ system, user, env, config, session, player }) {
     windowsHide: true,
   });
 
-  const prompt = buildClaudePrompt({ system, user });
+  const prompt = buildClaudePrompt({ system, user, gameAction });
   const { stdout } = await collectProcess({ child, prompt, timeoutMs: config.timeoutMs });
   const { text, runtimeSessionId } = extractClaudeCodeResult(stdout);
   if (runtimeSessionId) {
@@ -402,12 +426,12 @@ async function callClaudeCode({ system, user, env, config, session, player }) {
   };
 }
 
-async function callSessionModel({ system, user, env, session, player }) {
+async function callSessionModel({ system, user, env, session, player, gameAction = false }) {
   const config = getProviderConfig(env);
   session.runtime = config.provider;
 
   if (config.provider === 'claude-code') {
-    return callClaudeCode({ system, user, env, config, session, player });
+    return callClaudeCode({ system, user, env, config, session, player, gameAction });
   }
 
   return callDirectModel({ system, user, config });
@@ -472,44 +496,8 @@ function recordTurn({ session, player, actionType, gameStateMeta, result }) {
   session.updatedAt = new Date().toISOString();
 }
 
-export async function askWerewolfSession({
-  gameSessionId,
-  player,
-  actionType,
-  systemInstruction,
-  prompt,
-  gameStateMeta = {},
-  env = process.env,
-}) {
-  if (!player || player.id === undefined) {
-    throw new Error('player is required');
-  }
-  if (!actionType) {
-    throw new Error('actionType is required');
-  }
-
-  const session = getSession(gameSessionId);
-  const sessionContext = buildSessionContext({ session, player, actionType, gameStateMeta });
-  const system = [
-    'You are the AI engine for a Werewolf social deduction game.',
-    'Return valid JSON only. Do not include markdown fences.',
-    sessionContext,
-    '',
-    systemInstruction,
-  ].join('\n\n');
-
-  const user = [
-    'Current action request:',
-    prompt,
-  ].join('\n\n');
-
-  const response = await callSessionModel({ system, user, env, session, player });
-  const parsed = safeParseJSON(response.text);
-  if (!parsed) {
-    throw new Error(`Invalid JSON from werewolf session AI: ${compact(response.text, 500)}`);
-  }
-
-  const result = {
+function buildLegacyResult({ parsed, response, session }) {
+  return {
     ...parsed,
     _modelInfo: {
       modelId: response.model,
@@ -524,8 +512,180 @@ export async function askWerewolfSession({
       runtimeSessionId: response.runtimeSessionId || null,
     },
   };
+}
+
+async function askWerewolfSessionLegacy({
+  session,
+  player,
+  actionType,
+  systemInstruction,
+  prompt,
+  gameStateMeta,
+  env,
+}) {
+  const sessionContext = buildSessionContext({ session, player, actionType, gameStateMeta });
+  const system = [
+    'You are the AI engine for a Werewolf social deduction game.',
+    'Return valid JSON only. Do not include markdown fences.',
+    sessionContext,
+    '',
+    systemInstruction,
+  ].join('\n\n');
+
+  const user = [
+    'Current action request:',
+    prompt,
+  ].join('\n\n');
+
+  const response = await callSessionModel({ system, user, env, session, player, gameAction: true });
+  const parsed = safeParseJSON(response.text);
+  if (!parsed) {
+    throw new Error(`Invalid JSON from werewolf session AI: ${compact(response.text, 500)}`);
+  }
+
+  const result = buildLegacyResult({ parsed, response, session });
   recordTurn({ session, player, actionType, gameStateMeta, result });
   return result;
+}
+
+async function askWerewolfSessionAdapter({
+  session,
+  player,
+  actionType,
+  systemInstruction,
+  prompt,
+  gameState,
+  params,
+  gameStateMeta,
+  env,
+}) {
+  const contract = getContract(actionType);
+  const capabilities = buildCapabilities({ contract, gameState, params, player });
+  const memoryView = buildMemoryView({ session, playerId: player.id, gameState });
+  const basePrompt = composePrompt({
+    contract,
+    capabilities,
+    params,
+    player: capabilities.currentPlayer || player,
+    memoryView,
+    systemAddon: systemInstruction || null,
+    userAddon: prompt || null,
+  });
+
+  let lastResponse = null;
+  const runModel = async (composed) => {
+    const response = await callSessionModel({
+      system: composed.system,
+      user: composed.user,
+      env,
+      session,
+      player,
+      gameAction: true,
+    });
+    lastResponse = response;
+    return {
+      text: response.text,
+      transport: {
+        model: response.model,
+        provider: response.provider,
+        runtimeSessionId: response.runtimeSessionId || null,
+      },
+    };
+  };
+
+  const outcome = await runWithRepair({
+    contract,
+    capabilities,
+    params,
+    gameSetup: gameState?.gameSetup || null,
+    basePrompt,
+    runModel,
+  });
+
+  const transport = outcome.transport || (lastResponse ? {
+    model: lastResponse.model,
+    provider: lastResponse.provider,
+    runtimeSessionId: lastResponse.runtimeSessionId || null,
+  } : { model: null, provider: null, runtimeSessionId: null });
+
+  const result = {
+    ...outcome.action,
+    _modelInfo: {
+      modelId: transport.model,
+      modelName: modelDisplayName({ provider: transport.provider, model: transport.model }),
+      provider: transport.provider,
+    },
+    _sessionInfo: {
+      gameSessionId: session.id,
+      mode: transport.provider === 'claude-code-minimax-codingplan'
+        ? 'claude-code-single-match-multi-agent'
+        : 'single-match-multi-agent',
+      runtimeSessionId: transport.runtimeSessionId || null,
+      contractVersion: CONTRACT_VERSION,
+      capabilityMode: CAPABILITY_MODE,
+    },
+    _diagnostics: {
+      validationAttempts: outcome.diagnostics.validationAttempts,
+      repairAttempts: outcome.diagnostics.repairAttempts,
+      fallbackUsed: outcome.diagnostics.fallbackUsed,
+      errorType: outcome.diagnostics.errorType,
+    },
+  };
+  recordTurn({ session, player, actionType, gameStateMeta, result });
+  return result;
+}
+
+export async function askWerewolfSession({
+  gameSessionId,
+  player,
+  actionType,
+  systemInstruction,
+  prompt,
+  gameStateMeta = {},
+  gameState = null,
+  params = null,
+  contractVersion,
+  capabilityMode,
+  env = process.env,
+}) {
+  if (!player || player.id === undefined) {
+    throw new Error('player is required');
+  }
+  if (!actionType) {
+    throw new Error('actionType is required');
+  }
+  if (contractVersion && contractVersion !== CONTRACT_VERSION) {
+    throw new Error(`Unsupported contractVersion ${contractVersion}; server is ${CONTRACT_VERSION}`);
+  }
+  if (capabilityMode && capabilityMode !== CAPABILITY_MODE) {
+    throw new Error(`Unsupported capabilityMode ${capabilityMode}; server is ${CAPABILITY_MODE}`);
+  }
+
+  const session = getSession(gameSessionId);
+
+  if (gameState && isSupportedAction(actionType)) {
+    return askWerewolfSessionAdapter({
+      session,
+      player,
+      actionType,
+      systemInstruction,
+      prompt,
+      gameState,
+      params: params || {},
+      gameStateMeta,
+      env,
+    });
+  }
+
+  return askWerewolfSessionLegacy({
+    session,
+    player,
+    actionType,
+    systemInstruction,
+    prompt,
+    gameStateMeta,
+    env,
+  });
 }
 
 function sanitizeSvg(svg) {

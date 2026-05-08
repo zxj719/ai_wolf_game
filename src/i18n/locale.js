@@ -139,7 +139,7 @@ const UI_COPY = {
       sitesTitle: '站点入口',
       sitesDescription: '汇总你的内容入口与外部站点，便于统一跳转与管理。',
       enterSites: '进入站点',
-      thinkingLibrary: 'Thinking Library',
+      thinkingLibrary: '思考图书馆',
       feedbackTitle: '意见箱',
       feedbackDescription: '欢迎反馈问题、建议或新想法',
       feedbackLabel: '反馈内容',

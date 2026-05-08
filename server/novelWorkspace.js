@@ -11,6 +11,7 @@ const jobs = new Map();
 const MAX_JOB_TEXT_LENGTH = 40000;
 const MAX_JOB_MESSAGES = 120;
 const MAX_VISIBLE_TRACE_LENGTH = 1600;
+const CODEX_ACTION_MODES = new Set(['next_chapter', 'revise_document', 'plan', 'story_bible']);
 
 export function resolveNovelWorkspaceRoot(env = process.env, cwd = process.cwd()) {
   return resolve(env.NOVEL_WORKSPACE_DIR || join(cwd, '..', 'novel_generator', 'meta_writing'));
@@ -323,18 +324,76 @@ export function buildCodexPrompt({ projectName, guidance = '', nextChapter = nul
   ].join('\n');
 }
 
-function buildProjectScopedCodexPrompt({ projectName, projectSlug, projectDir, guidance = '', nextChapter = null }) {
+function normalizeCodexMode(mode) {
+  return CODEX_ACTION_MODES.has(mode) ? mode : 'next_chapter';
+}
+
+function describeTargetDocument(targetDocument = null) {
+  if (!targetDocument) return 'No reader document is selected.';
+  return [
+    `Document type: ${targetDocument.type || 'unknown'}`,
+    targetDocument.id ? `Chapter id: ${targetDocument.id}` : null,
+    targetDocument.path ? `Memory path: ${targetDocument.path}` : null,
+    targetDocument.title ? `Title: ${targetDocument.title}` : null,
+    targetDocument.filename ? `Filename: ${targetDocument.filename}` : null,
+  ].filter(Boolean).join('\n');
+}
+
+function buildProjectScopedCodexPrompt({
+  projectName,
+  projectSlug,
+  projectDir,
+  guidance = '',
+  nextChapter = null,
+  mode = 'next_chapter',
+  targetDocument = null,
+}) {
   const target = nextChapter ? `chapter ${nextChapter}` : 'the next chapter';
   const extra = guidance.trim() ? `\n\nUser guidance:\n${guidance.trim()}` : '';
-  return [
+  const normalizedMode = normalizeCodexMode(mode);
+  const shared = [
     `You are maintaining the meta_writing novel project "${projectName}".`,
     `Target project slug: ${projectSlug}`,
     `Target project directory: ${projectDir}`,
     'Only read and modify this target project.',
     'Do not use characters, Story Bible files, chapters, or plot requirements from sibling novel projects.',
     'If the user guidance clearly belongs to a different project, stop and say the project selector must be changed before writing.',
-    `Generate ${target} with the Manual Chapter Workflow: read the latest chapters, creator_guidance.md, learned_rules.md, and story_data; write the new chapters/<number>.md file; update chapter_summaries, characters, timeline, pacing, foreshadowing, and other Story Bible files as needed.`,
     'Do not switch to automatic mode. Do not create a git commit.',
+    '',
+    'Reader document context:',
+    describeTargetDocument(targetDocument),
+  ];
+
+  const actionInstructions = {
+    next_chapter: [
+      `Generate ${target} with the Manual Chapter Workflow.`,
+      'Read the latest chapters, creator_guidance.md, learned_rules.md, and story_data.',
+      'Write the new chapters/<number>.md file.',
+      'Update chapter_summaries, characters, timeline, pacing, foreshadowing, and other Story Bible files as needed.',
+    ],
+    revise_document: [
+      'Revise only the document currently selected in the reader.',
+      'If it is a chapter, edit the corresponding chapters/<id>.md file.',
+      'If it is a memory file, edit that exact project memory file.',
+      'Keep the project scope strict and summarize what changed in the final output.',
+    ],
+    plan: [
+      'Plan mode: do not modify files.',
+      'Return a concise but concrete plan for the requested writing work.',
+      'Include target files, chapter goals, continuity risks, and a recommended execution order.',
+    ],
+    story_bible: [
+      'Story Bible only mode: do not write or rewrite chapter prose.',
+      'Update only project memory files under story_data plus creator_guidance.md or learned_rules.md when needed.',
+      'Focus on worldview, characters, timeline, pacing, foreshadowing, continuity, and learned rules.',
+    ],
+  };
+
+  return [
+    ...shared,
+    '',
+    `Action mode: ${normalizedMode}`,
+    ...actionInstructions[normalizedMode],
     extra,
   ].filter(Boolean).join('\n');
 }
@@ -368,7 +427,14 @@ function isErrorLikeStderr(value) {
   return /\b(error|fatal|exception|traceback|panic|failed|permission denied|not found|enoent|eacces)\b/i.test(value);
 }
 
-export function startCodexGeneration({ workspaceRoot, projectName, guidance = '', env = process.env }) {
+export function startCodexGeneration({
+  workspaceRoot,
+  projectName,
+  guidance = '',
+  mode = 'next_chapter',
+  targetDocument = null,
+  env = process.env,
+}) {
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
   const project = getNovelProject(workspaceRoot, projectName);
   const projectSlug = basename(projectDir);
@@ -379,6 +445,8 @@ export function startCodexGeneration({ workspaceRoot, projectName, guidance = ''
     projectDir,
     guidance,
     nextChapter: latestNumber + 1,
+    mode,
+    targetDocument,
   });
   const jobId = randomUUID();
   const job = {
@@ -390,6 +458,8 @@ export function startCodexGeneration({ workspaceRoot, projectName, guidance = ''
     finishedAt: null,
     exitCode: null,
     guidance,
+    mode: normalizeCodexMode(mode),
+    targetDocument,
     nextChapter: latestNumber + 1,
     messages: [],
     output: '',

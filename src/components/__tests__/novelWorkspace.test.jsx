@@ -46,11 +46,13 @@ describe('NovelWorkspaceView', () => {
     expect(html).toContain('alpha');
     expect(html).toContain('第二章');
     expect(html).toContain('A sharper turn.');
-    expect(html).toContain('Story Bible');
+    expect(html).toContain('故事圣经');
     expect(html).toContain('story_core.yaml');
-    expect(html).toContain('Active project');
-    expect(html).toContain('Target project');
-    expect(html).toContain('Codex conversation');
+    expect(html).toContain('当前项目');
+    expect(html).toContain('目标项目');
+    expect(html).toContain('Codex 对话');
+    expect(html).toContain('修改当前文档');
+    expect(html).not.toContain('New');
   });
 
   it('hides Codex trace and system messages from the conversation UI', () => {
@@ -121,8 +123,8 @@ describe('NovelWorkspaceView', () => {
         onRefresh={() => {}}
       />,
     );
-    expect(shelf).toContain('Novel shelf');
-    expect(shelf).toContain('Add new book');
+    expect(shelf).toContain('小说书架');
+    expect(shelf).toContain('添加新书');
 
     const creator = renderToStaticMarkup(
       <NovelWorkspaceView
@@ -145,9 +147,46 @@ describe('NovelWorkspaceView', () => {
         onRefresh={() => {}}
       />,
     );
-    expect(creator).toContain('New book');
-    expect(creator).toContain('Worldview');
-    expect(creator).toContain('Create and generate chapter 1');
+    expect(creator).toContain('新建小说');
+    expect(creator).toContain('世界观');
+    expect(creator).toContain('创建并生成第一章');
+  });
+
+  it('renders the workspace chrome in English when locale is en', () => {
+    const html = renderToStaticMarkup(
+      <NovelWorkspaceView
+        user={{ username: 'xingj' }}
+        loading={false}
+        error=""
+        projects={[{ name: 'alpha', slug: 'alpha', workflowMode: 'manual', chapterCount: 1 }]}
+        selectedProject="alpha"
+        project={{
+          name: 'alpha',
+          slug: 'alpha',
+          workflowMode: 'manual',
+          chapters: [{ id: '001', title: 'Chapter 1', excerpt: 'Opening.' }],
+          storyBible: { sections: [] },
+          creatorGuidance: '',
+          learnedRules: '',
+        }}
+        selectedDocument={null}
+        guidance=""
+        job={null}
+        busy={false}
+        locale="en"
+        onBack={() => {}}
+        onSelectProject={() => {}}
+        onSelectChapter={() => {}}
+        onGuidanceChange={() => {}}
+        onGenerate={() => {}}
+        onRefresh={() => {}}
+      />,
+    );
+
+    expect(html).toContain('Active project');
+    expect(html).toContain('Codex conversation');
+    expect(html).toContain('Revise current document');
+    expect(html).toContain('Story Bible only');
   });
 
   it('renders markdown documents in reading mode with edit and md export actions', () => {
@@ -196,12 +235,12 @@ describe('NovelWorkspaceView', () => {
       />,
     );
 
-    expect(html).toContain('Story Bible');
-    expect(html).toContain('Summaries');
+    expect(html).toContain('故事圣经');
+    expect(html).toContain('章节摘要');
     expect(html).toContain('chapter_summaries/001.yaml');
     expect(html).toContain('Chapter 1');
     expect(html).toContain('Opening.');
-    expect(html).toContain('Edit');
+    expect(html).toContain('编辑');
     expect(html).toContain('MD');
     expect(html).not.toContain('# Chapter 1');
   });

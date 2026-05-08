@@ -374,6 +374,199 @@ describe('werewolfSession', () => {
   });
 });
 
+describe('werewolfSession adapter (contract v1)', () => {
+  const adapterEnv = {
+    WEREWOLF_SESSION_PROVIDER: 'minimax-api',
+    MINIMAX_API_KEY: 'test-key',
+    MINIMAX_API_URL: 'https://api.minimaxi.com/anthropic/v1/messages',
+  };
+
+  function adapterPlayers() {
+    return [
+      { id: 1, role: '狼人',  isAlive: true },
+      { id: 2, role: '狼人',  isAlive: true },
+      { id: 3, role: '预言家', isAlive: true },
+      { id: 4, role: '女巫',  isAlive: true,  hasWitchSave: true,  hasWitchPoison: true },
+      { id: 5, role: '守卫',  isAlive: true },
+      { id: 6, role: '猎人',  isAlive: true },
+      { id: 7, role: '村民',  isAlive: true },
+    ];
+  }
+
+  function adapterGameState() {
+    return {
+      players: adapterPlayers(),
+      deathHistory: [],
+      voteHistory: [],
+      seerChecks: [{ seerId: 3, night: 1, targetId: 1, isWolf: true }],
+      nightDecisions: { lastGuardTarget: 4 },
+      dayCount: 2,
+      phase: 'day_discussion',
+      gameSetup: { STANDARD_ROLES: ['狼人', '狼人', '预言家', '女巫', '守卫', '猎人', '村民'] },
+    };
+  }
+
+  it('prompts include contract version, capability mode, legal targets, and the current role skill', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: JSON.stringify({ targetId: 1, reasoning: 'ok' }) }],
+      }),
+    });
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 3, role: '预言家' },
+      actionType: 'NIGHT_SEER',
+      systemInstruction: '',
+      prompt: '',
+      gameState: adapterGameState(),
+      params: { validTargets: [1, 2, 4, 5, 6, 7] },
+      gameStateMeta: { dayCount: 2, phase: 'night' },
+      env: adapterEnv,
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.system).toContain('werewolf-agent-contract-v1');
+    expect(body.system).toContain('minimax-claude-code-v1');
+
+    const userText = body.messages[0].content;
+    expect(userText).toContain('LEGAL ACTIONS');
+    expect(userText).toContain('legalTargets: [1, 2, 4, 5, 6, 7]');
+    expect(userText).toContain('your seer checks');
+    expect(userText).toMatch(/role skill: 预言家查验/);
+  });
+
+  it('does not leak other agents\' private memory into adapter prompts', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: JSON.stringify({ targetId: 7, reasoning: 'kill villager' }) }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: JSON.stringify({ targetId: 2, reasoning: 'inspect' }) }],
+        }),
+      });
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, role: '狼人' },
+      actionType: 'NIGHT_WOLF',
+      systemInstruction: '',
+      prompt: '',
+      gameState: adapterGameState(),
+      params: {},
+      gameStateMeta: { dayCount: 2, phase: 'night' },
+      env: adapterEnv,
+    });
+
+    await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 3, role: '预言家' },
+      actionType: 'NIGHT_SEER',
+      systemInstruction: '',
+      prompt: '',
+      gameState: adapterGameState(),
+      params: { validTargets: [1, 2, 4, 5, 6, 7] },
+      gameStateMeta: { dayCount: 2, phase: 'night' },
+      env: adapterEnv,
+    });
+
+    const seerBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(seerBody.system).not.toContain('kill villager');
+    expect(seerBody.messages[0].content).not.toContain('wolf teammates');
+    expect(seerBody.messages[0].content).not.toMatch(/target=7/);
+  });
+
+  it('repairs invalid output once and returns the corrected action with diagnostics', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: JSON.stringify({ targetId: 99, reasoning: 'illegal' }) }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: [{ type: 'text', text: JSON.stringify({ targetId: 3, reasoning: 'legal' }) }],
+        }),
+      });
+
+    const result = await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, role: '狼人' },
+      actionType: 'NIGHT_WOLF',
+      systemInstruction: '',
+      prompt: '',
+      gameState: adapterGameState(),
+      params: {},
+      gameStateMeta: { dayCount: 2, phase: 'night' },
+      env: adapterEnv,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.targetId).toBe(3);
+    expect(result._diagnostics).toMatchObject({
+      validationAttempts: 2,
+      repairAttempts: 1,
+      fallbackUsed: false,
+    });
+    const repairBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(repairBody.messages[0].content).toContain('CORRECTION REQUIRED');
+  });
+
+  it('falls back to deterministic action after repair budget exhausts', async () => {
+    const invalid = {
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: JSON.stringify({ targetId: 99, reasoning: 'still illegal' }) }],
+      }),
+    };
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(invalid)
+      .mockResolvedValueOnce(invalid)
+      .mockResolvedValueOnce(invalid);
+
+    const result = await askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, role: '狼人' },
+      actionType: 'NIGHT_WOLF',
+      systemInstruction: '',
+      prompt: '',
+      gameState: adapterGameState(),
+      params: {},
+      gameStateMeta: { dayCount: 2, phase: 'night' },
+      env: adapterEnv,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result._diagnostics.fallbackUsed).toBe(true);
+    expect(result._diagnostics.repairAttempts).toBe(2);
+    expect([3, 4, 5, 6, 7]).toContain(result.targetId); // first legal alive non-wolf
+    expect(result._sessionInfo.contractVersion).toBe('werewolf-agent-contract-v1');
+    expect(result._sessionInfo.capabilityMode).toBe('minimax-claude-code-v1');
+  });
+
+  it('rejects mismatched contract version requests', async () => {
+    await expect(askWerewolfSession({
+      gameSessionId: 'test-game',
+      player: { id: 1, role: '狼人' },
+      actionType: 'NIGHT_WOLF',
+      systemInstruction: '',
+      prompt: '',
+      gameState: adapterGameState(),
+      params: {},
+      contractVersion: 'werewolf-agent-contract-v999',
+      env: adapterEnv,
+    })).rejects.toThrow(/Unsupported contractVersion/);
+  });
+});
+
 describe('werewolf visual assets', () => {
   it('generates visual assets through Claude Code and returns an SVG data URI', async () => {
     mockClaudeCode({

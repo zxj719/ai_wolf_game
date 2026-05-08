@@ -1,260 +1,220 @@
 # Zhaxiaoji Studio
 
-当前仓库已经不是单一的 “Werewolf Pro” 游戏首页，而是一个以个人主页为外壳、以 AI 狼人杀为核心可玩模块、并保留 Projects & Labs 入口的混合型站点。
+本仓库已经从单一的 “Werewolf Pro” 游戏首页演化为一个**模块化个人主页平台**：以个人主页为壳，围绕 AI 狼人杀、小说工作台、和声实验、行情实验等多个并列模块组合。所有模块共享同一个登录态、同一个 i18n 语言切换、同一套 UI 基线，并通过 `ModuleRegistry` 注册到统一的 Router。
 
-前端基于 `React 18 + Vite`，公开站点与 Cloudflare Workers 后端共用 `https://zhaxiaoji.com` 域名。首页、狼人杀模块页和项目实验页已经完成信息架构重组；狼人杀排行榜前端入口已移除。
+前端基于 `React 18 + Vite + TailwindCSS`，公开站点统一域名 `https://zhaxiaoji.com`，背后由 **两个后端** 共同支撑：
+
+- **Cloudflare Workers + D1**：认证、用户数据、战绩、对局日志（`workers/auth/`）
+- **Node Express + better-sqlite3**：行为树决策、LLM 润色、狼人会话代理、小说 Codex 工作流（`server/`，包名 `@wolfgame/bt-server`）
 
 ## 当前路由
 
+路由按"模块平级"组织：所有模块都是 `/<module>`，旧路径（`/home`、`/wolfgame*`）通过 `LEGACY_PATH_MAP` 自动 301 到新路径。
+
 | 路由 | 访问级别 | 说明 |
 |------|----------|------|
-| `/home` | 公开 | 个人主页，聚合狼人杀入口、Projects & Labs、静态站入口 |
-| `/wolfgame` | 公开 | 狼人杀模块页，解释玩法、游客试玩、登录与记录能力 |
-| `/wolfgame/custom` | 游客或登录 | 对局设置页 |
-| `/wolfgame/play` | 游客或登录 | 对局页 |
-| `/sites` | 公开 | Projects & Labs Hub，承载静态站与实时行情实验 |
-| `/login` | 公开 | 登录 / 注册入口 |
-| `/reset-password` | 公开 | 重置密码 |
-| `/verify-email` | 公开 | 验证邮箱 |
+| `/` | 公开 | 个人主页，自动汇总所有 `home.visible` 模块卡片 |
+| `/login` · `/reset-password` · `/verify-email` | 公开 | 登录 / 注册 / 重置密码 / 邮箱验证 |
+| `/werewolf` | 公开 | 狼人杀模块入口（hub） |
+| `/werewolf/setup` | 登录 | 对局配置页 |
+| `/werewolf/play` | 登录 | 对局主舞台 |
+| `/novel` | 登录 | Meta Writing 小说工作台 + Codex 生成工作流 |
+| `/sites` | 公开 | Projects & Labs Hub（行情/和声等实验入口） |
+| `/chords` | 公开 | 和声分析实验 |
+| `/stock` | 公开 | 实时行情 / 自选股 / 纸交易实验 |
+| `/blog` | 公开 | 静态站入口 |
 
-路由守卫逻辑在 [src/hooks/useAppRouter.js](src/hooks/useAppRouter.js)。
+旧路径兼容映射在 [src/shell/paths.js](src/shell/paths.js)，路由匹配在 [src/shell/Router.jsx](src/shell/Router.jsx)。
 
 ## 架构概览
 
-### 1. 应用壳层
+### 0. 应用根（Shell）
 
-- [src/App.jsx](src/App.jsx)
-  - 应用组合根。
-  - 负责懒加载页面组件、设置 SEO meta、衔接认证态和游客态。
-  - 通过 `useAppRouter` 管理公开页、私有页和狼人杀流程页切换。
-  - 在对局结束后保存战绩、提交完整游戏日志。
+- [src/main.jsx](src/main.jsx) — React 挂载点，包裹 `ErrorBoundary` + `AuthProvider` + `AppShell`
+- [src/AppShell.jsx](src/AppShell.jsx) — 应用根。组合 `ShellProvider` / `Router` / `GlobalOverlays`，**对任何具体模块一无所知**
+- [src/shell/ModuleRegistry.js](src/shell/ModuleRegistry.js) — 模块总线，按顺序注册 `home / auth / werewolf / novel / sites`；`findRoute()` 按路径找模块，`homeCards()` 给首页生成卡片
+- [src/shell/Router.jsx](src/shell/Router.jsx) — 单源路由器，处理懒加载、`requiresAuth` 守卫、`LEGACY_PATH_MAP` 重写
+- [src/shell/ShellProvider.jsx](src/shell/ShellProvider.jsx) / [ShellContext.js](src/shell/ShellContext.js) — 跨模块共享：当前 `locale`、`auth`、`navigate`、`endGame` 等
+- [src/shell/GlobalOverlays.jsx](src/shell/GlobalOverlays.jsx) — 跨模块浮层（当前承载 `LanguageToggle`）
+- [src/shell/paths.js](src/shell/paths.js) — 路由常量、`AUTH_PATHS`、`LEGACY_PATH_MAP`、`normalizePath()`
+- [src/shell/navGuards.js](src/shell/navGuards.js) — 守卫策略
+- [src/shell/useAuthNav.js](src/shell/useAuthNav.js) / [useDocumentMeta.js](src/shell/useDocumentMeta.js) — 登录跳转与 SEO meta 注入
 
-- [src/hooks/useAppRouter.js](src/hooks/useAppRouter.js)
-  - 定义所有前端路由常量。
-  - 区分 `PUBLIC_ROUTES` 和 `PRIVATE_ROUTES`。
-  - 处理 `/` 到 `/home` 的归一化、未授权访问拦截、从公开页返回时自动结束游戏。
+### 1. 模块层（modules/）
 
-- [src/contexts/AuthContext.jsx](src/contexts/AuthContext.jsx)
-  - 管理 JWT 登录态、用户信息、ModelScope token 状态。
-  - 提供注册、登录、登出、更新资料、保存 / 验证 ModelScope token 等能力。
+每个模块就是一个目录 + 一个默认导出的 `ModuleDescriptor`。新增模块 = 1 个目录 + 在 `ModuleRegistry` 里加一行。
 
-### 2. 公开页面层
+```js
+// modules/<name>/index.js
+export default {
+  id: 'werewolf',
+  title: { zh: '狼人杀', en: 'Werewolf' },
+  blurb: { zh: '...', en: '...' },
+  theme: 'dark',                // 'light' | 'dark'
+  backend: 'cf-workers',        // 用于 services/api/registry 路由
+  routes: [{ path, component, requiresAuth }],
+  home: { visible: true, order: 10 },
+};
+```
 
-- [src/components/Dashboard.jsx](src/components/Dashboard.jsx)
-  - 公开首页。
-  - 使用 `@chenglou/pretext` 相关组件重做排版。
-  - 负责展示个人主页 hero、狼人杀入口、Projects & Labs 入口、登录 / 游客入口、个人战绩 / token 管理入口。
+| 模块 | 描述符 | 主组件 |
+|------|--------|--------|
+| `home` | [src/modules/home/index.js](src/modules/home/index.js) | [HomeRoute.jsx](src/modules/home/HomeRoute.jsx) → [Dashboard.jsx](src/components/Dashboard.jsx) |
+| `auth` | [src/modules/auth/index.js](src/modules/auth/index.js) | [AuthRoute.jsx](src/modules/auth/AuthRoute.jsx) → `components/Auth/*` |
+| `werewolf` | [src/modules/werewolf/index.js](src/modules/werewolf/index.js) | [WerewolfModule.jsx](src/modules/werewolf/WerewolfModule.jsx) — 跨 hub/setup/play 共享 instance，跨路径不 unmount |
+| `novel` | [src/modules/novel/index.js](src/modules/novel/index.js) | [NovelRoute.jsx](src/modules/novel/NovelRoute.jsx) → [NovelWorkspace.jsx](src/components/NovelWorkspace.jsx) |
+| `sites` | [src/modules/sites/index.js](src/modules/sites/index.js) | [SitesRoute.jsx](src/modules/sites/SitesRoute.jsx) → [SitesPage.jsx](src/components/SitesPage.jsx) |
 
-- [src/components/WolfgameHub.jsx](src/components/WolfgameHub.jsx)
-  - 公开狼人杀模块页。
-  - 说明 `/wolfgame`、`/wolfgame/custom`、`/wolfgame/play` 的入口关系。
-  - 承担游客试玩、登录、查看战绩、配置 token 的聚合入口。
+`title` / `blurb` 是 `{ zh, en }`，i18n 通过 ShellContext 注入。
 
-- [src/components/SitesPage.jsx](src/components/SitesPage.jsx)
-  - Projects & Labs Hub。
-  - 当前承载静态个人站入口和实时行情实验入口。
-  - 行情实验进一步落到 `src/components/Stock/*`。
+### 2. i18n
 
-### 3. 狼人杀游戏层
+会话级语言切换（中文 / English），状态持久化到 `localStorage`，模块组件自行从 `useShell()` 读取。
 
-- [src/components/SetupScreen.jsx](src/components/SetupScreen.jsx)
-  - 对局配置页。
-  - 负责模式选择、角色选择、自定义阵容、胜利条件等设置。
+- [src/i18n/locale.js](src/i18n/locale.js) — 语言常量、角色 / 胜利模式翻译表、`SUPPORTED_LOCALES`
+- [src/components/LanguageToggle.jsx](src/components/LanguageToggle.jsx) — 全局语言切换（挂在 `GlobalOverlays`）
+- 模块描述符 `title.zh/en` & `blurb.zh/en` 直接被 `Dashboard` 卡片墙读取
 
-- [src/components/GameArena.jsx](src/components/GameArena.jsx)
-  - 对局主舞台。
-  - 组合头部、玩家视图、发言、行动、投票、日志、历史等子组件。
+### 3. 狼人杀模块（核心可玩功能）
 
-- [src/useWerewolfGame.js](src/useWerewolfGame.js)
-  - 核心 reducer。
-  - 维护 `phase`、`nightStep`、`players`、`speechHistory`、`voteHistory`、`deathHistory`、`nightActionHistory`、`modelUsage` 等全局游戏状态。
+游戏内核仍由 `useWerewolfGame` reducer 驱动；夜晚 / 白天 / 发言被拆成独立 hook。
 
-- [src/hooks/useDayFlow.js](src/hooks/useDayFlow.js)
-  - 白天流程控制。
-  - 负责发言顺序、投票、放逐、猎人开枪和进入下一夜。
+- [src/components/SetupScreen.jsx](src/components/SetupScreen.jsx) — 模式 / 角色 / 阵容配置
+- [src/components/GameArena.jsx](src/components/GameArena.jsx) — 对局主舞台
+- [src/useWerewolfGame.js](src/useWerewolfGame.js) — 核心 reducer
+- [src/hooks/useDayFlow.js](src/hooks/useDayFlow.js) — 白天发言 / 投票 / 放逐 / 猎人开枪 / 进入下一夜
+- [src/hooks/useNightFlow.js](src/hooks/useNightFlow.js) — 守卫 / 狼人 / 预言家 / 女巫等夜间结算
+- [src/hooks/useSpeechFlow.js](src/hooks/useSpeechFlow.js) — 发言阶段推进
+- [src/hooks/useGameLifecycle.js](src/hooks/useGameLifecycle.js) — 请求中断 / 战绩落库等外围
 
-- [src/hooks/useNightFlow.js](src/hooks/useNightFlow.js)
-  - 夜晚流程控制。
-  - 负责守卫、狼人、预言家、女巫等夜间行动推进与结算。
+### 4. AI 与决策层
 
-- [src/hooks/useSpeechFlow.js](src/hooks/useSpeechFlow.js)
-  - 发言相关交互控制。
-  - 负责用户发言、AI 发言、对决发言与阶段推进。
+AI 已从"前端直连 LLM"演进为**两段式管线**：行为树决定结构化动作 → LLM 润色成自然语言。
 
-- [src/hooks/useGameLifecycle.js](src/hooks/useGameLifecycle.js)
-  - 生命周期辅助逻辑。
-  - 负责请求中断、记录保存等外围行为。
+- 决策核心 [src/services/decisionEngine/](src/services/decisionEngine) — 行为树 `BehaviorTree`、`buildBlackboard`、按角色拆分的 trees（`werewolf/`、`seer/`、`witch/`、`hunter/`、`guard/`、`villager/`）
+- 不变量 / 快照 [src/services/gameInvariants.js](src/services/gameInvariants.js) · [snapshotBuilder.js](src/services/snapshotBuilder.js) · [werewolfGameSnapshot.js](src/services/werewolfGameSnapshot.js)
+- 动作队列 [src/services/actionQueue.js](src/services/actionQueue.js) — 幂等动作队列
+- 提示词 [src/services/aiPrompts.js](src/services/aiPrompts.js) · [polishPrompts.js](src/services/polishPrompts.js) · [promptFactory.js](src/services/promptFactory.js) · [rolePrompts/](src/services/rolePrompts)
+- 信任与推理 [trustScoring.js](src/services/trustScoring.js) · [bayesianInference.js](src/services/bayesianInference.js) · [deceptionDetection.js](src/services/deceptionDetection.js) · [dualSystem.js](src/services/dualSystem.js)
+- 校验 / 清洗 [logicValidator.js](src/services/logicValidator.js) · [identityTableSanitizer.js](src/services/identityTableSanitizer.js) · [speechSummarizer.js](src/services/speechSummarizer.js) · [publicFacts.js](src/services/publicFacts.js)
+- LLM 客户端 [aiClient.js](src/services/aiClient.js) · [btClient.js](src/services/btClient.js) · [werewolfAITransport.js](src/services/werewolfAITransport.js) · [werewolfSessionClient.js](src/services/werewolfSessionClient.js)
+- AI Hook [src/hooks/useAI.js](src/hooks/useAI.js) · [useAIModels.js](src/hooks/useAIModels.js)
 
-### 4. AI 与提示词层
+### 5. UI 基线 & pretext 排版
 
-- [src/hooks/useAI.js](src/hooks/useAI.js)
-  - AI 调用统一入口。
-  - 组装当前局面上下文，向模型发起请求，并跟踪模型使用情况。
+- [src/ui/](src/ui) — 共享 UI kit：`Button` / `Card` / `Input` / `Modal` / `PageShell` / `Toolbar` / `Spinner` / `Skeleton` / `Badge`
+- [src/index.css](src/index.css) · [src/styles/](src/styles) — 纸感视觉系统 / `mac-segmented-control` / `paper-panel` 等
+- [src/components/home/](src/components/home) — pretext 首页组件（`BalancedHeadline` / `IdeaMasonry` / `HomePortalCard`）
+- [src/hooks/useBalancedHeadline.js](src/hooks/useBalancedHeadline.js) · [useElementWidth.js](src/hooks/useElementWidth.js)
 
-- [src/hooks/useAIModels.js](src/hooks/useAIModels.js)
-  - 模型列表与禁用模型追踪。
+## 后端
 
-- [src/services/aiClient.js](src/services/aiClient.js)
-  - 与上游 LLM API 交互的低层客户端。
+### Cloudflare Workers — 认证 / 数据
 
-- [src/services/aiPrompts.js](src/services/aiPrompts.js)
-  - 狼人杀主提示词模板与约束。
+- [workers/auth/index.js](workers/auth/index.js) — Worker 路由入口
+- [workers/auth/handlers.js](workers/auth/handlers.js) — 认证、用户、token、战绩、游戏日志的 API 处理
+- [workers/auth/jwt.js](workers/auth/jwt.js) · [password.js](workers/auth/password.js) · [middleware.js](workers/auth/middleware.js) · [email.js](workers/auth/email.js)
+- [wrangler.toml](wrangler.toml) — `main = "workers/auth/index.js"`，`[assets]` 同时发布 `dist/` 静态资源
+- 数据库 schema 见 [schema.sql](schema.sql) / [migrations/](migrations)
+- 前端调用：[src/services/authService.js](src/services/authService.js) · [gameService.js](src/services/gameService.js) · [submitGameLog.js](src/services/submitGameLog.js)
 
-- [src/services/rolePrompts/*](src/services/rolePrompts)
-  - 按角色拆分的补充提示词。
+### Node Express — 行为树 / Codex / 会话代理（`server/`）
 
-- [src/services/identityTableSanitizer.js](src/services/identityTableSanitizer.js)
-  - 清洗和约束模型返回的身份推理表。
+包名 `@wolfgame/bt-server`，依赖 `express + cors + better-sqlite3`，独立版本号，由 `npm run bt:patch` / `bt:minor` bump。
 
-- [src/services/logicValidator.js](src/services/logicValidator.js)
-  - 规则一致性与行为合法性校验。
+- [server/index.js](server/index.js) — Express 入口，挂载 `/bt/decide`、`/bt/wolf-speech`、`/bt/game/*`、`/bt/stats`、`/bt/export`、`/health`
+- [server/db.js](server/db.js) — `better-sqlite3` 持久化（按版本统计胜率，导出对局日志）
+- [server/werewolfSession.js](server/werewolfSession.js) — 狼人会话 AI 代理（隔离每个会话的私有上下文）
+- [server/novelWorkspace.js](server/novelWorkspace.js) — `/novel/*` 接口：项目 / 章节读写、Codex 子进程调度（`spawn` 调用本地 `codex exec --full-auto`）
+- 前端调用：[src/services/novelService.js](src/services/novelService.js) · [btClient.js](src/services/btClient.js) · [werewolfSessionClient.js](src/services/werewolfSessionClient.js)
+- 进程管理：[ecosystem.config.cjs](ecosystem.config.cjs)（`pm2 start ecosystem.config.cjs`）
 
-项目里还保留了更早期的认知架构和实验组件，例如：
+## 仓库内的次级子系统
 
-- `src/services/bayesianInference.js`
-- `src/services/deceptionDetection.js`
-- `src/services/dualSystem.js`
-- `src/hooks/useDualSystem.js`
-- `src/hooks/useTrustInference.js`
+- [src/components/Stock/](src/components/Stock) — 实时行情 / 自选股 / 深度 / 纸交易实验，从 `/sites` 与 `/stock` 进入
+- [src/components/ChordsPage.jsx](src/components/ChordsPage.jsx) + [src/services/chordsAnalysis.js](src/services/chordsAnalysis.js) · [chordsService.js](src/services/chordsService.js) — 和声分析实验
+- [src/agents/](src/agents) — `reviewPipeline` / `promptEngineer` / `bugHunter` / `testWriter` / `headlessGame` 等离线 agent
+- [src/knowledge/](src/knowledge) — `case_library/` / `versions/` / `successful_prompts.json` / `model_weaknesses.json` 等评审产物
 
-这些能力仍在仓库中，但当前首页重构不以它们为主叙事。
-
-### 5. pretext 前端排版层
-
-- [src/components/home/BalancedHeadline.jsx](src/components/home/BalancedHeadline.jsx)
-  - 基于 `pretext` 做标题平衡换行。
-
-- [src/components/home/IdeaMasonry.jsx](src/components/home/IdeaMasonry.jsx)
-  - 用 `pretext` 测量文本高度，生成更稳定的卡片栅格。
-
-- [src/components/home/HomePortalCard.jsx](src/components/home/HomePortalCard.jsx)
-  - 首页和狼人杀模块页共享的入口卡片。
-
-- [src/hooks/useBalancedHeadline.js](src/hooks/useBalancedHeadline.js)
-  - `BalancedHeadline` 的布局计算 hook。
-
-- [src/hooks/useElementWidth.js](src/hooks/useElementWidth.js)
-  - 观察元素宽度，为 `pretext` 计算提供输入。
-
-- [src/index.css](src/index.css)
-  - 全局视觉基线。
-  - 当前已包含 `Zhaxiaoji Studio` 的纸感背景、`page-orbit`、`paper-panel`、字体变量等视觉系统。
-
-## 后端与部署
-
-- [workers/auth/index.js](workers/auth/index.js)
-  - Cloudflare Workers 入口。
-
-- [workers/auth/handlers.js](workers/auth/handlers.js)
-  - 认证相关业务 handler。
-
-- [workers/auth/jwt.js](workers/auth/jwt.js)
-  - JWT 生成与校验。
-
-- [workers/auth/password.js](workers/auth/password.js)
-  - 密码处理。
-
-- [workers/auth/email.js](workers/auth/email.js)
-  - 邮件相关流程。
-
-- [workers/auth/middleware.js](workers/auth/middleware.js)
-  - Worker 中间件。
-
-- [wrangler.toml](wrangler.toml)
-  - Cloudflare Workers 配置。
-  - `main = "workers/auth/index.js"`，同时通过 `[assets]` 发布 `dist/` 静态资源。
-
-## 数据与服务边界
-
-- [src/services/authService.js](src/services/authService.js)
-  - 前端对认证 Worker 的调用封装。
-
-- [src/services/gameService.js](src/services/gameService.js)
-  - 用户战绩读写接口。
-
-- [src/services/submitGameLog.js](src/services/submitGameLog.js)
-  - 对局结束后提交完整游戏日志，用于复盘 / 评审流水线。
-
-- [src/utils/authToken.js](src/utils/authToken.js)
-  - 本地 token 与用户缓存读写。
-
-- [src/utils/exportGameLog.js](src/utils/exportGameLog.js)
-  - 导出对局日志。
-
-## 仓库里的次级子系统
-
-当前仓库不只有主页和狼人杀，还包含两个相对独立的子系统：
-
-- `src/components/Stock/*`
-  - 实时行情 / 自选股 / 深度 / 纸交易实验。
-  - 当前通过 `SitesPage` 进入，不在公开首页直接占主叙事。
-
-- `src/agents/*`
-  - review pipeline / prompt engineer / bug hunter / test writer 等 agent 实验。
-  - 它们和本次主页重构不是同一条用户路径，但仍在仓库中。
+这些子系统不在主路径主叙事中，但仍由仓库维护。
 
 ## 当前目录地图
 
 ```text
 src/
-├── App.jsx                      # 应用壳层与页面装配
-├── useWerewolfGame.js           # 核心游戏 reducer
-├── contexts/
-│   └── AuthContext.jsx          # 认证上下文
-├── hooks/
-│   ├── useAppRouter.js          # 前端路由与守卫
-│   ├── useAI.js                 # AI 统一调用入口
-│   ├── useAIModels.js           # 模型列表与禁用追踪
-│   ├── useDayFlow.js            # 白天流程
-│   ├── useNightFlow.js          # 夜晚流程
-│   ├── useSpeechFlow.js         # 发言流程
-│   ├── useGameLifecycle.js      # 生命周期外围逻辑
-│   ├── useBalancedHeadline.js   # pretext 标题计算
-│   └── useElementWidth.js       # 元素宽度测量
-├── components/
-│   ├── Dashboard.jsx            # 公开首页
-│   ├── WolfgameHub.jsx          # 狼人杀模块页
-│   ├── SitesPage.jsx            # Projects & Labs Hub
-│   ├── SetupScreen.jsx          # 对局设置页
-│   ├── GameArena.jsx            # 对局主舞台
-│   ├── TokenManager.jsx         # token 管理弹层
-│   ├── UserStats.jsx            # 用户战绩弹层
-│   ├── home/                    # pretext 首页组件
-│   ├── Stock/                   # 行情实验子系统
-│   └── Auth/                    # 登录/注册/重置密码/验证邮箱
-├── services/
-│   ├── authService.js           # 认证 API
-│   ├── gameService.js           # 战绩 API
-│   ├── submitGameLog.js         # 对局日志提交
-│   ├── aiClient.js              # LLM 客户端
-│   ├── aiPrompts.js             # 主提示词
-│   └── rolePrompts/             # 角色级提示词
-├── config/
-│   ├── aiConfig.js              # AI 服务配置
-│   └── roles.js                 # 角色、阵容、胜利条件配置
-└── utils/                       # 游戏/日志/认证辅助工具
+├── main.jsx                         # React 挂载点
+├── AppShell.jsx                     # 应用根（ShellProvider + Router + GlobalOverlays）
+├── shell/                           # 应用壳层（Router、ModuleRegistry、ShellContext...）
+├── modules/                         # 模块描述符 + 入口路由
+│   ├── home/  auth/  werewolf/  novel/  sites/
+├── components/                      # 业务组件（GameArena / NovelWorkspace / Dashboard...）
+│   └── home/                        # pretext 首页组件
+├── ui/                              # 共享 UI kit（Button/Card/Modal/PageShell...）
+├── i18n/                            # locale 常量 + 角色翻译表
+├── hooks/                           # useAI / useDayFlow / useNightFlow / ...
+├── services/                        # 服务层
+│   ├── decisionEngine/              # 行为树决策核心
+│   ├── rolePrompts/                 # 角色级提示词
+│   ├── api/                         # backend registry / fetch wrapper
+│   └── *.js                         # 信任、推理、不变量、快照、动作队列、客户端...
+├── contexts/AuthContext.jsx
+├── config/  selectors/  utils/  styles/
+├── agents/                          # 离线评审 / 测试 / 提示词工程 agent
+├── knowledge/                       # case library / versions / 模型弱点知识
+└── useWerewolfGame.js               # 核心游戏 reducer
+
+server/                              # Node Express BT + Codex 后端（@wolfgame/bt-server）
+├── index.js  db.js  werewolfSession.js  novelWorkspace.js
+└── __tests__/
+
+workers/auth/                        # Cloudflare Workers 认证 / D1 后端
+ecosystem.config.cjs                 # pm2 进程编排
+wrangler.toml  schema.sql  migrations/
 ```
 
 ## 运行命令
 
 ```bash
-npm.cmd run dev
-npm.cmd run build
-npm.cmd run preview
-npm.cmd run test
-npm.cmd run deploy
+# 前端
+npm.cmd run dev                # vite dev server
+npm.cmd run build              # 产出 dist/
+npm.cmd run preview            # 本地预览构建产物
+npm.cmd run lint               # eslint
+npm.cmd run test               # vitest run
+npm.cmd run test:watch         # vitest --watch
+
+# Cloudflare Workers
+npm.cmd run dev:worker         # wrangler dev
+npm.cmd run deploy             # wrangler deploy --assets ./dist
+
+# Node BT/Codex 后端（server/）
+node server/index.js           # 直接启动
+pm2 start ecosystem.config.cjs # 生产部署
+npm.cmd run bt:patch           # server/package.json 版本 patch
+npm.cmd run bt:minor           # server/package.json 版本 minor
+
+# 离线分析
+npm.cmd run analyze            # scripts/analyze-games.js
+npm.cmd run analyze:stats
 ```
 
 ## 当前测试
 
-当前仓库至少有这几组自动化验证：
+仓库分布在多个层级的自动化验证：
 
-- [src/utils/__tests__/gameUtils.test.js](src/utils/__tests__/gameUtils.test.js)
-- [src/services/__tests__/submitGameLog.test.js](src/services/__tests__/submitGameLog.test.js)
-- [src/agents/shared/__tests__/validation.test.js](src/agents/shared/__tests__/validation.test.js)
+- 前端：[src/utils/__tests__/](src/utils/__tests__) · [src/services/__tests__/](src/services/__tests__) · [src/components/__tests__/](src/components/__tests__) · [src/i18n/__tests__/](src/i18n/__tests__)
+- Agent 共享层：[src/agents/shared/__tests__/](src/agents/shared/__tests__)
+- Node 后端：[server/__tests__/](server/__tests__)
+
+## 域名与数据库唯一性（必须遵守）
+
+- 线上统一域名：`https://zhaxiaoji.com`
+- 前端 `VITE_AUTH_API_URL` 必须指向 `https://zhaxiaoji.com`（或同域）
+- **禁止**任何 `*.workers.dev` 作为线上 API 入口，确保 D1 绑定唯一
 
 ## 说明
 
-- 公开首页、狼人杀模块页和 Projects & Labs 已完成重构。
-- 狼人杀排行榜前端已移除，不再作为公开入口的一部分。
-- 原仓库可能仍有历史实验文件、知识库样本和 agent 产物；这些不影响当前主页 / 狼人杀 / Projects & Labs 的主路径结构。
+- 主页、狼人杀、Projects & Labs、小说工作台已完成模块化迁移；新增模块只需 `modules/<name>/` + `ModuleRegistry` 一行
+- 路由旧路径（`/home`、`/wolfgame*`）仍可访问，由 `LEGACY_PATH_MAP` 重写到新路径，Phase 5 后将移除
+- 狼人杀排行榜前端入口已移除，不再作为公开入口
+- 仓库内仍保留 agent / knowledge / 实验性认知架构等历史产物，不在主路径主叙事中

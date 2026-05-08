@@ -31,13 +31,13 @@ vi.mock('../UserStats.jsx', () => ({
 const noop = () => {};
 
 describe('localized screens', () => {
-  it('renders language names in the active interface language', () => {
+  it('renders language names in their own languages', () => {
     const zhHtml = renderToStaticMarkup(<LanguageToggle locale="zh" onChange={noop} />);
     const enHtml = renderToStaticMarkup(<LanguageToggle locale="en" onChange={noop} />);
 
     expect(zhHtml).toContain('中文');
-    expect(zhHtml).toContain('英文');
-    expect(enHtml).toContain('Chinese');
+    expect(zhHtml).toContain('English');
+    expect(enHtml).toContain('中文');
     expect(enHtml).toContain('English');
   });
 

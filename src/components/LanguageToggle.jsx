@@ -2,9 +2,7 @@ import React from 'react';
 import { Languages } from 'lucide-react';
 
 export function LanguageToggle({ locale = 'zh', onChange, label = 'Interface language', className = '' }) {
-  const labels = locale === 'en'
-    ? { zh: 'Chinese', en: 'English' }
-    : { zh: '中文', en: '英文' };
+  const labels = { zh: '中文', en: 'English' };
 
   return (
     <div className={`mac-segmented-control ${className}`} aria-label={label}>

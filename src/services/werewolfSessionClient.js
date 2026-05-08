@@ -2,6 +2,8 @@ import { buildApiUrl } from './apiBase';
 import { getToken } from '../utils/authToken';
 
 const REQUEST_TIMEOUT = 45000;
+const DEFAULT_CONTRACT_VERSION = 'werewolf-agent-contract-v1';
+const DEFAULT_CAPABILITY_MODE = 'minimax-claude-code-v1';
 
 const SESSION_MODE = import.meta.env.VITE_WEREWOLF_AI_MODE
   || (import.meta.env.VITE_AI_PROVIDER === 'ecs-session' ? 'session' : 'legacy');
@@ -50,6 +52,10 @@ export async function askWerewolfSessionAI({
   systemInstruction,
   prompt,
   gameStateMeta,
+  gameState = null,
+  params = null,
+  contractVersion = DEFAULT_CONTRACT_VERSION,
+  capabilityMode = DEFAULT_CAPABILITY_MODE,
 }) {
   const data = await postSession('/ask', {
     gameSessionId,
@@ -58,6 +64,10 @@ export async function askWerewolfSessionAI({
     systemInstruction,
     prompt,
     gameStateMeta,
+    gameState,
+    params,
+    contractVersion,
+    capabilityMode,
   });
   return data.result || null;
 }

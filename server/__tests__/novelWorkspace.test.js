@@ -197,10 +197,50 @@ describe('novelWorkspace', () => {
     const finished = getCodexJob(job.id);
     expect(finished).toMatchObject({ status: 'completed', exitCode: 0, projectSlug: 'alpha' });
     expect(finished.output).toContain('Target project slug: alpha');
+    expect(finished.output).toContain('Action mode: next_chapter');
     expect(finished.output).toContain('sibling novel projects');
     expect(finished.trace).toContain('model thinking preview');
     expect(finished.error).toBe('');
     expect(finished.messages.map((message) => message.source)).toContain('trace');
     expect(finished.messages.map((message) => message.source)).not.toContain('stderr');
+  });
+
+  it('supports Codex plan mode without file-write instructions', async () => {
+    const root = makeWorkspace();
+    const scriptPath = join(root, 'fake-codex-plan.js');
+    writeFileSync(
+      scriptPath,
+      [
+        "const prompt = process.argv.at(-1);",
+        "console.log(prompt);",
+      ].join('\n'),
+      'utf8',
+    );
+
+    const job = startCodexGeneration({
+      workspaceRoot: root,
+      projectName: 'alpha',
+      guidance: 'Plan the next two chapters.',
+      mode: 'plan',
+      targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
+      env: {
+        ...process.env,
+        CODEX_BIN: process.execPath,
+        NOVEL_CODEX_ARGS: `"${scriptPath}"`,
+      },
+    });
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const current = getCodexJob(job.id);
+      if (current?.status !== 'running') break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    const finished = getCodexJob(job.id);
+    expect(finished).toMatchObject({ status: 'completed', mode: 'plan' });
+    expect(finished.output).toContain('Action mode: plan');
+    expect(finished.output).toContain('Plan mode: do not modify files.');
+    expect(finished.output).toContain('Chapter id: 002');
+    expect(finished.output).toContain('Plan the next two chapters.');
   });
 });

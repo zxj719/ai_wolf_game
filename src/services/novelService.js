@@ -66,10 +66,11 @@ export const novelService = {
     });
   },
 
-  generateNextChapter(projectName, guidance) {
+  generateNextChapter(projectName, options = {}) {
+    const payload = typeof options === 'string' ? { guidance: options } : options;
     return request(`/projects/${encodeURIComponent(projectName)}/generate`, {
       method: 'POST',
-      body: JSON.stringify({ guidance }),
+      body: JSON.stringify(payload),
     });
   },
 

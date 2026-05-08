@@ -248,6 +248,12 @@ export function useAI({
           phase,
           alivePlayerIds: players.filter((p) => p.isAlive).map((p) => p.id),
         },
+        // Send the compact game snapshot + raw action params to the server
+        // adapter; the server is the authoritative source for legal-action
+        // resolution, validation, repair, and fallback under the
+        // werewolf-agent-contract-v1 contract.
+        gameState,
+        params,
       }),
       legacyRequest: () => fetchLLM(
         {
