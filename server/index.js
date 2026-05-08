@@ -147,13 +147,21 @@ app.use(express.json({ limit: '2mb' }));
 
 // ── 路由 ─────────────────────────────────────────────────
 
-/** 健康检查（含版本信息） */
+/** 健康检查（含版本信息 + LLM provider token 配置状态） */
 app.get('/health', (_, res) => {
+  // checkProviderConfig is pure: surface provider readiness so ops + the
+  // Worker can verify configuration without waiting for a 90s ask timeout.
+  const providerStatus = checkProviderConfig(process.env);
   res.json({
     ok: true,
     ai_version: AI_VERSION,
     bt_version: BT_VERSION,
     uptime: process.uptime(),
+    provider: {
+      name: providerStatus.provider,
+      ok: providerStatus.ok,
+      tokenSource: providerStatus.presentSource, // null when missing
+    },
   });
 });
 

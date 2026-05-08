@@ -199,13 +199,41 @@ export default {
         return handleChordsHealth(request, env);
       }
 
-      // 健康检查
+      // 健康检查 — 包含 ECS werewolf upstream 状态（含 LLM provider token 配置），
+      // 让前端 / ops 在出 game 之前就能看清整条链是否就绪，而不是
+      // 等到 /api/werewolf/session/ask 90s 超时才暴露。
       if (path === '/api/health') {
+        const upstreamBase = (env.ECS_BT_URL || env.ECS_NOVEL_URL || '').replace(/\/+$/, '');
+        let werewolfUpstream = { ok: false, reason: 'not configured' };
+        if (upstreamBase) {
+          try {
+            const upstreamRes = await fetch(`${upstreamBase}/health`, {
+              method: 'GET',
+              signal: AbortSignal.timeout(5000),
+            });
+            if (upstreamRes.ok) {
+              const data = await upstreamRes.json().catch(() => ({}));
+              werewolfUpstream = {
+                ok: data.provider?.ok === true,
+                provider: data.provider || null,
+                ai_version: data.ai_version || null,
+                bt_version: data.bt_version || null,
+              };
+            } else {
+              werewolfUpstream = { ok: false, reason: `upstream ${upstreamRes.status}` };
+            }
+          } catch (err) {
+            werewolfUpstream = { ok: false, reason: `upstream unreachable: ${err.message}` };
+          }
+        }
+        const status = werewolfUpstream.ok ? 'ok' : 'degraded';
         return new Response(JSON.stringify({
-          status: 'ok',
-          timestamp: new Date().toISOString()
+          status,
+          timestamp: new Date().toISOString(),
+          werewolf_upstream: werewolfUpstream,
         }), {
-          headers: { 'Content-Type': 'application/json' }
+          status: werewolfUpstream.ok ? 200 : 503,
+          headers: { 'Content-Type': 'application/json' },
         });
       }
 
