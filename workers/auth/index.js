@@ -287,7 +287,7 @@ async function serveStaticAsset(request, env) {
 
   const assetResponse = await env.ASSETS.fetch(request);
   if (assetResponse.status !== 404) {
-    return addHtmlCacheHeaders(assetResponse);
+    return addHtmlCacheHeaders(assetResponse, request);
   }
 
   const url = new URL(request.url);
@@ -299,17 +299,21 @@ async function serveStaticAsset(request, env) {
 
   const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
   const fallbackResponse = await env.ASSETS.fetch(fallbackRequest);
-  return addHtmlCacheHeaders(fallbackResponse);
+  return addHtmlCacheHeaders(fallbackResponse, fallbackRequest);
 }
 
-// Prevent CF edge from caching HTML responses — every deploy must be
-// visible immediately, not after a stale TTL. Content-hashed JS/CSS are
-// fine to cache long (filename changes on rebuild); only HTML entry points
-// need this because they contain the <script src="assets/index-HASH.js">
-// reference that must point to the freshly deployed chunks.
-function addHtmlCacheHeaders(response) {
+// Force CF edge to never cache HTML. Two mechanisms layered:
+//   1. Response headers (no-store) tell edge "don't cache this"
+//   2. Workers Cache API purge deletes any previously cached version
+// Together they break the chicken-and-egg where edge has a stale cached
+// response from the OLD Worker and never calls the NEW Worker.
+async function addHtmlCacheHeaders(response, request) {
   const ct = response.headers.get('Content-Type') || '';
   if (!ct.includes('text/html')) return response;
+  // Explicitly purge any stale edge-cached HTML for this URL
+  try {
+    await caches.default.delete(request);
+  } catch { /* edge envs where cache API is unavailable */ }
   const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   headers.set('CDN-Cache-Control', 'no-store');
