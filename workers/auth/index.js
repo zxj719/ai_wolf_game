@@ -327,6 +327,11 @@ async function addHtmlCacheHeaders(response, originalRequest) {
   headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   headers.set('CDN-Cache-Control', 'no-store');
   headers.set('Cloudflare-CDN-Cache-Control', 'no-store');
+  // Vary: * is the HTTP nuclear option — tells every cache layer (CF edge,
+  // browser, CDN) that this response is unique to this exact request and must
+  // never be served from cache. Combined with no-store, this guarantees
+  // every page load hits the Worker and gets the freshly deployed index.html.
+  headers.set('Vary', '*');
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
