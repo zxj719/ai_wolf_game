@@ -2,6 +2,12 @@
  * Cloudflare Workers 认证API入口
  */
 
+// SPA shell HTML — injected at deploy time by scripts/inject-html.mjs.
+// Workers Assets' env.ASSETS has an internal cache that serves stale
+// index.html even after a new Worker version is deployed. By inlining
+// the HTML into the Worker script, we bypass that cache entirely.
+const SPA_HTML = typeof __SPA_HTML__ !== 'undefined' ? __SPA_HTML__ : '';
+
 import { handleCors, errorResponse, checkGlobalIPLimit, getCorsHeaders } from './middleware.js';
 import {
   handleChordsHealth,
@@ -297,10 +303,25 @@ async function serveStaticAsset(request, env) {
     return assetResponse;
   }
 
+  // SPA fallback: return the inlined index.html from the Worker script
+  // instead of env.ASSETS.fetch('/index.html'). Workers Assets' internal
+  // cache serves stale index.html after deploys; inline HTML bypasses it.
+  // scripts/inject-html.mjs replaces SPA_HTML with real content at deploy.
+  if (SPA_HTML) {
+    return new Response(SPA_HTML, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'CDN-Cache-Control': 'no-store',
+        'Cloudflare-CDN-Cache-Control': 'no-store',
+        'Vary': '*',
+      },
+    });
+  }
+  // Fallback to env.ASSETS if inject didn't run (dev/local)
   const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
   const fallbackResponse = await env.ASSETS.fetch(fallbackRequest);
-  // Pass the ORIGINAL request (e.g. /, /werewolf/play) for cache purge,
-  // not the /index.html fallback — CF caches under the original URL.
   return addHtmlCacheHeaders(fallbackResponse, request);
 }
 

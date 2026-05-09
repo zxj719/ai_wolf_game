@@ -9,7 +9,7 @@
     "build": "node node_modules/vite/bin/vite.js build && node scripts/check-build.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "node node_modules/vite/bin/vite.js preview",
-    "deploy": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm exec -- wrangler deploy --assets ./dist",
+    "deploy": "node scripts/inject-html.mjs && node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm exec -- wrangler deploy --assets ./dist && git checkout -- workers/auth/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "analyze": "node scripts/analyze-games.js",
