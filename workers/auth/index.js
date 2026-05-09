@@ -299,7 +299,9 @@ async function serveStaticAsset(request, env) {
 
   const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
   const fallbackResponse = await env.ASSETS.fetch(fallbackRequest);
-  return addHtmlCacheHeaders(fallbackResponse, fallbackRequest);
+  // Pass the ORIGINAL request (e.g. /, /werewolf/play) for cache purge,
+  // not the /index.html fallback — CF caches under the original URL.
+  return addHtmlCacheHeaders(fallbackResponse, request);
 }
 
 // Force CF edge to never cache HTML. Two mechanisms layered:
@@ -307,12 +309,19 @@ async function serveStaticAsset(request, env) {
 //   2. Workers Cache API purge deletes any previously cached version
 // Together they break the chicken-and-egg where edge has a stale cached
 // response from the OLD Worker and never calls the NEW Worker.
-async function addHtmlCacheHeaders(response, request) {
+async function addHtmlCacheHeaders(response, originalRequest) {
   const ct = response.headers.get('Content-Type') || '';
   if (!ct.includes('text/html')) return response;
-  // Explicitly purge any stale edge-cached HTML for this URL
+  // Explicitly purge stale edge-cached HTML for BOTH the original URL
+  // (e.g. / or /werewolf/play) AND the canonical /index.html, because CF
+  // caches by the URL the browser actually requested, not by the internal
+  // fallback URL.
   try {
-    await caches.default.delete(request);
+    await caches.default.delete(originalRequest);
+    const url = new URL(originalRequest.url);
+    if (url.pathname !== '/index.html') {
+      await caches.default.delete(new Request(new URL('/index.html', url.origin)));
+    }
   } catch { /* edge envs where cache API is unavailable */ }
   const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
