@@ -570,9 +570,12 @@ export function useDayFlow({
     }
 
     if (!outPlayer) {
-      addLog('系统错误：无法确定出局玩家', 'error');
+      addLog('无人出局（投票目标不存在），进入下一夜。', 'system');
+      recordVoteRound({ day: dayCount, votes: votes.map(v => ({ from: v.voterId, to: v.targetId })), eliminatedId: null });
       setIsThinking(false);
       setSelectedTarget(null);
+      const result = checkGameEnd();
+      if (result) { setPhase('game_over'); } else { proceedToNextNight(); }
       return;
     }
 
@@ -602,7 +605,10 @@ export function useDayFlow({
       },
     });
     if (!voteDispatch.accepted) {
-      addLog(`投票被系统拒绝：${voteDispatch.reason}`, 'error');
+      addLog(`投票被系统拒绝：${voteDispatch.reason}，直接进入下一夜。`, 'error');
+      recordVoteRound({ day: dayCount, votes: votes.map(v => ({ from: v.voterId, to: v.targetId })), eliminatedId: null });
+      const result = checkGameEnd();
+      if (result) { setPhase('game_over'); } else { proceedToNextNight(); }
     }
     setIsThinking(false);
     setSelectedTarget(null);
@@ -675,11 +681,9 @@ export function useDayFlow({
         targetId = speechVoteTarget;
         reasoning = '遵循发言意向';
       } else {
-        const btResult = IS_HYBRID
-          ? decideBT(p, 'DAY_VOTE',
-              { players, speechHistory, voteHistory, seerChecks, dayCount },
-              { validTargets })
-          : null;
+        const btResult = await btDecide(p, 'DAY_VOTE',
+          { players, speechHistory, voteHistory, seerChecks, dayCount },
+          { validTargets });
 
         if (btResult && btResult.targetId != null) {
           targetId = btResult.targetId;

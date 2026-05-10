@@ -192,6 +192,12 @@ export function useSpeechFlow({
               return;
             }
 
+            // Mark as spoken IMMEDIATELY, even if speech text is empty/falsy.
+            // Without this, a falsy res.speech skips the commit inside
+            // dispatchCommand → spokenIdsRef.current never gets this id →
+            // next render re-triggers the same speaker → infinite loop.
+            spokenIdsRef.current.add(currentSpeaker.id);
+
             if (gameMode === 'ai-only' && res.thought) {
               addLog(`(思考) ${res.thought}`, "chat", `[${currentSpeaker.id}号]`);
             }

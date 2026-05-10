@@ -70,7 +70,7 @@ export function useNightFlow({
       logger.debug(`[proceedNight] 开始结算夜晚`);
       resolveNight(decisionsOverride);
     }
-  }, [nightStep, currentNightSequence.length]);
+  }, [nightStep, currentNightSequence.length, resolveNight]);
 
   // --- isGoodMajority (local helper) ---
   const isGoodMajority = (currentPlayers) => {
@@ -662,24 +662,24 @@ export function useNightFlow({
             const poisonValidation = validateDecision('NIGHT_WITCH_POISON', witchSnapshot, { targetId: res.usePoison });
             if (!poisonValidation.valid) {
               logger.warn(`[女巫AI] 毒药验证拒绝：${poisonValidation.reason}`);
-              // 降级为不使用药水
-            } else
-            logger.debug(`[女巫AI] 使用毒药毒${res.usePoison}号`);
-            if (gameMode === 'ai-only') {
-              addLog(`[${actor.id}号] 女巫使用毒药毒了 ${res.usePoison}号`, 'system');
+            } else {
+              logger.debug(`[女巫AI] 使用毒药毒${res.usePoison}号`);
+              if (gameMode === 'ai-only') {
+                addLog(`[${actor.id}号] 女巫使用毒药毒了 ${res.usePoison}号`, 'system');
+              }
+              recordNightAction({
+                playerId: actor.id,
+                type: '毒药',
+                target: res.usePoison,
+                night: dayCount,
+                thought: res.thought,
+                description: `使用毒药毒了 ${res.usePoison}号`,
+                timestamp: Date.now()
+              });
+              finalDecisions.witchPoison = res.usePoison;
+              mergeNightDecisions({ witchPoison: res.usePoison });
+              setWitchHistory(prev => ({ ...prev, poisonedIds: [...prev.poisonedIds, res.usePoison] }));
             }
-            recordNightAction({
-              playerId: actor.id,
-              type: '毒药',
-              target: res.usePoison,
-              night: dayCount,
-              thought: res.thought,
-              description: `使用毒药毒了 ${res.usePoison}号`,
-              timestamp: Date.now()
-            });
-            finalDecisions.witchPoison = res.usePoison;
-            mergeNightDecisions({ witchPoison: res.usePoison });
-            setWitchHistory(prev => ({ ...prev, poisonedIds: [...prev.poisonedIds, res.usePoison] }));
           } else {
             logger.debug(`[女巫AI] 不使用药水`);
             if (gameMode === 'ai-only') {
@@ -703,9 +703,15 @@ export function useNightFlow({
         proceedNight();
       }, TIMING.NIGHT_ACTION_DELAY);
       } catch (err) {
-        logger.error(`[夜间行动] 步骤 ${stepKey} 异常，释放 key 允许重试:`, err);
+        logger.error(`[夜间行动] 步骤 ${stepKey} 异常:`, err);
         actionQueue.fail(stepKey);
-        throw err;
+        // Do NOT rethrow — an unhandled async rejection would freeze
+        // nightStep forever (useEffect won't re-fire since deps didn't
+        // change). Instead, advance to the next step so the game continues.
+        setTimeout(() => {
+          if (!gameActiveRef.current) return;
+          proceedNight();
+        }, TIMING.NIGHT_ACTION_DELAY);
       }
     };
 
