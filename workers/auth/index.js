@@ -287,26 +287,22 @@ async function handleStockKlineProxy(request, env) {
 }
 
 async function serveStaticAsset(request, env) {
-  if (!env.ASSETS) {
-    return new Response('Not found', { status: 404 });
-  }
-
-  const assetResponse = await env.ASSETS.fetch(request);
-  if (assetResponse.status !== 404) {
-    return addHtmlCacheHeaders(assetResponse, request);
-  }
-
   const url = new URL(request.url);
-  const lastSegment = url.pathname.split('/').pop() || '';
+  const pathname = url.pathname;
+  const lastSegment = pathname.split('/').pop() || '';
   const hasExtension = lastSegment.includes('.');
-  if (hasExtension) {
-    return assetResponse;
+
+  // Static assets (JS/CSS/images/fonts) → serve from env.ASSETS directly.
+  // These are content-hashed (filename changes on rebuild) so CF caching
+  // is safe and desirable.
+  if (hasExtension && env.ASSETS) {
+    return env.ASSETS.fetch(request);
   }
 
-  // SPA fallback: return the inlined index.html from the Worker script
-  // instead of env.ASSETS.fetch('/index.html'). Workers Assets' internal
-  // cache serves stale index.html after deploys; inline HTML bypasses it.
-  // scripts/inject-html.mjs replaces SPA_HTML with real content at deploy.
+  // Everything else (/, /werewolf/play, /novel, etc.) is a SPA route →
+  // return the inline HTML that was injected at deploy time. This
+  // completely bypasses env.ASSETS for HTML, eliminating the stale
+  // content-address cache that caused every deploy to be invisible.
   if (SPA_HTML) {
     return new Response(SPA_HTML, {
       status: 200,
@@ -319,10 +315,13 @@ async function serveStaticAsset(request, env) {
       },
     });
   }
-  // Fallback to env.ASSETS if inject didn't run (dev/local)
-  const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
-  const fallbackResponse = await env.ASSETS.fetch(fallbackRequest);
-  return addHtmlCacheHeaders(fallbackResponse, request);
+
+  // Dev fallback (inject-html.mjs didn't run)
+  if (env.ASSETS) {
+    const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
+    return env.ASSETS.fetch(fallbackRequest);
+  }
+  return new Response('Not found', { status: 404 });
 }
 
 // Force CF edge to never cache HTML. Two mechanisms layered:
