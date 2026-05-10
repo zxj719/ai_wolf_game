@@ -138,6 +138,7 @@ export const fetchLLM = async (
   { player, prompt, systemInstruction, retries = 3, backoff = 2000, forcedModelIndex = null, signal = null },
   { API_URL, API_KEY, AI_MODELS, disabledModelsRef }
 ) => {
+  if (!API_URL) return null;
   // 使用传入的 signal 或全局 controller 的 signal
   const abortSignal = signal || getAbortController().signal;
   // 等概率选择模型（随机）而不是基于玩家ID

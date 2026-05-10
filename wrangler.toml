@@ -27,7 +27,11 @@ local_protocol = "http"
 [assets]
 directory = "./dist"
 binding = "ASSETS"
-not_found_handling = "single-page-application"
+# NOT using not_found_handling = "single-page-application" because Workers
+# Assets' internal SPA handler has an unclearable content-address cache that
+# serves stale index.html after deploys. Our Worker's serveStaticAsset()
+# handles SPA fallback itself (returns inline HTML from the deploy script),
+# which always matches the deployed chunks.
 
 # Chords cloud service (non-secret URL only)
 # Set the shared auth token with:
