@@ -48,13 +48,12 @@ class ErrorBoundary extends React.Component {
                 刷新页面
               </button>
             </div>
-            {/* 开发环境显示错误详情 */}
-            {import.meta.env.DEV && this.state.error && (
+            {this.state.error && (
               <details className="mt-6 text-left">
                 <summary className="text-gray-500 cursor-pointer hover:text-gray-400">
-                  错误详情 (开发模式)
+                  错误详情
                 </summary>
-                <pre className="mt-2 p-3 bg-gray-900 rounded text-xs text-red-400 overflow-auto max-h-40">
+                <pre className="mt-2 p-3 bg-gray-900 rounded text-xs text-red-400 overflow-auto max-h-60 whitespace-pre-wrap">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
                 </pre>
