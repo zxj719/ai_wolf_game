@@ -12,6 +12,7 @@ const MAX_JOB_TEXT_LENGTH = 40000;
 const MAX_JOB_MESSAGES = 120;
 const MAX_VISIBLE_TRACE_LENGTH = 1600;
 const CODEX_ACTION_MODES = new Set(['next_chapter', 'revise_document', 'plan', 'story_bible']);
+const CODEX_SESSION_STORE = '.codex-sessions.json';
 
 export function resolveNovelWorkspaceRoot(env = process.env, cwd = process.cwd()) {
   return resolve(env.NOVEL_WORKSPACE_DIR || join(cwd, '..', 'novel_generator', 'meta_writing'));
@@ -65,6 +66,11 @@ function readJson(path) {
   } catch {
     return null;
   }
+}
+
+function readJsonObject(path, fallback = {}) {
+  const value = readJson(path);
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : fallback;
 }
 
 function firstHeading(markdown, fallback) {
@@ -126,6 +132,10 @@ function slugifyProjectName(name) {
 
 function writeProjectText(path, content = '') {
   writeFileSync(path, String(content || ''), 'utf8');
+}
+
+function writeJson(path, data) {
+  writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }
 
 function buildInitialStoryBible({ name, worldview, style, concept, outline }) {
@@ -339,6 +349,165 @@ function describeTargetDocument(targetDocument = null) {
   ].filter(Boolean).join('\n');
 }
 
+function normalizeTargetDocument(targetDocument = null) {
+  if (!targetDocument || typeof targetDocument !== 'object') return null;
+  const type = targetDocument.type === 'chapter' ? 'chapter' : targetDocument.type === 'memory' ? 'memory' : null;
+  if (!type) return null;
+  if (type === 'chapter') {
+    return {
+      type,
+      id: ensureChapterId(targetDocument.id),
+      title: typeof targetDocument.title === 'string' ? targetDocument.title.slice(0, 200) : '',
+      filename: typeof targetDocument.filename === 'string' ? targetDocument.filename.slice(0, 200) : `${targetDocument.id}.md`,
+    };
+  }
+  return {
+    type,
+    path: ensureMemoryFilePath(targetDocument.path || targetDocument.id),
+    title: typeof targetDocument.title === 'string' ? targetDocument.title.slice(0, 200) : '',
+    filename: typeof targetDocument.filename === 'string' ? targetDocument.filename.slice(0, 200) : '',
+  };
+}
+
+function inferCodexTarget({ mode = 'next_chapter', targetDocument = null, nextChapter = null }) {
+  const normalizedMode = normalizeCodexMode(mode);
+  const normalizedTarget = normalizeTargetDocument(targetDocument);
+  if (normalizedMode === 'next_chapter') {
+    const id = String(nextChapter || '').padStart(3, '0');
+    return {
+      type: 'chapter',
+      id,
+      title: `Chapter ${id}`,
+      filename: `${id}.md`,
+    };
+  }
+  if (normalizedMode === 'revise_document' && normalizedTarget) {
+    return normalizedTarget;
+  }
+  if (normalizedTarget?.type === 'chapter') {
+    return normalizedTarget;
+  }
+  if (normalizedTarget) return normalizedTarget;
+  return {
+    type: 'project',
+    id: normalizedMode,
+    title: normalizedMode,
+  };
+}
+
+function codexSessionKey(target = null) {
+  if (!target) return 'project:default';
+  if (target.type === 'chapter') return `chapter:${ensureChapterId(target.id)}`;
+  if (target.type === 'memory') return `memory:${ensureMemoryFilePath(target.path || target.id)}`;
+  return `project:${String(target.id || 'default').replace(/[^a-zA-Z0-9_.:-]/g, '_').slice(0, 120)}`;
+}
+
+function codexSessionStorePath(projectDir) {
+  return resolve(projectDir, CODEX_SESSION_STORE);
+}
+
+function loadCodexSessionStore(projectDir) {
+  return readJsonObject(codexSessionStorePath(projectDir), { version: 1, sessions: {} });
+}
+
+function saveCodexSessionStore(projectDir, store) {
+  writeJson(codexSessionStorePath(projectDir), {
+    version: 1,
+    sessions: store?.sessions || {},
+  });
+}
+
+function serializeCodexJob(job) {
+  if (!job) return null;
+  return {
+    id: job.id,
+    projectName: job.projectName,
+    projectSlug: job.projectSlug,
+    status: job.status,
+    startedAt: job.startedAt,
+    finishedAt: job.finishedAt,
+    exitCode: job.exitCode,
+    guidance: job.guidance,
+    mode: job.mode,
+    targetDocument: job.targetDocument,
+    targetKey: job.targetKey,
+    nextChapter: job.nextChapter,
+    runtimeSessionId: job.runtimeSessionId || null,
+    messages: job.messages || [],
+    output: job.output || '',
+    trace: job.trace || '',
+    error: job.error || '',
+  };
+}
+
+function persistCodexJob(projectDir, job) {
+  if (!projectDir || !job?.targetKey) return;
+  const store = loadCodexSessionStore(projectDir);
+  const previous = store.sessions?.[job.targetKey] || {};
+  store.sessions = {
+    ...(store.sessions || {}),
+    [job.targetKey]: {
+      ...previous,
+      key: job.targetKey,
+      target: job.codexTarget || job.targetDocument || null,
+      runtimeSessionId: job.runtimeSessionId || previous.runtimeSessionId || null,
+      lastJob: serializeCodexJob(job),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+  saveCodexSessionStore(projectDir, store);
+}
+
+function loadCodexSessionEntry(projectDir, targetKey) {
+  const store = loadCodexSessionStore(projectDir);
+  return store.sessions?.[targetKey] || null;
+}
+
+function hydrateCodexSessionEntry(entry, key) {
+  if (!entry) return null;
+  const lastJob = entry.lastJob || null;
+  if (!lastJob?.id) return { ...entry, key };
+  const liveJob = jobs.get(lastJob.id);
+  if (liveJob) {
+    return {
+      ...entry,
+      key,
+      runtimeSessionId: liveJob.runtimeSessionId || entry.runtimeSessionId || null,
+      lastJob: serializeCodexJob(liveJob),
+    };
+  }
+  if (lastJob.status === 'running' || lastJob.status === 'queued') {
+    return {
+      ...entry,
+      key,
+      lastJob: {
+        ...lastJob,
+        status: 'interrupted',
+        finishedAt: lastJob.finishedAt || new Date().toISOString(),
+        messages: [
+          ...(lastJob.messages || []),
+          {
+            at: new Date().toISOString(),
+            role: 'assistant',
+            source: 'system',
+            content: 'Codex job was interrupted before completion. Start a new request to resume this saved session.',
+          },
+        ].slice(-MAX_JOB_MESSAGES),
+      },
+    };
+  }
+  return { ...entry, key };
+}
+
+export function getNovelCodexSession(workspaceRoot, projectName, targetDocument = null) {
+  const projectDir = resolveProjectDir(workspaceRoot, projectName);
+  const target = inferCodexTarget({ mode: 'revise_document', targetDocument });
+  const key = codexSessionKey(target);
+  const entry = loadCodexSessionEntry(projectDir, key);
+  const hydrated = hydrateCodexSessionEntry(entry, key);
+  return hydrated || { key, target, runtimeSessionId: null, lastJob: null };
+}
+
 function buildProjectScopedCodexPrompt({
   projectName,
   projectSlug,
@@ -359,6 +528,7 @@ function buildProjectScopedCodexPrompt({
     'Do not use characters, Story Bible files, chapters, or plot requirements from sibling novel projects.',
     'If the user guidance clearly belongs to a different project, stop and say the project selector must be changed before writing.',
     'Do not switch to automatic mode. Do not create a git commit.',
+    'When running Python snippets or YAML validation commands, use python3, not python.',
     '',
     'Reader document context:',
     describeTargetDocument(targetDocument),
@@ -427,6 +597,122 @@ function isErrorLikeStderr(value) {
   return /\b(error|fatal|exception|traceback|panic|failed|permission denied|not found|enoent|eacces)\b/i.test(value);
 }
 
+function hasArg(args, name) {
+  return args.some((arg) => arg === name || arg.startsWith(`${name}=`));
+}
+
+function shouldUseCodexJson(args, env = process.env) {
+  if (env.NOVEL_CODEX_JSON === '0' || env.NOVEL_CODEX_JSON === 'false') return false;
+  return args[0] === 'exec';
+}
+
+function buildCodexArgs({ rawArgs, prompt, runtimeSessionId = null, env = process.env }) {
+  const args = parseCodexArgs(rawArgs);
+  const useJson = shouldUseCodexJson(args, env);
+  if (useJson && !hasArg(args, '--json')) {
+    args.push('--json');
+  }
+  if (runtimeSessionId && args[0] === 'exec') {
+    return {
+      args: [...args, 'resume', runtimeSessionId, prompt],
+      useJson,
+      resumed: true,
+    };
+  }
+  return {
+    args: [...args, prompt],
+    useJson,
+    resumed: false,
+  };
+}
+
+function findRuntimeSessionId(value) {
+  if (!value || typeof value !== 'object') return null;
+  for (const key of ['session_id', 'sessionId', 'sessionID', 'thread_id', 'threadId', 'conversation_id', 'conversationId']) {
+    if (typeof value[key] === 'string' && value[key].trim()) return value[key].trim();
+  }
+  for (const nested of Object.values(value)) {
+    if (nested && typeof nested === 'object') {
+      const found = findRuntimeSessionId(nested);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function extractCodexEventText(event) {
+  if (!event || typeof event !== 'object') return '';
+  const type = String(event.type || event.event || '');
+  const candidates = [
+    event.text,
+    event.delta,
+    event.content,
+    event.message,
+    event.data?.text,
+    event.data?.delta,
+    event.data?.content,
+    event.data?.message,
+    event.item?.text,
+    event.item?.content,
+    event.msg?.text,
+    event.msg?.content,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate;
+  }
+  if (Array.isArray(event.content)) {
+    return event.content
+      .map((item) => (typeof item === 'string' ? item : item?.text || item?.content || ''))
+      .filter(Boolean)
+      .join('\n');
+  }
+  if (/error|failed/i.test(type) && typeof event.error === 'string') return event.error;
+  return '';
+}
+
+function handleCodexJsonLine({ line, job, projectDir }) {
+  let event;
+  try {
+    event = JSON.parse(line);
+  } catch {
+    job.output = `${job.output}${line}\n`.slice(-MAX_JOB_TEXT_LENGTH);
+    appendJobMessage(job, { role: 'assistant', source: 'stdout', content: compactStreamText(line, 2200) });
+    persistCodexJob(projectDir, job);
+    return;
+  }
+
+  const sessionId = findRuntimeSessionId(event);
+  if (sessionId && sessionId !== job.runtimeSessionId) {
+    job.runtimeSessionId = sessionId;
+  }
+
+  const type = String(event.type || event.event || '');
+  const text = extractCodexEventText(event);
+  if (text) {
+    const source = /error|failed/i.test(type) ? 'stderr' : 'stdout';
+    if (source === 'stderr') {
+      job.error = `${job.error}${text}\n`.slice(-MAX_JOB_TEXT_LENGTH);
+    } else {
+      job.output = `${job.output}${text}\n`.slice(-MAX_JOB_TEXT_LENGTH);
+    }
+    appendJobMessage(job, { role: 'assistant', source, content: compactStreamText(text, 2200) });
+  } else {
+    job.trace = `${job.trace}${line}\n`.slice(-MAX_JOB_TEXT_LENGTH);
+    appendJobMessage(job, { role: 'assistant', source: 'trace', content: compactStreamText(line) });
+  }
+  persistCodexJob(projectDir, job);
+}
+
+function handleCodexJsonChunk({ chunk, job, projectDir }) {
+  job._jsonBuffer = `${job._jsonBuffer || ''}${chunk}`;
+  const lines = job._jsonBuffer.split(/\r?\n/);
+  job._jsonBuffer = lines.pop() || '';
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed) handleCodexJsonLine({ line: trimmed, job, projectDir });
+  }
+}
+
 export function startCodexGeneration({
   workspaceRoot,
   projectName,
@@ -439,6 +725,14 @@ export function startCodexGeneration({
   const project = getNovelProject(workspaceRoot, projectName);
   const projectSlug = basename(projectDir);
   const latestNumber = Math.max(0, ...project.chapters.map((chapter) => Number.parseInt(chapter.id, 10)).filter(Number.isFinite));
+  const codexTarget = inferCodexTarget({
+    mode,
+    targetDocument,
+    nextChapter: latestNumber + 1,
+  });
+  const targetKey = codexSessionKey(codexTarget);
+  const existingSession = loadCodexSessionEntry(projectDir, targetKey);
+  const runtimeSessionId = existingSession?.runtimeSessionId || null;
   const prompt = buildProjectScopedCodexPrompt({
     projectName: project.name,
     projectSlug,
@@ -446,7 +740,7 @@ export function startCodexGeneration({
     guidance,
     nextChapter: latestNumber + 1,
     mode,
-    targetDocument,
+    targetDocument: normalizeTargetDocument(targetDocument),
   });
   const jobId = randomUUID();
   const job = {
@@ -459,12 +753,18 @@ export function startCodexGeneration({
     exitCode: null,
     guidance,
     mode: normalizeCodexMode(mode),
-    targetDocument,
+    targetDocument: normalizeTargetDocument(targetDocument),
+    codexTarget,
+    targetKey,
     nextChapter: latestNumber + 1,
+    runtimeSessionId,
+    resumedFromSessionId: runtimeSessionId,
     messages: [],
     output: '',
     trace: '',
     error: '',
+    _projectDir: projectDir,
+    _jsonBuffer: '',
   };
   appendJobMessage(job, {
     role: 'user',
@@ -474,12 +774,18 @@ export function startCodexGeneration({
   appendJobMessage(job, {
     role: 'assistant',
     source: 'system',
-    content: `Starting Codex in ${projectDir}`,
+    content: runtimeSessionId ? `Resuming Codex session ${runtimeSessionId} in ${projectDir}` : `Starting Codex in ${projectDir}`,
   });
   jobs.set(jobId, job);
+  persistCodexJob(projectDir, job);
 
   const codexBin = env.CODEX_BIN || 'codex';
-  const codexArgs = [...parseCodexArgs(env.NOVEL_CODEX_ARGS), prompt];
+  const { args: codexArgs, useJson } = buildCodexArgs({
+    rawArgs: env.NOVEL_CODEX_ARGS,
+    prompt,
+    runtimeSessionId,
+    env,
+  });
   const child = spawn(codexBin, codexArgs, {
     cwd: projectDir,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -493,26 +799,37 @@ export function startCodexGeneration({
 
   child.stdout.on('data', (chunk) => {
     const content = chunk.toString();
+    if (useJson) {
+      handleCodexJsonChunk({ chunk: content, job, projectDir });
+      return;
+    }
     job.output = `${job.output}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
     appendJobMessage(job, { role: 'assistant', source: 'stdout', content: compactStreamText(content, 2200) });
+    persistCodexJob(projectDir, job);
   });
   child.stderr.on('data', (chunk) => {
     const content = chunk.toString();
     if (isErrorLikeStderr(content)) {
       job.error = `${job.error}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
       appendJobMessage(job, { role: 'assistant', source: 'stderr', content: compactStreamText(content, 2200) });
+      persistCodexJob(projectDir, job);
       return;
     }
     job.trace = `${job.trace}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
     appendJobMessage(job, { role: 'assistant', source: 'trace', content: compactStreamText(content) });
+    persistCodexJob(projectDir, job);
   });
   child.on('error', (error) => {
     job.status = 'failed';
     job.finishedAt = new Date().toISOString();
     job.error = `${job.error}\n${error.message}`.trim();
     appendJobMessage(job, { role: 'assistant', source: 'error', content: error.message });
+    persistCodexJob(projectDir, job);
   });
   child.on('close', (code) => {
+    if (useJson && job._jsonBuffer?.trim()) {
+      handleCodexJsonLine({ line: job._jsonBuffer.trim(), job, projectDir });
+    }
     job.status = code === 0 ? 'completed' : 'failed';
     job.exitCode = code;
     job.finishedAt = new Date().toISOString();
@@ -521,11 +838,14 @@ export function startCodexGeneration({
       source: 'system',
       content: code === 0 ? 'Codex finished successfully.' : `Codex exited with code ${code}.`,
     });
+    delete job._jsonBuffer;
+    persistCodexJob(projectDir, job);
   });
 
   return job;
 }
 
 export function getCodexJob(jobId) {
-  return jobs.get(jobId) || null;
+  const job = jobs.get(jobId) || null;
+  return job ? serializeCodexJob(job) : null;
 }

@@ -1,10 +1,11 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   createNovelProject,
   getCodexJob,
+  getNovelCodexSession,
   getNovelChapter,
   getNovelProject,
   listNovelProjects,
@@ -242,5 +243,162 @@ describe('novelWorkspace', () => {
     expect(finished.output).toContain('Plan mode: do not modify files.');
     expect(finished.output).toContain('Chapter id: 002');
     expect(finished.output).toContain('Plan the next two chapters.');
+  });
+
+  it('persists per-chapter Codex jobs and resumes the saved runtime session', async () => {
+    const root = makeWorkspace();
+    const scriptPath = join(root, 'fake-codex-json.js');
+    const argsPath = join(root, 'codex-args.jsonl');
+    writeFileSync(
+      scriptPath,
+      [
+        "#!/usr/bin/env node",
+        "const fs = require('node:fs');",
+        `fs.appendFileSync(${JSON.stringify(argsPath)}, JSON.stringify(process.argv.slice(2)) + '\\n');`,
+        "console.log(JSON.stringify({ type: 'session.created', session_id: 'novel-session-002' }));",
+        "console.log(JSON.stringify({ type: 'message', text: 'Edited chapter 2.' }));",
+      ].join('\n'),
+      'utf8',
+    );
+    chmodSync(scriptPath, 0o755);
+
+    const first = startCodexGeneration({
+      workspaceRoot: root,
+      projectName: 'alpha',
+      guidance: 'Revise chapter 2.',
+      mode: 'revise_document',
+      targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
+      env: {
+        ...process.env,
+        CODEX_BIN: scriptPath,
+        NOVEL_CODEX_ARGS: 'exec',
+      },
+    });
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const current = getCodexJob(first.id);
+      if (current?.status !== 'running') break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    const finished = getCodexJob(first.id);
+    expect(finished).toMatchObject({
+      status: 'completed',
+      targetKey: 'chapter:002',
+      runtimeSessionId: 'novel-session-002',
+    });
+    expect(finished.output).toContain('Edited chapter 2.');
+
+    const session = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' });
+    expect(session).toMatchObject({
+      key: 'chapter:002',
+      runtimeSessionId: 'novel-session-002',
+      lastJob: expect.objectContaining({ id: first.id, status: 'completed' }),
+    });
+    expect(existsSync(join(root, 'novels', 'alpha', '.codex-sessions.json'))).toBe(true);
+
+    const second = startCodexGeneration({
+      workspaceRoot: root,
+      projectName: 'alpha',
+      guidance: 'Continue this chapter.',
+      mode: 'revise_document',
+      targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
+      env: {
+        ...process.env,
+        CODEX_BIN: scriptPath,
+        NOVEL_CODEX_ARGS: 'exec',
+      },
+    });
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const current = getCodexJob(second.id);
+      if (current?.status !== 'running') break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    const invocations = readFileSync(argsPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    expect(invocations.at(0)).toContain('--json');
+    expect(invocations.at(1)).toEqual(expect.arrayContaining(['--json', 'resume', 'novel-session-002']));
+  });
+
+  it('stores next-chapter generation under the new chapter key, not the selected reader chapter', async () => {
+    const root = makeWorkspace();
+    const scriptPath = join(root, 'fake-codex-next-json.js');
+    writeFileSync(
+      scriptPath,
+      [
+        "#!/usr/bin/env node",
+        "console.log(JSON.stringify({ type: 'session.created', session_id: 'novel-session-003' }));",
+        "console.log(JSON.stringify({ type: 'message', text: 'Drafted chapter 3.' }));",
+      ].join('\n'),
+      'utf8',
+    );
+    chmodSync(scriptPath, 0o755);
+
+    const job = startCodexGeneration({
+      workspaceRoot: root,
+      projectName: 'alpha',
+      guidance: 'Generate the next chapter after chapter 2.',
+      mode: 'next_chapter',
+      targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
+      env: {
+        ...process.env,
+        CODEX_BIN: scriptPath,
+        NOVEL_CODEX_ARGS: 'exec',
+      },
+    });
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const current = getCodexJob(job.id);
+      if (current?.status !== 'running') break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    const finished = getCodexJob(job.id);
+    expect(finished).toMatchObject({
+      status: 'completed',
+      targetKey: 'chapter:003',
+      runtimeSessionId: 'novel-session-003',
+    });
+
+    const newChapterSession = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '003', title: 'Chapter 003', filename: '003.md' });
+    expect(newChapterSession).toMatchObject({
+      key: 'chapter:003',
+      runtimeSessionId: 'novel-session-003',
+    });
+    const previousChapterSession = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' });
+    expect(previousChapterSession.lastJob).toBeNull();
+  });
+
+  it('marks saved running jobs as interrupted when no live job exists', () => {
+    const root = makeWorkspace();
+    writeFileSync(
+      join(root, 'novels', 'alpha', '.codex-sessions.json'),
+      JSON.stringify({
+        version: 1,
+        sessions: {
+          'chapter:002': {
+            key: 'chapter:002',
+            target: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
+            runtimeSessionId: 'novel-session-stale',
+            lastJob: {
+              id: 'stale-job',
+              status: 'running',
+              messages: [{ role: 'assistant', source: 'stdout', content: 'partial draft' }],
+            },
+          },
+        },
+      }),
+      'utf8',
+    );
+
+    const session = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' });
+
+    expect(session).toMatchObject({
+      key: 'chapter:002',
+      runtimeSessionId: 'novel-session-stale',
+      lastJob: expect.objectContaining({ status: 'interrupted' }),
+    });
+    expect(session.lastJob.messages.at(-1).content).toContain('interrupted');
   });
 });

@@ -59,6 +59,13 @@ export const novelService = {
     });
   },
 
+  getCodexSession(projectName, targetDocument) {
+    return request(`/projects/${encodeURIComponent(projectName)}/session`, {
+      method: 'POST',
+      body: JSON.stringify({ targetDocument }),
+    });
+  },
+
   saveMemoryFile(projectName, path, content) {
     return request(`/projects/${encodeURIComponent(projectName)}/memory`, {
       method: 'PATCH',

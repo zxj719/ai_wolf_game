@@ -1,0 +1,4 @@
+interface:
+  display_name: "Patch Codex Fast"
+  short_description: "Patch Codex App API key mode for Fast mode and Plugins."
+  default_prompt: "Use $patch-codex-fast to patch Codex App API key mode for Fast mode and Plugins."

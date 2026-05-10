@@ -44,6 +44,7 @@ import { createGame, logDecision, logSpeech, endGame,
 import {
   createNovelProject,
   getCodexJob,
+  getNovelCodexSession,
   getNovelChapter,
   getNovelProject,
   listNovelProjects,
@@ -465,6 +466,21 @@ app.patch('/novel/projects/:project/chapters/:chapter', (req, res) => {
     res.json({ success: true, chapter });
   } catch (err) {
     console.error('[Novel update chapter]', err.message);
+    res.status(err.message.includes('not found') ? 404 : 400).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/novel/projects/:project/session', (req, res) => {
+  try {
+    const workspaceRoot = resolveNovelWorkspaceRoot();
+    const session = getNovelCodexSession(
+      workspaceRoot,
+      req.params.project,
+      req.body?.targetDocument || null,
+    );
+    res.json({ success: true, session });
+  } catch (err) {
+    console.error('[Novel codex session]', err.message);
     res.status(err.message.includes('not found') ? 404 : 400).json({ success: false, error: err.message });
   }
 });

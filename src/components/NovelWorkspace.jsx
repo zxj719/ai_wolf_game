@@ -53,12 +53,14 @@ const NOVEL_COPY = {
       edit: '编辑',
       empty: '空',
       md: 'MD',
+      session: '会话',
     },
     status: {
       idle: '待命',
       completed: '已完成',
       failed: '失败',
       running: '运行中',
+      interrupted: '已中断',
     },
     shelf: {
       title: '小说书架',
@@ -110,6 +112,10 @@ const NOVEL_COPY = {
       targetDocument: '当前文档',
       selectProject: '请选择项目',
       noDocument: '未选择文档',
+      restoring: '正在恢复本章节会话。',
+      restored: '已恢复本章节 Codex 会话。',
+      noSession: '本章节暂无已保存会话。',
+      sessionId: '会话 ID',
       placeholder: {
         next_chapter: '下一章要推进的情绪、冲突、伏笔或必须避免的问题',
         revise_document: '说明要如何修改当前阅读区里的文档，例如润色、补桥段、改节奏',
@@ -159,12 +165,14 @@ const NOVEL_COPY = {
       edit: 'Edit',
       empty: 'Empty',
       md: 'MD',
+      session: 'Session',
     },
     status: {
       idle: 'idle',
       completed: 'completed',
       failed: 'failed',
       running: 'running',
+      interrupted: 'interrupted',
     },
     shelf: {
       title: 'Novel shelf',
@@ -216,6 +224,10 @@ const NOVEL_COPY = {
       targetDocument: 'Current document',
       selectProject: 'select a project',
       noDocument: 'No document selected',
+      restoring: 'Restoring this document session.',
+      restored: 'Restored this document Codex session.',
+      noSession: 'No saved session for this document yet.',
+      sessionId: 'Session ID',
       placeholder: {
         next_chapter: 'Next chapter direction, conflict, emotion, foreshadowing, or things to avoid',
         revise_document: 'Describe how to revise the document currently shown in the reader',
@@ -286,6 +298,21 @@ function filenameSafe(value, fallback = 'document') {
   return (String(value || fallback).replace(/[\\/:*?"<>|]+/g, '-').trim() || fallback);
 }
 
+function isJobRunning(job) {
+  return job && ['running', 'queued'].includes(job.status);
+}
+
+function sessionTargetFromDocument(document) {
+  if (!document) return null;
+  return {
+    type: document.type,
+    id: document.id,
+    path: document.path,
+    title: document.title,
+    filename: document.filename,
+  };
+}
+
 function statusMeta(job, copy) {
   if (!job) {
     return {
@@ -306,6 +333,13 @@ function statusMeta(job, copy) {
       label: copy.status.failed,
       icon: AlertTriangle,
       className: 'border-rose-200 bg-rose-50 text-rose-700',
+    };
+  }
+  if (job.status === 'interrupted') {
+    return {
+      label: copy.status.interrupted,
+      icon: Clock3,
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
     };
   }
   return {
@@ -569,6 +603,8 @@ function MarkdownView({ content, copy }) {
 function CodexChat({
   guidance,
   job,
+  session,
+  sessionLoading,
   project,
   selectedDocument,
   actionMode,
@@ -579,7 +615,7 @@ function CodexChat({
   onActionModeChange,
   onGenerate,
 }) {
-  const isRunning = job && ['running', 'queued'].includes(job.status);
+  const isRunning = isJobRunning(job);
   const modeCopy = copy.chat.modes[actionMode] || copy.chat.modes.next_chapter;
   const modeNeedsDocument = actionMode === 'revise_document';
   const actionDisabled = disabled || isRunning || (modeNeedsDocument && !selectedDocument);
@@ -670,6 +706,16 @@ function CodexChat({
           </div>
           <div>
             {copy.chat.targetDocument}: <span className="font-semibold text-slate-900">{selectedDocument?.title || copy.chat.noDocument}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-1">
+            {copy.common.session}: <span className="font-semibold text-slate-900">
+              {sessionLoading ? copy.chat.restoring : session?.lastJob ? copy.chat.restored : copy.chat.noSession}
+            </span>
+            {session?.runtimeSessionId && (
+              <span className="truncate text-slate-400" title={session.runtimeSessionId}>
+                · {copy.chat.sessionId}: {session.runtimeSessionId.slice(0, 8)}
+              </span>
+            )}
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
@@ -1094,6 +1140,8 @@ function StudioPage({
   saving,
   guidance,
   job,
+  session,
+  sessionLoading,
   actionMode,
   busy,
   copy,
@@ -1111,7 +1159,7 @@ function StudioPage({
   onGenerate,
   onRefresh,
 }) {
-  const jobRunning = job && ['running', 'queued'].includes(job.status);
+  const jobRunning = isJobRunning(job);
 
   return (
     <div className="px-4 py-10 md:px-6">
@@ -1193,6 +1241,8 @@ function StudioPage({
                 <CodexChat
                   guidance={guidance}
                   job={job}
+                  session={session}
+                  sessionLoading={sessionLoading}
                   project={project}
                   selectedDocument={selectedDocument}
                   actionMode={actionMode}
@@ -1227,6 +1277,8 @@ export function NovelWorkspaceView({
   saving = false,
   guidance,
   job,
+  session,
+  sessionLoading = false,
   busy,
   actionMode = 'next_chapter',
   view = 'studio',
@@ -1298,6 +1350,8 @@ export function NovelWorkspaceView({
       saving={saving}
       guidance={guidance}
       job={job}
+      session={session}
+      sessionLoading={sessionLoading}
       actionMode={actionMode}
       busy={busy}
       copy={copy}
@@ -1331,6 +1385,8 @@ export function NovelWorkspace({ onBack }) {
   const [guidance, setGuidance] = useState('');
   const [actionMode, setActionMode] = useState('next_chapter');
   const [job, setJob] = useState(null);
+  const [session, setSession] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
   const [bookDraft, setBookDraft] = useState(EMPTY_BOOK);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -1342,6 +1398,8 @@ export function NovelWorkspace({ onBack }) {
     setSelectedDocument(document);
     setDraftContent(document?.content || '');
     setEditMode(false);
+    setJob(null);
+    setSession(null);
   }, []);
 
   const refreshProjects = useCallback(async () => {
@@ -1392,6 +1450,7 @@ export function NovelWorkspace({ onBack }) {
     setDraftContent('');
     setEditMode(false);
     setJob(null);
+    setSession(null);
     setError('');
     setView('studio');
   }, []);
@@ -1412,22 +1471,23 @@ export function NovelWorkspace({ onBack }) {
   }, [openDocument]);
 
   const generate = useCallback(async (projectName = selectedProject, guidanceOverride = guidance, modeOverride = actionMode) => {
-    if (!projectName || busy || (job && ['running', 'queued'].includes(job.status))) return null;
+    if (!projectName || busy || isJobRunning(job)) return null;
     setBusy(true);
     setError('');
     try {
       const response = await novelService.generateNextChapter(projectName, {
         guidance: guidanceOverride,
         mode: modeOverride,
-        targetDocument: selectedDocument ? {
-          type: selectedDocument.type,
-          id: selectedDocument.id,
-          path: selectedDocument.path,
-          title: selectedDocument.title,
-          filename: selectedDocument.filename,
-        } : null,
+        targetDocument: sessionTargetFromDocument(selectedDocument),
       });
       setJob(response.job);
+      setSession((current) => ({
+        ...(current || {}),
+        key: response.job?.targetKey || current?.key,
+        target: response.job?.codexTarget || current?.target || sessionTargetFromDocument(selectedDocument),
+        runtimeSessionId: response.job?.runtimeSessionId || current?.runtimeSessionId || null,
+        lastJob: response.job,
+      }));
       setGuidance('');
       return response.job;
     } catch (err) {
@@ -1513,8 +1573,18 @@ export function NovelWorkspace({ onBack }) {
           bookDraft.concept,
           bookDraft.outline,
         ].filter(Boolean).join('\n\n');
-        const responseJob = await novelService.generateNextChapter(created.slug, `Generate chapter 1 from this story bible.\n\n${storyBible}`);
+        const responseJob = await novelService.generateNextChapter(created.slug, {
+          guidance: `Generate chapter 1 from this story bible.\n\n${storyBible}`,
+          mode: 'next_chapter',
+          targetDocument: null,
+        });
         setJob(responseJob.job);
+        setSession({
+          key: responseJob.job?.targetKey,
+          target: responseJob.job?.codexTarget,
+          runtimeSessionId: responseJob.job?.runtimeSessionId || null,
+          lastJob: responseJob.job,
+        });
       }
     } catch (err) {
       setError(err.message || 'Failed to create book');
@@ -1534,11 +1604,40 @@ export function NovelWorkspace({ onBack }) {
   }, [loadProject, selectedProject, view]);
 
   useEffect(() => {
-    if (!job || !['running', 'queued'].includes(job.status)) return undefined;
+    if (view !== 'studio' || !selectedProject || !selectedDocument) return undefined;
+    let cancelled = false;
+    setSessionLoading(true);
+    novelService.getCodexSession(selectedProject, sessionTargetFromDocument(selectedDocument))
+      .then((response) => {
+        if (cancelled) return;
+        const nextSession = response.session || null;
+        setSession(nextSession);
+        setJob(nextSession?.lastJob || null);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'Failed to load Codex session');
+      })
+      .finally(() => {
+        if (!cancelled) setSessionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDocument, selectedProject, view]);
+
+  useEffect(() => {
+    if (!isJobRunning(job)) return undefined;
     const timer = window.setInterval(async () => {
       try {
         const response = await novelService.getJob(job.id);
         setJob(response.job);
+        setSession((current) => ({
+          ...(current || {}),
+          key: response.job?.targetKey || current?.key,
+          target: response.job?.codexTarget || current?.target,
+          runtimeSessionId: response.job?.runtimeSessionId || current?.runtimeSessionId || null,
+          lastJob: response.job,
+        }));
         if (response.job?.status === 'completed') {
           await loadProject(selectedProject);
         }
@@ -1567,6 +1666,8 @@ export function NovelWorkspace({ onBack }) {
       saving={saving}
       guidance={guidance}
       job={job}
+      session={session}
+      sessionLoading={sessionLoading}
       busy={busy}
       actionMode={actionMode}
       view={view}
@@ -1579,6 +1680,7 @@ export function NovelWorkspace({ onBack }) {
         setProject(null);
         setSelectedDocument(null);
         setJob(null);
+        setSession(null);
       }}
       onNewBook={() => {
         setError('');
