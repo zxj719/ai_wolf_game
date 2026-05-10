@@ -603,7 +603,8 @@ function hasArg(args, name) {
 
 function shouldUseCodexJson(args, env = process.env) {
   if (env.NOVEL_CODEX_JSON === '0' || env.NOVEL_CODEX_JSON === 'false') return false;
-  return args[0] === 'exec';
+  if (env.NOVEL_CODEX_JSON === '1' || env.NOVEL_CODEX_JSON === 'true') return true;
+  return args.includes('exec');
 }
 
 function buildCodexArgs({ rawArgs, prompt, runtimeSessionId = null, env = process.env }) {
@@ -612,9 +613,10 @@ function buildCodexArgs({ rawArgs, prompt, runtimeSessionId = null, env = proces
   if (useJson && !hasArg(args, '--json')) {
     args.push('--json');
   }
-  if (runtimeSessionId && args[0] === 'exec') {
+  const execIdx = args.indexOf('exec');
+  if (runtimeSessionId && execIdx !== -1) {
     return {
-      args: [...args, 'resume', runtimeSessionId, prompt],
+      args: [...args.slice(0, execIdx + 1), 'resume', runtimeSessionId, ...args.slice(execIdx + 1), prompt],
       useJson,
       resumed: true,
     };

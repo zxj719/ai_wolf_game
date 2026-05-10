@@ -2,6 +2,25 @@ import { describe, expect, it, afterEach } from 'vitest';
 import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+// On Windows, shebangs don't work. Use node as CODEX_BIN and pass the
+// test script path as NOVEL_CODEX_ARGS prefix so spawn(node, [script, ...])
+// runs the JS file correctly on all platforms.
+const IS_WINDOWS = process.platform === 'win32';
+function testCodexEnv(scriptPath, rawArgs = 'exec') {
+  if (IS_WINDOWS) {
+    return {
+      ...process.env,
+      CODEX_BIN: process.execPath,
+      NOVEL_CODEX_ARGS: `${scriptPath} ${rawArgs}`,
+    };
+  }
+  return {
+    ...process.env,
+    CODEX_BIN: scriptPath,
+    NOVEL_CODEX_ARGS: rawArgs,
+  };
+}
 import {
   createNovelProject,
   getCodexJob,
@@ -268,11 +287,7 @@ describe('novelWorkspace', () => {
       guidance: 'Revise chapter 2.',
       mode: 'revise_document',
       targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
-      env: {
-        ...process.env,
-        CODEX_BIN: scriptPath,
-        NOVEL_CODEX_ARGS: 'exec',
-      },
+      env: testCodexEnv(scriptPath),
     });
 
     for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -303,11 +318,7 @@ describe('novelWorkspace', () => {
       guidance: 'Continue this chapter.',
       mode: 'revise_document',
       targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
-      env: {
-        ...process.env,
-        CODEX_BIN: scriptPath,
-        NOVEL_CODEX_ARGS: 'exec',
-      },
+      env: testCodexEnv(scriptPath),
     });
 
     for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -341,11 +352,7 @@ describe('novelWorkspace', () => {
       guidance: 'Generate the next chapter after chapter 2.',
       mode: 'next_chapter',
       targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
-      env: {
-        ...process.env,
-        CODEX_BIN: scriptPath,
-        NOVEL_CODEX_ARGS: 'exec',
-      },
+      env: testCodexEnv(scriptPath),
     });
 
     for (let attempt = 0; attempt < 20; attempt += 1) {
