@@ -349,14 +349,57 @@ function statusMeta(job, copy) {
   };
 }
 
-function JobPill({ job, copy }) {
+function JobPill({ job, copy, compact = false }) {
   const meta = statusMeta(job, copy);
   const Icon = meta.icon;
   return (
     <div className={`flex items-center gap-2 rounded-[16px] border px-3 py-2 text-xs font-medium ${meta.className}`}>
       <Icon size={14} className={job?.status === 'running' ? 'animate-spin' : ''} />
-      Codex {meta.label}
+      {!compact && <>Codex {meta.label}</>}
+      {compact && meta.label}
     </div>
+  );
+}
+
+const MOBILE_TABS = [
+  { key: 'memory', icon: FolderOpen },
+  { key: 'reader', icon: BookOpen },
+  { key: 'chat', icon: Sparkles },
+];
+
+function MobileTabBar({ activeTab, onTabChange, job, copy }) {
+  const tabLabels = {
+    memory: copy.studio.projectMemory,
+    reader: copy.studio.chapters,
+    chat: 'Codex',
+  };
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 backdrop-blur-md md:hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="flex">
+        {MOBILE_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.key;
+          const showDot = tab.key === 'chat' && isJobRunning(job);
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onTabChange(tab.key)}
+              className={`relative flex flex-1 flex-col items-center gap-1 py-2.5 transition-colors ${
+                active ? 'text-slate-900' : 'text-slate-400'
+              }`}
+            >
+              <Icon size={20} />
+              <span className="text-[10px] font-medium leading-none">{tabLabels[tab.key]}</span>
+              {showDot && (
+                <span className="absolute right-1/2 top-1.5 ml-4 h-2 w-2 translate-x-4 rounded-full bg-blue-500" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
@@ -637,21 +680,21 @@ function CodexChat({
   }, [copy.chat.ready, job]);
 
   return (
-    <div className="mac-panel flex min-h-[620px] flex-col overflow-hidden p-0">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
-            <Sparkles size={17} />
+    <div className="mac-panel flex min-h-[400px] flex-col overflow-hidden p-0 md:min-h-[620px]">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 px-3 py-2.5 md:gap-3 md:px-4 md:py-3">
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
+          <span className="mac-icon-tile h-8 w-8 rounded-[13px] md:h-10 md:w-10 md:rounded-[16px]">
+            <Sparkles size={16} />
           </span>
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold text-slate-900">{copy.chat.title}</h3>
-            <p className="text-xs text-slate-500">{copy.chat.subtitle}</p>
+            <p className="hidden text-xs text-slate-500 md:block">{copy.chat.subtitle}</p>
           </div>
         </div>
-        <JobPill job={job} copy={copy} />
+        <JobPill job={job} copy={copy} compact />
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto bg-slate-50/70 px-4 py-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-auto bg-slate-50/70 px-3 py-3 md:px-4 md:py-4">
         {messages.map((message, index) => (
           <ChatBubble
             key={`${message.at || index}-${message.source || 'message'}`}
@@ -670,7 +713,7 @@ function CodexChat({
       </div>
 
       <div className="border-t border-slate-200/70 bg-white/80 p-3">
-        <div className="mb-3 grid grid-cols-2 gap-2">
+        <div className="mb-3 grid grid-cols-2 gap-1.5 md:gap-2">
           {ACTION_MODES.map((mode) => {
             const item = copy.chat.modes[mode];
             const active = actionMode === mode;
@@ -679,14 +722,14 @@ function CodexChat({
                 key={mode}
                 type="button"
                 onClick={() => onActionModeChange(mode)}
-                className={`rounded-[14px] border px-3 py-2 text-left transition ${
+                className={`rounded-[12px] border px-2.5 py-2 text-left transition md:rounded-[14px] md:px-3 ${
                   active
                     ? 'border-slate-300 bg-slate-950 text-white'
                     : 'border-slate-200 bg-white/80 text-slate-700 hover:bg-white'
                 }`}
               >
-                <div className="text-xs font-semibold">{item.title}</div>
-                <div className={`mt-1 line-clamp-2 text-[11px] leading-4 ${active ? 'text-slate-300' : 'text-slate-500'}`}>
+                <div className="text-[11px] font-semibold md:text-xs">{item.title}</div>
+                <div className={`mt-0.5 line-clamp-2 text-[10px] leading-[14px] md:mt-1 md:text-[11px] md:leading-4 ${active ? 'text-slate-300' : 'text-slate-500'}`}>
                   {item.hint}
                 </div>
               </button>
@@ -696,7 +739,7 @@ function CodexChat({
         <textarea
           value={guidance}
           onChange={(event) => onGuidanceChange(event.target.value)}
-          className="mac-textarea min-h-[104px] resize-none"
+          className="mac-textarea min-h-[80px] resize-none md:min-h-[104px]"
           placeholder={copy.chat.placeholder[actionMode]}
         />
         <div className="mt-2 space-y-1 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -894,8 +937,8 @@ function ReaderPane({
 
   if (!document) {
     return (
-      <section className="min-w-0 bg-white/70 p-5 md:p-7">
-        <div className="flex min-h-[620px] items-center justify-center text-sm text-slate-500">
+      <section className="min-w-0 bg-white/70 p-4 md:p-7">
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500 md:min-h-[620px]">
           {copy.studio.noDocument}
         </div>
       </section>
@@ -903,37 +946,37 @@ function ReaderPane({
   }
 
   return (
-    <section className="min-w-0 bg-white/70 p-5 md:p-7">
+    <section className="min-w-0 bg-white/70 p-3 md:p-7">
       <article className="mx-auto max-w-3xl">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 md:mb-6 md:gap-4">
           <div className="min-w-0">
             <div className="mac-eyebrow">{documentGroupLabel(document.group || document.type, copy)}</div>
-            <h2 className="mt-2 break-words text-[clamp(2rem,4vw,3.2rem)] font-semibold leading-tight text-slate-950">
+            <h2 className="mt-1.5 break-words text-xl font-semibold leading-tight text-slate-950 md:mt-2 md:text-[clamp(2rem,4vw,3.2rem)]">
               {document.title}
             </h2>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
             {canDownload && (
-              <button type="button" onClick={downloadDocument} className="mac-button mac-button-secondary">
+              <button type="button" onClick={downloadDocument} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <Download size={15} />
-                {copy.common.md}
+                <span className="hidden sm:inline">{copy.common.md}</span>
               </button>
             )}
             {editMode ? (
               <>
-                <button type="button" onClick={onCancel} className="mac-button mac-button-secondary">
+                <button type="button" onClick={onCancel} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                   <X size={15} />
-                  {copy.common.cancel}
+                  <span className="hidden sm:inline">{copy.common.cancel}</span>
                 </button>
-                <button type="button" onClick={onSave} disabled={!dirty || saving} className="mac-button mac-button-primary">
+                <button type="button" onClick={onSave} disabled={!dirty || saving} className="mac-button mac-button-primary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                   {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
                   {copy.common.save}
                 </button>
               </>
             ) : (
-              <button type="button" onClick={onEdit} className="mac-button mac-button-secondary">
+              <button type="button" onClick={onEdit} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <Edit3 size={15} />
-                {copy.common.edit}
+                <span className="hidden sm:inline">{copy.common.edit}</span>
               </button>
             )}
           </div>
@@ -943,10 +986,10 @@ function ReaderPane({
           <textarea
             value={draftContent}
             onChange={(event) => onChange(event.target.value)}
-            className="mac-textarea min-h-[640px] resize-y font-mono text-sm leading-6"
+            className="mac-textarea min-h-[50vh] resize-y font-mono text-sm leading-6 md:min-h-[640px]"
           />
         ) : (
-          <div className="rounded-[18px] border border-slate-200 bg-white/75 px-6 py-7 shadow-sm">
+          <div className="rounded-[16px] border border-slate-200 bg-white/75 px-4 py-5 shadow-sm md:rounded-[18px] md:px-6 md:py-7">
             <MarkdownView content={content} copy={copy} />
           </div>
         )}
@@ -957,40 +1000,40 @@ function ReaderPane({
 
 function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh, onOpenProject, onNewBook }) {
   return (
-    <div className="px-4 py-10 md:px-6">
+    <div className="px-2 py-4 md:px-6 md:py-10">
       <div className="mx-auto max-w-[1300px]">
         <div className="mac-window overflow-hidden">
-          <div className="mac-toolbar">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="mac-window-chrome">
+          <div className="mac-toolbar !px-3 !py-3 md:!px-6 md:!py-4">
+            <div className="flex min-w-0 items-center gap-2 md:gap-4">
+              <div className="mac-window-chrome hidden md:flex">
                 <span className="mac-window-dot mac-dot-red" />
                 <span className="mac-window-dot mac-dot-yellow" />
                 <span className="mac-window-dot mac-dot-green" />
               </div>
               <div className="min-w-0">
-                <div className="mac-eyebrow">Meta Writing</div>
-                <h1 className="truncate text-base font-semibold text-slate-900">{copy.shelf.title}</h1>
+                <div className="mac-eyebrow hidden md:block">Meta Writing</div>
+                <h1 className="truncate text-sm font-semibold text-slate-900 md:text-base">{copy.shelf.title}</h1>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={onNewBook} className="mac-button mac-button-primary">
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <button type="button" onClick={onNewBook} className="mac-button mac-button-primary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <Plus size={15} />
-                {copy.shelf.newBook}
+                <span className="hidden sm:inline">{copy.shelf.newBook}</span>
               </button>
-              <button type="button" onClick={onRefresh} className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0" title={copy.common.refresh}>
-                <RefreshCw size={16} />
+              <button type="button" onClick={onRefresh} className="mac-button mac-button-secondary !h-9 !w-9 !rounded-[14px] !p-0 md:!h-10 md:!w-10 md:!rounded-[16px]" title={copy.common.refresh}>
+                <RefreshCw size={15} />
               </button>
-              <button type="button" onClick={onBack} className="mac-button mac-button-secondary">
+              <button type="button" onClick={onBack} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <ChevronLeft size={15} />
-                {copy.common.back}
+                <span className="hidden md:inline">{copy.common.back}</span>
               </button>
             </div>
           </div>
 
-          <main className="border-t border-slate-200/70 bg-slate-50/70 p-6 md:p-8">
-            <div className="mb-6 flex items-center gap-3">
-              <span className="mac-icon-tile h-11 w-11 rounded-[18px]">
-                <User size={18} />
+          <main className="border-t border-slate-200/70 bg-slate-50/70 p-4 md:p-8">
+            <div className="mb-4 flex items-center gap-3 md:mb-6">
+              <span className="mac-icon-tile h-10 w-10 rounded-[16px] md:h-11 md:w-11 md:rounded-[18px]">
+                <User size={17} />
               </span>
               <div>
                 <div className="text-sm font-semibold text-slate-900">{user?.username || copy.common.userFallback}</div>
@@ -999,47 +1042,47 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
             </div>
 
             {loading ? (
-              <div className="flex min-h-[420px] items-center justify-center gap-2 text-sm text-slate-500">
+              <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-slate-500 md:min-h-[420px]">
                 <Loader2 size={16} className="animate-spin" />
                 {copy.common.loading}
               </div>
             ) : error ? (
               <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-3">
                 {projects.map((project) => (
                   <button
                     key={project.slug || project.name}
                     type="button"
                     onClick={() => onOpenProject(project.slug || project.name)}
-                    className="group min-h-[210px] rounded-[8px] border border-slate-200 bg-white/85 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                    className="group min-h-[160px] rounded-[8px] border border-slate-200 bg-white/85 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md md:min-h-[210px] md:p-5"
                   >
-                    <div className="mb-7 flex items-start justify-between gap-3">
-                      <span className="mac-icon-tile h-12 w-12 rounded-[18px] text-slate-700">
-                        <BookMarked size={19} />
+                    <div className="mb-4 flex items-start justify-between gap-3 md:mb-7">
+                      <span className="mac-icon-tile h-10 w-10 rounded-[16px] text-slate-700 md:h-12 md:w-12 md:rounded-[18px]">
+                        <BookMarked size={18} />
                       </span>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-500 md:px-2.5 md:py-1 md:text-xs">
                         {(project.workflowMode || 'manual') === 'manual' ? copy.shelf.manual : project.workflowMode}
                       </span>
                     </div>
-                    <h2 className="line-clamp-2 text-xl font-semibold leading-tight text-slate-950">{project.name}</h2>
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-500">
-                      <div className="rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2">
+                    <h2 className="line-clamp-2 text-lg font-semibold leading-tight text-slate-950 md:text-xl">{project.name}</h2>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500 md:mt-4">
+                      <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:rounded-[12px] md:px-3 md:py-2">
                         <div className="font-semibold text-slate-900">{project.chapterCount}</div>
                         <div>{copy.shelf.chapters}</div>
                       </div>
-                      <div className="rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:rounded-[12px] md:px-3 md:py-2">
                         <div className="truncate font-semibold text-slate-900">{project.latestChapter || '-'}</div>
                         <div>{copy.shelf.latest}</div>
                       </div>
                     </div>
-                    {project.latestTitle && <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-600">{project.latestTitle}</p>}
+                    {project.latestTitle && <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600 md:mt-4">{project.latestTitle}</p>}
                   </button>
                 ))}
                 <button
                   type="button"
                   onClick={onNewBook}
-                  className="flex min-h-[210px] flex-col items-center justify-center rounded-[8px] border border-dashed border-slate-300 bg-white/60 p-5 text-center text-slate-500 transition hover:border-slate-400 hover:bg-white"
+                  className="flex min-h-[160px] flex-col items-center justify-center rounded-[8px] border border-dashed border-slate-300 bg-white/60 p-4 text-center text-slate-500 transition hover:border-slate-400 hover:bg-white md:min-h-[210px] md:p-5"
                 >
                   <Plus size={24} />
                   <div className="mt-3 text-sm font-semibold text-slate-800">{copy.shelf.addBook}</div>
@@ -1078,30 +1121,30 @@ function Field({ label, value, onChange, textarea = false, placeholder = '' }) {
 
 function NewBookPage({ draft, busy, error, copy, onBack, onDraftChange, onCreateBook }) {
   return (
-    <div className="px-4 py-10 md:px-6">
+    <div className="px-2 py-4 md:px-6 md:py-10">
       <div className="mx-auto max-w-[1100px]">
         <div className="mac-window overflow-hidden">
-          <div className="mac-toolbar">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="mac-window-chrome">
+          <div className="mac-toolbar !px-3 !py-3 md:!px-6 md:!py-4">
+            <div className="flex min-w-0 items-center gap-2 md:gap-4">
+              <div className="mac-window-chrome hidden md:flex">
                 <span className="mac-window-dot mac-dot-red" />
                 <span className="mac-window-dot mac-dot-yellow" />
                 <span className="mac-window-dot mac-dot-green" />
               </div>
               <div className="min-w-0">
-                <div className="mac-eyebrow">Meta Writing</div>
-                <h1 className="truncate text-base font-semibold text-slate-900">{copy.newBook.title}</h1>
+                <div className="mac-eyebrow hidden md:block">Meta Writing</div>
+                <h1 className="truncate text-sm font-semibold text-slate-900 md:text-base">{copy.newBook.title}</h1>
               </div>
             </div>
-            <button type="button" onClick={onBack} className="mac-button mac-button-secondary">
+            <button type="button" onClick={onBack} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
               <ChevronLeft size={15} />
-              {copy.common.shelf}
+              <span className="hidden sm:inline">{copy.common.shelf}</span>
             </button>
           </div>
 
-          <main className="border-t border-slate-200/70 bg-slate-50/70 p-6 md:p-8">
-            {error && <div className="mb-5 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-            <div className="grid gap-5 lg:grid-cols-2">
+          <main className="border-t border-slate-200/70 bg-slate-50/70 p-4 md:p-8">
+            {error && <div className="mb-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 md:mb-5">{error}</div>}
+            <div className="grid gap-4 md:gap-5 lg:grid-cols-2">
               <Field label={copy.newBook.titleField} value={draft.name} onChange={(value) => onDraftChange('name', value)} />
               <Field label={copy.newBook.slug} value={draft.slug} onChange={(value) => onDraftChange('slug', value)} />
               <Field label={copy.newBook.worldview} value={draft.worldview} onChange={(value) => onDraftChange('worldview', value)} textarea />
@@ -1109,12 +1152,12 @@ function NewBookPage({ draft, busy, error, copy, onBack, onDraftChange, onCreate
               <Field label={copy.newBook.concept} value={draft.concept} onChange={(value) => onDraftChange('concept', value)} textarea />
               <Field label={copy.newBook.outline} value={draft.outline} onChange={(value) => onDraftChange('outline', value)} textarea />
             </div>
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button type="button" onClick={() => onCreateBook(false)} disabled={busy} className="mac-button mac-button-secondary">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end md:mt-6">
+              <button type="button" onClick={() => onCreateBook(false)} disabled={busy} className="mac-button mac-button-secondary w-full sm:w-auto">
                 <FolderOpen size={15} />
                 {copy.newBook.create}
               </button>
-              <button type="button" onClick={() => onCreateBook(true)} disabled={busy} className="mac-button mac-button-primary">
+              <button type="button" onClick={() => onCreateBook(true)} disabled={busy} className="mac-button mac-button-primary w-full sm:w-auto">
                 {busy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
                 {copy.newBook.createAndGenerate}
               </button>
@@ -1160,76 +1203,85 @@ function StudioPage({
   onRefresh,
 }) {
   const jobRunning = isJobRunning(job);
+  const [mobileTab, setMobileTab] = useState('reader');
 
   return (
-    <div className="px-4 py-10 md:px-6">
+    <div className="px-2 py-4 md:px-6 md:py-10">
       <div className="mx-auto max-w-[1720px]">
         <div className="mac-window overflow-hidden">
-          <div className="mac-toolbar">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="mac-window-chrome">
+          {/* --- Toolbar: compact on mobile --- */}
+          <div className="mac-toolbar !px-3 !py-3 md:!px-6 md:!py-4">
+            <div className="flex min-w-0 items-center gap-2 md:gap-4">
+              <div className="mac-window-chrome hidden md:flex">
                 <span className="mac-window-dot mac-dot-red" />
                 <span className="mac-window-dot mac-dot-yellow" />
                 <span className="mac-window-dot mac-dot-green" />
               </div>
               <div className="min-w-0">
-                <div className="mac-eyebrow">Meta Writing</div>
-                <h1 className="truncate text-base font-semibold text-slate-900">{project?.name || copy.studio.titleFallback}</h1>
+                <div className="mac-eyebrow hidden md:block">Meta Writing</div>
+                <h1 className="truncate text-sm font-semibold text-slate-900 md:text-base">{project?.name || copy.studio.titleFallback}</h1>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <JobPill job={job} copy={copy} />
-              <button type="button" onClick={onRefresh} className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0" title={copy.common.refresh}>
-                <RefreshCw size={16} />
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <JobPill job={job} copy={copy} compact />
+              <button type="button" onClick={onRefresh} className="mac-button mac-button-secondary !h-9 !w-9 !rounded-[14px] !p-0 md:!h-10 md:!w-10 md:!rounded-[16px]" title={copy.common.refresh}>
+                <RefreshCw size={15} />
               </button>
-              <button type="button" onClick={onShelf} className="mac-button mac-button-secondary">
+              <button type="button" onClick={onShelf} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <Library size={15} />
-                {copy.common.shelf}
+                <span className="hidden md:inline">{copy.common.shelf}</span>
               </button>
-              <button type="button" onClick={onBack} className="mac-button mac-button-secondary">
+              <button type="button" onClick={onBack} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <ChevronLeft size={15} />
-                {copy.common.back}
+                <span className="hidden md:inline">{copy.common.back}</span>
               </button>
             </div>
           </div>
 
           {loading ? (
-            <div className="flex min-h-[760px] items-center justify-center gap-2 border-t border-slate-200/70 text-sm text-slate-500">
+            <div className="flex min-h-[60vh] items-center justify-center gap-2 border-t border-slate-200/70 text-sm text-slate-500 md:min-h-[760px]">
               <Loader2 size={16} className="animate-spin" />
               {copy.common.loading}
             </div>
           ) : error ? (
-            <div className="border-t border-slate-200/70 bg-white/70 p-5">
+            <div className="border-t border-slate-200/70 bg-white/70 p-4 md:p-5">
               <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
             </div>
           ) : (
-            <main className="grid min-h-[840px] gap-0 border-t border-slate-200/70 xl:grid-cols-[320px_minmax(0,1fr)_430px]">
-              <ProjectMemoryColumn
-                projects={projects}
-                selectedProject={selectedProject}
-                project={project}
-                selectedDocument={selectedDocument}
-                jobRunning={jobRunning}
-                copy={copy}
-                onSelectProject={onSelectProject}
-                onSelectChapter={onSelectChapter}
-                onSelectMemoryFile={onSelectMemoryFile}
-              />
-              <ReaderPane
-                document={selectedDocument}
-                draftContent={draftContent}
-                editMode={editMode}
-                dirty={dirty}
-                saving={saving}
-                copy={copy}
-                onChange={onDocumentChange}
-                onEdit={onEditDocument}
-                onCancel={onCancelEdit}
-                onSave={onSaveDocument}
-              />
-              <aside className="border-t border-slate-200/70 bg-slate-50/80 p-4 xl:border-l xl:border-t-0">
-                <div className="mb-4 flex items-center gap-3">
+            <main className="grid gap-0 border-t border-slate-200/70 md:min-h-[840px] xl:grid-cols-[320px_minmax(0,1fr)_430px]">
+              {/* Memory column: hidden on mobile unless active tab */}
+              <div className={mobileTab !== 'memory' ? 'hidden md:block' : ''}>
+                <ProjectMemoryColumn
+                  projects={projects}
+                  selectedProject={selectedProject}
+                  project={project}
+                  selectedDocument={selectedDocument}
+                  jobRunning={jobRunning}
+                  copy={copy}
+                  onSelectProject={onSelectProject}
+                  onSelectChapter={(id) => { onSelectChapter(id); setMobileTab('reader'); }}
+                  onSelectMemoryFile={(doc) => { onSelectMemoryFile(doc); setMobileTab('reader'); }}
+                />
+              </div>
+              {/* Reader pane: hidden on mobile unless active tab */}
+              <div className={mobileTab !== 'reader' ? 'hidden md:block' : ''}>
+                <ReaderPane
+                  document={selectedDocument}
+                  draftContent={draftContent}
+                  editMode={editMode}
+                  dirty={dirty}
+                  saving={saving}
+                  copy={copy}
+                  onChange={onDocumentChange}
+                  onEdit={onEditDocument}
+                  onCancel={onCancelEdit}
+                  onSave={onSaveDocument}
+                />
+              </div>
+              {/* Chat column: hidden on mobile unless active tab */}
+              <aside className={`border-t border-slate-200/70 bg-slate-50/80 p-3 md:p-4 xl:border-l xl:border-t-0 ${mobileTab !== 'chat' ? 'hidden md:block' : ''}`}>
+                <div className="mb-4 hidden items-center gap-3 md:flex">
                   <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
                     <User size={17} />
                   </span>
@@ -1258,6 +1310,10 @@ function StudioPage({
           )}
         </div>
       </div>
+      {/* Mobile bottom tab bar */}
+      <MobileTabBar activeTab={mobileTab} onTabChange={setMobileTab} job={job} copy={copy} />
+      {/* Spacer so content isn't hidden behind fixed tab bar on mobile */}
+      <div className="h-16 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
     </div>
   );
 }
