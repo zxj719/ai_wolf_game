@@ -51,7 +51,7 @@ describe('localized screens', () => {
       />
     );
 
-    expect(html).toContain('Workspace');
+    expect(html).toContain('Playground');
     expect(html).toContain('Start your first match');
     expect(html).toContain('Send feedback');
   });

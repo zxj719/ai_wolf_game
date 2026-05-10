@@ -19,7 +19,7 @@ const homeModule = {
   theme: 'light',
   backend: 'cf-workers',
   routes: [
-    { path: ROUTES.HOME, component: HomeRoute, requiresAuth: false },
+    { path: ROUTES.HOME, component: HomeRoute, requiresAuth: true },
   ],
   home: { visible: false }, // 自己就是 home，不需要卡片指回自己
 };

@@ -18,9 +18,7 @@ export function GlobalOverlays() {
   const ui = getUiCopy(locale);
   const label = ui?.app?.localeLabel ?? (locale === 'zh' ? '界面语言' : 'Interface language');
 
-  const suppressLocaleOverlay =
-    currentPath === ROUTES.WEREWOLF_SETUP || currentPath === ROUTES.WEREWOLF_PLAY;
-  if (suppressLocaleOverlay) return null;
+  if (currentPath !== ROUTES.HOME) return null;
 
   return (
     <div className="mac-floating-toolbar">

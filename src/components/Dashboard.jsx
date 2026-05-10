@@ -172,27 +172,15 @@ export function Dashboard({
                   </button>
                 </>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={onGuestPlay}
-                    aria-label={appCopy.guestMode}
-                    className="mac-button mac-button-secondary"
-                    title={appCopy.guestMode}
-                  >
-                    <Ticket size={15} />
-                    {appCopy.guestMode}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onLogin}
-                    aria-label={appCopy.login}
-                    className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
-                    title={appCopy.login}
-                  >
-                    <LogIn size={17} />
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={onLogin}
+                  aria-label={appCopy.login}
+                  className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
+                  title={appCopy.login}
+                >
+                  <LogIn size={17} />
+                </button>
               )}
             </div>
           </div>

@@ -554,7 +554,6 @@ export default function WerewolfModule() {
           {ui.app.login}
         </button>
       )}
-      <LanguageToggle locale={locale} onChange={setLocale} label={ui.app.localeLabel} />
     </div>
   ) : null;
 
