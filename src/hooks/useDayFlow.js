@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { PROMPT_ACTIONS } from '../services/aiPrompts';
 import { TIMING } from '../config/constants';
 import { btDecide } from '../services/btClient';
@@ -74,6 +74,13 @@ export function useDayFlow({
   recordVoteRound,
   recordNightAction,
 }) {
+  // Guard against re-entrant handleAutoVote calls. Each askAI call inside
+  // the sequential vote loop sets isThinking=false on completion, which
+  // triggers WerewolfModule's useEffect to call handleAutoVote again.
+  // Without this guard, multiple vote loops run in parallel → state
+  // corruption → votes never complete.
+  const votingInProgressRef = useRef(false);
+
   const proceedToNextNight = useCallback((clearPhaseData) => {
     if (gameActiveRef && !gameActiveRef.current) return;
     // 清空白天的发言数据
@@ -455,6 +462,8 @@ export function useDayFlow({
 
   const handleAutoVote = useCallback(async () => {
     if (gameActiveRef && !gameActiveRef.current) return;
+    if (votingInProgressRef.current) return;
+    votingInProgressRef.current = true;
     setIsThinking(true);
     const alive = players.filter(p => p.isAlive);
     const aliveIds = alive.map(p => p.id);
@@ -516,6 +525,7 @@ export function useDayFlow({
     const votes = voteResults.filter(v => v !== null);
 
     processVoteResults(votes, aliveIds);
+    votingInProgressRef.current = false;
   }, [askAI, dayCount, gameActiveRef, players, seerChecks, setIsThinking, speechHistory]);
 
   const processVoteResults = useCallback((votes, aliveIds) => {
