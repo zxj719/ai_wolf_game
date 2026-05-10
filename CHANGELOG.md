@@ -2,6 +2,85 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-05-08 ~ 05-10] Werewolf Agent Adapter v1 + 生产全链路修复
+
+从零搭建 MiniMax/Claude Code 狼人杀 AI 代理适配器，并修复生产环境端到端链路，使游戏从「完全无 AI 响应」到「8 玩家完整夜→天循环」可玩。
+
+### 核心功能：Werewolf Agent Contract v1
+
+新增 `server/werewolfAgent/` 模块组（7 个文件），为 7 种游戏动作提供 contract-driven 的 prompt 组装 → 验证 → 修复 → 兜底管线：
+
+| 模块 | 职责 |
+|------|------|
+| `contracts.js` | 7 种 action 的 schema、字段类型、合法目标来源、修复指南、兜底策略 |
+| `capabilities.js` | 按 action 生成 public/private facts + 合法目标列表 + 策略提示 |
+| `skills.js` | 按角色注入中文技能描述（只注入当前玩家的，不泄露其他角色） |
+| `memory.js` | 5 层压缩记忆视图（public/private/semantic/episodic/strategy） |
+| `validator.js` | 严格 JSON 解析 + 字段类型 + 目标合法性 + action 专属规则 |
+| `promptComposer.js` | schema-first prompt 组装（SYSTEM RULES → ACTION → PRIVATE → PUBLIC → SCHEMA → JSON-ONLY） |
+| `repair.js` | 最多 2 次修复重试，失败则确定性兜底（skip-vote / first-legal-target / witch-no-op 等） |
+
+### 生产链路修复（按发现顺序）
+
+| # | Bug | 影响 | 修复 |
+|---|-----|------|------|
+| 1 | identity_table 校验过严 | 5/7 action 触发无谓 repair（MiniMax 用英文 metadata label） | 改成 sanitize 而非 reject |
+| 2 | server CORS 写死 zhaxiaoji.com | 本地 dev 不能跑 | 支持逗号列表 + 非 prod 自动放过 localhost |
+| 3 | 视觉资产用 reasoning LLM 生成 SVG | 70s 超时 → 502，100% 失败 | 改用本地确定性 SVG（17ms，0 token） |
+| 4 | ECS PM2 没继承 MiniMax token | 所有 ask 90s 超时 | /etc/wolfgame/env + fail-fast 启动检查 |
+| 5 | /health 不暴露 provider 状态 | 配置错误隐藏在 90s 超时背后 | ECS + Worker 联通 health probe |
+| 6 | .env.local 把 dev URL 写进 prod bundle | prod `fetch('')` → 405 | 改名 .env.development.local + post-build guard |
+| 7 | wrangler state 缓存旧 asset manifest | deploy 后 prod 仍 serve 旧 bundle | deploy 脚本自动清 .wrangler/state |
+| 8 | Workers Assets env.ASSETS 内部缓存 | HTML 永远返回旧版 | 移除 SPA handler + 内联 HTML 到 Worker 脚本 |
+| 9 | Claude Code `--resume` 跨 action | 预言家白天发言输出夜间 schema → fallback | game-action 永不 resume |
+| 10 | 投票并行 8 个 spawn | ECS 资源竞争 → 偶发 502 | 投票改顺序 + server 并发限制（2 inflight） |
+| 11 | ECS 用 claude-code provider | 连续 10+ spawn transient fail | 切到 minimax-api 直接 HTTP |
+| 12 | handleAutoVote 重入竞争 | askAI 内部 setIsThinking(false) 重触发投票 useEffect | votingInProgressRef 防重入 |
+| 13 | voteDispatch 被拒 → 无推进 | 投票后游戏卡死 | 拒绝时仍推进到下一夜 |
+| 14 | handleVote 引用未导入的 IS_HYBRID | 玩家模式投票 crash | 改用已导入的 btDecide |
+| 15 | outPlayer null → dead end | 投票后卡死 | 记录空投票 + 推进 |
+| 16 | useNightFlow catch rethrow | 夜间 AI 错误 → 永久卡夜 | 不 rethrow，advance 下一步 |
+| 17 | 女巫毒药缺少大括号 | validator 拒绝后仍然毒人 | 加正确的 else {} |
+| 18 | proceedNight stale resolveNight | 过时的夜间结算数据 | 加 resolveNight 到 useCallback deps |
+| 19 | speech 为空时不标记已发言 | 同一玩家无限重发言 | 收到 res 立刻标记 spoken |
+| 20 | VITE_BT_API_URL 指向不存在的域名 | CORS 报错 + 500ms 死时间 | 注释掉 |
+
+### 部署基建
+
+- `scripts/check-build.mjs`：post-build 静态守门，扫 dist 找 localhost / 127.0.0.1 / 私网 IP / file://，发现即 fail build
+- `scripts/inject-html.mjs`：deploy 时将 dist/index.html 内联到 Worker 脚本，绕过 Workers Assets 的内部缓存
+- `npm run deploy` 管线：inject → 清 wrangler state → wrangler deploy → git checkout 还原源码
+- Worker HTML 响应：`Cache-Control: no-store` + `Vary: *` + `CDN-Cache-Control: no-store`，永不被 CF edge 缓存
+- ECS `/health` 暴露 provider 状态；Worker `/api/health` 反映上游就绪性
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `server/werewolfAgent/*.js` (8 个) | 新建 | v1 contract adapter 全套 |
+| `server/werewolfSession.js` | 重构 | adapter 管线 + 确定性 SVG + no-resume + checkProviderConfig |
+| `server/index.js` | 修改 | CORS dev + concurrency limit + health provider + fail-fast |
+| `workers/auth/index.js` | 重写 | 内联 HTML SPA fallback + no-store headers + health upstream |
+| `src/hooks/useDayFlow.js` | 修复 | 投票顺序化 + 防重入 + 4 个 stuck-state fix |
+| `src/hooks/useNightFlow.js` | 修复 | catch 不 rethrow + 女巫大括号 + stale closure |
+| `src/hooks/useSpeechFlow.js` | 修复 | falsy speech 标记 spoken |
+| `src/services/werewolfAITransport.js` | 重写 | 永远走 session path |
+| `src/services/werewolfSessionClient.js` | 修改 | 转发 gameState + params + contractVersion |
+| `src/hooks/useAI.js` | 修改 | session 模式传 gameState + params |
+| `ecosystem.config.cjs` | 修改 | 默认 minimax-api provider |
+| `wrangler.toml` | 修改 | 移除 not_found_handling |
+| `scripts/check-build.mjs` | 新建 | post-build localhost leak guard |
+| `scripts/inject-html.mjs` | 新建 | deploy-time HTML 内联注入 |
+| `package.json` | 修改 | build 链 check-build + deploy 链 inject |
+| `README.md` | 重写 | 反映 AppShell/ModuleRegistry 架构 |
+| `CLAUDE.md` | 更新 | 添加「构建与部署陷阱」章节 |
+
+### 测试覆盖
+
+- 169 unit + integration tests passing（含 26 个新 contract/capabilities/validator 测试）
+- 22-call sequential prod-fullgame stress test：21/22 成功（minimax-api 后 22/22）
+- 本地浏览器 dogfood：game arena 渲染 → 守卫→狼人 phase 推进 → MiniMax M2.7 model 标签出现
+
 ## [2026-04-14] 个人主页平台重构 — Phase 3b：AppShell 切到 Router + 删 App.jsx
 
 Phase 3a 已经准备好了模块脚手架，本提交真正**切换入口**：AppShell 改渲染 `<Router /> + <GlobalOverlays />`，旧 `App.jsx` 与 `useAppRouter.js` 整体删除，ShellProvider 的遗留路径 301 重定向激活。
