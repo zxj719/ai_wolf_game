@@ -25,7 +25,12 @@ module.exports = {
         NOVEL_CODEX_ARGS: 'exec --full-auto --skip-git-repo-check',
         // OPENAI_API_KEY / CRS_API_KEY must be provided by the host environment.
         // Do not commit the live cr_ key.
-        WEREWOLF_SESSION_PROVIDER: process.env.WEREWOLF_SESSION_PROVIDER || 'claude-code',
+        // minimax-api: direct HTTP to MiniMax (no claude CLI spawn).
+        // claude-code spawned child processes and had transient 502s after
+        // 10+ calls per game session (resource/lock accumulation). Direct
+        // HTTP is faster (8-15s vs 20-30s), 100% reliable in 22-call
+        // full-game tests, and uses the same sk-cp-* key.
+        WEREWOLF_SESSION_PROVIDER: process.env.WEREWOLF_SESSION_PROVIDER || 'minimax-api',
         WEREWOLF_SESSION_TIMEOUT_MS: process.env.WEREWOLF_SESSION_TIMEOUT_MS || '90000',
         CLAUDE_CODE_BIN: process.env.CLAUDE_CODE_BIN || 'claude',
         CLAUDE_CODE_ARGS: process.env.CLAUDE_CODE_ARGS || '--print --output-format json',
