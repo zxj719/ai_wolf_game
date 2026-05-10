@@ -70,7 +70,7 @@ export function useNightFlow({
       logger.debug(`[proceedNight] 开始结算夜晚`);
       resolveNight(decisionsOverride);
     }
-  }, [nightStep, currentNightSequence.length, resolveNight]);
+  }, [nightStep, currentNightSequence.length]);
 
   // --- isGoodMajority (local helper) ---
   const isGoodMajority = (currentPlayers) => {
