@@ -37,8 +37,33 @@ const EMPTY_BOOK = {
   outline: '',
 };
 
-const HIDDEN_MESSAGE_SOURCES = new Set(['system', 'trace']);
+const HIDDEN_MESSAGE_SOURCES = new Set(['system', 'trace', 'retry-internal']);
 const ACTION_MODES = ['next_chapter', 'revise_document', 'plan', 'story_bible'];
+
+// Translate Codex's English retry messages into friendly Chinese/English.
+// retry-network sources are recoverable (relay 5xx, stream disconnect, Codex auto-retries 5x).
+function translateRetryContent(rawContent, locale) {
+  const text = String(rawContent || '');
+  const zh = locale !== 'en';
+  const reconnect = text.match(/Reconnecting\.\.\.\s*(\d+)\s*\/\s*(\d+)/);
+  if (reconnect) {
+    const [, n, m] = reconnect;
+    return zh
+      ? `中转站吃力，正在重试（第 ${n}/${m} 次）。这是 Codex 自动恢复机制，无需手动操作。`
+      : `Relay is overloaded — retrying ${n}/${m}. Codex auto-recovers; no action needed.`;
+  }
+  if (/stream (closed|disconnected) before/i.test(text)) {
+    return zh
+      ? '中转站连接被提前关闭，准备重试…'
+      : 'Relay closed the stream early — retrying...';
+  }
+  if (/error code:\s*5\d\d/i.test(text) || /unexpected status 5\d\d/i.test(text)) {
+    return zh
+      ? '中转站超时（5xx），准备重试…'
+      : 'Relay timeout (5xx) — retrying...';
+  }
+  return rawContent;
+}
 
 const NOVEL_COPY = {
   zh: {
@@ -151,6 +176,7 @@ const NOVEL_COPY = {
       you: '你',
       codex: 'Codex',
       codexError: 'Codex 错误',
+      codexRetry: '中转站重试中',
     },
   },
   en: {
@@ -263,6 +289,7 @@ const NOVEL_COPY = {
       you: 'You',
       codex: 'Codex',
       codexError: 'Codex error',
+      codexRetry: 'Relay retrying',
     },
   },
 };
@@ -479,6 +506,7 @@ function splitProjectMemory(project) {
 
 function messageLabel(message, copy) {
   if (message.role === 'user' || message.source === 'request') return copy.message.you;
+  if (message.source === 'retry-network') return copy.message.codexRetry;
   if (message.source === 'stderr' || message.source === 'error') return copy.message.codexError;
   if (message.source === 'stdout') return copy.message.codex;
   return copy.message.codex;
@@ -487,11 +515,14 @@ function messageLabel(message, copy) {
 function ChatBubble({ role, label, source, children }) {
   const isUser = role === 'user';
   const isError = source === 'stderr' || source === 'error';
+  const isRetry = source === 'retry-network';
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <span className={`mac-icon-tile mt-1 h-8 w-8 shrink-0 rounded-[13px] ${isError ? 'text-rose-600' : ''}`}>
-          {isError ? <AlertTriangle size={15} /> : <Bot size={15} />}
+        <span className={`mac-icon-tile mt-1 h-8 w-8 shrink-0 rounded-[13px] ${
+          isError ? 'text-rose-600' : isRetry ? 'text-amber-600' : ''
+        }`}>
+          {isError ? <AlertTriangle size={15} /> : isRetry ? <Clock3 size={15} /> : <Bot size={15} />}
         </span>
       )}
       <div
@@ -500,12 +531,14 @@ function ChatBubble({ role, label, source, children }) {
             ? 'border-slate-300 bg-slate-950 text-white'
             : isError
               ? 'border-rose-200 bg-rose-50 text-rose-800'
-              : 'border-slate-200 bg-white/90 text-slate-700'
+              : isRetry
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-slate-200 bg-white/90 text-slate-700'
         }`}
       >
         <div
           className={`mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-            isUser ? 'text-slate-300' : isError ? 'text-rose-500' : 'text-slate-400'
+            isUser ? 'text-slate-300' : isError ? 'text-rose-500' : isRetry ? 'text-amber-500' : 'text-slate-400'
           }`}
         >
           {label}
@@ -654,6 +687,7 @@ function CodexChat({
   busy,
   disabled,
   copy,
+  locale = 'zh',
   onGuidanceChange,
   onActionModeChange,
   onGenerate,
@@ -666,9 +700,15 @@ function CodexChat({
     if (job?.messages?.length) {
       return job.messages
         .filter((message) => !HIDDEN_MESSAGE_SOURCES.has(message.source))
-        .map((message) => (
-          message.source === 'request' ? { ...message, role: 'user' } : { ...message, role: message.role || 'assistant' }
-        ));
+        .map((message) => {
+          const base = message.source === 'request'
+            ? { ...message, role: 'user' }
+            : { ...message, role: message.role || 'assistant' };
+          if (base.source === 'retry-network') {
+            return { ...base, content: translateRetryContent(base.content, locale) };
+          }
+          return base;
+        });
     }
     if (job?.output || job?.error) {
       return [
@@ -677,7 +717,7 @@ function CodexChat({
       ].filter(Boolean);
     }
     return [{ role: 'assistant', source: 'stdout', content: copy.chat.ready }];
-  }, [copy.chat.ready, job]);
+  }, [copy.chat.ready, job, locale]);
 
   return (
     <div className="mac-panel flex min-h-[400px] flex-col overflow-hidden p-0 md:min-h-[620px]">
@@ -1188,6 +1228,7 @@ function StudioPage({
   actionMode,
   busy,
   copy,
+  locale,
   onBack,
   onShelf,
   onSelectProject,
@@ -1300,6 +1341,7 @@ function StudioPage({
                   actionMode={actionMode}
                   busy={busy}
                   copy={copy}
+                  locale={locale}
                   disabled={busy || jobRunning || !project}
                   onGuidanceChange={onGuidanceChange}
                   onActionModeChange={onActionModeChange}
@@ -1411,6 +1453,7 @@ export function NovelWorkspaceView({
       actionMode={actionMode}
       busy={busy}
       copy={copy}
+      locale={locale}
       onBack={onBack}
       onShelf={onShelf}
       onSelectProject={onSelectProject}

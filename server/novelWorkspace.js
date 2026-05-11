@@ -597,6 +597,34 @@ function isErrorLikeStderr(value) {
   return /\b(error|fatal|exception|traceback|panic|failed|permission denied|not found|enoent|eacces)\b/i.test(value);
 }
 
+// Codex emits two flavours of "error" that are NOT actionable for users:
+//   1. Network/relay flakes (524, stream disconnected, Reconnecting...) —
+//      auto-retried up to 5x by Codex. UX-friendly to translate to "中转站吃力".
+//   2. Internal apply_patch retries — happens when file state shifted between
+//      read and patch (concurrent edits in same session). Codex re-reads and
+//      retries transparently. Should be hidden from chat entirely.
+function isRecoverableNetworkError(value) {
+  const text = String(value || '');
+  return (
+    /Reconnecting\.\.\.\s*\d+\s*\/\s*\d+/.test(text) ||
+    /stream (closed|disconnected) before/i.test(text) ||
+    /unexpected status 5\d\d/i.test(text) ||
+    /error code:\s*5\d\d/i.test(text) ||
+    /cf[-_]?ray:/i.test(text)
+  );
+}
+
+function isRecoverableInternalError(value) {
+  return /apply_patch verification failed/i.test(String(value || ''));
+}
+
+function reclassifyCodexErrorSource(source, content) {
+  if (source !== 'stderr') return source;
+  if (isRecoverableNetworkError(content)) return 'retry-network';
+  if (isRecoverableInternalError(content)) return 'retry-internal';
+  return source;
+}
+
 function hasArg(args, name) {
   return args.some((arg) => arg === name || arg.startsWith(`${name}=`));
 }
@@ -691,12 +719,14 @@ function handleCodexJsonLine({ line, job, projectDir }) {
   const type = String(event.type || event.event || '');
   const text = extractCodexEventText(event);
   if (text) {
-    const source = /error|failed/i.test(type) ? 'stderr' : 'stdout';
+    const rawSource = /error|failed/i.test(type) ? 'stderr' : 'stdout';
+    const source = reclassifyCodexErrorSource(rawSource, text);
     if (source === 'stderr') {
       job.error = `${job.error}${text}\n`.slice(-MAX_JOB_TEXT_LENGTH);
-    } else {
+    } else if (source === 'stdout') {
       job.output = `${job.output}${text}\n`.slice(-MAX_JOB_TEXT_LENGTH);
     }
+    // retry-network / retry-internal: only append message, don't pollute error/output buffers
     appendJobMessage(job, { role: 'assistant', source, content: compactStreamText(text, 2200) });
   } else {
     job.trace = `${job.trace}${line}\n`.slice(-MAX_JOB_TEXT_LENGTH);
@@ -812,8 +842,11 @@ export function startCodexGeneration({
   child.stderr.on('data', (chunk) => {
     const content = chunk.toString();
     if (isErrorLikeStderr(content)) {
-      job.error = `${job.error}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
-      appendJobMessage(job, { role: 'assistant', source: 'stderr', content: compactStreamText(content, 2200) });
+      const source = reclassifyCodexErrorSource('stderr', content);
+      if (source === 'stderr') {
+        job.error = `${job.error}${content}`.slice(-MAX_JOB_TEXT_LENGTH);
+      }
+      appendJobMessage(job, { role: 'assistant', source, content: compactStreamText(content, 2200) });
       persistCodexJob(projectDir, job);
       return;
     }
