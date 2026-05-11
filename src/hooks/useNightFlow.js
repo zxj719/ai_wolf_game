@@ -348,6 +348,7 @@ export function useNightFlow({
             logger.debug(`[守卫AI] 守护目标：${res.targetId}号`);
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 守卫守护了 ${res.targetId}号`, 'system');
+              if (res.thought) addLog(`💭 [${actor.id}号 守卫] ${res.thought}`, 'thought');
             }
             recordNightAction({
               playerId: actor.id,
@@ -364,11 +365,35 @@ export function useNightFlow({
             logger.debug(`[守卫AI] 选择空守`);
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 守卫选择空守`, 'system');
+              if (res.thought) addLog(`💭 [${actor.id}号 守卫] ${res.thought}`, 'thought');
             }
+            recordNightAction({
+              playerId: actor.id,
+              type: '守护',
+              target: null,
+              night: dayCount,
+              thought: res.thought,
+              description: '空守（AI 主动选择不守护任何人）',
+              timestamp: Date.now()
+            });
+            setGuardHistory([...guardHistory, { night: dayCount, targetId: null, thought: res.thought, reason: '主动空守' }]);
             mergeNightDecisions({ guardTarget: null });
           }
         } else {
           logger.debug(`[守卫AI] AI决策无效或被过滤，强制空守`);
+          if (gameMode === 'ai-only') {
+            addLog(`[${actor.id}号] 守卫决策无效，强制空守`, 'warning');
+          }
+          recordNightAction({
+            playerId: actor.id,
+            type: '守护',
+            target: null,
+            night: dayCount,
+            thought: res?.thought,
+            description: 'AI 决策无效或被过滤，强制空守',
+            timestamp: Date.now()
+          });
+          setGuardHistory([...guardHistory, { night: dayCount, targetId: null, thought: res?.thought, reason: 'AI 决策被过滤' }]);
           mergeNightDecisions({ guardTarget: null });
         }
       }
@@ -394,6 +419,7 @@ export function useNightFlow({
             logger.debug(`[魔术师AI] 交换${res.player1Id}号和${res.player2Id}号`);
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 魔术师交换了 ${res.player1Id}号 和 ${res.player2Id}号`, 'system');
+              if (res.thought) addLog(`💭 [${actor.id}号 魔术师] ${res.thought}`, 'thought');
             }
             recordNightAction({
               playerId: actor.id,
@@ -411,15 +437,34 @@ export function useNightFlow({
           } else {
             logger.debug(`[魔术师AI] 交换无效：${validation.reason}，强制不交换`);
             if (gameMode === 'ai-only') {
-              addLog(`[${actor.id}号] 魔术师选择不交换`, 'system');
+              addLog(`[${actor.id}号] 魔术师交换被拒（${validation.reason}），不交换`, 'warning');
             }
+            recordNightAction({
+              playerId: actor.id,
+              type: '交换',
+              target: null,
+              night: dayCount,
+              thought: res.thought,
+              description: `交换被拒：${validation.reason}`,
+              timestamp: Date.now()
+            });
             mergeNightDecisions({ magicianSwap: null });
           }
         } else {
           logger.debug(`[魔术师AI] 选择不交换`);
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 魔术师选择不交换`, 'system');
+            if (res?.thought) addLog(`💭 [${actor.id}号 魔术师] ${res.thought}`, 'thought');
           }
+          recordNightAction({
+            playerId: actor.id,
+            type: '交换',
+            target: null,
+            night: dayCount,
+            thought: res?.thought,
+            description: res ? 'AI 主动选择不交换' : 'AI 决策失败，不交换',
+            timestamp: Date.now()
+          });
           mergeNightDecisions({ magicianSwap: null });
           // 即使不交换，也要更新lastSwap为null（表示这一晚没交换）
           setMagicianHistory({ ...(magicianHistory || { swappedPlayers: [] }), lastSwap: null });
@@ -444,6 +489,7 @@ export function useNightFlow({
             if (gameMode === 'ai-only') {
               const modeText = res.dreamMode === 'defense' ? '防御' : res.dreamMode === 'offense' ? '进攻' : '殉情';
               addLog(`[${actor.id}号] 摄梦人入梦 ${res.dreamTarget}号（${modeText}模式）`, 'system');
+              if (res.thought) addLog(`💭 [${actor.id}号 摄梦人] ${res.thought}`, 'thought');
             }
             recordNightAction({
               playerId: actor.id,
@@ -464,8 +510,17 @@ export function useNightFlow({
               mergeNightDecisions({ dreamTarget: fallback });
               setDreamweaverHistory(updateDreamweaverHistory(dwHistory, fallback));
               if (gameMode === 'ai-only') {
-                addLog(`[${actor.id}号] 摄梦人入梦 ${fallback}号（备选）`, 'system');
+                addLog(`[${actor.id}号] 摄梦人入梦 ${fallback}号（备选，${validation.reason}）`, 'warning');
               }
+              recordNightAction({
+                playerId: actor.id,
+                type: '入梦',
+                target: fallback,
+                night: dayCount,
+                thought: res.thought,
+                description: `入梦 ${fallback}号（备选：${validation.reason}）`,
+                timestamp: Date.now()
+              });
             }
           }
         } else {
@@ -476,8 +531,17 @@ export function useNightFlow({
             mergeNightDecisions({ dreamTarget: fallback });
             setDreamweaverHistory(updateDreamweaverHistory(dwHistory, fallback));
             if (gameMode === 'ai-only') {
-              addLog(`[${actor.id}号] 摄梦人入梦 ${fallback}号（随机）`, 'system');
+              addLog(`[${actor.id}号] 摄梦人入梦 ${fallback}号（随机兜底）`, 'warning');
             }
+            recordNightAction({
+              playerId: actor.id,
+              type: '入梦',
+              target: fallback,
+              night: dayCount,
+              thought: res?.thought,
+              description: `入梦 ${fallback}号（AI 未返回有效目标，随机兜底）`,
+              timestamp: Date.now()
+            });
           }
         }
       }
@@ -501,6 +565,7 @@ export function useNightFlow({
           logger.debug(`[狼人AI] 狼人袭击目标：${res.targetId}号`);
           if (gameMode === 'ai-only') {
             addLog(`[${actor.id}号] 狼人选择袭击 ${res.targetId}号`, 'system');
+            if (res.thought) addLog(`💭 [${actor.id}号 狼人] ${res.thought}`, 'thought');
           }
           recordNightAction({
             playerId: actor.id,
@@ -518,7 +583,7 @@ export function useNightFlow({
             const fallbackTarget = validTargets[Math.floor(Math.random() * validTargets.length)];
             logger.debug(`[狼人AI] 随机选择袭击目标：${fallbackTarget}号`);
             if (gameMode === 'ai-only') {
-              addLog(`[${actor.id}号] 狼人选择袭击 ${fallbackTarget}号`, 'system');
+              addLog(`[${actor.id}号] 狼人选择袭击 ${fallbackTarget}号（随机兜底）`, 'warning');
             }
             recordNightAction({
               playerId: actor.id,
@@ -526,12 +591,21 @@ export function useNightFlow({
               target: fallbackTarget,
               night: dayCount,
               thought: res?.thought,
-              description: `袭击 ${fallbackTarget}号 (随机)`,
+              description: `袭击 ${fallbackTarget}号 (AI 决策无效，随机兜底)`,
               timestamp: Date.now()
             });
             mergeNightDecisions({ wolfTarget: fallbackTarget, wolfSkipKill: false });
           } else {
             logger.error(`[狼人AI] 错误：没有可袭击目标，这不应该发生！`);
+            recordNightAction({
+              playerId: actor.id,
+              type: '袭击',
+              target: null,
+              night: dayCount,
+              thought: res?.thought,
+              description: '无可袭击目标（错误状态）',
+              timestamp: Date.now()
+            });
           }
         }
       }
@@ -545,9 +619,25 @@ export function useNightFlow({
         // 即使 useEffect 重触发、LLM 重试，第二次调用直接短路
         if (nightDecisions.seerCheckedThisNight) {
           logger.warn(`[预言家AI] 本晚已查验过，硬锁拦截（seerCheckedThisNight=true）`);
+          recordNightAction({
+            playerId: actor.id,
+            type: '查验',
+            target: null,
+            night: dayCount,
+            description: '硬锁拦截：本晚已查验过',
+            timestamp: Date.now()
+          });
         } else if (validTargets.length === 0) {
           logger.debug(`[预言家AI] 所有目标已验完`);
           addLog(`预言家已验完所有目标。`, 'system');
+          recordNightAction({
+            playerId: actor.id,
+            type: '查验',
+            target: null,
+            night: dayCount,
+            description: '所有目标已验完',
+            timestamp: Date.now()
+          });
         } else {
           logger.debug(`[预言家AI] 开始查验决策`);
           // BT 短路：hybrid 模式下预言家查验走行为树
@@ -567,7 +657,16 @@ export function useNightFlow({
             const seerValidation = validateDecision('NIGHT_SEER', seerSnapshot, { targetId: res.targetId });
             if (!seerValidation.valid) {
               logger.warn(`[预言家AI] 验证拒绝：${seerValidation.reason}`);
-              if (gameMode === 'ai-only') addLog(`[${actor.id}号] 预言家查验被拒（${seerValidation.reason}）`, 'system');
+              if (gameMode === 'ai-only') addLog(`[${actor.id}号] 预言家查验被拒（${seerValidation.reason}）`, 'warning');
+              recordNightAction({
+                playerId: actor.id,
+                type: '查验',
+                target: res.targetId,
+                night: dayCount,
+                thought: res.thought,
+                description: `查验 ${res.targetId}号 被验证器拒绝：${seerValidation.reason}`,
+                timestamp: Date.now()
+              });
             } else {
             // 应用魔术师交换重定向查验目标
             const originalTarget = res.targetId;
@@ -578,6 +677,7 @@ export function useNightFlow({
               logger.debug(`[预言家AI] 选择查验${originalTarget}号，魔术师交换后实际查验${finalSeerTarget}号，结果：${isWolf ? '狼人' : '好人'}`);
               if (gameMode === 'ai-only') {
                 addLog(`[${actor.id}号] 预言家查验了 ${originalTarget}号，结果是${isWolf ? '狼人' : '好人'}`, 'system');
+                if (res.thought) addLog(`💭 [${actor.id}号 预言家] ${res.thought}`, 'thought');
               }
               recordNightAction({
                 playerId: actor.id,
@@ -594,13 +694,32 @@ export function useNightFlow({
               setSeerChecks(prev => [...prev, { night: dayCount, targetId: originalTarget, isWolf, seerId: actor.id, thought: res.thought }]);
             } else {
               logger.error(`[预言家AI] 无法找到目标玩家 ${res.targetId}`);
+              recordNightAction({
+                playerId: actor.id,
+                type: '查验',
+                target: res.targetId,
+                night: dayCount,
+                thought: res.thought,
+                description: `查验失败：找不到目标玩家 ${res.targetId}`,
+                timestamp: Date.now()
+              });
             }
             } // end seerValidation.valid
           } else {
             logger.debug(`[预言家AI] AI决策无效或被过滤:`, res);
             if (gameMode === 'ai-only') {
-              addLog(`[${actor.id}号] 预言家放弃查验`, 'system');
+              addLog(`[${actor.id}号] 预言家放弃查验`, 'warning');
+              if (res?.thought) addLog(`💭 [${actor.id}号 预言家] ${res.thought}`, 'thought');
             }
+            recordNightAction({
+              playerId: actor.id,
+              type: '查验',
+              target: null,
+              night: dayCount,
+              thought: res?.thought,
+              description: 'AI 决策无效或被过滤，放弃查验',
+              timestamp: Date.now()
+            });
           }
         }
       }
@@ -634,10 +753,12 @@ export function useNightFlow({
             { players, dayCount, nightDecisions, seerChecks, speechHistory: speechHistory ?? [], voteHistory: [], deathHistory },
             { nightStep, phase, witchAntidoteUsed: !actor.hasWitchSave, witchPoisonUsed: !actor.hasWitchPoison }
           );
+          let saveRejected = null;
           if (res.useSave && canSave) {
             const saveValidation = validateDecision('NIGHT_WITCH_SAVE', witchSnapshot, { targetId: dyingId });
             if (!saveValidation.valid) {
               logger.warn(`[女巫AI] 解药验证拒绝：${saveValidation.reason}`);
+              saveRejected = saveValidation.reason;
               res.useSave = false; // 阻断，继续走不使用逻辑
             }
           }
@@ -645,6 +766,7 @@ export function useNightFlow({
             logger.debug(`[女巫AI] 使用解药救${dyingId}号`);
             if (gameMode === 'ai-only') {
               addLog(`[${actor.id}号] 女巫使用解药救了 ${dyingId}号`, 'system');
+              if (res.thought) addLog(`💭 [${actor.id}号 女巫] ${res.thought}`, 'thought');
             }
             recordNightAction({
               playerId: actor.id,
@@ -662,10 +784,21 @@ export function useNightFlow({
             const poisonValidation = validateDecision('NIGHT_WITCH_POISON', witchSnapshot, { targetId: res.usePoison });
             if (!poisonValidation.valid) {
               logger.warn(`[女巫AI] 毒药验证拒绝：${poisonValidation.reason}`);
+              if (gameMode === 'ai-only') addLog(`[${actor.id}号] 女巫毒药被拒（${poisonValidation.reason}）`, 'warning');
+              recordNightAction({
+                playerId: actor.id,
+                type: '毒药',
+                target: res.usePoison,
+                night: dayCount,
+                thought: res.thought,
+                description: `毒药被验证器拒绝：${poisonValidation.reason}`,
+                timestamp: Date.now()
+              });
             } else {
               logger.debug(`[女巫AI] 使用毒药毒${res.usePoison}号`);
               if (gameMode === 'ai-only') {
                 addLog(`[${actor.id}号] 女巫使用毒药毒了 ${res.usePoison}号`, 'system');
+                if (res.thought) addLog(`💭 [${actor.id}号 女巫] ${res.thought}`, 'thought');
               }
               recordNightAction({
                 playerId: actor.id,
@@ -682,12 +815,34 @@ export function useNightFlow({
             }
           } else {
             logger.debug(`[女巫AI] 不使用药水`);
+            const reasonDetail = saveRejected ? `解药被拒（${saveRejected}）且不毒人` : '主动不用药';
             if (gameMode === 'ai-only') {
-              addLog(`[${actor.id}号] 女巫选择不使用药水`, 'system');
+              addLog(`[${actor.id}号] 女巫选择不使用药水${saveRejected ? `（${reasonDetail}）` : ''}`, saveRejected ? 'warning' : 'system');
+              if (res.thought) addLog(`💭 [${actor.id}号 女巫] ${res.thought}`, 'thought');
             }
+            recordNightAction({
+              playerId: actor.id,
+              type: '女巫行动',
+              target: null,
+              night: dayCount,
+              thought: res.thought,
+              description: `不使用药水（${reasonDetail}）。本夜被刀目标=${dyingId ?? '无'}，剩余解药=${actor.hasWitchSave}，剩余毒药=${actor.hasWitchPoison}`,
+              timestamp: Date.now()
+            });
           }
         } else {
           logger.debug(`[女巫AI] AI决策失败`);
+          if (gameMode === 'ai-only') {
+            addLog(`[${actor.id}号] 女巫 AI 决策失败，跳过`, 'warning');
+          }
+          recordNightAction({
+            playerId: actor.id,
+            type: '女巫行动',
+            target: null,
+            night: dayCount,
+            description: `AI 决策失败（未返回有效结果），跳过用药`,
+            timestamp: Date.now()
+          });
         }
 
         // 女巫是最后一步，传递完整的决策对象

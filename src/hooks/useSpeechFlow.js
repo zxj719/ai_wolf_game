@@ -199,7 +199,7 @@ export function useSpeechFlow({
             spokenIdsRef.current.add(currentSpeaker.id);
 
             if (gameMode === 'ai-only' && res.thought) {
-              addLog(`(思考) ${res.thought}`, "chat", `[${currentSpeaker.id}号]`);
+              addLog(`💭 [${currentSpeaker.id}号 ${currentSpeaker.role}] ${res.thought}`, 'thought');
             }
 
             if (res.speech) {

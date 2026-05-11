@@ -270,6 +270,9 @@ export function useDayFlow({
     if (targetId !== null) {
       const reason = res?.reason ? `(${res.reason})` : '';
       addLog(`[${hunter.id}号] ${hunter.name} 是猎人！开枪带走了 [${targetId}号]！${reason}`, 'danger');
+      if (gameMode === 'ai-only' && res?.thought) {
+        addLog(`💭 [${hunter.id}号 猎人] ${res.thought}`, 'thought');
+      }
 
       // 柱二：HUNTER_SHOOT 经分发器闸门（目标合法、射手仍可开枪、非自射）
       const hunterSnapshot = buildSnapshot(
@@ -541,6 +544,9 @@ export function useDayFlow({
       const reasonText = v.reasoning ? ` (${v.reasoning})` : '';
       const targetText = v.targetId === ABSTAIN_TARGET ? '弃票' : `[${v.targetId}号]`;
       addLog(`[${v.voterId}号] 投给 -> ${targetText}${reasonText}`, 'info');
+      if (gameMode === 'ai-only' && v.thought) {
+        addLog(`💭 [${v.voterId}号] 投票思考: ${v.thought}`, 'thought');
+      }
     });
 
     if (Object.keys(counts).length === 0) {

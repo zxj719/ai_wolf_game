@@ -2,6 +2,43 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-05-11] 游戏日志审计完整性修复（导出黑匣子）
+
+修复导出函数胜负误判 bug，补齐所有角色"空守/不用药/AI 决策无效"等分支的 nightAction 记录，让全 AI 模式下角色思考过程实时显示在 UI。
+
+### Bug 修复
+
+- **导出胜负误判**：`exportGameLog.js` 之前用 `aliveWolves > 0 → 狼人胜` 判定，完全忽略真实 `gameResult` 状态。中途导出未结束的游戏会被错误标记为狼人胜利。改为接收 `gameResult` 参数，未结束状态明确标注为"快照"。
+- **审计黑洞**：守卫空守、女巫不用药、预言家放弃查验、AI 决策无效/被拒等所有非"采取行动"分支只走 `addLog` 不写 `recordNightAction`，导出后看不到这些决策。现在每条分支都写 nightAction，附带 thought 和拒绝原因。
+
+### 新功能
+
+- **全 AI 模式实时思考过程**：useNightFlow 所有角色（守卫/狼人/预言家/女巫/魔术师/摄梦人）+ useDayFlow（投票/猎人开枪）+ useSpeechFlow（发言）在 ai-only 模式下，AI 的 `thought` 字段会通过新增的 `thought` 类型 addLog 实时显示。
+- **GameLog 新增 thought 类型样式**：紫色斜体、不大写、左对齐，与系统通知 / 警告 / 成功明显区分。
+- **导出文件加入完整事件流**：新增【完整事件流（系统日志）】、【结构化声明事件】、【当前阶段快照】、【未结算的夜间决策】四个 section。【AI 身份推理表】按天分组（之前只保留每人最后一次）。每条 nightAction 带时间戳和 source。
+- **addLog 现在自动写入 timestamp**，导出时按时序回放。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/utils/exportGameLog.js` | 重写 | 接收 gameResult/logs/claimHistory/currentPhaseData/phase/nightDecisions；按天分组推理表；加入完整事件流 |
+| `src/hooks/useNightFlow.js` | 修改 | 守卫/魔术师/摄梦人/狼人/预言家/女巫 所有 else 分支补 recordNightAction；ai-only 模式 addLog thought |
+| `src/hooks/useDayFlow.js` | 修改 | 投票循环和猎人开枪在 ai-only 模式 addLog thought |
+| `src/hooks/useSpeechFlow.js` | 修改 | 发言 thought 改用 'thought' 类型而非 'chat' |
+| `src/components/GameLog.jsx` | 修改 | 新增 'thought' 类型渲染（紫色斜体） |
+| `src/useWerewolfGame.js` | 修改 | addLog 自动写入 timestamp 字段 |
+| `src/modules/werewolf/WerewolfModule.jsx` | 修改 | 导出时透传 gameResult/logs/claimHistory/currentPhaseData/phase/nightStep/nightDecisions |
+
+### 根因诊断（来自用户反馈的游戏日志分析）
+
+用户提供了一份导出日志，发现：
+1. "胜利模式: 屠边模式 / 游戏结果: 狼人阵营胜利" 但 1 狼 vs 2 民 + 1 神，屠边条件未满足 → 导出函数自身 bug
+2. 守卫两晚都没记录、预言家无查验、女巫无用药 → AI 选择"空守/不用药"时只 addLog 没 recordNightAction，记录通道断了
+3. 第 2 天发言只有 2/5 人 → 导出是游戏中途快照（与上面胜负判错对应）
+
+这些都对应"无法区分'AI 选了空动作' vs '流程根本没跑到该角色'"的审计盲区，本次修复让导出文件具备完整的根因分析能力。
+
 ## [2026-05-08 ~ 05-10] Werewolf Agent Adapter v1 + 生产全链路修复
 
 从零搭建 MiniMax/Claude Code 狼人杀 AI 代理适配器，并修复生产环境端到端链路，使游戏从「完全无 AI 响应」到「8 玩家完整夜→天循环」可玩。

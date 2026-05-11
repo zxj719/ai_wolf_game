@@ -17,9 +17,13 @@ export function GameLog({ logs }) {
                   {log.text}
                 </div>
               </div>
+            ) : log.type === 'thought' ? (
+              <div className="px-5 py-2 rounded-xl text-[11px] italic border bg-purple-500/5 text-purple-300/80 border-purple-500/15 leading-relaxed">
+                {log.text}
+              </div>
             ) : (
               <div className={`px-5 py-2 rounded-xl text-[10px] font-black text-center border uppercase ${
-                log.type === 'danger' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 
+                log.type === 'danger' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                 log.type === 'warning' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
                 log.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
                 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'

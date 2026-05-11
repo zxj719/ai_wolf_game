@@ -1,12 +1,57 @@
 /**
  * 导出游戏日志为 .txt 文件并触发下载
+ *
+ * 设计目标：让单一 .txt 文件能够支持完整根因分析。
+ * 包含：玩家身份、死亡、发言（带思考与意向）、投票、神职行动、AI 思考过程、
+ * 推理表、声明事件流、完整事件流（logs）、当前阶段快照、游戏结果。
  */
-export function exportGameLog({ players, dayCount, deathHistory, speechHistory, voteHistory, seerChecks, guardHistory, witchHistory, victoryMode, nightActionHistory = [] }) {
+const ABSTAIN_TARGET = -1;
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function describeVictory({ gameResult, victoryMode, players }) {
+  const aliveWolves = players.filter(p => p.isAlive && p.role === '狼人').length;
+  const aliveVillagers = players.filter(p => p.isAlive && p.role === '村民').length;
+  const aliveGods = players.filter(p => p.isAlive && p.role !== '狼人' && p.role !== '村民').length;
+  const head = `胜利模式: ${victoryMode === 'edge' ? '屠边模式' : '屠城模式'}`;
+  const stats = `存活: 狼${aliveWolves} 民${aliveVillagers} 神${aliveGods}`;
+  if (gameResult === 'good_win') return `${head}\n${stats}\n游戏结果: 好人阵营胜利！`;
+  if (gameResult === 'wolf_win') return `${head}\n${stats}\n游戏结果: 狼人阵营胜利！`;
+  // 未结束：明确标注为快照，不再瞎猜赢家
+  return `${head}\n${stats}\n游戏结果: 游戏尚未结束（中途导出快照）`;
+}
+
+export function exportGameLog({
+  players,
+  dayCount,
+  deathHistory,
+  speechHistory,
+  voteHistory,
+  seerChecks,
+  guardHistory,
+  witchHistory,
+  victoryMode,
+  nightActionHistory = [],
+  gameResult = null,
+  logs = [],
+  claimHistory = [],
+  currentPhaseData = null,
+  phase = null,
+  nightStep = null,
+  nightDecisions = null,
+}) {
   const timestamp = new Date().toLocaleString('zh-CN');
   let logContent = `========================================\n`;
   logContent += `狼人杀游戏记录\n`;
   logContent += `导出时间: ${timestamp}\n`;
   logContent += `游戏天数: ${dayCount}\n`;
+  if (phase) logContent += `导出时阶段: ${phase}${nightStep != null ? ` (nightStep=${nightStep})` : ''}\n`;
   logContent += `========================================\n\n`;
 
   // 玩家身份列表
@@ -15,7 +60,15 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
   players.forEach(p => {
     const status = p.isAlive ? '存活' : '死亡';
     const userMark = p.isUser ? ' (你)' : '';
-    logContent += `${p.id}号 ${p.name}${userMark}: ${p.role} [${status}]\n`;
+    const flags = [];
+    if (p.isPoisoned) flags.push('中毒');
+    if (p.role === '女巫') {
+      flags.push(p.hasWitchSave ? '解药✓' : '解药✗');
+      flags.push(p.hasWitchPoison ? '毒药✓' : '毒药✗');
+    }
+    if (p.role === '猎人') flags.push(p.canHunterShoot ? '可开枪' : '不可开枪');
+    const flagStr = flags.length ? ` [${flags.join('|')}]` : '';
+    logContent += `${p.id}号 ${p.name}${userMark}: ${p.role} [${status}]${flagStr}\n`;
   });
   logContent += `\n`;
 
@@ -53,6 +106,7 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
       if (s.voteIntention !== undefined && s.voteIntention !== null) {
         logContent += `  🗳️ 投票意向: ${s.voteIntention === -1 ? '弃票' : s.voteIntention + '号'}\n`;
       }
+      if (s.summary) logContent += `  📝 自我摘要: ${s.summary}\n`;
     });
   }
   logContent += `\n`;
@@ -68,7 +122,7 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
       v.votes.forEach(vote => {
         const fromPlayer = players.find(p => p.id === vote.from);
         const toPlayer = players.find(p => p.id === vote.to);
-        const voteTargetText = vote.to === -1 ? '弃票' : `${vote.to}号(${toPlayer?.role || '?'})`;
+        const voteTargetText = vote.to === ABSTAIN_TARGET ? '弃票' : `${vote.to}号(${toPlayer?.role || '?'})`;
         logContent += `  ${vote.from}号(${fromPlayer?.role || '?'}) -> ${voteTargetText}\n`;
         if (vote.reasoning) {
           logContent += `    📣 公开理由: ${vote.reasoning}\n`;
@@ -97,6 +151,7 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
       const seer = players.find(p => p.id === c.seerId);
       const target = players.find(p => p.id === c.targetId);
       logContent += `第${c.night}夜: ${c.seerId}号(${seer?.name || ''}) 查验 ${c.targetId}号(${target?.name || ''}) = ${c.isWolf ? '狼人' : '好人'}\n`;
+      if (c.thought) logContent += `  💭 思考过程: ${c.thought}\n`;
     });
   }
   logContent += `\n`;
@@ -104,12 +159,17 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
   // 守卫记录
   logContent += `【守卫守护记录】\n`;
   logContent += `----------------------------------------\n`;
-  if (guardHistory.length === 0) {
+  if (!guardHistory || guardHistory.length === 0) {
     logContent += `无守护记录\n`;
   } else {
     guardHistory.forEach(g => {
-      const target = players.find(p => p.id === g.targetId);
-      logContent += `第${g.night}夜: 守护 ${g.targetId}号 ${target?.name || ''}\n`;
+      if (g.targetId == null) {
+        logContent += `第${g.night}夜: 空守${g.reason ? `（${g.reason}）` : ''}\n`;
+      } else {
+        const target = players.find(p => p.id === g.targetId);
+        logContent += `第${g.night}夜: 守护 ${g.targetId}号 ${target?.name || ''}\n`;
+      }
+      if (g.thought) logContent += `  💭 思考过程: ${g.thought}\n`;
     });
   }
   logContent += `\n`;
@@ -135,7 +195,24 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
   }
   logContent += `\n`;
 
-  // AI 夜间/行动决策思考过程（来自 nightActionHistory，覆盖所有角色每晚的思考）
+  // 结构化声明事件流（跳身份/对跳/反水等）
+  logContent += `【结构化声明事件】\n`;
+  logContent += `----------------------------------------\n`;
+  if (!claimHistory || claimHistory.length === 0) {
+    logContent += `无声明事件\n`;
+  } else {
+    claimHistory.forEach(c => {
+      const player = players.find(p => p.id === c.playerId);
+      const role = player?.role || '未知';
+      const payloadStr = c.payload && Object.keys(c.payload).length
+        ? ` ${JSON.stringify(c.payload)}`
+        : '';
+      logContent += `第${c.day}天 [${c.playerId}号 ${player?.name || ''} (${role})] ${c.type}${payloadStr}\n`;
+    });
+  }
+  logContent += `\n`;
+
+  // AI 夜间/行动决策思考过程（覆盖所有角色每晚的思考，包括 skip/invalid 分支）
   logContent += `【AI 决策思考过程】\n`;
   logContent += `----------------------------------------\n`;
   if (!nightActionHistory || nightActionHistory.length === 0) {
@@ -158,10 +235,12 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
         const player = players.find(p => p.id === a.playerId);
         const role = player?.role || '未知';
         const name = player?.name || '';
-        const head = `[${a.playerId}号 ${name} (${role})] ${a.type || '行动'}`;
+        const time = a.timestamp ? `[${fmtTime(a.timestamp)}] ` : '';
+        const head = `${time}[${a.playerId}号 ${name} (${role})] ${a.type || '行动'}`;
         const desc = a.description ? ` · ${a.description}` : (a.target != null ? ` · 目标 ${a.target}号` : '');
         const extra = a.result ? ` · 结果：${a.result}` : '';
-        logContent += `${head}${desc}${extra}\n`;
+        const src = a.source ? ` · 来源：${a.source}` : '';
+        logContent += `${head}${desc}${extra}${src}\n`;
         if (a.thought) {
           logContent += `  💭 思考过程: ${a.thought}\n`;
         }
@@ -170,38 +249,81 @@ export function exportGameLog({ players, dayCount, deathHistory, speechHistory, 
   }
   logContent += `\n`;
 
-  // AI 身份推理表（最终状态）
-  logContent += `【AI 身份推理表】\n`;
+  // AI 身份推理表（每一天每位玩家的最新一份）
+  logContent += `【AI 身份推理表（按天）】\n`;
   logContent += `----------------------------------------\n`;
-  const lastIdentityTables = {};
+  // 改进：保留每个 (playerId, day) 的推理表，而不是只保留最后一个
+  const tablesByDayByPlayer = {};
   speechHistory.forEach(s => {
     if (s.identity_table) {
-      lastIdentityTables[s.playerId] = { table: s.identity_table, day: s.day };
+      const day = s.day;
+      if (!tablesByDayByPlayer[day]) tablesByDayByPlayer[day] = {};
+      tablesByDayByPlayer[day][s.playerId] = s.identity_table;
     }
   });
-  if (Object.keys(lastIdentityTables).length === 0) {
+  if (Object.keys(tablesByDayByPlayer).length === 0) {
     logContent += `无推理表记录\n`;
   } else {
-    Object.entries(lastIdentityTables).forEach(([playerId, data]) => {
-      const player = players.find(p => p.id === parseInt(playerId));
-      logContent += `\n${playerId}号 ${player?.name || ''} (${player?.role || '未知'}) 的推理表 (第${data.day}天):\n`;
-      Object.entries(data.table).forEach(([targetId, info]) => {
-        const target = players.find(p => p.id === parseInt(targetId));
-        logContent += `  → ${targetId}号 ${target?.name || ''}: ${info.suspect || '未知'} (置信度:${info.confidence || 0}%) - ${info.reason || '无'}\n`;
+    Object.keys(tablesByDayByPlayer).sort((a, b) => +a - +b).forEach(day => {
+      logContent += `\n=== 第${day}天 ===\n`;
+      Object.entries(tablesByDayByPlayer[day]).forEach(([playerId, table]) => {
+        const player = players.find(p => p.id === parseInt(playerId));
+        logContent += `\n${playerId}号 ${player?.name || ''} (${player?.role || '未知'}):\n`;
+        Object.entries(table).forEach(([targetId, info]) => {
+          const target = players.find(p => p.id === parseInt(targetId));
+          logContent += `  → ${targetId}号 ${target?.name || ''}: ${info.suspect || '未知'} (置信度:${info.confidence || 0}%) - ${info.reason || '无'}\n`;
+        });
       });
     });
   }
   logContent += `\n`;
 
+  // 完整事件流（系统/警告/信息 log 全量保留，便于定位异常）
+  logContent += `【完整事件流（系统日志）】\n`;
+  logContent += `----------------------------------------\n`;
+  if (!logs || logs.length === 0) {
+    logContent += `无事件\n`;
+  } else {
+    logs.forEach(l => {
+      const time = l.timestamp ? `[${fmtTime(l.timestamp)}] ` : '';
+      const tag = l.type ? `[${l.type}]` : '[info]';
+      const speaker = l.speaker ? `<${l.speaker}> ` : '';
+      logContent += `${time}${tag} ${speaker}${l.text}\n`;
+    });
+  }
+  logContent += `\n`;
+
+  // 当前阶段快照（用于中途导出时定位 AI 卡在哪一步）
+  if (currentPhaseData && (currentPhaseData.speeches?.length || currentPhaseData.actions?.length)) {
+    logContent += `【当前阶段快照（未结算）】\n`;
+    logContent += `----------------------------------------\n`;
+    if (currentPhaseData.speeches?.length) {
+      logContent += `本阶段发言 (${currentPhaseData.speeches.length} 条):\n`;
+      currentPhaseData.speeches.forEach(s => {
+        const time = s.timestamp ? `[${fmtTime(s.timestamp)}] ` : '';
+        logContent += `  ${time}${s.playerId}号 ${s.name || ''}: ${s.content || ''}\n`;
+      });
+    }
+    if (currentPhaseData.actions?.length) {
+      logContent += `本阶段行动 (${currentPhaseData.actions.length} 条):\n`;
+      currentPhaseData.actions.forEach(a => {
+        const time = a.timestamp ? `[${fmtTime(a.timestamp)}] ` : '';
+        logContent += `  ${time}${a.playerId}号 ${a.type}${a.target != null ? ` -> ${a.target}号` : ''}${a.description ? ` (${a.description})` : ''}\n`;
+      });
+    }
+    logContent += `\n`;
+  }
+
+  // 未结算的夜间决策（如果导出时仍在夜里）
+  if (nightDecisions && phase === 'night') {
+    logContent += `【未结算的夜间决策】\n`;
+    logContent += `----------------------------------------\n`;
+    logContent += JSON.stringify(nightDecisions, null, 2) + '\n\n';
+  }
+
   // 游戏结果
   logContent += `========================================\n`;
-  logContent += `胜利模式: ${victoryMode === 'edge' ? '屠边模式' : '屠城模式'}\n`;
-  const aliveWolves = players.filter(p => p.isAlive && p.role === '狼人').length;
-  if (aliveWolves === 0) {
-    logContent += `游戏结果: 好人阵营胜利！\n`;
-  } else {
-    logContent += `游戏结果: 狼人阵营胜利！\n`;
-  }
+  logContent += describeVictory({ gameResult, victoryMode, players }) + '\n';
   logContent += `========================================\n`;
 
   // 创建下载

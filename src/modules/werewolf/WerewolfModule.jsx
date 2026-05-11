@@ -432,6 +432,13 @@ export default function WerewolfModule() {
     players, dayCount, deathHistory, speechHistory, voteHistory,
     seerChecks, guardHistory, witchHistory, victoryMode,
     nightActionHistory,
+    gameResult,
+    logs,
+    claimHistory,
+    currentPhaseData,
+    phase,
+    nightStep,
+    nightDecisions,
   });
 
   const restartGame = () => {

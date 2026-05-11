@@ -406,7 +406,8 @@ export function useWerewolfGame(config) {
   });
 
   const addLog = (text, type = 'info', speaker = null) => {
-    pushLog({ text, type, speaker, id: `${Date.now()}-${Math.random()}` });
+    const ts = Date.now();
+    pushLog({ text, type, speaker, id: `${ts}-${Math.random()}`, timestamp: ts });
   };
 
   const initGame = async (mode = 'player', customConfig = null) => {
