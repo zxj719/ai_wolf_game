@@ -66,7 +66,7 @@ export function validateWitchSave(snapshot, decision) {
     return { valid: false, reason: '女巫解药已用过，不可重复使用' };
   }
 
-  const killedTonight = snapshot.nightDecisions?.wolfKill;
+  const killedTonight = snapshot.nightDecisions?.wolfTarget;
   if (killedTonight == null) {
     return { valid: false, reason: '本晚无人被刀，无需使用解药' };
   }
@@ -92,7 +92,7 @@ export function validateWitchPoison(snapshot, decision) {
   if (!isAlive(snapshot, targetId)) {
     return { valid: false, reason: `毒药目标 ${targetId} 已死亡` };
   }
-  const killedTonight = snapshot.nightDecisions?.wolfKill;
+  const killedTonight = snapshot.nightDecisions?.wolfTarget;
   if (killedTonight != null && targetId === killedTonight) {
     return { valid: false, reason: '不允许对同晚被刀者使用毒药（同救同毒规则）' };
   }

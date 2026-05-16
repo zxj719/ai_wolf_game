@@ -537,7 +537,7 @@ ${buildCoreGameRules(existingRoles)}${gameTypeHint}
 4. 动机分析：怀疑某人时，必须分析其"狼人动机"（收益论）。
 5. 有效互动：可点名【存活】玩家解释【历史发言】。严禁评价【未发言】内容。
 6. 低信息应对：若信息少，可谈"平安夜"可能或简单站边。
-7. 【投票意向】：如果你对某人有足够怀疑(>60%确信)，在voteIntention字段输出该号码；如果信息不足无法判断，可输出-1表示暂不表态或弃票。
+7. 【投票意向】：voteIntention = 你想投票【淘汰/出局】的目标号码（即你认为是狼人、想投死的人）。注意：这不是你"支持/站边"的人！如果你站边某位预言家，应该投他指出的狼人目标，而不是投预言家本人。信息不足无法判断时输出-1表示弃票。
 8. 记忆与状态约束：
    - 只能根据【今日发言】和【投票记录】推理。
    - 【严禁幻视】：绝对不要评价【尚未发言】的玩家！${temporalWarning}${rolesInGame}
@@ -899,7 +899,8 @@ Step2: 我今天应该保守还是激进？
 Step3: 如果要发言攻击，应该踩谁？
 Step4: 我的投票意向应该指向谁（好人中最有威胁的）？
 
-输出JSON:{"thought":"狼人视角分析...","speech":"伪装后的公开发言(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色猜测","confidence":0-100,"reason":"推理依据"}}}`,
+输出JSON:{"thought":"狼人视角分析...","speech":"伪装后的公开发言(40-80字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色猜测","confidence":0-100,"reason":"推理依据"}}}
+注意: voteDecided=true表示你已经想好投谁了(投票阶段直接用voteIntention)；voteDecided=false表示你还需要听完所有人发言再决定(投票阶段会再给你一次思考机会)`,
 
     '预言家': (ctx, params) => {
         const myChecks = params.seerChecks?.filter(c => c.seerId === params.playerId) || [];
@@ -933,7 +934,8 @@ Step2: 场上谁在质疑我？如何反驳？
 Step3: 如何用查验结果建立我的公信力？
 Step4: 投票应该投谁？（查杀 > 可疑者，绝不投金水！）
 
-输出JSON:{"thought":"预言家视角分析...","speech":"报验人+分析(40-80字)","voteIntention":数字(不能是金水号码),"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+输出JSON:{"thought":"预言家视角分析...","speech":"报验人+分析(40-80字)","voteIntention":数字(不能是金水号码),"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
+注意: voteDecided=true表示你已经想好投谁了；voteDecided=false表示你还需要听完所有人发言再决定`;
     },
 
     '女巫': (ctx, params) => {
@@ -958,7 +960,8 @@ Step1: 我需要跳身份吗？跳身份的收益是什么？
 Step2: 如果不跳，我应该像平民一样说什么？
 Step3: 我的投票应该投谁？
 
-输出JSON:{"thought":"女巫视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+输出JSON:{"thought":"女巫视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
+注意: voteDecided=true表示已决定投谁；false表示需要投票阶段再思考`;
     },
 
     '猎人': (ctx, params) => `${getBaseContext(ctx)}
@@ -976,7 +979,8 @@ Step2: 如果不跳，我应该像平民一样分析局势
 Step3: 谁最像狼？如果我死了应该带走谁？
 Step4: 我的投票应该投谁？
 
-输出JSON:{"thought":"猎人视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`,
+输出JSON:{"thought":"猎人视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
+注意: voteDecided=true表示已决定投谁；false表示需要投票阶段再思考`,
 
     '守卫': (ctx, params) => {
         const { guardHistory, lastGuardTarget } = params;
@@ -1002,7 +1006,8 @@ Step2: 场上谁像预言家？我今晚可能需要守他
 Step3: 像平民一样分析，我应该说什么？
 Step4: 我的投票应该投谁？
 
-输出JSON:{"thought":"守卫视角分析...","speech":"像平民的发言(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+输出JSON:{"thought":"守卫视角分析...","speech":"像平民的发言(40-80字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
+注意: voteDecided=true表示已决定投谁；false表示需要投票阶段再思考`;
     },
 
     '村民': (ctx, params) => `${getBaseContext(ctx)}
@@ -1020,7 +1025,8 @@ Step2: 场上谁的发言最可疑？理由是什么？
 Step3: 我应该站边谁？为什么？
 Step4: 我的投票应该投谁？
 
-输出JSON:{"thought":"平民视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`
+输出JSON:{"thought":"平民视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
+注意: voteDecided=true表示已决定投谁；false表示需要投票阶段再思考`
 };
 
 /**
@@ -1037,9 +1043,12 @@ ${ctx.historySpeeches || '暂无'}
 
 【昨夜情况】${ctx.lastNightInfo}
 【投票记录(整局)】${ctx.voteInfo}${ctx.identityAnalysis?.hints || ''}
-${ctx.spokenPlayerIds?.length > 0
-    ? `\n【⚠️ 时序提醒】已发言玩家: ${ctx.spokenPlayerIds.join('号→')}号。只能评价已发言玩家！`
-    : '\n【⚠️ 时序提醒】你是第一个发言，不能评价任何人的发言！'}`;
+${(() => {
+    if (!ctx.spokenPlayerIds?.length) return '\n【⚠️ 时序提醒】你是第一个发言，不能评价任何人的发言！';
+    const aliveIds = ctx.aliveIdsString ? ctx.aliveIdsString.split(',').map(Number) : [];
+    const unspoken = aliveIds.filter(id => !ctx.spokenPlayerIds.includes(id));
+    return `\n【⚠️ 时序提醒】已发言(${ctx.spokenPlayerIds.length}人): ${ctx.spokenPlayerIds.join('号,')}号。未发言(${unspoken.length}人): ${unspoken.map(id => id + '号').join(',')}。只能评价已发言玩家！`;
+  })()}`;
 
 export const generateUserPrompt = (actionType, gameState, params = {}) => {
     const ctx = prepareGameContext(gameState);

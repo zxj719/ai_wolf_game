@@ -108,17 +108,17 @@ export function useDayFlow({
   const moveToNextSpeaker = useCallback(() => {
     if (gameActiveRef && !gameActiveRef.current) return;
     const alivePlayers = players.filter(p => p.isAlive);
-    const newSpokenCount = spokenCount + 1;
-    
-    console.log(`[moveToNextSpeaker] 当前已发言: ${spokenCount}, 存活玩家: ${alivePlayers.length}`);
-    
-    // 检查实际发言历史与计数是否匹配
-    const actualSpokenCount = speechHistory.filter(s => s.day === dayCount).length;
-    const effectiveCount = Math.max(newSpokenCount, actualSpokenCount);
-    
-    setSpokenCount(effectiveCount);
 
-    if (effectiveCount >= alivePlayers.length) {
+    // 直接验证是否所有存活玩家都已发言（比计数器更可靠，避免闭包过期导致跳人）
+    const allSpoken = alivePlayers.every(p =>
+      speechHistory.some(s => s.day === dayCount && s.playerId === p.id)
+    );
+    const spokenThisDay = speechHistory.filter(s => s.day === dayCount).length;
+    setSpokenCount(spokenThisDay);
+
+    console.log(`[moveToNextSpeaker] 已发言: ${spokenThisDay}/${alivePlayers.length}, allSpoken=${allSpoken}`);
+
+    if (allSpoken) {
       console.log(`[moveToNextSpeaker] 全员发言完毕，进入投票阶段`);
       setSpeakerIndex(-1);
       setPhase('day_voting');
@@ -129,13 +129,12 @@ export function useDayFlow({
         let next = prev + direction;
         if (next < 0) next = alivePlayers.length - 1;
         if (next >= alivePlayers.length) next = 0;
-        
-        // 跳过已经发言过的玩家
+
         let attempts = 0;
         while (attempts < alivePlayers.length) {
           const nextPlayer = alivePlayers[next];
           if (nextPlayer && !speechHistory.some(s => s.day === dayCount && s.playerId === nextPlayer.id)) {
-            console.log(`[moveToNextSpeaker] 下一个发言: ${next}号 (${nextPlayer.id}号)`);
+            console.log(`[moveToNextSpeaker] 下一个发言: index=${next} (${nextPlayer.id}号 ${nextPlayer.name})`);
             return next;
           }
           next = next + direction;
@@ -143,16 +142,16 @@ export function useDayFlow({
           if (next >= alivePlayers.length) next = 0;
           attempts++;
         }
-        
-        // 如果所有人都发言了，进入投票
-        console.log(`[moveToNextSpeaker] 所有人都已发言，进入投票`);
+
+        // 循环完毕仍没找到未发言者 → 全员已发言
+        console.log(`[moveToNextSpeaker] 循环检查：所有人都已发言，进入投票`);
         setSpeakerIndex(-1);
         setPhase('day_voting');
         addLog('全员发言结束，进入放逐投票阶段。', 'system');
         return -1;
       });
     }
-  }, [addLog, dayCount, gameActiveRef, players, speakingOrder, speechHistory, spokenCount, setPhase, setSpeakerIndex, setSpokenCount]);
+  }, [addLog, dayCount, gameActiveRef, players, speakingOrder, speechHistory, setPhase, setSpeakerIndex, setSpokenCount]);
 
   const startDayDiscussion = useCallback((currentPlayers, nightDeads = [], TOTAL_PLAYERS, clearPhaseData) => {
     if (gameActiveRef && !gameActiveRef.current) return;
@@ -485,9 +484,11 @@ export function useDayFlow({
 
       const validVoteTargets = aliveIds.filter(id => id !== p.id);
 
-      // 优先使用发言意向，-1 表示公开弃票，不再随机改票。
+      // voteDecided 机制：发言阶段 AI 填 voteDecided=true 表示已决定，直接用 voteIntention；
+      // voteDecided=false 或无效则给 AI 一次额外投票思考调用
+      const decided = mySpeech?.voteDecided === true;
       const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
-      if (speechVoteTarget === ABSTAIN_TARGET || validVoteTargets.includes(speechVoteTarget)) {
+      if (decided && (speechVoteTarget === ABSTAIN_TARGET || validVoteTargets.includes(speechVoteTarget))) {
         targetId = speechVoteTarget;
         reasoning = '遵循发言意向';
       } else {
@@ -565,12 +566,19 @@ export function useDayFlow({
     }
 
     const maxVotes = Math.max(...Object.values(counts));
-    const topCandidates = Object.keys(counts).filter(id => parseInt(counts[id]) === maxVotes); // Ensure numeric comparison
+    const topCandidates = Object.keys(counts).filter(id => parseInt(counts[id]) === maxVotes);
     let outPlayer;
     if (topCandidates.length > 1) {
-      addLog(`平票！[${topCandidates.join('号]和[')}号] 各获得 ${maxVotes} 票，PK后随机出局。`, 'warning');
-      const outId = topCandidates[Math.floor(Math.random() * topCandidates.length)];
-      outPlayer = players.find(p => p.id === parseInt(outId, 10));
+      addLog(`平票！[${topCandidates.join('号]和[')}号] 各获得 ${maxVotes} 票，进入 PK 环节。`, 'warning');
+      recordVoteRound({
+        day: dayCount,
+        votes: votes.map(v => ({ from: v.voterId, to: v.targetId, reasoning: v.reasoning || '', thought: v.thought || '' })),
+        eliminatedId: null,
+      });
+      setIsThinking(false);
+      setSelectedTarget(null);
+      handlePKRound(topCandidates.map(id => parseInt(id, 10)), aliveIds);
+      return;
     } else {
       outPlayer = players.find(p => p.id === parseInt(topCandidates[0], 10));
     }
@@ -618,7 +626,119 @@ export function useDayFlow({
     }
     setIsThinking(false);
     setSelectedTarget(null);
-  }, [addLog, checkGameEnd, dayCount, gameActiveRef, players, recordVoteRound, setIsThinking, setPhase, setSelectedTarget]);
+  // handlePKRound 声明在后面，不能放进 deps（TDZ），走闭包引用
+  }, [addLog, checkGameEnd, dayCount, gameActiveRef, gameMode, players, recordVoteRound, setIsThinking, setPhase, setSelectedTarget]);
+
+  // PK 平票处理：被 tie 的候选人各发一段 PK 发言 → 全员重投 → 再平票进夜
+  const handlePKRound = useCallback(async (pkCandidateIds, aliveIds) => {
+    if (gameActiveRef && !gameActiveRef.current) return;
+    setIsThinking(true);
+    addLog('--- PK 环节开始 ---', 'system');
+
+    // PK 发言：每个 tied 候选人发一段为自己辩护的话
+    for (const candidateId of pkCandidateIds) {
+      if (gameActiveRef && !gameActiveRef.current) break;
+      const candidate = players.find(p => p.id === candidateId);
+      if (!candidate || !candidate.isAlive) continue;
+
+      const res = await askAI(candidate, PROMPT_ACTIONS.DAY_SPEECH, { pkMode: true });
+      if (res?.speech) {
+        addLog(`[PK] [${candidate.id}号] ${candidate.name}: ${res.speech}`, 'chat');
+        if (gameMode === 'ai-only' && res.thought) {
+          addLog(`💭 [${candidate.id}号 PK] ${res.thought}`, 'thought');
+        }
+      }
+    }
+
+    addLog('PK 发言结束，进入 PK 投票。', 'system');
+
+    // PK 投票：所有存活玩家投票，只能在 PK 候选人之间选或弃票
+    const alive = players.filter(p => p.isAlive);
+    const pkVoteResults = [];
+    for (const p of alive) {
+      if (gameActiveRef && !gameActiveRef.current) break;
+      let targetId = null;
+      let reasoning = '';
+      let thought = '';
+      const validTargets = pkCandidateIds.filter(id => id !== p.id);
+
+      if (validTargets.length === 0) {
+        pkVoteResults.push({ voterId: p.id, voterName: p.name, targetId: ABSTAIN_TARGET, reasoning: 'PK 候选人只有自己，自动弃票', thought: '' });
+        continue;
+      }
+
+      const btResult = await btDecide(p, 'DAY_VOTE',
+        { players, speechHistory, voteHistory, seerChecks, dayCount },
+        { validTargets });
+
+      if (btResult && btResult.targetId != null) {
+        targetId = btResult.targetId;
+        reasoning = btResult.reasoning;
+      } else {
+        const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, {
+          validTargets,
+          seerConstraint: '',
+          pkMode: true,
+          pkCandidates: pkCandidateIds,
+        });
+        targetId = res?.targetId;
+        reasoning = res?.reasoning || '';
+        thought = res?.thought || '';
+      }
+
+      pkVoteResults.push(buildVoteRecord({
+        voter: p,
+        targetId,
+        validTargets,
+        reasoning,
+        thought,
+      }));
+    }
+    const pkVotes = pkVoteResults.filter(v => v !== null);
+
+    // 统计 PK 票数
+    addLog('--- PK 投票记录 ---', 'system');
+    pkVotes.forEach(v => {
+      const targetText = v.targetId === ABSTAIN_TARGET ? '弃票' : `[${v.targetId}号]`;
+      addLog(`[${v.voterId}号] PK投票 -> ${targetText}${v.reasoning ? ` (${v.reasoning})` : ''}`, 'info');
+    });
+
+    const pkCounted = pkVotes.filter(v => pkCandidateIds.includes(v.targetId));
+    const pkCounts = pkCounted.reduce((acc, v) => {
+      acc[v.targetId] = (acc[v.targetId] || 0) + 1;
+      return acc;
+    }, {});
+
+    if (Object.keys(pkCounts).length === 0) {
+      addLog('PK 投票全部弃票，无人出局，进入下一夜。', 'warning');
+      setIsThinking(false);
+      proceedToNextNight();
+      return;
+    }
+
+    const pkMax = Math.max(...Object.values(pkCounts));
+    const pkTop = Object.keys(pkCounts).filter(id => pkCounts[id] === pkMax);
+
+    if (pkTop.length > 1) {
+      addLog(`PK 仍然平票！[${pkTop.join('号]和[')}号] 各获得 ${pkMax} 票，无人出局，直接进入夜晚。`, 'warning');
+      setIsThinking(false);
+      proceedToNextNight();
+      return;
+    }
+
+    const pkOutPlayer = players.find(p => p.id === parseInt(pkTop[0], 10));
+    if (!pkOutPlayer) {
+      addLog('PK 投票目标不存在，进入下一夜。', 'system');
+      setIsThinking(false);
+      proceedToNextNight();
+      return;
+    }
+
+    addLog(`[${pkOutPlayer.id}号] ${pkOutPlayer.name} 在 PK 中被淘汰。`, 'danger');
+    setIsThinking(false);
+    setPhase('day_processing');
+    handlePlayerElimination(pkOutPlayer);
+  }, [addLog, askAI, dayCount, gameActiveRef, gameMode, players, proceedToNextNight, setIsThinking, setPhase, speechHistory, seerChecks, voteHistory]);
 
   const handlePlayerElimination = useCallback((outPlayer) => {
     if (gameActiveRef && !gameActiveRef.current) return;
@@ -682,8 +802,9 @@ export function useDayFlow({
       let reasoning = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
 
+      const decided = mySpeech?.voteDecided === true;
       const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
-      if (speechVoteTarget === ABSTAIN_TARGET || validTargets.includes(speechVoteTarget)) {
+      if (decided && (speechVoteTarget === ABSTAIN_TARGET || validTargets.includes(speechVoteTarget))) {
         targetId = speechVoteTarget;
         reasoning = '遵循发言意向';
       } else {
