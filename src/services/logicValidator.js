@@ -217,6 +217,17 @@ export function validateNightAction(result, actionType, ctx = {}) {
     }
   }
 
+  // 狼人专项：禁止刀队友
+  if (actionType === 'NIGHT_WOLF' || actionType === 'wolf') {
+    if (result.targetId != null) {
+      const target = (ctx.players ?? []).find(p => p.id === result.targetId);
+      if (target && target.role === '狼人') {
+        violations.push(`不能袭击狼队友 ${result.targetId}号`);
+        suggestions.push('选择非狼人目标');
+      }
+    }
+  }
+
   // 预言家专项：禁止重复查验
   if (actionType === 'NIGHT_SEER' || actionType === 'seer') {
     if (result.targetId != null && Array.isArray(ctx.seerChecks)) {
