@@ -2,6 +2,49 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-05-18] Bug 修复 + voteDecided 投票系统 + 8 轮 Prompt 优化
+
+### Critical Bug 修复
+
+- **女巫解药永远无法使用**：logicValidator.js 的 validateWitchSave 读取 `nightDecisions.wolfKill`（不存在），实际字段名是 `wolfTarget`。自引入 validator 以来女巫解药从未生效。同时修复毒药路径的同名 bug。
+- **最后发言者卡住不进投票**：moveToNextSpeaker 在 microtask 中调用时，speechHistory 闭包未包含最后一条 recordSpeech（React batching）。改为接受 `justSpokenId` 参数绕过闭包时序问题。
+- **玩家被跳过不发言不投票**：计数器 `spokenCount` 闭包过期导致提前进入投票。改为 `.every()` 全员验证 + `justSpokenId` 兜底。
+- **投票语义反转**：AI 把"投票支持7号"理解为"投7号出局"。在发言 prompt 和投票 prompt 双重添加"voteIntention=想投票淘汰的人"语义校正。
+- **lastVoteIntention 未传递**：投票阶段 AI 不知道自己发言时说了投谁（params 缺失 lastVoteIntention）。
+- **voteDecided 类型不一致**：LLM 返回字符串 `"true"` 时 `=== true` 判断失败。
+
+### 新功能
+
+- **voteDecided 投票决策分离**：发言时 AI 填 `voteDecided=true/false`。true→投票阶段直接用 voteIntention；false→给 AI 额外一次投票思考调用。
+- **PK 平票机制**：平票→被投候选人 PK 发言→全员重投→再平票进入黑夜（替代随机出局）。
+- **发言顺序移至 SetupScreen**：从游戏中面板移至开局配置页，游戏中只读显示。
+
+### Prompt 优化（8 轮）
+
+| 角色 | 改动要点 |
+|------|---------|
+| 狼人（白天） | thought/speech 绝对防火墙 + ABCD 四种欺骗策略 + 被查杀应对剧本 |
+| 狼人（系统） | **移除"自爆"指令**——这是 AI 自爆行为的根本原因（system prompt > user prompt） |
+| 狼人（夜间） | 首夜/后续夜刀法策略分离 + "刀预言家断信息链"引导 |
+| 村民 | 禁止被动话术 + 每次发言要求核心观点 + 分析框架 |
+| 预言家（白天） | 指挥官语气 + 绝不投金水硬约束 |
+| 预言家（夜间） | 首夜策略（边角/随机/关键位）vs 后续夜（最可疑目标） |
+| 女巫 | 注入实际行动记录防幻觉（"你还没救过任何人"） |
+| 猎人（白天） | 主动分析 + 心中锁定开枪目标 |
+| 猎人（开枪） | 强化 "带走好人=帮狼人" 警告 |
+| 守卫（白天） | 利用守护信息推理但不暴露身份 |
+| 守卫（夜间） | 后续夜策略 + 守护结果分析指引 |
+| 全角色 | 自我身份提醒（"你就是X号，用我不用第三人称"） |
+| 全角色 | 发言进度上下文（已发言/未发言列表） |
+| 全角色 | 被指控应对指南（逻辑反驳 + 反问指控者 + 不要沉默） |
+| 全角色 | 个性特征强化到发言上下文（不同风格说不同话） |
+| COT | 移除"划水"策略选项 + 投票语义校正 |
+| 投票 | targetId 语义提醒 + thought 字段 + lastVoteIntention 传递 |
+
+### 根因发现
+
+狼人 AI 自爆的根本原因：`STRATEGIES['狼人']` 系统级 prompt 写了"形势不利可倒钩或自爆"。LLM 把"自爆"理解为"承认自己是狼人"（在真人狼人杀中是战术性牺牲确认身份）。System prompt 优先级 > user prompt，所以之前所有的伪装指令都被这条覆盖。
+
 ## [2026-05-11] 游戏日志审计完整性修复（导出黑匣子）
 
 修复导出函数胜负误判 bug，补齐所有角色"空守/不用药/AI 决策无效"等分支的 nightAction 记录，让全 AI 模式下角色思考过程实时显示在 UI。
