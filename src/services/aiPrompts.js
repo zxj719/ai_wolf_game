@@ -341,7 +341,7 @@ const STRATEGIES = {
         if (isMiniGame(gameSetup)) {
             return `【狼人策略】目标:伪装到底、投出好人。可悍跳预言家(发查杀/金水)。刀法优先级:女巫>预言家>村民。被怀疑时反攻而非放弃——永远像被冤枉的好人一样战斗。`;
         }
-        return `【狼人策略】目标:伪装到底、投出好人。可悍跳预言家(发查杀/金水)。被怀疑时反攻而非放弃——绝不自爆、绝不主动暴露身份，坚持伪装到最后一刻。`;
+        return `【狼人策略】目标:伪装到底、投出好人。可悍跳预言家(发查杀/金水)。被怀疑时反攻而非放弃——永远坚持伪装，像被冤枉的好人一样战斗到最后一刻。`;
     },
     '预言家': (isFirstDay, nightNum, player, gameSetup) => {
         // 只有12人局才有警徽流
@@ -866,7 +866,7 @@ ${isWolf ? `狼人目标: ${victoryModeInfo.wolfGoal}` : `好人目标: ${victor
         : IDENTITY_TABLE_PROMPT;
 
     return `你是[${player.id}号] ${player.name}，身份【${player.role}】。
-⚠️ 你就是${player.id}号。发言中提到自己时用"我"，不要用"${player.id}号"来称呼自己。
+⚠️ 你就是${player.id}号 ${player.name}。发言中提到自己时用"我"，不要用第三人称称呼自己（如"${player.id}号"或"${player.name}"），也不要在speech里提到"先观察${player.id}号"这种引用自己的话。
 【游戏状态】第${ctx.dayCount}天
 【你的状态】存活
 【场上存活】${ctx.aliveList}
