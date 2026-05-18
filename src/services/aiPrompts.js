@@ -1316,8 +1316,10 @@ ${voteCotTemplate}
 3. 预言家注意：绝不能投给自己验过的金水！
 4. 如果信息不足无法判断，可以选择弃票(-1)，但这可能导致流票。
 
+⚠️ targetId = 你想投票【淘汰/出局】的人（即你认为是狼的人或最可疑的人）。不是你"支持"或"站边"的人！
+
 输出JSON格式:
-{"reasoning":"一句话分析(如:言行一致投X，或 听了Y发言觉得更像狼改投Y，或 信息不足选择弃票)","targetId":数字或-1}`;
+{"reasoning":"一句话分析(如:言行一致投X，或 听了Y发言觉得更像狼改投Y，或 信息不足选择弃票)","targetId":数字或-1,"thought":"投票最终思考"}`;
 
         case PROMPT_ACTIONS.HUNTER_SHOOT:
              const { aliveTargets, hunterContext } = params;

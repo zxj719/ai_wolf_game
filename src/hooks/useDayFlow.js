@@ -514,7 +514,11 @@ export function useDayFlow({
             }
           }
 
-          const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets: validVoteTargets, seerConstraint });
+          const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, {
+            validTargets: validVoteTargets,
+            seerConstraint,
+            lastVoteIntention: mySpeech?.voteIntention,
+          });
           targetId = res?.targetId;
           reasoning = res?.reasoning || '';
           thought = res?.thought || '';
@@ -828,7 +832,11 @@ export function useDayFlow({
             }
           }
 
-          const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, { validTargets, seerConstraint });
+          const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, {
+            validTargets,
+            seerConstraint,
+            lastVoteIntention: mySpeech?.voteIntention,
+          });
           targetId = res?.targetId;
           reasoning = res?.reasoning || '';
         }
