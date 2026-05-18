@@ -490,10 +490,8 @@ ${peacefulConclusion ? `5. ${peacefulConclusion}` : ''}${peacefulNightAnalysis}`
 
 export const buildGameTheoryRules = (isFirstSpeaker, playerRole, spokenPlayerIds = [], existingRoles = {}, gameSetup = null) => {
   const attackRule = isFirstSpeaker
-    ? '- 由于你是首个发言，尚未有人发言。你可以简单点评昨夜情况（如平安夜），或聊聊自己的身份底牌（也可以划水过）。切记：不要凭空捏造他人的发言或行为！因为还没人说话！'
-    : (playerRole !== '狼人'
-        ? '- 如果你是好人：怀疑1-2名玩家。不要开上帝视角。'
-        : '- 如果你是狼人：制造混乱，甚至可以"倒钩"（假装帮好人说话）。');
+    ? '- 你是首个发言，场上还没有人说话。点评昨夜情况、表明自己的立场或初步分析。不要凭空捏造他人的发言！'
+    : '- 怀疑1-2名已发言玩家并给出理由。不要开上帝视角，基于发言和行为推理。';
 
   // 时序警告
   const temporalWarning = spokenPlayerIds.length > 0
