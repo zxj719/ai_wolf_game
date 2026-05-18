@@ -338,11 +338,10 @@ export const getAdversarialReflection = () => ADVERSARIAL_REFLECTION;
 // ============================================================
 const STRATEGIES = {
     '狼人': (isFirstDay, nightNum, player, gameSetup) => {
-        // 6人局刀法优先级不同
         if (isMiniGame(gameSetup)) {
-            return `【狼人策略】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水)。刀法优先级:女巫>预言家>村民。形势不利可倒钩或自爆。`;
+            return `【狼人策略】目标:伪装到底、投出好人。可悍跳预言家(发查杀/金水)。刀法优先级:女巫>预言家>村民。被怀疑时反攻而非放弃——永远像被冤枉的好人一样战斗。`;
         }
-        return `【狼人策略】目标:生存/抗推好人。可悍跳(称预言家发查杀/金水)。形势不利可倒钩或自爆。`;
+        return `【狼人策略】目标:伪装到底、投出好人。可悍跳预言家(发查杀/金水)。被怀疑时反攻而非放弃——绝不自爆、绝不主动暴露身份，坚持伪装到最后一刻。`;
     },
     '预言家': (isFirstDay, nightNum, player, gameSetup) => {
         // 只有12人局才有警徽流
