@@ -596,6 +596,39 @@ const smartTruncate = (content, maxLength) => {
 /**
  * 统计场上的身份声明情况（用于身份推理）
  */
+/**
+ * 从结构化 claimHistory 分析身份声明（精确版，无误报）
+ */
+const analyzeStructuredClaims = (claimHistory, gameSetup) => {
+    const claimsByType = { seer: [], witch: [], hunter: [], guard: [] };
+    const typeMap = {
+      jump_seer: 'seer', jump_witch: 'witch', jump_hunter: 'hunter', jump_guard: 'guard'
+    };
+    claimHistory.forEach(c => {
+      const bucket = typeMap[c.type];
+      if (bucket && !claimsByType[bucket].includes(c.playerId)) {
+        claimsByType[bucket].push(c.playerId);
+      }
+    });
+
+    const gameRoles = gameSetup?.STANDARD_ROLES || [];
+    const hints = [];
+    const roleCountMap = { seer: '预言家', witch: '女巫', hunter: '猎人', guard: '守卫' };
+
+    Object.entries(claimsByType).forEach(([key, playerIds]) => {
+      if (playerIds.length === 0) return;
+      const roleName = roleCountMap[key];
+      const count = gameRoles.filter(r => r === roleName).length;
+      if (playerIds.length === 1 && count === 1) {
+        hints.push(`⚠️ 只有${playerIds[0]}号跳${roleName}，大概率是真${roleName}（本局只有1个）`);
+      } else if (playerIds.length > count) {
+        hints.push(`⚠️ ${playerIds.join(',')}号跳${roleName}，但本局只有${count}个，必有悍跳`);
+      }
+    });
+
+    return { hints: hints.length > 0 ? '\n' + hints.join('\n') : '' };
+};
+
 const analyzeIdentityClaims = (speechHistory, gameSetup) => {
     const claims = {
         seer: [], // 跳预言家的玩家
@@ -692,13 +725,15 @@ const analyzeIdentityClaims = (speechHistory, gameSetup) => {
 };
 
 export const prepareGameContext = (gameState) => {
-    const { players, speechHistory, voteHistory, deathHistory, dayCount, phase, gameSetup } = gameState;
+    const { players, speechHistory, voteHistory, deathHistory, dayCount, phase, gameSetup, claimHistory } = gameState;
     const alivePlayers = players.filter(p => p.isAlive);
     const aliveList = alivePlayers.map(p => `${p.id}号`).join(',');
     const deadList = players.filter(p => !p.isAlive).map(p => `${p.id}号`).join(',') || '无';
 
-    // 分析身份声明情况
-    const identityAnalysis = analyzeIdentityClaims(speechHistory, gameSetup);
+    // 分析身份声明：优先使用结构化 claimHistory（精确），降级到关键词匹配（可能误报）
+    const identityAnalysis = (Array.isArray(claimHistory) && claimHistory.length > 0)
+      ? analyzeStructuredClaims(claimHistory, gameSetup)
+      : analyzeIdentityClaims(speechHistory, gameSetup);
 
     // 今日发言 - 添加发言序号以表示时序
     const todaySpeechesList = speechHistory.filter(s => s.day === dayCount);
