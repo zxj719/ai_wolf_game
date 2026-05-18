@@ -1205,13 +1205,25 @@ ${nightCot}
                  wolfStrategyHints.push('考虑守卫博弈：守卫可能守谁？是否需要声东击西？');
              }
 
+             const isWolfFirstNight = ctx.dayCount === 1;
+             const wolfNightGuide = isWolfFirstNight
+               ? `【首夜刀法】第一夜没有发言信息。策略：
+- 刀神职位：边角座位或中间座位（统计上神职分布较集中）
+- 避开队友附近：不要刀队友旁边的人（容易被怀疑"自刀"假象）
+- 赌博式刀法：猜测谁像预言家/女巫并直接刀掉`
+               : `【后续刀法】根据白天发言分析：
+- 刀预言家：如果能确定谁是真预，优先刀掉（断好人信息链）
+- 刀女巫：如果女巫还有毒药，刀掉她消除威胁
+- 避开猎人：猎人死亡会开枪带走一人，刀他不划算（除非迫不得已）
+- 刀投票威胁：谁在投票时对你们阵营威胁最大？`;
+
              return `狼人袭击决策。
-【可袭击目标】${validTargets}
+【可袭击目标】${validTargets}号
 ${nightCot}
-【刀法策略】
-- 优先级：${wolfPriorityStr}
+【刀法优先级】${wolfPriorityStr}
+${wolfNightGuide}
 ${wolfStrategyHints.map(h => `- ${h}`).join('\n')}
-输出:{"targetId":数字,"reasoning":"选择理由","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+输出:{"targetId":数字(必须从可袭击目标中选),"reasoning":"选择理由","thought":"刀法思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
 
         case PROMPT_ACTIONS.NIGHT_SEER:
              const { validTargets: seerTargets } = params;
