@@ -105,18 +105,22 @@ export function useDayFlow({
     addLog(`进入第 ${dayCount + 1} 夜...`, 'system');
   }, [addLog, dayCount, gameActiveRef, mergeNightDecisions, setDayCount, setNightStep, setPhase]);
 
-  const moveToNextSpeaker = useCallback(() => {
+  // justSpokenId: 刚完成发言的玩家 ID（可选）。由于 React 批处理，recordSpeech 的
+  // dispatch 可能还没 flush 到 speechHistory，传入此 ID 避免 allSpoken 检查遗漏
+  const moveToNextSpeaker = useCallback((justSpokenId = null) => {
     if (gameActiveRef && !gameActiveRef.current) return;
     const alivePlayers = players.filter(p => p.isAlive);
 
-    // 直接验证是否所有存活玩家都已发言（比计数器更可靠，避免闭包过期导致跳人）
+    const hasSpokenInHistory = (playerId) =>
+      speechHistory.some(s => s.day === dayCount && s.playerId === playerId);
+
     const allSpoken = alivePlayers.every(p =>
-      speechHistory.some(s => s.day === dayCount && s.playerId === p.id)
+      p.id === justSpokenId || hasSpokenInHistory(p.id)
     );
-    const spokenThisDay = speechHistory.filter(s => s.day === dayCount).length;
+    const spokenThisDay = speechHistory.filter(s => s.day === dayCount).length + (justSpokenId != null && !hasSpokenInHistory(justSpokenId) ? 1 : 0);
     setSpokenCount(spokenThisDay);
 
-    console.log(`[moveToNextSpeaker] 已发言: ${spokenThisDay}/${alivePlayers.length}, allSpoken=${allSpoken}`);
+    console.log(`[moveToNextSpeaker] 已发言: ${spokenThisDay}/${alivePlayers.length}, allSpoken=${allSpoken}, justSpoken=${justSpokenId}`);
 
     if (allSpoken) {
       console.log(`[moveToNextSpeaker] 全员发言完毕，进入投票阶段`);
@@ -133,7 +137,7 @@ export function useDayFlow({
         let attempts = 0;
         while (attempts < alivePlayers.length) {
           const nextPlayer = alivePlayers[next];
-          if (nextPlayer && !speechHistory.some(s => s.day === dayCount && s.playerId === nextPlayer.id)) {
+          if (nextPlayer && nextPlayer.id !== justSpokenId && !hasSpokenInHistory(nextPlayer.id)) {
             console.log(`[moveToNextSpeaker] 下一个发言: index=${next} (${nextPlayer.id}号 ${nextPlayer.name})`);
             return next;
           }
@@ -143,7 +147,6 @@ export function useDayFlow({
           attempts++;
         }
 
-        // 循环完毕仍没找到未发言者 → 全员已发言
         console.log(`[moveToNextSpeaker] 循环检查：所有人都已发言，进入投票`);
         setSpeakerIndex(-1);
         setPhase('day_voting');

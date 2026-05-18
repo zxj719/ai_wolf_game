@@ -274,10 +274,10 @@ export function useSpeechFlow({
           logger.error(`[发言控制] ${currentSpeaker.id}号发言出错:`, error);
         } finally {
           speakingLockRef.current = false;
-          // 使用微任务延迟，确保 state 更新后再触发下一轮
+          const spokenId = currentSpeaker.id;
           Promise.resolve().then(() => {
             if (gameActiveRef.current) {
-              moveToNextSpeaker();
+              moveToNextSpeaker(spokenId);
             }
           });
         }
@@ -342,9 +342,10 @@ export function useSpeechFlow({
       }
     } finally {
       speakingLockRef.current = false;
+      const spokenId = userPlayer?.id ?? 0;
       Promise.resolve().then(() => {
         if (gameActiveRef.current) {
-          moveToNextSpeaker();
+          moveToNextSpeaker(spokenId);
         }
       });
     }
