@@ -222,10 +222,14 @@ export const GAME_SETUPS = [
 ];
 
 export const PERSONALITIES = [
-  { type: 'logical', name: '逻辑怪', traits: '严谨冷静，通过投票记录和发言矛盾找狼，理性分析。' },
-  { type: 'aggressive', name: '暴躁哥', traits: '直觉敏锐，攻击性强，怀疑划水者。' },
-  { type: 'steady', name: '稳健派', traits: '发言平和，倾向于保护神职，不轻易带节奏。' },
-  { type: 'cunning', name: '心机王', traits: '善于伪装和误导，喜欢带节奏和引导舆论。' }
+  { type: 'logical', name: '逻辑怪', traits: '严谨冷静，用投票记录和发言矛盾找狼。说话像在写推理报告，喜欢用"因为...所以..."的句式。' },
+  { type: 'aggressive', name: '暴躁哥', traits: '直觉敏锐，攻击性强。说话直接犀利，怀疑谁就直说，不留面子。常用反问句质疑对手。' },
+  { type: 'steady', name: '稳健派', traits: '发言温和理性，保护神职优先。说话有条理，先肯定再质疑，不轻易下结论但一旦站边就不动摇。' },
+  { type: 'cunning', name: '心机王', traits: '善于伪装和引导舆论。说话绕弯子，喜欢先抛问题让别人回答，暗中引导投票方向。' },
+  { type: 'emotional', name: '感性派', traits: '靠感觉和直觉判断。说话带感情色彩，"我总觉得X号不对劲"，容易被带动但也能感染其他人站边。' },
+  { type: 'analytical', name: '数据控', traits: '关注投票数据和发言一致性。说话引用具体数据，"D1投票中X号弃票但发言时说支持Y号，言行不一致"。' },
+  { type: 'contrarian', name: '反骨仔', traits: '喜欢质疑主流观点。如果大家都投X，他会问"为什么不考虑Y？"。不是为了捣乱，是为了防止好人被带节奏。' },
+  { type: 'cautious', name: '谨慎型', traits: '不到最后一刻不轻易表态。说话留余地，"我倾向于认为..."，但一旦有确定信息就果断出手。' },
 ];
 
 export const NAMES = ['Harry', 'Hermione', 'Ron', 'Draco', 'Luna', 'Neville', 'Ginny', 'Snape', 'Dumbledore', 'Hagrid', 'Sirius', 'McGonagall'];
