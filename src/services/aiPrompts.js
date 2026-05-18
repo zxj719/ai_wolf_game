@@ -1369,9 +1369,11 @@ ${voteCotTemplate}
 【重要规则】猎人死亡时必须开枪，不能选择不开枪！你必须从下方目标中选择一个带走。
 【存活可选】${aliveTargets.join(',')}号
 ${hunterContext || ''}
-【开枪策略】优先带走最可疑的狼人
+【开枪策略——按优先级从高到低】
 ${hunterStrategies.map((s, i) => `${i + 1}. ${s}`).join('\n')}
-输出JSON:{"shoot":true,"targetId":必须是数字(从存活可选中选择),"reason":"一句话理由"}`;
+
+⚠️ 带走好人 = 帮狼人。如果上面有【查杀】信息，必须优先带走被查杀的狼人。如果有【金水】信息，绝对不能带走那些人。
+输出JSON:{"shoot":true,"targetId":必须是数字(从存活可选中选择),"reason":"一句话理由","thought":"开枪决策思考过程"}`;
 
         case PROMPT_ACTIONS.SUMMARIZE_CONTENT:
              const { content, maxLength = 50 } = params;
