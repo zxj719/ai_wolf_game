@@ -217,6 +217,17 @@ export function validateNightAction(result, actionType, ctx = {}) {
     }
   }
 
+  // 预言家专项：禁止重复查验
+  if (actionType === 'NIGHT_SEER' || actionType === 'seer') {
+    if (result.targetId != null && Array.isArray(ctx.seerChecks)) {
+      const alreadyChecked = ctx.seerChecks.some(c => c.targetId === result.targetId && c.seerId === ctx.playerId);
+      if (alreadyChecked) {
+        violations.push(`预言家已查验过 ${result.targetId}号，不要重复查验`);
+        suggestions.push('选择未查验过的玩家');
+      }
+    }
+  }
+
   // 守卫专项：禁止连守
   if (actionType === 'NIGHT_GUARD' || actionType === 'guard') {
     if (result.targetId != null && ctx.lastGuardTarget != null && result.targetId === ctx.lastGuardTarget) {
