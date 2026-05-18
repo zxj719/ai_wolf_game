@@ -1215,14 +1215,22 @@ ${wolfStrategyHints.map(h => `- ${h}`).join('\n')}
 
         case PROMPT_ACTIONS.NIGHT_SEER:
              const { validTargets: seerTargets } = params;
+             const isFirstNight = ctx.dayCount === 1;
+             const seerNightStrategy = isFirstNight
+               ? `【首夜策略】第一夜没有发言信息，选择查验策略：
+- 边角位策略：查 0号 或最后一号（统计上狼人密度略高）
+- 随机策略：随机选一个目标，开局建立信息锚点
+- 关键位策略：查中间座位（发言影响力大的位置）
+无论选谁，明天发言要说清"心路历程"——为什么查这个人。`
+               : `【后续夜策略】你已经有了发言信息，根据白天的分析选目标：
+- 最可疑优先：白天发言最可疑的未验证玩家
+- 排除法：验证你怀疑的人是狼还是好人
+- 信息增量：查谁能解开最多的身份链条？`;
              return `预言家查验决策。
-【可查验目标】${seerTargets?.join(',') || '无'}
+【可查验目标】${seerTargets?.join(',') || '无'}号
 ${nightCot}
-【查验策略】
-- 查验优先级：焦点位(发言模糊/煽动性强) > 定点位(能关联多条逻辑链)
-- 信息价值：查谁能提供最大信息增量？
-- 避免浪费：不查已有明确身份倾向的玩家
-输出:{"targetId":数字,"reasoning":"查验理由"}`;
+${seerNightStrategy}
+输出:{"targetId":数字,"reasoning":"查验理由","thought":"查验思考过程"}`;
 
         case PROMPT_ACTIONS.NIGHT_WITCH:
              const { dyingId, canSave, hasPoison, witchId } = params;
