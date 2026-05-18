@@ -1081,7 +1081,7 @@ ${(() => {
     const aliveIds = ctx.aliveIdsString ? ctx.aliveIdsString.split(',').map(Number) : [];
     const unspoken = aliveIds.filter(id => !ctx.spokenPlayerIds.includes(id));
     return `\n【⚠️ 时序提醒】已发言(${ctx.spokenPlayerIds.length}人): ${ctx.spokenPlayerIds.join('号,')}号。未发言(${unspoken.length}人): ${unspoken.map(id => id + '号').join(',')}。只能评价已发言玩家！`;
-  })()}`;
+  })()}${ctx.currentPlayerTraits ? `\n【你的发言风格】${ctx.currentPlayerTraits} 用这个风格说话，不要和其他人发言风格一样。` : ''}`;
 
 export const generateUserPrompt = (actionType, gameState, params = {}) => {
     const ctx = prepareGameContext(gameState);
@@ -1106,6 +1106,11 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
 
     switch (actionType) {
         case PROMPT_ACTIONS.DAY_SPEECH:
+            // 注入当前玩家的个性特征到 ctx，用于 getBaseContext 里的发言风格提醒
+            ctx.currentPlayerTraits = currentPlayer?.personality?.traits || '';
+            ctx.currentPlayerName = currentPlayer?.name || '';
+            ctx.currentPlayerId = currentPlayer?.id;
+
             // 使用角色特定的提示词生成器
             const rolePromptGenerator = ROLE_DAY_SPEECH_PROMPTS[playerRole] || ROLE_DAY_SPEECH_PROMPTS['村民'];
 
