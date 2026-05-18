@@ -489,7 +489,7 @@ export function useDayFlow({
 
       // voteDecided 机制：发言阶段 AI 填 voteDecided=true 表示已决定，直接用 voteIntention；
       // voteDecided=false 或无效则给 AI 一次额外投票思考调用
-      const decided = mySpeech?.voteDecided === true;
+      const decided = mySpeech?.voteDecided === true || mySpeech?.voteDecided === 'true';
       const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
       if (decided && (speechVoteTarget === ABSTAIN_TARGET || validVoteTargets.includes(speechVoteTarget))) {
         targetId = speechVoteTarget;
@@ -809,7 +809,7 @@ export function useDayFlow({
       let reasoning = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
 
-      const decided = mySpeech?.voteDecided === true;
+      const decided = mySpeech?.voteDecided === true || mySpeech?.voteDecided === 'true';
       const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
       if (decided && (speechVoteTarget === ABSTAIN_TARGET || validTargets.includes(speechVoteTarget))) {
         targetId = speechVoteTarget;

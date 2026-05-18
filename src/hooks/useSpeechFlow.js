@@ -238,7 +238,7 @@ export function useSpeechFlow({
                     day: dayCount,
                     summary: res.summary || res.speech.slice(0, 20),
                     voteIntention: res.voteIntention,
-                    voteDecided: res.voteDecided ?? true,
+                    voteDecided: res.voteDecided === true || res.voteDecided === 'true',
                   });
                   // 柱三：结构化声明事件落盘（replace 正则 NLP）
                   if (Array.isArray(res.claims) && recordClaim) {
