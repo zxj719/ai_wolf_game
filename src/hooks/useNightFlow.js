@@ -706,20 +706,39 @@ export function useNightFlow({
             }
             } // end seerValidation.valid
           } else {
-            logger.debug(`[预言家AI] AI决策无效或被过滤:`, res);
-            if (gameMode === 'ai-only') {
-              addLog(`[${actor.id}号] 预言家放弃查验`, 'warning');
-              if (res?.thought) addLog(`💭 [${actor.id}号 预言家] ${res.thought}`, 'thought');
+            // 兜底：AI 决策无效时随机查验（预言家每晚必须查验，浪费机会=浪费信息）
+            const fallbackTarget = validTargets[Math.floor(Math.random() * validTargets.length)];
+            if (fallbackTarget !== undefined) {
+              const targetPlayer = players.find(p => p.id === fallbackTarget);
+              const isWolf = targetPlayer?.role === ROLE_DEFINITIONS.WEREWOLF;
+              logger.debug(`[预言家AI] AI决策无效，兜底随机查验${fallbackTarget}号，结果：${isWolf ? '狼人' : '好人'}`);
+              if (gameMode === 'ai-only') {
+                addLog(`[${actor.id}号] 预言家 AI 决策无效，兜底查验 ${fallbackTarget}号，结果是${isWolf ? '狼人' : '好人'}`, 'warning');
+              }
+              recordNightAction({
+                playerId: actor.id,
+                type: '查验',
+                target: fallbackTarget,
+                result: isWolf ? '狼人' : '好人',
+                night: dayCount,
+                thought: res?.thought,
+                description: `AI 决策无效，兜底随机查验 ${fallbackTarget}号，结果是${isWolf ? '狼人' : '好人'}`,
+                timestamp: Date.now()
+              });
+              mergeNightDecisions({ seerResult: { targetId: fallbackTarget, isWolf }, seerCheckedThisNight: true });
+              setSeerChecks(prev => [...prev, { night: dayCount, targetId: fallbackTarget, isWolf, seerId: actor.id, thought: '兜底随机查验' }]);
+            } else {
+              logger.debug(`[预言家AI] AI决策无效且无可查验目标`);
+              recordNightAction({
+                playerId: actor.id,
+                type: '查验',
+                target: null,
+                night: dayCount,
+                thought: res?.thought,
+                description: 'AI 决策无效且无可查验目标',
+                timestamp: Date.now()
+              });
             }
-            recordNightAction({
-              playerId: actor.id,
-              type: '查验',
-              target: null,
-              night: dayCount,
-              thought: res?.thought,
-              description: 'AI 决策无效或被过滤，放弃查验',
-              timestamp: Date.now()
-            });
           }
         }
       }
