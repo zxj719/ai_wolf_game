@@ -187,6 +187,9 @@ ${ctx.historySpeeches || '暂无'}
 
 【昨夜情况】${ctx.lastNightInfo}
 【投票记录(整局)】${ctx.voteInfo}${ctx.identityAnalysis?.hints || ''}
-${ctx.spokenPlayerIds?.length > 0
-    ? `\n【⚠️ 时序提醒】已发言玩家: ${ctx.spokenPlayerIds.join('号→')}号。只能评价已发言玩家！`
-    : '\n【⚠️ 时序提醒】你是第一个发言，不能评价任何人的发言！'}`;
+${(() => {
+    if (!ctx.spokenPlayerIds?.length) return '\n【⚠️ 时序提醒】你是第一个发言，不能评价任何人的发言！';
+    const aliveIds = ctx.aliveIdsString ? ctx.aliveIdsString.split(',').map(Number) : [];
+    const unspoken = aliveIds.filter(id => !ctx.spokenPlayerIds.includes(id));
+    return `\n【⚠️ 时序提醒】已发言(${ctx.spokenPlayerIds.length}人): ${ctx.spokenPlayerIds.join('号,')}号。未发言(${unspoken.length}人): ${unspoken.map(id => id + '号').join(',')}。只能评价已发言玩家！`;
+  })()}`;
