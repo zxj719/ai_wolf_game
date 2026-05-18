@@ -217,6 +217,14 @@ export function validateNightAction(result, actionType, ctx = {}) {
     }
   }
 
+  // 守卫专项：禁止连守
+  if (actionType === 'NIGHT_GUARD' || actionType === 'guard') {
+    if (result.targetId != null && ctx.lastGuardTarget != null && result.targetId === ctx.lastGuardTarget) {
+      violations.push(`守卫不能连续两晚守同一目标（${result.targetId}号昨晚已守）`);
+      suggestions.push('选择其他目标或空守(null)');
+    }
+  }
+
   // 女巫专项
   if (actionType === 'NIGHT_WITCH' || actionType === 'witch') {
     if (result.useSave && !ctx.canSave) {
