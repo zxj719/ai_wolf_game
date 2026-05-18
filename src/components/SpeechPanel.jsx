@@ -23,20 +23,9 @@ export function SpeechPanel({
           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
           <span className="text-[10px] font-black text-zinc-500 uppercase">Speaker: [{current?.id}号]</span>
         </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setSpeakingOrder('left')}
-            className={`text-[9px] px-3 py-1 rounded-lg font-bold ${speakingOrder === 'left' ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}
-          >
-            顺时针
-          </button>
-          <button 
-            onClick={() => setSpeakingOrder('right')}
-            className={`text-[9px] px-3 py-1 rounded-lg font-bold ${speakingOrder === 'right' ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}
-          >
-            逆时针
-          </button>
-        </div>
+        <span className="text-[9px] px-3 py-1 rounded-lg font-bold bg-zinc-800 text-zinc-500">
+          {speakingOrder === 'left' ? '↻ 顺时针' : '↺ 逆时针'}
+        </span>
       </div>
       {isUserTurn ? (
         <div className="flex gap-4">

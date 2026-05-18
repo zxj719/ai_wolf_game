@@ -61,6 +61,8 @@ export function SetupScreen({
   onBuildCustomSetup = null,
   victoryMode = DEFAULT_VICTORY_MODE,
   setVictoryMode = () => {},
+  speakingOrder = 'left',
+  setSpeakingOrder = () => {},
   onExit = null,
   exitLabel,
   locale = 'zh',
@@ -318,6 +320,36 @@ export function SetupScreen({
                         <div className={`mt-1 text-sm ${victoryMode === 'town' ? 'text-white/72' : 'text-slate-500'}`}>{townCopy.description}</div>
                       </div>
                     </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="mac-panel p-4">
+                <div className="mac-eyebrow">{locale === 'en' ? 'Speaking Order' : '发言顺序'}</div>
+                <div className="mt-3 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSpeakingOrder('left')}
+                    className={`flex-1 rounded-[18px] border px-4 py-3 text-center transition-colors ${
+                      speakingOrder === 'left'
+                        ? 'border-slate-900/12 bg-slate-900 text-white'
+                        : 'border-slate-200/80 bg-white/78 text-slate-900'
+                    }`}
+                  >
+                    <div className="text-lg">↻</div>
+                    <div className="text-sm font-semibold">{locale === 'en' ? 'Clockwise' : '顺时针'}</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSpeakingOrder('right')}
+                    className={`flex-1 rounded-[18px] border px-4 py-3 text-center transition-colors ${
+                      speakingOrder === 'right'
+                        ? 'border-slate-900/12 bg-slate-900 text-white'
+                        : 'border-slate-200/80 bg-white/78 text-slate-900'
+                    }`}
+                  >
+                    <div className="text-lg">↺</div>
+                    <div className="text-sm font-semibold">{locale === 'en' ? 'Counter-clockwise' : '逆时针'}</div>
                   </button>
                 </div>
               </div>

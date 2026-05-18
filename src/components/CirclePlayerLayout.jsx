@@ -437,21 +437,10 @@ export function CirclePlayerLayout({
             </div>
             <span className="text-sm sm:text-base md:text-lg font-black tracking-wide leading-tight text-center">{phaseInfo.text}</span>
 
-            {/* 发言顺序选择 */}
-            {phase === 'day_discussion' && speakerIndex >= 0 && setSpeakingOrder && (
-              <div className="flex gap-2 mt-1">
-                <button
-                  onClick={() => setSpeakingOrder('left')}
-                  className={`text-[10px] px-3 py-1 rounded-lg font-bold transition-all ${speakingOrder === 'left' ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
-                >
-                  顺时针
-                </button>
-                <button
-                  onClick={() => setSpeakingOrder('right')}
-                  className={`text-[10px] px-3 py-1 rounded-lg font-bold transition-all ${speakingOrder === 'right' ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
-                >
-                  逆时针
-                </button>
+            {/* 发言顺序（只读指示，配置在 SetupScreen） */}
+            {phase === 'day_discussion' && speakerIndex >= 0 && (
+              <div className="text-[10px] text-zinc-500 font-bold mt-1">
+                {speakingOrder === 'left' ? '↻ 顺时针' : '↺ 逆时针'}
               </div>
             )}
 

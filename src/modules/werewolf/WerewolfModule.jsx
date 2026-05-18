@@ -618,6 +618,8 @@ export default function WerewolfModule() {
               onBuildCustomSetup={setSelectedSetup}
               victoryMode={victoryMode}
               setVictoryMode={setVictoryMode}
+              speakingOrder={speakingOrder}
+              setSpeakingOrder={setSpeakingOrder}
               pendingSnapshot={pendingSnapshot}
               onResumeSnapshot={handleResumeSnapshot}
               onDiscardSnapshot={handleDiscardSnapshot}
@@ -642,7 +644,7 @@ export default function WerewolfModule() {
               selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
               speakerIndex={speakerIndex} gameMode={gameMode}
               isThinking={isThinking} speakingOrder={speakingOrder}
-              setSpeakingOrder={setSpeakingOrder} userInput={userInput}
+              userInput={userInput}
               setUserInput={setUserInput} handleUserSpeak={handleUserSpeak}
               hunterShooting={hunterShooting} handleUserHunterShoot={handleUserHunterShoot}
               handleUserDuel={handleUserDuel} handleAIHunterShoot={handleAIHunterShoot}
