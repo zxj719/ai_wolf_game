@@ -323,7 +323,9 @@ export function useAI({
         playerId: player.id,
         players,
         seerChecks,
-        lastGuardTarget: nightDecisions?.lastGuardTarget
+        lastGuardTarget: nightDecisions?.lastGuardTarget,
+        canSave: player.hasWitchSave && nightDecisions?.wolfTarget != null,
+        hasPoison: player.hasWitchPoison,
       };
 
       // 根据行动类型选择验证方法
