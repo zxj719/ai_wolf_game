@@ -1144,15 +1144,21 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                     guardHint = '【首夜策略】没有女巫，不存在同守同救风险。可以直接守护你认为最关键的目标。';
                 }
             }
+            const guardSubsequentHint = ctx.dayCount > 1 && !guardHint
+              ? `【后续夜策略】分析白天发言：
+- 谁跳了预言家？守他！（狼人大概率刀真预）
+- 昨晚你守的人没死？可能狼刀了别处，今晚换守或继续博弈
+- 昨晚你守的人死了？说明你没守对，今晚重新判断
+- 空守也是策略：如果你不确定守谁，空守比守错强`
+              : '';
+
             return `守卫守护选择。
-${guardHint}
+${guardHint}${guardSubsequentHint}
 【存活玩家】${aliveStr}
 ${cannotGuard !== null ? `【禁止连守】不能守${cannotGuard}号(昨夜已守)` : ''}
 ${nightCot}
-【守护策略】
-- 优先守护：已跳身份的预言家 > 重要神职 > 高价值好人
-- 博弈思考：狼人预判我会守谁？我该反其道还是稳守？
-输出:{"targetId":数字或null(空守),"reasoning":"一句话理由","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+【守护优先级】已跳身份的预言家 > 重要神职 > 被狼针对的好人
+输出:{"targetId":数字或null(空守),"reasoning":"一句话理由","thought":"守护思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
 
         case PROMPT_ACTIONS.NIGHT_MAGICIAN:
             const { validSwapTargets, magicianHistory, seerChecks: magicianSeerChecks } = params;
