@@ -831,18 +831,37 @@ export function useNightFlow({
             });
           }
         } else {
-          logger.debug(`[女巫AI] AI决策失败`);
-          if (gameMode === 'ai-only') {
-            addLog(`[${actor.id}号] 女巫 AI 决策失败，跳过`, 'warning');
+          logger.debug(`[女巫AI] AI决策失败，启用智能兜底`);
+          // 智能兜底：AI 返回 null 时，如果能救就救（保守但合理）
+          if (canSave && dyingId !== null) {
+            logger.debug(`[女巫AI] 兜底救人：${dyingId}号`);
+            if (gameMode === 'ai-only') {
+              addLog(`[${actor.id}号] 女巫 AI 决策失败，兜底使用解药救 ${dyingId}号`, 'warning');
+            }
+            recordNightAction({
+              playerId: actor.id,
+              type: '解药',
+              target: dyingId,
+              night: dayCount,
+              description: `AI 决策失败，兜底救人 ${dyingId}号（有解药+有人被刀→默认救）`,
+              timestamp: Date.now()
+            });
+            finalDecisions.witchSave = true;
+            mergeNightDecisions({ witchSave: true });
+            setWitchHistory(prev => ({ ...prev, savedIds: [...prev.savedIds, dyingId] }));
+          } else {
+            if (gameMode === 'ai-only') {
+              addLog(`[${actor.id}号] 女巫 AI 决策失败，跳过（${canSave ? '无人被刀' : '解药已用'}）`, 'warning');
+            }
+            recordNightAction({
+              playerId: actor.id,
+              type: '女巫行动',
+              target: null,
+              night: dayCount,
+              description: `AI 决策失败。${canSave ? '有解药但无人被刀' : '解药已用'}，毒药不盲用，跳过`,
+              timestamp: Date.now()
+            });
           }
-          recordNightAction({
-            playerId: actor.id,
-            type: '女巫行动',
-            target: null,
-            night: dayCount,
-            description: `AI 决策失败（未返回有效结果），跳过用药`,
-            timestamp: Date.now()
-          });
         }
 
         // 女巫是最后一步，传递完整的决策对象
