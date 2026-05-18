@@ -1315,7 +1315,7 @@ ${nightCot}
 - 毒药考量：只有高度确信某人是狼且逻辑完全崩坏时才考虑开毒
 - 风险评估：毒错好人会导致阵营崩盘
 - 临界决策：在危急时刻，保守会导致失败，必须果断出手
-输出:{"useSave":true/false,"usePoison":数字或null,"reasoning":"决策理由(必须包含你的推断：当前大概还剩X好人Y狼人)"}`;
+输出:{"useSave":true/false,"usePoison":数字或null,"reasoning":"决策理由(必须包含你的推断：当前大概还剩X好人Y狼人)","thought":"用药思考过程"}`;
 
         case PROMPT_ACTIONS.NIGHT_DREAMWEAVER: {
              const { dreamHistory, lastDreamTarget: dwLastTarget, aliveTargets: dwAliveTargets } = params;
