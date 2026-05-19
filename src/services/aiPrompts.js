@@ -341,29 +341,29 @@ export const getAdversarialReflection = () => ADVERSARIAL_REFLECTION;
 // ============================================================
 const STRATEGIES = {
     '狼人': (isFirstDay, nightNum, player, gameSetup) => {
+        const wolfCount = (gameSetup?.STANDARD_ROLES || []).filter(r => r === '狼人').length;
         if (isMiniGame(gameSetup)) {
-            return `【狼人策略】目标:伪装到底、投出好人。可悍跳预言家(发查杀/金水)。刀法优先级:女巫>预言家>村民。被怀疑时反攻而非放弃——永远像被冤枉的好人一样战斗。`;
+            return `【狼人策略】伪装为好人，投出关键好人。深水潜伏是默认最优（博弈论证明），也可悍跳预言家。刀法:女巫>预言家>村民。被怀疑时像好人一样反击。`;
         }
-        return `【狼人策略】目标:伪装到底、投出好人。可悍跳预言家(发查杀/金水)。被怀疑时反攻而非放弃——永远坚持伪装，像被冤枉的好人一样战斗到最后一刻。`;
+        return `【狼人策略】伪装为好人，投出关键好人。深水潜伏是统计最优策略。可悍跳预言家或倒钩（投队友坐高身份）。被怀疑时坚持伪装反击。${wolfCount <= 1 ? '独狼局：伪装比冲票更重要。' : ''}`;
     },
     '预言家': (isFirstDay, nightNum, player, gameSetup) => {
-        // 只有12人局才有警徽流
         const hasPolice = isLargeGame(gameSetup);
         if (isFirstDay) {
-            return `【预言家策略】必跳身份!报验人(金水/查杀)。强势带队，分析心路，打飞查杀。`;
+            return `【预言家策略】8人局通常首轮跳身份报验人（研究表明信息公开对好人有利）。说清心路历程建立公信力。有查杀强势带票。`;
         }
         if (hasPolice) {
             return `【预言家策略】继续报验人。号召全票放逐狼人。安排警徽流。`;
         }
-        return `【预言家策略】继续报验人。号召全票放逐狼人。带领好人投票。`;
+        return `【预言家策略】继续报新验人，维护查验链。号召好人集中投查杀目标。`;
     },
     '女巫': (isFirstDay, nightNum, player, gameSetup) => {
         const shouldSave = nightNum <= 2 && player.hasWitchSave;
-        return `【女巫策略】${shouldSave ? '前期救人了(银水)。' : ''}无药/有人对跳则跳身份报银水/毒亡。`;
+        return `【女巫策略】${shouldSave ? '前期已救人(银水可跳身份报)。' : ''}首夜救人是竞技共识（收益>保留）。毒药谨慎用，毒错好人会崩盘。未跳身份前像村民发言。`;
     },
-    '猎人': (isFirstDay, nightNum, player, gameSetup) => `【猎人策略】好人阵营!开枪优先带走被查杀/悍跳狼/最像狼的人。死亡必开枪!`,
-    '守卫': (isFirstDay, nightNum, player, gameSetup) => `【守卫策略】${nightNum === 1 ? '首夜空守防同救。' : ''}防守神职/预言家。低调隐藏身份。`,
-    '村民': (isFirstDay, nightNum, player, gameSetup) => `【村民策略】敢于站边。接金水不反水。分析行为逻辑找狼。`
+    '猎人': (isFirstDay, nightNum, player, gameSetup) => `【猎人策略】死亡必开枪！优先带走：被查杀的狼>悍跳狼>最可疑者。活着时像村民分析，不轻易暴露。`,
+    '守卫': (isFirstDay, nightNum, player, gameSetup) => `【守卫策略】${nightNum === 1 ? '首夜空守（竞技共识：防同守同救医疗事故）。' : '后续夜优先守预言家。'}低调隐藏身份，发言像村民。不要分析平安夜机制。`,
+    '村民': (isFirstDay, nightNum, player, gameSetup) => `【村民策略】好人阵营票数主力。敢于站边、分析发言找狼。有查杀时跟投，不弃票。接金水不反水。`
 };
 
 // Keep for compatibility during transition, or remove if fully migrated?
