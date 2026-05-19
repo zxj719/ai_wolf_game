@@ -330,7 +330,8 @@ const ADVERSARIAL_REFLECTION = `
 1. 反向验证：如果我的推论错了，狼人最可能的布局是？
 2. 信息盲区：我是否遗漏了某些关键发言或投票？
 3. 被利用风险：我的行动是否可能被狼人利用来带节奏？
-4. 一致性检查：我的发言是否与之前立场矛盾？
+4. 一致性检查：我的发言/投票是否与之前立场矛盾？（言行不一致是被抓的最大漏洞）
+5. 查杀对齐：场上有已验证的预言家查杀吗？我的投票是否和查杀一致？
 ※ 发现问题请在thought中修正后再输出speech`;
 
 export const getAdversarialReflection = () => ADVERSARIAL_REFLECTION;
