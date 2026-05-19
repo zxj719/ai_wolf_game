@@ -74,7 +74,7 @@ if (src.includes('被指控时的应对') || src.includes('被指控时')) {
 }
 
 // Check 9: Wolf deception strategies (A/B/C/D)
-if (src.includes('主动踩人') && src.includes('站边混入') && src.includes('制造对立')) {
+if (src.includes('深水策略') && src.includes('站边混入') && src.includes('悍跳预言家')) {
   console.log('✅ PASS: Wolf deception strategies A/B/C/D present');
 } else {
   console.log('❌ FAIL: Missing wolf deception strategies');
