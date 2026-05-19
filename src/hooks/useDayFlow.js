@@ -682,10 +682,17 @@ export function useDayFlow({
         targetId = btResult.targetId;
         reasoning = btResult.reasoning;
       } else {
-        const pkContext = `\n⚠️ 这是 PK 重投！只能在 PK 候选人中选择。刚才的 PK 发言已经结束，请根据 PK 发言重新判断投谁。不要沿用之前的投票——PK 发言可能改变了局势。`;
+        let pkSeerConstraint = `\n⚠️ 这是 PK 重投！只能在 PK 候选人中选择。刚才的 PK 发言已经结束，请根据 PK 发言重新判断投谁。不要沿用之前的投票——PK 发言可能改变了局势。`;
+        if (p.role === '预言家') {
+          const myChecks = (seerChecks || []).filter(c => c.seerId === p.id);
+          const goodPeople = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
+          if (goodPeople.length > 0) {
+            pkSeerConstraint += `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。严禁投票给他们！`;
+          }
+        }
         const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, {
           validTargets,
-          seerConstraint: pkContext,
+          seerConstraint: pkSeerConstraint,
           pkMode: true,
           pkCandidates: pkCandidateIds,
         });
