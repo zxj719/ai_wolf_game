@@ -54,6 +54,7 @@ export function SetupScreen({
   setGameMode,
   isLoggedIn = false,
   isGuestMode = false,
+  isAdmin = false,
   hasModelscopeToken = false,
   onConfigureToken = null,
   customRoleSelections = DEFAULT_CUSTOM_SELECTIONS,
@@ -72,10 +73,13 @@ export function SetupScreen({
   onStartNewGame = null,
 }) {
   const copy = getUiCopy(locale).setup;
-  const [selectedMode, setSelectedMode] = useState(() => gameMode || null);
+  // Guest（非 admin）自动锁定全 AI 模式
+  const guestOnlyAI = !isAdmin && (isGuestMode || !isLoggedIn);
+  const [selectedMode, setSelectedMode] = useState(() => guestOnlyAI ? 'ai-only' : (gameMode || null));
 
   const usesServerSessionAI = WEREWOLF_AI_MODE === 'session' || WEREWOLF_AI_MODE === 'claude-session';
-  const needsTokenConfig = !usesServerSessionAI && isLoggedIn && !isGuestMode && !hasModelscopeToken;
+  // Guest 不需要 ModelScope token（系统使用内置 API）
+  const needsTokenConfig = false;
   const customValidation = validateRoleConfig(customRoleSelections);
   const hasApiAccess = usesServerSessionAI || (isGuestMode ? !!API_KEY : hasModelscopeToken || !!API_KEY);
   const canStartSelectedMode = !!selectedMode && customValidation.isValid;

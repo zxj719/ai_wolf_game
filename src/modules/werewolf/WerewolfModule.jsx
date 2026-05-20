@@ -95,7 +95,7 @@ export default function WerewolfModule() {
     closeStats,
   } = useShell();
 
-  const { user, logout, modelscopeToken, tokenStatus, verifyModelscopeToken } = useAuth();
+  const { user, logout, modelscopeToken, tokenStatus, verifyModelscopeToken, isAdmin } = useAuth();
   const { enterGuestMode, handleLogout: baseHandleLogout } = useAuthNav({ navigate, logout, setIsGuestMode });
   const ui = getUiCopy(locale);
 
@@ -608,6 +608,7 @@ export default function WerewolfModule() {
               setGameMode={setGameMode}
               isLoggedIn={!!user}
               isGuestMode={isGuestMode}
+              isAdmin={isAdmin}
               hasModelscopeToken={usesServerSessionAI || tokenStatus.hasToken}
               onConfigureToken={() => {
                 if (isGuestMode) { handleGuestExitToLogin(); return; }
