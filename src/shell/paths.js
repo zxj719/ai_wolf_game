@@ -14,9 +14,10 @@ export const ROUTES = {
   VERIFY: '/verify-email',
 
   // 狼人杀模块
-  WEREWOLF:       '/werewolf',
-  WEREWOLF_SETUP: '/werewolf/setup',
-  WEREWOLF_PLAY:  '/werewolf/play',
+  WEREWOLF:        '/werewolf',
+  WEREWOLF_SETUP:  '/werewolf/setup',
+  WEREWOLF_PLAY:   '/werewolf/play',
+  WEREWOLF_REPLAY: '/werewolf/replay',
 
   // 其它并列模块
   CHORDS: '/chords',

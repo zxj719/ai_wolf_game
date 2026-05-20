@@ -17,6 +17,7 @@ import {
   Plus,
   RefreshCw,
   Save,
+  Lock,
   ScrollText,
   Send,
   Sparkles,
@@ -395,16 +396,18 @@ const MOBILE_TABS = [
 ];
 
 function MobileTabBar({ activeTab, onTabChange, job, copy }) {
+  const { isAdmin } = useAuth();
   const tabLabels = {
     memory: copy.studio.projectMemory,
     reader: copy.studio.chapters,
     chat: 'Codex',
   };
+  const visibleTabs = isAdmin ? MOBILE_TABS : MOBILE_TABS.filter((t) => t.key !== 'chat');
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 backdrop-blur-md md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="flex">
-        {MOBILE_TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.key;
           const showDot = tab.key === 'chat' && isJobRunning(job);
@@ -1039,6 +1042,7 @@ function ReaderPane({
 }
 
 function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh, onOpenProject, onNewBook }) {
+  const { isAdmin } = useAuth();
   return (
     <div className="px-2 py-4 md:px-6 md:py-10">
       <div className="mx-auto max-w-[1300px]">
@@ -1056,10 +1060,12 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
               </div>
             </div>
             <div className="flex items-center gap-1.5 md:gap-2">
+              {isAdmin && (
               <button type="button" onClick={onNewBook} className="mac-button mac-button-primary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <Plus size={15} />
                 <span className="hidden sm:inline">{copy.shelf.newBook}</span>
               </button>
+              )}
               <button type="button" onClick={onRefresh} className="mac-button mac-button-secondary !h-9 !w-9 !rounded-[14px] !p-0 md:!h-10 md:!w-10 md:!rounded-[16px]" title={copy.common.refresh}>
                 <RefreshCw size={15} />
               </button>
@@ -1119,6 +1125,7 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
                     {project.latestTitle && <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600 md:mt-4">{project.latestTitle}</p>}
                   </button>
                 ))}
+                {isAdmin && (
                 <button
                   type="button"
                   onClick={onNewBook}
@@ -1127,6 +1134,7 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
                   <Plus size={24} />
                   <div className="mt-3 text-sm font-semibold text-slate-800">{copy.shelf.addBook}</div>
                 </button>
+                )}
               </div>
             )}
           </main>
@@ -1243,6 +1251,7 @@ function StudioPage({
   onGenerate,
   onRefresh,
 }) {
+  const { isAdmin } = useAuth();
   const jobRunning = isJobRunning(job);
   const [mobileTab, setMobileTab] = useState('reader');
 
@@ -1331,22 +1340,30 @@ function StudioPage({
                     <div className="text-xs text-slate-500">{copy.studio.subtitle}</div>
                   </div>
                 </div>
-                <CodexChat
-                  guidance={guidance}
-                  job={job}
-                  session={session}
-                  sessionLoading={sessionLoading}
-                  project={project}
-                  selectedDocument={selectedDocument}
-                  actionMode={actionMode}
-                  busy={busy}
-                  copy={copy}
-                  locale={locale}
-                  disabled={busy || jobRunning || !project}
-                  onGuidanceChange={onGuidanceChange}
-                  onActionModeChange={onActionModeChange}
-                  onGenerate={onGenerate}
-                />
+                {isAdmin ? (
+                  <CodexChat
+                    guidance={guidance}
+                    job={job}
+                    session={session}
+                    sessionLoading={sessionLoading}
+                    project={project}
+                    selectedDocument={selectedDocument}
+                    actionMode={actionMode}
+                    busy={busy}
+                    copy={copy}
+                    locale={locale}
+                    disabled={busy || jobRunning || !project}
+                    onGuidanceChange={onGuidanceChange}
+                    onActionModeChange={onActionModeChange}
+                    onGenerate={onGenerate}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white/60 px-6 py-12 text-center">
+                    <Lock size={28} className="mb-3 text-slate-400" />
+                    <p className="text-sm font-medium text-slate-600">仅管理员可使用 Codex</p>
+                    <p className="mt-1 text-xs text-slate-400">您可以浏览章节内容和大纲</p>
+                  </div>
+                )}
               </aside>
             </main>
           )}

@@ -8,6 +8,35 @@ import {
   WEREWOLF_AI_MODE,
 } from '../config/aiConfig';
 import { generateWerewolfSessionAsset } from './werewolfSessionClient';
+import { buildApiUrl } from './apiBase';
+
+// ─── Asset Cache (D1 game_assets table) ────────────────────
+
+function assetCacheKey(type, parts) {
+  const raw = [type, ...parts].join('|');
+  let h = 0;
+  for (let i = 0; i < raw.length; i++) h = ((h << 5) - h + raw.charCodeAt(i)) | 0;
+  return `${type}_${(h >>> 0).toString(36)}`;
+}
+
+async function getCachedAsset(key) {
+  try {
+    const resp = await fetch(buildApiUrl(`/api/game/assets?key=${encodeURIComponent(key)}`));
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    return json.found ? json.data : null;
+  } catch { return null; }
+}
+
+async function saveCachedAsset(key, type, data) {
+  try {
+    await fetch(buildApiUrl('/api/game/assets/save'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, type, data }),
+    });
+  } catch { /* fire-and-forget */ }
+}
 
 // ============================================
 // Provider Configuration
@@ -452,6 +481,13 @@ export const generateAvatarPrompt = (player, isUserPlayer = false, gameMode = 'a
  * Generate avatar image for a player with automatic fallback
  */
 export const generatePlayerAvatar = async (player, isUserPlayer = false, gameMode = 'ai-only') => {
+  const cacheKey = assetCacheKey('avatar', [player.name, player.personality || '', player.role, gameMode]);
+  const cached = await getCachedAsset(cacheKey);
+  if (cached) {
+    console.log(`[ImageGen] Cache hit for avatar: ${player.name}`);
+    return cached;
+  }
+
   const prompt = generateAvatarPrompt(player, isUserPlayer, gameMode);
 
   // 尝试所有可用的提供商
@@ -486,16 +522,15 @@ export const generatePlayerAvatar = async (player, isUserPlayer = false, gameMod
       if (imageUrl) {
         markProviderSuccess(providerId);
         console.log(`[ImageGen] Success with ${provider.name}`);
+        saveCachedAsset(cacheKey, 'avatar', imageUrl);
         return imageUrl;
       }
     } catch (error) {
       console.error(`[ImageGen] ${provider.name} failed:`, error.message);
       markProviderFailed(providerId, error);
-      // 继续尝试下一个提供商
     }
   }
 
-  // 所有提供商都失败，使用占位符
   console.warn('[ImageGen] All providers failed, using placeholder');
   return getPlaceholderAvatar(player.role);
 };
@@ -573,6 +608,12 @@ export const generateGameBackground = async () => {
   ];
 
   const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+  const bgCacheKey = assetCacheKey('background', [randomTheme]);
+  const cachedBg = await getCachedAsset(bgCacheKey);
+  if (cachedBg) {
+    console.log('[ImageGen] Cache hit for background');
+    return cachedBg;
+  }
 
   // 尝试所有可用的提供商
   for (const providerId of providerOrder) {
@@ -604,6 +645,7 @@ export const generateGameBackground = async () => {
       if (imageUrl) {
         markProviderSuccess(providerId);
         console.log(`[ImageGen] Background generated successfully`);
+        saveCachedAsset(bgCacheKey, 'background', imageUrl);
         return imageUrl;
       }
     } catch (error) {

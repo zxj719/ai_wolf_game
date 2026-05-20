@@ -1562,3 +1562,114 @@ export async function handleGameEnd(request, env) {
     return errorResponse('Failed to queue game log: ' + error.message, 500, env, request);
   }
 }
+
+// ─── Game Asset Caching ───────────────────────────────────────
+
+/**
+ * GET /api/game/assets?key=xxx
+ * Public — returns cached asset data by key.
+ */
+export async function handleGetGameAsset(request, env) {
+  try {
+    const url = new URL(request.url);
+    const key = url.searchParams.get('key');
+    if (!key) return errorResponse('key is required', 400, env, request);
+
+    const row = await env.DB.prepare(
+      'SELECT asset_type, data FROM game_assets WHERE asset_key = ?'
+    ).bind(key).first();
+
+    if (!row) return jsonResponse({ found: false }, 200, env, request);
+
+    return jsonResponse({ found: true, type: row.asset_type, data: row.data }, 200, env, request);
+  } catch (error) {
+    console.error('handleGetGameAsset:', error);
+    return errorResponse('Failed to get asset', 500, env, request);
+  }
+}
+
+/**
+ * POST /api/game/assets/save
+ * Public — saves generated asset to cache.
+ * Body: { key, type: 'background'|'avatar', data }
+ */
+export async function handleSaveGameAsset(request, env) {
+  try {
+    const { key, type, data } = await request.json();
+    if (!key || !type || !data) return errorResponse('key, type, data are required', 400, env, request);
+    if (!['background', 'avatar'].includes(type)) return errorResponse('type must be background or avatar', 400, env, request);
+
+    const dataSize = new Blob([data]).size;
+    if (dataSize > 900_000) return errorResponse('Asset too large for D1 (>900KB)', 413, env, request);
+
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO game_assets (asset_key, asset_type, data) VALUES (?, ?, ?)'
+    ).bind(key, type, data).run();
+
+    return jsonResponse({ success: true }, 200, env, request);
+  } catch (error) {
+    console.error('handleSaveGameAsset:', error);
+    return errorResponse('Failed to save asset', 500, env, request);
+  }
+}
+
+// ─── Game Replays ─────────────────────────────────────────────
+
+/**
+ * POST /api/game/replays
+ * Public — saves a replay record.
+ * Body: { gameSessionId, gameMode, playerCount, winner, dayCount, replayData }
+ */
+export async function handleSaveReplay(request, env) {
+  try {
+    const body = await request.json();
+    const { gameSessionId, gameMode, playerCount, winner, dayCount, replayData } = body;
+    if (!gameSessionId || !replayData) return errorResponse('gameSessionId and replayData required', 400, env, request);
+
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO game_replays
+       (game_session_id, game_mode, player_count, winner, day_count, replay_data)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(
+      gameSessionId,
+      gameMode || 'ai-only',
+      playerCount || 8,
+      winner || null,
+      dayCount || 1,
+      typeof replayData === 'string' ? replayData : JSON.stringify(replayData),
+    ).run();
+
+    return jsonResponse({ success: true }, 200, env, request);
+  } catch (error) {
+    console.error('handleSaveReplay:', error);
+    return errorResponse('Failed to save replay', 500, env, request);
+  }
+}
+
+/**
+ * GET /api/game/replays?id=xxx  OR  /api/game/replays (list recent)
+ */
+export async function handleGetReplays(request, env) {
+  try {
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+
+    if (id) {
+      const row = await env.DB.prepare(
+        'SELECT * FROM game_replays WHERE id = ? OR game_session_id = ?'
+      ).bind(id, id).first();
+      if (!row) return errorResponse('Replay not found', 404, env, request);
+      return jsonResponse({ success: true, replay: row }, 200, env, request);
+    }
+
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
+    const rows = await env.DB.prepare(
+      'SELECT id, game_session_id, game_mode, player_count, winner, day_count, created_at FROM game_replays ORDER BY created_at DESC LIMIT ?'
+    ).bind(limit).all();
+
+    return jsonResponse({ success: true, replays: rows.results || [] }, 200, env, request);
+  } catch (error) {
+    console.error('handleGetReplays:', error);
+    return errorResponse('Failed to get replays', 500, env, request);
+  }
+}

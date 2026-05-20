@@ -14,6 +14,7 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  Music4,
   PenLine,
   Ticket,
   Trophy,
@@ -47,6 +48,7 @@ function UtilityButton({ icon: Icon, title, description, onClick }) {
 export function Dashboard({
   onEnterWolfgame,
   onEnterSites,
+  onEnterChords,
   onEnterNovel,
   onEnterThinkingLibrary,
   onLogout,
@@ -55,7 +57,7 @@ export function Dashboard({
   onGuestPlay,
   locale = 'zh',
 }) {
-  const { user, tokenStatus, verifyModelscopeToken } = useAuth();
+  const { user, tokenStatus, verifyModelscopeToken, isAdmin } = useAuth();
   const copy = getUiCopy(locale).dashboard;
   const common = getUiCopy(locale).common;
   const appCopy = getUiCopy(locale).app;
@@ -152,6 +154,7 @@ export function Dashboard({
                   >
                     <Trophy size={17} />
                   </button>
+                  {isAdmin && (
                   <button
                     type="button"
                     onClick={() => setShowTokenManager(true)}
@@ -161,6 +164,7 @@ export function Dashboard({
                   >
                     <Key size={17} className={tokenStatus.hasToken ? 'text-slate-700' : 'text-slate-400'} />
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={onLogout}
@@ -204,9 +208,9 @@ export function Dashboard({
                   <Gamepad2 size={16} />
                   {copy.startMatch}
                 </button>
-                <button type="button" onClick={onEnterSites} className="mac-button mac-button-secondary">
-                  <Globe size={16} />
-                  {copy.enterSites}
+                <button type="button" onClick={onEnterChords} className="mac-button mac-button-secondary">
+                  <Music4 size={16} />
+                  {copy.musicLab}
                 </button>
                 {isLoggedIn && !isGuestMode && (
                   <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
@@ -214,6 +218,10 @@ export function Dashboard({
                     小说工作台
                   </button>
                 )}
+                <button type="button" onClick={onEnterSites} className="mac-button mac-button-secondary">
+                  <Globe size={16} />
+                  {copy.enterSites}
+                </button>
                 <button type="button" onClick={onEnterThinkingLibrary} className="mac-button mac-button-secondary">
                   <BookOpenText size={16} />
                   {copy.thinkingLibrary}

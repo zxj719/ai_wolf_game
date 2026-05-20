@@ -23,9 +23,10 @@ const werewolfModule = {
   theme: 'dark',
   backend: 'cf-workers',
   routes: [
-    { path: ROUTES.WEREWOLF,       component: WerewolfModule, requiresAuth: false },
-    { path: ROUTES.WEREWOLF_SETUP, component: WerewolfModule, requiresAuth: true  },
-    { path: ROUTES.WEREWOLF_PLAY,  component: WerewolfModule, requiresAuth: true  },
+    { path: ROUTES.WEREWOLF,        component: WerewolfModule, requiresAuth: false },
+    { path: ROUTES.WEREWOLF_SETUP,  component: WerewolfModule, requiresAuth: true  },
+    { path: ROUTES.WEREWOLF_PLAY,   component: WerewolfModule, requiresAuth: true  },
+    { path: ROUTES.WEREWOLF_REPLAY, component: WerewolfModule, requiresAuth: false },
   ],
   home: { visible: true, order: 10 },
 };

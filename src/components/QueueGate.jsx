@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useShell } from '../shell/ShellContext';
 import { buildApiUrl } from '../services/apiBase';
 import { getToken } from '../utils/authToken';
 
@@ -12,12 +13,29 @@ const POLL_INTERVAL = 15_000;
  * If preempted by admin, triggers onPreempted callback.
  *
  * Props:
- *   resource   — 'werewolf' | 'novel'
+ *   resource    — 'werewolf' | 'novel'
  *   onPreempted — () => void (save snapshot + redirect)
- *   children   — the actual page content
+ *   children    — the actual page content
  */
 export function QueueGate({ resource, onPreempted, children }) {
   const { isAdmin } = useAuth();
+  const { isGuestMode } = useShell();
+
+  // Admin bypasses queue entirely
+  if (isAdmin) return children;
+
+  return (
+    <QueueGateInner
+      resource={resource}
+      onPreempted={onPreempted}
+      isGuest={isGuestMode}
+    >
+      {children}
+    </QueueGateInner>
+  );
+}
+
+function QueueGateInner({ resource, onPreempted, isGuest, children }) {
   const [status, setStatus] = useState('acquiring');
   const [queueInfo, setQueueInfo] = useState(null);
   const leaseRef = useRef(null);
@@ -154,7 +172,11 @@ export function QueueGate({ resource, onPreempted, children }) {
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">👋</div>
           <h2 className="text-xl font-bold text-white mb-2">管理员已接管</h2>
-          <p className="text-zinc-400 mb-4">您的游戏进度已自动保存，管理员使用完毕后您可以继续。</p>
+          <p className="text-zinc-400 mb-4">
+            {isGuest
+              ? '管理员使用完毕后您可以重新开始。'
+              : '您的游戏进度已自动保存，管理员使用完毕后您可以继续。'}
+          </p>
           <button
             onClick={() => window.location.reload()}
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"

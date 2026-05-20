@@ -75,6 +75,20 @@ export async function createChordsJob(file, options = {}) {
   return normalizeChordsJob(payload);
 }
 
+export async function listChordsJobs() {
+  const response = await fetch(buildApiUrl('/api/chords/jobs'), {
+    method: 'GET',
+  });
+
+  const payload = await readJsonResponse(response);
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.error || payload.detail || `Failed to list jobs: ${response.status}`);
+  }
+
+  const jobs = Array.isArray(payload.jobs) ? payload.jobs : Array.isArray(payload) ? payload : [];
+  return jobs.map(normalizeChordsJob);
+}
+
 export async function getChordsJob(jobId) {
   const response = await fetch(buildApiUrl(`/api/chords/jobs/${encodeURIComponent(jobId)}`), {
     method: 'GET',

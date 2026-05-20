@@ -27,10 +27,11 @@
 import home from '../modules/home';
 import auth from '../modules/auth';
 import werewolf from '../modules/werewolf';
+import chords from '../modules/chords';
 import sites from '../modules/sites';
 import novel from '../modules/novel';
 
-const modules = [home, auth, werewolf, novel, sites];
+const modules = [home, auth, werewolf, novel, chords, sites];
 
 export default modules;
 

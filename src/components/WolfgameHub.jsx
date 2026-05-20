@@ -1,4 +1,4 @@
-import { ArrowLeft, KeyRound, LogIn, Swords, Ticket, Trophy, Waypoints } from 'lucide-react';
+import { ArrowLeft, KeyRound, LogIn, PlayCircle, Swords, Ticket, Trophy, Waypoints } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { TokenManager } from './TokenManager';
@@ -56,6 +56,7 @@ export function WolfgameHub({
   onBackHome,
   onEnterWolfgame,
   onGuestWolfgame,
+  onReplay,
   onLogin,
   isGuestMode = false,
   locale = 'zh',
@@ -132,6 +133,12 @@ export function WolfgameHub({
                   {isLoggedIn || isGuestMode ? <Swords size={16} /> : <Ticket size={16} />}
                   {primaryLabel}
                 </button>
+                {onReplay && (
+                  <button type="button" onClick={onReplay} className="mac-button mac-button-secondary">
+                    <PlayCircle size={16} />
+                    {locale === 'en' ? 'Replays' : '历史回放'}
+                  </button>
+                )}
                 {!isLoggedIn && !isGuestMode && (
                   <button type="button" onClick={onLogin} className="mac-button mac-button-secondary">
                     <LogIn size={16} />

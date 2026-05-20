@@ -4,13 +4,16 @@ import {
   ExternalLink,
   FileAudio,
   FileJson,
+  Library,
   Loader2,
+  Lock,
   Music4,
   Sparkles,
   Upload,
   Wand2,
 } from 'lucide-react';
-import { createChordsJob, getChordsJob } from '../services/chordsService.js';
+import { createChordsJob, getChordsJob, listChordsJobs } from '../services/chordsService.js';
+import { useAuth } from '../contexts/AuthContext';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -62,6 +65,12 @@ function getCopy(locale) {
       noSections: 'No section notes returned.',
       noCallout: 'Not called out',
       uploadAnother: 'Choose another file',
+      galleryTitle: 'Analyzed tracks',
+      gallerySubtitle: 'Browse songs analyzed by the admin.',
+      galleryEmpty: 'No analyzed songs yet. Check back later!',
+      galleryLoading: 'Loading tracks…',
+      adminOnly: 'Admin only',
+      adminOnlyHint: 'Upload and cloud analysis are available to the admin only. Browse existing results below.',
     };
   }
 
@@ -111,6 +120,12 @@ function getCopy(locale) {
     noSections: '暂未返回分段说明。',
     noCallout: '暂无标注',
     uploadAnother: '重新选择文件',
+    galleryTitle: '已分析曲目',
+    gallerySubtitle: '浏览管理员已分析好的歌曲。',
+    galleryEmpty: '暂无已分析的歌曲，请稍后再来！',
+    galleryLoading: '加载中…',
+    adminOnly: '仅管理员',
+    adminOnlyHint: '上传和云端分析仅限管理员使用。以下是已有的分析结果。',
   };
 }
 
@@ -179,7 +194,35 @@ function OptionToggle({ checked, onChange, title, description }) {
   );
 }
 
+function GalleryCard({ job: galleryJob, copy, onSelect }) {
+  const arr = galleryJob.arrangement || {};
+  const stats = galleryJob.analysis || {};
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(galleryJob)}
+      className="mac-list-row w-full text-left transition-colors hover:bg-white/90"
+    >
+      <div className="flex items-center gap-3">
+        <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
+          <Music4 size={17} />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-slate-900">{galleryJob.sourceFilename || galleryJob.id}</div>
+          <div className="flex items-center gap-3 text-sm text-slate-500">
+            {stats?.bpm ? <span>{stats.bpm} BPM</span> : null}
+            {stats?.key?.key ? <span>{stats.key.key} {stats.key.mode || ''}</span> : null}
+            {arr.style_tags?.length ? <span>{arr.style_tags[0]}</span> : null}
+          </div>
+        </div>
+      </div>
+      <ExternalLink size={15} className="text-slate-400" />
+    </button>
+  );
+}
+
 export function ChordsPage({ onBack, locale = 'zh' }) {
+  const { isAdmin } = useAuth();
   const copy = getCopy(locale);
   const [selectedFile, setSelectedFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState('');
@@ -190,6 +233,9 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
     noResynth: false,
     splitVocals: 0,
   });
+  const [galleryJobs, setGalleryJobs] = useState([]);
+  const [galleryLoading, setGalleryLoading] = useState(true);
+  const [selectedGalleryJob, setSelectedGalleryJob] = useState(null);
 
   useEffect(() => {
     return () => {
@@ -216,12 +262,28 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
     return () => window.clearTimeout(timeoutId);
   }, [job]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setGalleryLoading(true);
+    listChordsJobs()
+      .then((jobs) => {
+        if (!cancelled) {
+          setGalleryJobs(jobs.filter((j) => j.status === 'completed'));
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setGalleryLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeJob = selectedGalleryJob || job;
+
   const stemArtifacts = useMemo(
-    () => (job?.artifacts || []).filter((artifact) => artifact.kind === 'stem'),
-    [job],
+    () => (activeJob?.artifacts || []).filter((artifact) => artifact.kind === 'stem'),
+    [activeJob],
   );
 
-  const arrangement = job?.arrangement || {
+  const arrangement = activeJob?.arrangement || {
     summary: '',
     style_tags: [],
     mood_tags: [],
@@ -273,7 +335,7 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
   };
 
   const isBusy = job?.status === 'queued' || job?.status === 'processing';
-  const summaryStats = job?.analysis || null;
+  const summaryStats = activeJob?.analysis || null;
 
   return (
     <div className="px-4 py-16 md:px-6">
@@ -308,117 +370,165 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                 <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.description}</p>
               </div>
 
-              <div className="mac-panel p-5 md:p-6">
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="mac-icon-tile">
-                    <Upload size={18} />
-                  </span>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900">{copy.pickFile}</h3>
-                    <p className="text-sm text-slate-500">{copy.fileHint}</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-4">
-                  <label className="flex cursor-pointer items-center justify-center rounded-[22px] border border-dashed border-slate-300 bg-white/72 px-5 py-8 text-center transition-colors hover:border-slate-400 hover:bg-white/84">
-                    <input type="file" accept=".mp3,.wav,.m4a,audio/*" className="hidden" onChange={handleFileChange} />
-                    <div className="space-y-3">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                        <FileAudio size={22} />
+              {isAdmin ? (
+                <>
+                  <div className="mac-panel p-5 md:p-6">
+                    <div className="mb-4 flex items-center gap-3">
+                      <span className="mac-icon-tile">
+                        <Upload size={18} />
+                      </span>
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-900">{copy.pickFile}</h3>
+                        <p className="text-sm text-slate-500">{copy.fileHint}</p>
                       </div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        {selectedFile ? selectedFile.name : copy.browse}
-                      </div>
-                      <div className="text-sm text-slate-500">{copy.privacy}</div>
                     </div>
-                  </label>
 
-                  {selectedFile ? (
-                    <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-slate-900">{selectedFile.name}</div>
-                          <div className="text-sm text-slate-500">{formatBytes(selectedFile.size)}</div>
+                    <div className="grid gap-4">
+                      <label className="flex cursor-pointer items-center justify-center rounded-[22px] border border-dashed border-slate-300 bg-white/72 px-5 py-8 text-center transition-colors hover:border-slate-400 hover:bg-white/84">
+                        <input type="file" accept=".mp3,.wav,.m4a,audio/*" className="hidden" onChange={handleFileChange} />
+                        <div className="space-y-3">
+                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                            <FileAudio size={22} />
+                          </div>
+                          <div className="text-sm font-semibold text-slate-900">
+                            {selectedFile ? selectedFile.name : copy.browse}
+                          </div>
+                          <div className="text-sm text-slate-500">{copy.privacy}</div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleAnalyze}
-                          disabled={isBusy}
-                          className="mac-button mac-button-primary"
-                        >
-                          {isBusy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
-                          {isBusy ? copy.analyzing : copy.analyze}
-                        </button>
+                      </label>
+
+                      {selectedFile ? (
+                        <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedFile.name}</div>
+                              <div className="text-sm text-slate-500">{formatBytes(selectedFile.size)}</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleAnalyze}
+                              disabled={isBusy}
+                              className="mac-button mac-button-primary"
+                            >
+                              {isBusy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
+                              {isBusy ? copy.analyzing : copy.analyze}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {audioUrl ? (
+                        <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
+                          <div className="mb-2 text-sm font-semibold text-slate-900">{copy.audioTitle}</div>
+                          <audio controls className="w-full" src={audioUrl}>
+                            <track kind="captions" />
+                          </audio>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mac-panel p-5">
+                    <div className="mb-4 flex items-center gap-3">
+                      <span className="mac-icon-tile">
+                        <Music4 size={18} />
+                      </span>
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-900">{copy.optionsTitle}</h3>
+                        <p className="text-sm text-slate-500">{copy.idleCopy}</p>
                       </div>
                     </div>
-                  ) : null}
 
-                  {audioUrl ? (
-                    <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
-                      <div className="mb-2 text-sm font-semibold text-slate-900">{copy.audioTitle}</div>
-                      <audio controls className="w-full" src={audioUrl}>
-                        <track kind="captions" />
-                      </audio>
+                    <div className="grid gap-3">
+                      <OptionToggle
+                        checked={options.fourStems}
+                        onChange={(checked) => setOptions((current) => ({ ...current, fourStems: checked }))}
+                        title={copy.fastMode}
+                        description={copy.fastModeHelp}
+                      />
+
+                      <OptionToggle
+                        checked={options.noResynth}
+                        onChange={(checked) => setOptions((current) => ({ ...current, noResynth: checked }))}
+                        title={copy.resynth}
+                        description={copy.resynthHelp}
+                      />
+
+                      <label className="rounded-[18px] border border-slate-200/70 bg-white/72 p-4">
+                        <div className="text-sm font-semibold text-slate-900">{copy.splitVocals}</div>
+                        <div className="mt-1 text-sm leading-6 text-slate-500">{copy.splitVocalsHelp}</div>
+                        <select
+                          className="mac-select mt-3"
+                          value={options.splitVocals}
+                          onChange={(event) => {
+                            setOptions((current) => ({ ...current, splitVocals: Number(event.target.value) }));
+                          }}
+                        >
+                          <option value={0}>0</option>
+                          <option value={2}>2</option>
+                          <option value={3}>3</option>
+                          <option value={4}>4</option>
+                        </select>
+                      </label>
                     </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="mac-panel p-5">
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="mac-icon-tile">
-                    <Music4 size={18} />
-                  </span>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900">{copy.optionsTitle}</h3>
-                    <p className="text-sm text-slate-500">{copy.idleCopy}</p>
                   </div>
-                </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-[24px] border border-amber-200/80 bg-amber-50/80 p-5">
+                    <div className="flex items-center gap-3">
+                      <Lock size={16} className="text-amber-600" />
+                      <div>
+                        <div className="text-sm font-semibold text-amber-900">{copy.adminOnly}</div>
+                        <div className="text-sm text-amber-700">{copy.adminOnlyHint}</div>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="grid gap-3">
-                  <OptionToggle
-                    checked={options.fourStems}
-                    onChange={(checked) => setOptions((current) => ({ ...current, fourStems: checked }))}
-                    title={copy.fastMode}
-                    description={copy.fastModeHelp}
-                  />
+                  <div className="mac-panel p-5">
+                    <div className="mb-4 flex items-center gap-3">
+                      <span className="mac-icon-tile">
+                        <Library size={18} />
+                      </span>
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-900">{copy.galleryTitle}</h3>
+                        <p className="text-sm text-slate-500">{copy.gallerySubtitle}</p>
+                      </div>
+                    </div>
 
-                  <OptionToggle
-                    checked={options.noResynth}
-                    onChange={(checked) => setOptions((current) => ({ ...current, noResynth: checked }))}
-                    title={copy.resynth}
-                    description={copy.resynthHelp}
-                  />
-
-                  <label className="rounded-[18px] border border-slate-200/70 bg-white/72 p-4">
-                    <div className="text-sm font-semibold text-slate-900">{copy.splitVocals}</div>
-                    <div className="mt-1 text-sm leading-6 text-slate-500">{copy.splitVocalsHelp}</div>
-                    <select
-                      className="mac-select mt-3"
-                      value={options.splitVocals}
-                      onChange={(event) => {
-                        setOptions((current) => ({ ...current, splitVocals: Number(event.target.value) }));
-                      }}
-                    >
-                      <option value={0}>0</option>
-                      <option value={2}>2</option>
-                      <option value={3}>3</option>
-                      <option value={4}>4</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
+                    {galleryLoading ? (
+                      <div className="flex items-center gap-2 py-6 text-sm text-slate-400">
+                        <Loader2 size={15} className="animate-spin" />
+                        {copy.galleryLoading}
+                      </div>
+                    ) : galleryJobs.length === 0 ? (
+                      <div className="py-6 text-center text-sm text-slate-400">{copy.galleryEmpty}</div>
+                    ) : (
+                      <div className="grid gap-2">
+                        {galleryJobs.map((gj) => (
+                          <GalleryCard
+                            key={gj.id}
+                            job={gj}
+                            copy={copy}
+                            onSelect={(selected) => { setSelectedGalleryJob(selected); setJob(null); }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </section>
 
             <section className="space-y-4">
-              {!job ? (
+              {!activeJob ? (
                 <div className="mac-panel p-6">
                   <div className="text-base font-semibold text-slate-900">{copy.idleTitle}</div>
                   <p className="mt-2 text-sm leading-6 text-slate-500">{copy.idleCopy}</p>
                 </div>
               ) : null}
 
-              {job ? (
+              {job && !selectedGalleryJob ? (
                 <div className="mac-panel p-6">
                   <div className="mb-4 flex items-center gap-3">
                     <span className="mac-icon-tile">
@@ -515,7 +625,7 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                 </div>
               ) : null}
 
-              {job?.status === 'completed' ? (
+              {activeJob?.status === 'completed' ? (
                 <>
                   <div className="mac-panel p-5">
                     <div className="mb-4 flex items-center gap-3">
@@ -524,19 +634,19 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                       </span>
                       <div>
                         <h3 className="text-base font-semibold text-slate-900">{copy.artifactsTitle}</h3>
-                        <p className="text-sm text-slate-500">{job.sourceFilename}</p>
+                        <p className="text-sm text-slate-500">{activeJob.sourceFilename}</p>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                      {job.playerUrl ? (
-                        <a href={job.playerUrl} target="_blank" rel="noreferrer noopener" className="mac-button mac-button-primary">
+                      {activeJob.playerUrl ? (
+                        <a href={activeJob.playerUrl} target="_blank" rel="noreferrer noopener" className="mac-button mac-button-primary">
                           {copy.openPlayer}
                           <ExternalLink size={15} />
                         </a>
                       ) : null}
-                      {job.analysisUrl ? (
-                        <a href={job.analysisUrl} target="_blank" rel="noreferrer noopener" className="mac-button mac-button-secondary">
+                      {activeJob.analysisUrl ? (
+                        <a href={activeJob.analysisUrl} target="_blank" rel="noreferrer noopener" className="mac-button mac-button-secondary">
                           {copy.analysisJson}
                           <ExternalLink size={15} />
                         </a>
@@ -618,21 +728,21 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                     </div>
                   </div>
 
-                  {job.playerUrl ? (
+                  {activeJob.playerUrl ? (
                     <div className="mac-panel overflow-hidden p-0">
                       <div className="mac-toolbar">
                         <div>
                           <div className="mac-eyebrow">{copy.playerTitle}</div>
-                          <h3 className="text-base font-semibold text-slate-900">{job.sourceFilename}</h3>
+                          <h3 className="text-base font-semibold text-slate-900">{activeJob.sourceFilename}</h3>
                         </div>
-                        <a href={job.playerUrl} target="_blank" rel="noreferrer noopener" className="mac-button mac-button-secondary">
+                        <a href={activeJob.playerUrl} target="_blank" rel="noreferrer noopener" className="mac-button mac-button-secondary">
                           {copy.openPlayer}
                           <ExternalLink size={15} />
                         </a>
                       </div>
                       <iframe
-                        src={job.playerUrl}
-                        title={`${job.sourceFilename} stem player`}
+                        src={activeJob.playerUrl}
+                        title={`${activeJob.sourceFilename} stem player`}
                         className="h-[860px] w-full border-0 bg-white"
                       />
                     </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, RotateCcw, AlertTriangle, Moon, Sun } from 'lucide-react';
+import { Download, RotateCcw, AlertTriangle, Moon, Sun, PlayCircle } from 'lucide-react';
 import { getValidSwapTargets, validateMagicianSwap, updateMagicianHistory } from '../utils/magicianUtils';
 
 export function ActionPanel({
@@ -15,6 +15,7 @@ export function ActionPanel({
   hunterPlayer,
   exportGameLog,
   restartGame,
+  onReplay,
   userPlayer,
   players,
   nightDecisions,
@@ -40,16 +41,24 @@ export function ActionPanel({
       <div className="text-center">
         <h2 className="text-2xl font-black mb-4 uppercase tracking-widest text-amber-400">Game Over</h2>
         <p className="text-sm text-zinc-400 mb-6">查看上方日志了解游戏结果</p>
-        <div className="flex gap-4 justify-center">
-          <button 
+        <div className="flex gap-3 justify-center flex-wrap">
+          <button
             onClick={exportGameLog}
-            className="px-10 py-4 bg-indigo-600 rounded-2xl font-black text-xs uppercase hover:bg-indigo-500 transition-all flex items-center gap-2"
+            className="px-8 py-4 bg-indigo-600 rounded-2xl font-black text-xs uppercase hover:bg-indigo-500 transition-all flex items-center gap-2"
           >
             <Download size={18}/> 导出记录
           </button>
-          <button 
+          {onReplay && (
+          <button
+            onClick={onReplay}
+            className="px-8 py-4 bg-amber-600 rounded-2xl font-black text-xs uppercase hover:bg-amber-500 transition-all flex items-center gap-2"
+          >
+            <PlayCircle size={18}/> 回放
+          </button>
+          )}
+          <button
             onClick={restartGame}
-            className="px-10 py-4 bg-emerald-600 rounded-2xl font-black text-xs uppercase hover:bg-emerald-500 transition-all flex items-center gap-2"
+            className="px-8 py-4 bg-emerald-600 rounded-2xl font-black text-xs uppercase hover:bg-emerald-500 transition-all flex items-center gap-2"
           >
             <RotateCcw size={18}/> 重新开始
           </button>

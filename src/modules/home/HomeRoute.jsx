@@ -33,6 +33,7 @@ export default function HomeRoute() {
   }, [user, isGuestMode, navigate, enterGuestMode]);
 
   const onEnterSites = useCallback(() => navigate(ROUTES.SITES), [navigate]);
+  const onEnterChords = useCallback(() => navigate(ROUTES.CHORDS), [navigate]);
   const onEnterNovel = useCallback(() => navigate(ROUTES.NOVEL), [navigate]);
   const onEnterThinkingLibrary = useCallback(() => {
     window.location.assign('/site/index.html');
@@ -57,6 +58,7 @@ export default function HomeRoute() {
           locale={locale}
           onEnterWolfgame={onEnterWolfgame}
           onEnterSites={onEnterSites}
+          onEnterChords={onEnterChords}
           onEnterNovel={onEnterNovel}
           onEnterThinkingLibrary={onEnterThinkingLibrary}
           onLogout={handleLogout}

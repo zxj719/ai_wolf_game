@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Send, Download, RotateCcw, AlertTriangle, Syringe, Crosshair, Vote, MinusCircle, Shuffle } from 'lucide-react';
+import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Send, Download, RotateCcw, AlertTriangle, Syringe, Crosshair, Vote, MinusCircle, Shuffle, PlayCircle } from 'lucide-react';
 import { getValidSwapTargets, validateMagicianSwap } from '../utils/magicianUtils';
 import { ROLE_DEFINITIONS } from '../config/roles';
 
@@ -65,7 +65,8 @@ export function CirclePlayerLayout({
   handleUserDuel,
   // Game over props
   exportGameLog,
-  restartGame
+  restartGame,
+  onReplay,
 }) {
   const [layout, setLayout] = useState({
     size: 0,
@@ -805,13 +806,21 @@ export function CirclePlayerLayout({
                 <p className={`text-sm font-black tracking-wide ${gameOverWinner.color}`}>{gameOverWinner.text}</p>
                 <h2 className="text-lg font-black uppercase tracking-widest text-amber-400">Game Over</h2>
                 <p className="text-[10px] text-zinc-400">查看历史记录</p>
-                <div className="flex gap-2 justify-center">
+                <div className="flex gap-2 justify-center flex-wrap">
                   <button
                     onClick={exportGameLog}
                     className="px-4 py-1.5 bg-indigo-600 rounded-lg font-bold text-xs uppercase hover:bg-indigo-500 transition-all flex items-center gap-1"
                   >
                     <Download size={12}/> 导出
                   </button>
+                  {onReplay && (
+                  <button
+                    onClick={onReplay}
+                    className="px-4 py-1.5 bg-amber-600 rounded-lg font-bold text-xs uppercase hover:bg-amber-500 transition-all flex items-center gap-1"
+                  >
+                    <PlayCircle size={12}/> 回放
+                  </button>
+                  )}
                   <button
                     onClick={restartGame}
                     className="px-4 py-1.5 bg-emerald-600 rounded-lg font-bold text-xs uppercase hover:bg-emerald-500 transition-all flex items-center gap-1"

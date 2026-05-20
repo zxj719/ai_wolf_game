@@ -35,11 +35,14 @@ import {
   getCurrentNightRole as getCurrentNightRoleUtil,
 } from '../../utils/gameUtils';
 import { exportGameLog as exportGameLogUtil } from '../../utils/exportGameLog';
+import { buildReplayTimeline } from '../../utils/buildReplayTimeline';
+import { buildApiUrl } from '../../services/apiBase';
 import { getUiCopy } from '../../i18n/locale.js';
 import { LanguageToggle } from '../../components/LanguageToggle';
 import { useShell } from '../../shell/ShellContext';
 import { useAuthNav } from '../../shell/useAuthNav';
 import { ROUTES } from '../../shell/paths';
+import { QueueGate } from '../../components/QueueGate';
 
 const SetupScreen = lazy(() =>
   import('../../components/SetupScreen').then((m) => ({ default: m.SetupScreen }))
@@ -55,6 +58,9 @@ const TokenManager = lazy(() =>
 );
 const UserStats = lazy(() =>
   import('../../components/UserStats').then((m) => ({ default: m.UserStats }))
+);
+const ReplayViewer = lazy(() =>
+  import('../../components/ReplayViewer').then((m) => ({ default: m.ReplayViewer }))
 );
 
 function FullPageLoader({ text = 'Loading...' }) {
@@ -150,9 +156,10 @@ export default function WerewolfModule() {
 
   const { aiModels, disabledModelsRef } = useAIModels();
 
-  const isHubRoute   = currentPath === ROUTES.WEREWOLF;
-  const isSetupRoute = currentPath === ROUTES.WEREWOLF_SETUP;
-  const isPlayRoute  = currentPath === ROUTES.WEREWOLF_PLAY;
+  const isHubRoute    = currentPath === ROUTES.WEREWOLF;
+  const isSetupRoute  = currentPath === ROUTES.WEREWOLF_SETUP;
+  const isPlayRoute   = currentPath === ROUTES.WEREWOLF_PLAY;
+  const isReplayRoute = currentPath === ROUTES.WEREWOLF_REPLAY;
   const isGameActive = phase !== 'setup' || !!gameMode;
   const currentNightSequence = selectedSetup.NIGHT_SEQUENCE || ['GUARD', 'WEREWOLF', 'SEER', 'WITCH'];
   const usesServerSessionAI = WEREWOLF_AI_MODE === 'session' || WEREWOLF_AI_MODE === 'claude-session';
@@ -360,6 +367,39 @@ export default function WerewolfModule() {
     });
   }, [gameResult]);
 
+  useEffect(() => {
+    if (!gameResult || !gameStateRef.current) return;
+    const s = gameStateRef.current;
+    try {
+      const replayData = buildReplayTimeline({
+        players: s.players,
+        dayCount: s.dayCount,
+        deathHistory: s.deathHistory,
+        speechHistory: s.speechHistory,
+        voteHistory: s.voteHistory,
+        seerChecks: s.seerChecks,
+        guardHistory: s.guardHistory,
+        witchHistory: s.witchHistory,
+        nightActionHistory: s.nightActionHistory,
+        gameResult,
+        victoryMode,
+        claimHistory: s.claimHistory,
+      });
+      fetch(buildApiUrl('/api/game/replays'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameSessionId: s.modelUsage?.gameSessionId || `local_${Date.now()}`,
+          gameMode,
+          playerCount: s.players?.length || 0,
+          winner: gameResult,
+          dayCount: s.dayCount,
+          replayData,
+        }),
+      }).catch((err) => logger.error('[replay] save failed:', err));
+    } catch (err) { logger.error('[replay] build failed:', err); }
+  }, [gameResult, gameMode, victoryMode]);
+
   // === AI / 白天 / 夜晚 / 发言流 ===
   const checkGameEnd = useCallback(
     (currentPlayers = players) => checkGameEndUtil(currentPlayers, victoryMode, addLog, setGameResult),
@@ -523,6 +563,16 @@ export default function WerewolfModule() {
     navigate(ROUTES.LOGIN, { replace: true });
   }, [endGame, navigate, setIsGuestMode, snapshotCurrentGame]);
 
+  const handlePreempted = useCallback(() => {
+    if (user && !isGuestMode) snapshotCurrentGame();
+    endGame();
+    navigate(ROUTES.WEREWOLF, { replace: true });
+  }, [user, isGuestMode, snapshotCurrentGame, endGame, navigate]);
+
+  const handleReplay = useCallback(() => {
+    navigate(ROUTES.WEREWOLF_REPLAY);
+  }, [navigate]);
+
   const handleGoToLogin = useCallback(() => {
     navigate(ROUTES.LOGIN);
   }, [navigate]);
@@ -564,6 +614,16 @@ export default function WerewolfModule() {
     </div>
   ) : null;
 
+  if (isReplayRoute) {
+    return (
+      <div className="mac-app-shell">
+        <Suspense fallback={<FullPageLoader text={ui.common.loading} />}>
+          <ReplayViewer onBack={() => navigate(ROUTES.WEREWOLF)} />
+        </Suspense>
+      </div>
+    );
+  }
+
   if (isHubRoute) {
     return (
       <div className="mac-app-shell">
@@ -573,6 +633,7 @@ export default function WerewolfModule() {
             onBackHome={() => navigate(ROUTES.HOME)}
             onEnterWolfgame={handleEnterWolfgameSetup}
             onGuestWolfgame={handleGuestWolfgame}
+            onReplay={handleReplay}
             onLogin={isGuestMode ? handleGuestExitToLogin : handleGoToLogin}
             isGuestMode={isGuestMode}
           />
@@ -630,6 +691,7 @@ export default function WerewolfModule() {
         )}
 
         {isPlayRoute && (phase !== 'setup' || gameMode) && (
+          <QueueGate resource="werewolf" onPreempted={handlePreempted}>
           <Suspense fallback={<InlineLoader text={ui.app.loadingGame} />}>
             <GameArena
               locale={locale}
@@ -663,9 +725,11 @@ export default function WerewolfModule() {
               isUserTurn={isUserTurn}
               exportGameLog={exportGameLog}
               restartGame={restartGame}
+              onReplay={handleReplay}
               AI_MODELS={aiModels}
             />
           </Suspense>
+          </QueueGate>
         )}
       </main>
     </div>

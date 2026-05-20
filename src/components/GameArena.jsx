@@ -65,6 +65,7 @@ export function GameArena({
   isUserTurn,
   exportGameLog,
   restartGame,
+  onReplay,
   onExit,
   exitLabel = '返回首页',
 
@@ -338,6 +339,7 @@ export function GameArena({
               handleUserDuel={handleUserDuel}
               exportGameLog={exportGameLog}
               restartGame={restartGame}
+              onReplay={onReplay}
             />
           </div>
 
@@ -390,6 +392,7 @@ export function GameArena({
                 handleVote={handleVote}
                 exportGameLog={exportGameLog}
                 restartGame={restartGame}
+                onReplay={onReplay}
                 setSelectedTarget={setSelectedTarget}
               />
             </div>

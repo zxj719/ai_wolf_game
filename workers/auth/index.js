@@ -48,7 +48,11 @@ import {
   handleSubmitModelStats,
   handleGetModelLeaderboard,
   handleGetAvatars,
-  handleGetAvatarsBatch
+  handleGetAvatarsBatch,
+  handleGetGameAsset,
+  handleSaveGameAsset,
+  handleSaveReplay,
+  handleGetReplays,
 } from './handlers.js';
 
 export default {
@@ -205,6 +209,22 @@ export default {
 
       if (path === '/api/avatars/batch' && request.method === 'POST') {
         return handleGetAvatarsBatch(request, env);
+      }
+
+      // 游戏资产缓存
+      if (path === '/api/game/assets' && request.method === 'GET') {
+        return handleGetGameAsset(request, env);
+      }
+      if (path === '/api/game/assets/save' && request.method === 'POST') {
+        return handleSaveGameAsset(request, env);
+      }
+
+      // 游戏回放
+      if (path === '/api/game/replays' && request.method === 'GET') {
+        return handleGetReplays(request, env);
+      }
+      if (path === '/api/game/replays' && request.method === 'POST') {
+        return handleSaveReplay(request, env);
       }
 
       // 股票K线代理（解决 CORS）
