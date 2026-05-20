@@ -5,10 +5,11 @@
 这是一个 AI 狼人杀游戏 Web 应用，前端使用 React + Vite + TailwindCSS，后端使用 Cloudflare Workers + D1 数据库。
 
 **核心特性：**
-- 多种游戏模式（人机对战、纯AI观战）
-- 用户认证系统（JWT）
-- ModelScope API 令牌管理
-- 个人博客系统
+- AI 狼人杀（全 AI 观战模式为主，人机模式可选）
+- 小说工作台（Codex 驱动的 AI 写作）
+- 思考博物馆（静态展示）
+- 用户认证系统（JWT）+ 管理员/游客权限分层
+- 资源队列系统（API 调用入口同时只允许 1 人使用）
 
 ## 域名与数据库唯一性（必须遵守）
 
@@ -67,12 +68,18 @@ src/
     └── AuthContext.jsx    # 认证状态上下文
 
 workers/auth/              # Cloudflare Workers 后端
-├── index.js               # 路由入口
-├── handlers.js            # API 处理函数
+├── index.js               # 路由入口（含 SPA HTML 内联）
+├── handlers.js            # API 处理函数（含队列/权限端点）
 ├── jwt.js                 # JWT 工具
 ├── password.js            # 密码哈希
-├── middleware.js          # 中间件（CORS、认证）
-└── email.js               # 邮件发送
+├── middleware.js          # 中间件（CORS、认证、admin 检测）
+├── email.js               # 邮件发送
+└── queue.js               # 资源队列管理（acquire/release/heartbeat）
+
+server/                    # ECS 后端（Aliyun）
+├── index.js               # Express 入口 + PM2
+├── werewolfSession.js     # 狼人杀 AI session proxy
+└── novelWorkspace.js      # 小说 Codex session proxy
 
 site/                      # 静态博客页面
 ```
@@ -119,6 +126,16 @@ site/                      # 静态博客页面
 1. 在 `workers/auth/handlers.js` 添加处理函数
 2. 在 `workers/auth/index.js` 添加路由
 3. 在 `src/services/authService.js` 添加前端调用方法
+
+### 2b. 权限与队列相关 API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/me` | GET | 返回用户信息 + `isAdmin` 标志 |
+| `/api/queue/acquire` | POST | 获取资源锁 `{resource, leaseId}` |
+| `/api/queue/release` | POST | 释放资源锁 `{leaseId}` |
+| `/api/queue/heartbeat` | POST | 续租 `{leaseId}` |
+| `/api/queue/status` | GET | 查询资源占用状态 |
 
 ### 3. 修改 UI 组件
 - 游戏界面: `src/components/GameArena.jsx`
@@ -225,11 +242,55 @@ curl -s "https://zhaxiaoji.com/assets/$PROD_WW" | grep -c "localhost\|127.0.0.1"
 
 跳过任意一步直接猜，平均多花 30 分钟。
 
+## 权限模型（必须遵守）
+
+### 角色定义
+
+| 角色 | 判定方式 | 能力 |
+|------|---------|------|
+| **Admin** | email 在 `admins` 表中（初始: `xingjian_zhang719@outlook.com`） | 所有功能、抢占 guest 资源、Novel Codex 对话 |
+| **Guest** | 所有其他用户（含注册用户和未登录游客） | 狼人杀全 AI 模式、受队列限制、Novel 只读观看 |
+
+### 权限矩阵
+
+| 功能 | Admin | Guest |
+|------|-------|-------|
+| 狼人杀（全 AI 模式） | ✅ | ✅（自动选中，不可切换） |
+| 狼人杀（人机模式） | ✅ | ❌ |
+| Novel Codex 对话 | ✅ | ❌（只读观看） |
+| 思考博物馆 | ✅ | ✅（不受队列限制） |
+| ModelScope API Key 管理 | ✅ | ❌（已移除，不再需要） |
+| 资源抢占 | ✅（抢占 guest） | ❌（被抢占时保存退出） |
+
+### 资源队列系统
+
+所有需要调用 ECS API 的入口（狼人杀、小说 Codex）同时只允许 **1 个用户** 使用。
+
+- **不受队列限制**: 思考博物馆、小说只读观看、首页/登录/设置
+- **受队列限制**: 狼人杀游戏、小说 Codex 对话
+- **Admin 抢占**: Admin 进入受限资源时，如果 guest 正在使用，guest 的游戏自动保存快照并退出
+- **存储**: D1 `resource_locks` 表，带 heartbeat 续租（防断连不释放）
+
+### 抢占流程
+
+```
+Guest 正在使用 → Admin 请求 acquire
+  → Worker 发送 preempt 事件给 Guest
+  → Guest 前端保存快照 → 跳转等待页
+  → Worker 释放 Guest lease → 分配给 Admin
+```
+
 ## 数据库 Schema 要点
 
 ```sql
 -- 用户表关键字段
 users: id, username, email, password_hash, modelscope_token, token_verified_at
+
+-- 管理员表
+admins: email (PRIMARY KEY), added_at
+
+-- 资源队列锁
+resource_locks: resource (PRIMARY KEY), holder_id, holder_role, lease_id, acquired_at, expires_at
 
 -- 游戏记录
 game_history: user_id, role, result, game_mode, duration_seconds
@@ -242,9 +303,25 @@ user_stats: user_id, total_games, wins, losses, win_rate
 
 | 变量 | 用途 | 位置 |
 |------|------|------|
-| `VITE_API_KEY` | 前端默认 AI 令牌 | `.env` |
+| `VITE_API_KEY` | 前端默认 AI 令牌（guest 模式使用） | `.env` |
 | `JWT_SECRET` | JWT 签名密钥 | Workers Secret |
 | `RESEND_API_KEY` | 邮件服务 | Workers Secret |
+
+## 游戏资产管理
+
+游戏背景和角色头像通过 AI 模型生成后存储在数据库中，避免每局重复生成。
+
+### 流程
+1. 检查 D1 是否已有该配置（角色组合 hash）的背景/头像缓存
+2. 有缓存 → 直接使用（<100ms）
+3. 无缓存 → 调模型生成 → 存入 D1 → 返回给前端
+4. 存储格式：base64 或 CDN URL（视资产大小决定）
+
+### 注意
+- 头像以角色名+性格为 key 缓存（同名角色不同性格可能不同头像）
+- 背景以游戏配置 hash 为 key 缓存
+- 缓存无过期时间（资产不会变化）
+- D1 有 1MB 单行限制，大图需要分片或使用 R2 存储
 
 ## 渐进式披露架构
 
@@ -274,11 +351,14 @@ if (existingRoles.hasWitch) {
 
 ## 注意事项
 
-1. **令牌验证**: 使用实际 AI 调用验证，不只检查格式
-2. **CORS**: 后端已配置，前端直接调用即可
-3. **游客模式**: 使用环境变量中的 API 令牌
-4. **游戏状态**: 复杂的状态机，修改前理解流程
-5. **猎人开枪**: 好人多数时延迟到白天，支持连锁开枪
+1. **权限检查**: 修改任何受限功能时，必须同时检查 admin/guest 权限逻辑
+2. **队列安全**: 所有 ECS API 调用入口必须经过 queue acquire/release，不能直接调
+3. **CORS**: 后端已配置，前端直接调用即可
+4. **游客模式**: 使用环境变量中的 API 令牌，不再需要用户提供 ModelScope key
+5. **游戏状态**: 复杂的状态机，修改前理解流程
+6. **猎人开枪**: 好人多数时延迟到白天，支持连锁开枪
+7. **Admin 抢占**: 任何受限资源的前端组件必须监听 preempt 事件并处理保存/退出
+8. **Novel Codex**: 只有 admin 能看到 Codex 对话框，guest 看到的是只读版本
 
 ## 调试技巧
 
