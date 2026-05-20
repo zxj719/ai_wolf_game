@@ -202,7 +202,9 @@ export function useSpeechFlow({
               addLog(`💭 [${currentSpeaker.id}号 ${currentSpeaker.role}] ${res.thought}`, 'thought');
             }
 
-            if (res.speech) {
+            // 如果 AI 返回了结果但 speech 为空，生成默认发言避免玩家被跳过
+            const effectiveSpeech = res.speech || `(${currentSpeaker.id}号暂时没有更多要说的。)`;
+            if (effectiveSpeech) {
               // 柱二：DAY_SPEECH 经分发器闸门（内容合规 + 说话人仍存活）
               const speechSnapshot = buildSnapshot(
                 { players, dayCount, nightDecisions: {}, seerChecks: [], speechHistory, voteHistory: [], deathHistory: [] },
@@ -212,31 +214,29 @@ export function useSpeechFlow({
               const speechDispatch = dispatchCommand({
                 actionType: 'DAY_SPEECH',
                 snapshot: speechSnapshot,
-                decision: { speech: res.speech },
+                decision: { speech: effectiveSpeech },
                 actorId: currentSpeaker.id,
                 key: speechKey,
                 skipFreshness: true,
                 commit: () => {
-                  addLog(res.speech, "chat", `[${currentSpeaker.id}号]`);
+                  addLog(effectiveSpeech, "chat", `[${currentSpeaker.id}号]`);
                   addCurrentPhaseSpeech({
                     playerId: currentSpeaker.id,
                     name: currentSpeaker.name,
-                    content: res.speech,
+                    content: effectiveSpeech,
                     thought: res.thought,
                     day: dayCount,
                     timestamp: Date.now()
                   });
-                  // 立即标记为已发言
                   spokenIdsRef.current.add(currentSpeaker.id);
-                  // 柱一：幂等原子写入发言（reducer 按 (day, playerId) 去重）
                   recordSpeech({
                     playerId: currentSpeaker.id,
                     name: currentSpeaker.name,
-                    content: res.speech,
+                    content: effectiveSpeech,
                     thought: res.thought,
                     identity_table: res.identity_table,
                     day: dayCount,
-                    summary: res.summary || res.speech.slice(0, 20),
+                    summary: res.summary || effectiveSpeech.slice(0, 20),
                     voteIntention: res.voteIntention,
                     voteDecided: res.voteDecided === true || res.voteDecided === 'true',
                   });
