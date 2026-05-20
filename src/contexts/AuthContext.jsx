@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [modelscopeToken, setModelscopeToken] = useState(null);
   const [tokenStatus, setTokenStatus] = useState({
     hasToken: false,
@@ -36,6 +37,13 @@ export function AuthProvider({ children }) {
         if (response.success && response.user) {
           setUser(response.user);
           setStoredUser(response.user);
+
+          // 获取 admin 状态
+          try {
+            const meResp = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
+            const meData = await meResp.json();
+            setIsAdmin(meData.isAdmin === true);
+          } catch { setIsAdmin(false); }
 
           // 更新令牌状态
           setTokenStatus({
@@ -252,6 +260,7 @@ export function AuthProvider({ children }) {
     loading,
     error,
     isAuthenticated: !!user,
+    isAdmin,
     modelscopeToken,
     tokenStatus,
     register,

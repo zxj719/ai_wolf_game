@@ -18,6 +18,13 @@ import {
 import { handleNovelProxy } from './novel.js';
 import { handleWerewolfSessionProxy } from './werewolf.js';
 import {
+  handleGetMe,
+  handleQueueAcquire,
+  handleQueueRelease,
+  handleQueueHeartbeat,
+  handleQueueStatus,
+} from './queue.js';
+import {
   handleRegister,
   handleLogin,
   handleLogout,
@@ -66,6 +73,25 @@ export default {
 
     // API路由
     try {
+      // 用户信息 + 权限
+      if (path === '/api/me' && request.method === 'GET') {
+        return handleGetMe(request, env);
+      }
+
+      // 资源队列
+      if (path === '/api/queue/acquire' && request.method === 'POST') {
+        return handleQueueAcquire(request, env);
+      }
+      if (path === '/api/queue/release' && request.method === 'POST') {
+        return handleQueueRelease(request, env);
+      }
+      if (path === '/api/queue/heartbeat' && request.method === 'POST') {
+        return handleQueueHeartbeat(request, env);
+      }
+      if (path === '/api/queue/status' && request.method === 'GET') {
+        return handleQueueStatus(request, env);
+      }
+
       // 认证相关
       if (path === '/api/auth/register' && request.method === 'POST') {
         return handleRegister(request, env);
