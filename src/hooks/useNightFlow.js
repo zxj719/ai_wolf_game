@@ -104,8 +104,9 @@ export function useNightFlow({
     let deathReasons = {};
 
     // === 摄梦人连梦必死判定（优先级最高） ===
+    // 首夜(dayCount===1)不判连梦——之前没有"上一晚"，不可能连续两晚入梦同一人
     let dreamConsecutiveKill = null;
-    if (finalDreamTarget !== null && finalDreamTarget !== undefined && dreamweaver) {
+    if (finalDreamTarget !== null && finalDreamTarget !== undefined && dreamweaver && dayCount > 1) {
       const isConsecutive = dwHistory.lastDreamTarget !== null && finalDreamTarget === dwHistory.lastDreamTarget;
       if (isConsecutive) {
         dreamConsecutiveKill = finalDreamTarget;
