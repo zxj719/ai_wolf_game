@@ -472,72 +472,81 @@ export function useDayFlow({
     setIsThinking(true);
     const alive = players.filter(p => p.isAlive);
     const aliveIds = alive.map(p => p.id);
-    const deadIds = players.filter(p => !p.isAlive).map(p => p.id);
 
-    // 顺序投票：每次一个 AI 调用 LLM。原本是 Promise.all 并行 8 个，但
-    // ECS 端 spawn claude CLI 子进程在并发 ≥ 6 时会偶发 502（资源/锁竞争）。
-    // 顺序后整个 vote phase 从 ~30s 拉长到 ~3min，但 0 fail。
     const voteResults = [];
+    const decidedPlayers = [];
+    const undecidedPlayers = [];
+
+    // Phase 1: 分类 decided vs undecided
     for (const p of alive) {
-      if (gameActiveRef && !gameActiveRef.current) break;
-      let targetId = null;
-      let reasoning = '';
-      let thought = '';
       const mySpeech = speechHistory.find(s => s.day === dayCount && s.playerId === p.id);
-
       const validVoteTargets = aliveIds.filter(id => id !== p.id);
-
-      // voteDecided 机制：发言阶段 AI 填 voteDecided=true 表示已决定，直接用 voteIntention；
-      // voteDecided=false 或无效则给 AI 一次额外投票思考调用
       const decided = mySpeech?.voteDecided === true || mySpeech?.voteDecided === 'true';
       const speechVoteTarget = normalizeVoteTarget(mySpeech?.voteIntention);
+
       if (decided && (speechVoteTarget === ABSTAIN_TARGET || validVoteTargets.includes(speechVoteTarget))) {
-        targetId = speechVoteTarget;
-        reasoning = '遵循发言意向';
+        decidedPlayers.push({ player: p, targetId: speechVoteTarget, validVoteTargets, reasoning: '遵循发言意向', thought: '' });
       } else {
-        // 行为树短路：hybrid 模式下，注册的 (role, DAY_VOTE) 组合用 BT 决策（0ms）
+        undecidedPlayers.push({ player: p, validVoteTargets, mySpeech });
+      }
+    }
+
+    // Phase 2: 立即显示 decided 玩家的投票（0延迟）
+    for (const d of decidedPlayers) {
+      const targetText = d.targetId === ABSTAIN_TARGET ? '弃票' : `[${d.targetId}号]`;
+      addLog(`[${d.player.id}号] 投给 -> ${targetText} (${d.reasoning})`, 'info');
+      voteResults.push(buildVoteRecord({ voter: d.player, targetId: d.targetId, validTargets: d.validVoteTargets, reasoning: d.reasoning, thought: d.thought }));
+    }
+
+    // Phase 3: 分批并发 undecided 玩家（每批 2-3 人，防 ECS 过载）
+    const BATCH_SIZE = 3;
+    for (let i = 0; i < undecidedPlayers.length; i += BATCH_SIZE) {
+      if (gameActiveRef && !gameActiveRef.current) break;
+      const batch = undecidedPlayers.slice(i, i + BATCH_SIZE);
+
+      const batchPromises = batch.map(async ({ player: p, validVoteTargets, mySpeech }) => {
         const btResult = await btDecide(p, 'DAY_VOTE',
           { players, speechHistory, voteHistory, seerChecks, dayCount },
           { validTargets: validVoteTargets });
 
         if (btResult && btResult.targetId != null) {
-          targetId = btResult.targetId;
-          reasoning = btResult.reasoning;
-        } else {
-          // 兜底：走 LLM（legacy 管线）
-          let seerConstraint = '';
-          if (p.role === '预言家') {
-            const myChecks = seerChecks.filter(c => c.seerId === p.id);
-            const goodPeople = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
-            if (goodPeople.length > 0) {
-              seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】除非有极强的反逻辑证据。`;
-            }
-          }
-
-          const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, {
-            validTargets: validVoteTargets,
-            seerConstraint,
-            lastVoteIntention: mySpeech?.voteIntention,
-          });
-          targetId = res?.targetId;
-          reasoning = res?.reasoning || '';
-          thought = res?.thought || '';
+          return { player: p, targetId: btResult.targetId, validVoteTargets, reasoning: btResult.reasoning, thought: '' };
         }
+
+        let seerConstraint = '';
+        if (p.role === '预言家') {
+          const myChecks = seerChecks.filter(c => c.seerId === p.id);
+          const goodPeople = myChecks.filter(c => !c.isWolf).map(c => c.targetId);
+          if (goodPeople.length > 0) {
+            seerConstraint = `\n【预言家约束】你查验过以下玩家是好人：${goodPeople.join(',')}号。【严禁投票给你验证为好人的玩家！】除非有极强的反逻辑证据。`;
+          }
+        }
+
+        const res = await askAI(p, PROMPT_ACTIONS.DAY_VOTE, {
+          validTargets: validVoteTargets,
+          seerConstraint,
+          lastVoteIntention: mySpeech?.voteIntention,
+        });
+        return { player: p, targetId: res?.targetId, validVoteTargets, reasoning: res?.reasoning || '', thought: res?.thought || '' };
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+
+      // 每批完成后实时显示结果
+      for (const r of batchResults) {
+        const targetText = r.targetId === ABSTAIN_TARGET ? '弃票' : (r.targetId != null ? `[${r.targetId}号]` : '弃票');
+        addLog(`[${r.player.id}号] 投给 -> ${targetText}${r.reasoning ? ` (${r.reasoning})` : ''}`, 'info');
+        if (gameMode === 'ai-only' && r.thought) {
+          addLog(`💭 [${r.player.id}号] 投票思考: ${r.thought}`, 'thought');
+        }
+        voteResults.push(buildVoteRecord({ voter: r.player, targetId: r.targetId, validTargets: r.validVoteTargets, reasoning: r.reasoning, thought: r.thought }));
       }
-
-      voteResults.push(buildVoteRecord({
-        voter: p,
-        targetId,
-        validTargets: validVoteTargets,
-        reasoning,
-        thought,
-      }));
     }
-    const votes = voteResults.filter(v => v !== null);
 
+    const votes = voteResults.filter(v => v !== null);
     processVoteResults(votes, aliveIds);
     votingInProgressRef.current = false;
-  }, [askAI, dayCount, gameActiveRef, players, seerChecks, setIsThinking, speechHistory]);
+  }, [askAI, dayCount, gameActiveRef, gameMode, players, seerChecks, setIsThinking, speechHistory]);
 
   const processVoteResults = useCallback((votes, aliveIds) => {
     if (gameActiveRef && !gameActiveRef.current) return;
