@@ -23,7 +23,7 @@ function generateLeaseId() {
  * GET /api/me — 返回用户信息 + isAdmin
  */
 export async function handleGetMe(request, env) {
-  const user = await authMiddleware(request, env);
+  const { user } = await authMiddleware(request, env);
   if (!user) {
     return jsonResponse({ isAdmin: false, user: null, isGuest: true });
   }
@@ -44,7 +44,7 @@ export async function handleQueueAcquire(request, env) {
   const { resource } = body;
   if (!resource) return errorResponse('Missing resource', 400);
 
-  const user = await authMiddleware(request, env);
+  const { user } = await authMiddleware(request, env);
   const holderId = user ? String(user.id) : `guest-${request.headers.get('cf-connecting-ip') || 'unknown'}`;
   const holderEmail = user?.email || null;
   const holderRole = await isAdmin(holderEmail, env) ? 'admin' : 'guest';
