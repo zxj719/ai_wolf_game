@@ -1,10 +1,10 @@
-# Chords Cloud Service
+# Chords Local Service
 
-This service runs the full `chords` pipeline in the cloud:
+This service runs the full `chords` pipeline locally:
 
 - Demucs stem separation
 - librosa-based analysis
-- MiniMax arrangement commentary
+- Claude Code CLI arrangement commentary
 - optional resynth data
 - generated `*_stems.html` player plus WAV artifacts
 
@@ -20,46 +20,41 @@ This service runs the full `chords` pipeline in the cloud:
 - `file`
 - `four_stems`
 - `no_resynth`
-- `no_minimax`
+- `no_arrangement`
 - `split_vocals`
 
+## Prerequisites
+
+- Python 3.10+
+- Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
+
 ## Environment
-
-Required:
-
-- `MINIMAX_API_KEY`
 
 Recommended:
 
 - `CHORDS_SERVICE_TOKEN`
 - `CHORDS_STORAGE_DIR`
 - `CHORDS_MAX_UPLOAD_MB`
-- `MINIMAX_API_URL`
-- `MINIMAX_MODEL`
 
-## Docker
-
-Build from the repo root:
+## Quick Start
 
 ```bash
-docker build -f cloud/chords_service/Dockerfile -t chords-service .
-docker run --rm -p 8080:8080 \
-  -e MINIMAX_API_KEY=sk-... \
-  -e CHORDS_SERVICE_TOKEN=replace-me \
-  chords-service
+cd cloud/chords_service
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # macOS/Linux
+
+pip install -r requirements.txt
+uvicorn app:app --host 0.0.0.0 --port 8080
 ```
 
-## Cloudflare Worker Integration
+Then run the frontend in dev mode (`npm run dev`) and log in as admin to see the upload UI.
 
-The main site Worker should be configured with:
+## How It Works
 
-- `CHORDS_SERVICE_URL=https://your-python-service.example.com`
-- secret `CHORDS_SERVICE_TOKEN`
+1. **Demucs** separates audio into stems (vocals, drums, bass, other, optionally piano + guitar)
+2. **librosa** analyzes BPM, key, structure, per-stem stats, drum patterns, bass notes
+3. **Claude Code CLI** (`claude -p`) interprets the librosa data into human-readable arrangement commentary
+4. Results are saved locally in `storage/<job_id>/`
 
-The Worker proxies:
-
-- `POST /api/chords/jobs`
-- `GET /api/chords/jobs/:id`
-- `GET /api/chords/jobs/:id/artifacts/:name`
-
-The browser never talks to the Python service directly.
+To publish analyzed songs to the cloud, copy artifacts to `public/chords/<song-id>/`, update `public/chords/manifest.json`, and deploy.

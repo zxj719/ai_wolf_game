@@ -5,6 +5,7 @@ import mimetypes
 import os
 import re
 import shutil
+import subprocess
 import threading
 import traceback
 from datetime import datetime, timezone
@@ -17,7 +18,7 @@ from fastapi.responses import FileResponse
 
 from pipeline.analyze import run_full_analysis
 from pipeline.minimax_music import (
-    analyze_arrangement_with_minimax,
+    analyze_arrangement_with_claude_code,
     build_track_summary,
 )
 from pipeline.resynth import transcribe_all_stems
@@ -61,8 +62,10 @@ def infer_artifact_kind(path: Path) -> str:
         return "analysis"
     if name.endswith("_resynth.json"):
         return "resynth"
-    if suffix == ".wav":
+    if suffix == ".wav" and "_sample" not in name:
         return "stem"
+    if suffix == ".wav" and "_sample" in name:
+        return "sample"
     return "file"
 
 
@@ -209,10 +212,13 @@ def run_pipeline_job(job_id: str) -> None:
         update_job(job_id, step="Analyzing track", progress=0.4)
         analysis = run_full_analysis(str(input_path), stem_paths)
 
-        if not options.get("no_minimax"):
-            update_job(job_id, step="Generating MiniMax arrangement notes", progress=0.58)
+        if not options.get("no_arrangement"):
+            update_job(job_id, step="Generating arrangement notes (Claude Code)", progress=0.58)
             track_summary = build_track_summary(analysis, list(stem_paths.keys()))
-            analysis["arrangement"] = analyze_arrangement_with_minimax(track_summary)
+            song_info_text = payload.get("song_info", "")
+            analysis["arrangement"] = analyze_arrangement_with_claude_code(
+                track_summary, song_info=song_info_text
+            )
 
         analysis_artifact = write_analysis_json(output_dir, input_path.stem, analysis)
 
@@ -244,13 +250,22 @@ def run_pipeline_job(job_id: str) -> None:
         update_job(
             job_id,
             status="completed",
-            step="Completed",
-            progress=1.0,
+            step="Publishing to public/chords",
+            progress=0.96,
             completed_at=utcnow_iso(),
             player_artifact=html_name,
             analysis_artifact=analysis_artifact,
             resynth_artifact=resynth_artifact,
         )
+
+        try:
+            pub = publish_completed_job(job_id)
+            if pub:
+                update_job(job_id, step=f"Published as '{pub['song_id']}' ({len(pub['stems'])} stems)", progress=1.0)
+            else:
+                update_job(job_id, step="Completed (publish skipped)", progress=1.0)
+        except Exception as pub_err:
+            update_job(job_id, step=f"Completed (publish failed: {pub_err})", progress=1.0)
     except Exception as exc:
         update_job(
             job_id,
@@ -277,8 +292,9 @@ async def create_job(
     file: UploadFile = File(...),
     four_stems: bool = Form(False),
     no_resynth: bool = Form(False),
-    no_minimax: bool = Form(False),
+    no_arrangement: bool = Form(False),
     split_vocals: int = Form(0),
+    song_info: str = Form(""),
 ) -> dict:
     source_filename = sanitize_filename(file.filename or "track.mp3")
     suffix = Path(source_filename).suffix.lower()
@@ -330,9 +346,10 @@ async def create_job(
         "options": {
             "four_stems": bool(four_stems),
             "no_resynth": bool(no_resynth),
-            "no_minimax": bool(no_minimax),
+            "no_arrangement": bool(no_arrangement),
             "split_vocals": int(split_vocals),
         },
+        "song_info": song_info.strip() if song_info else "",
     }
     write_job_meta(job_id, payload)
 
@@ -361,6 +378,132 @@ def get_artifact(job_id: str, artifact_path: str):
         media_type=mimetypes.guess_type(requested_path.name)[0] or "application/octet-stream",
         filename=requested_path.name,
     )
+
+
+PROJECT_ROOT = APP_DIR.parent.parent
+PUBLIC_CHORDS = PROJECT_ROOT / "public" / "chords"
+MANIFEST_PATH = PUBLIC_CHORDS / "manifest.json"
+
+
+def _read_manifest() -> dict:
+    if not MANIFEST_PATH.is_file():
+        return {"version": 1, "updated_at": utcnow_iso(), "songs": []}
+    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _write_manifest(manifest: dict) -> None:
+    manifest["updated_at"] = utcnow_iso()
+    PUBLIC_CHORDS.mkdir(parents=True, exist_ok=True)
+    MANIFEST_PATH.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _convert_wav_to_mp3(wav_path: Path, mp3_path: Path) -> bool:
+    try:
+        import torchaudio
+        wav, sr = torchaudio.load(str(wav_path))
+        torchaudio.save(str(mp3_path), wav, sr, format="mp3")
+        return mp3_path.is_file()
+    except Exception:
+        pass
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return False
+    try:
+        subprocess.run(
+            [ffmpeg, "-y", "-i", str(wav_path), "-b:a", "192k", "-ar", "44100", str(mp3_path)],
+            capture_output=True,
+            timeout=120,
+        )
+        return mp3_path.is_file()
+    except Exception:
+        return False
+
+
+def publish_completed_job(job_id: str) -> dict | None:
+    """Copy stems + analysis from a completed job to public/chords/ and update manifest."""
+    payload = read_job_meta(job_id)
+    if payload.get("status") != "completed":
+        return None
+
+    output_dir = Path(payload["output_dir"])
+    source_name = Path(payload.get("source_filename", "track.mp3")).stem
+    song_id = re.sub(r"[^A-Za-z0-9_-]+", "_", source_name).strip("_") or "track"
+
+    song_dir = PUBLIC_CHORDS / song_id
+    song_dir.mkdir(parents=True, exist_ok=True)
+
+    analysis_src = output_dir / payload.get("analysis_artifact", "")
+    if analysis_src.is_file():
+        analysis_dst = song_dir / f"{song_id}_analysis.json"
+        shutil.copy2(str(analysis_src), str(analysis_dst))
+
+    analysis_data = None
+    if analysis_src.is_file():
+        try:
+            analysis_data = json.loads(analysis_src.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            pass
+
+    stems_published = []
+    for wav_file in sorted(output_dir.glob("*.wav")):
+        if "_sample" in wav_file.name:
+            continue
+        stem_match = re.match(rf"^{re.escape(source_name)}_(\w+)\.wav$", wav_file.name)
+        if not stem_match:
+            continue
+        stem_name = stem_match.group(1)
+        mp3_name = f"{song_id}_{stem_name}.mp3"
+        mp3_path = song_dir / mp3_name
+        if _convert_wav_to_mp3(wav_file, mp3_path):
+            stems_published.append(stem_name)
+
+    title = source_name
+    if analysis_data and analysis_data.get("arrangement", {}).get("artist"):
+        title = f"{source_name} — {analysis_data['arrangement']['artist']}"
+
+    manifest = _read_manifest()
+    manifest["songs"] = [s for s in manifest["songs"] if s.get("id") != song_id]
+    manifest["songs"].insert(0, {
+        "id": song_id,
+        "status": "completed",
+        "title": title,
+        "source_filename": payload.get("source_filename", ""),
+        "created_at": payload.get("created_at", utcnow_iso()),
+        "completed_at": payload.get("completed_at", utcnow_iso()),
+        "player_artifact": f"{song_id}_stems.html",
+        "analysis_artifact": f"{song_id}_analysis.json",
+        "analysis": analysis_data,
+    })
+    _write_manifest(manifest)
+
+    return {"song_id": song_id, "stems": stems_published, "path": str(song_dir)}
+
+
+@app.post("/jobs/{job_id}/publish", dependencies=[Depends(require_auth)])
+def publish_job(job_id: str) -> dict:
+    result = publish_completed_job(job_id)
+    if result is None:
+        raise HTTPException(status_code=400, detail="Job not completed or not found")
+    return {"success": True, **result}
+
+
+@app.delete("/published/{song_id}", dependencies=[Depends(require_auth)])
+def delete_published_song(song_id: str) -> dict:
+    manifest = _read_manifest()
+    before = len(manifest["songs"])
+    manifest["songs"] = [s for s in manifest["songs"] if s.get("id") != song_id]
+    if len(manifest["songs"]) == before:
+        raise HTTPException(status_code=404, detail=f"Song '{song_id}' not in manifest")
+    _write_manifest(manifest)
+
+    song_dir = PUBLIC_CHORDS / song_id
+    if song_dir.is_dir():
+        shutil.rmtree(song_dir, ignore_errors=True)
+
+    return {"success": True, "removed": song_id, "remaining": len(manifest["songs"])}
 
 
 @app.on_event("startup")

@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import chordsService from './vite-plugin-chords-service.js'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), chordsService()],
   test: {
     environment: 'jsdom',
     globals: true,
@@ -38,6 +39,10 @@ export default defineConfig({
         headers: {
           'apiKey': 'c2c3f1594d41409e9e1a198b3e494d47-infoway',
         },
+      },
+      '/api': {
+        target: 'https://zhaxiaoji.com',
+        changeOrigin: true,
       },
     },
   }

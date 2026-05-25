@@ -43,7 +43,7 @@ describe('buildTrackSummary', () => {
 });
 
 describe('normalizeArrangementResponse', () => {
-  it('normalizes incomplete MiniMax output into stable UI data', () => {
+  it('normalizes incomplete LLM output into stable UI data', () => {
     const normalized = normalizeArrangementResponse({
       summary: 'Slow intro, then a clean lift into the hook.',
       style_tags: ['alt-pop'],
@@ -65,5 +65,44 @@ describe('normalizeArrangementResponse', () => {
     expect(normalized.sections[0].arrangement_notes).toEqual(['Drums arrive.']);
     expect(normalized.listening_focus).toEqual([]);
     expect(normalized.mix_highlights).toEqual([]);
+    expect(normalized.artist).toBe('');
+    expect(normalized.album).toBe('');
+    expect(normalized.credits).toBe('');
+    expect(normalized.stem_roles).toEqual({});
+  });
+
+  it('passes through artist, album, credits, and stem_roles', () => {
+    const normalized = normalizeArrangementResponse({
+      summary: 'R&B groove',
+      artist: '方大同',
+      album: '橙月 (2008)',
+      credits: '方大同 词曲 / Warner Music',
+      stem_roles: {
+        vocals: { role: '主旋律', timbre: '温暖', arrangement: '全程' },
+        bass: { role: '律动', timbre: 'round', arrangement: 'fingerstyle' },
+      },
+    });
+
+    expect(normalized.artist).toBe('方大同');
+    expect(normalized.album).toBe('橙月 (2008)');
+    expect(normalized.credits).toBe('方大同 词曲 / Warner Music');
+    expect(normalized.stem_roles.vocals.role).toBe('主旋律');
+    expect(normalized.stem_roles.bass.timbre).toBe('round');
+  });
+
+  it('normalizes structured listening_focus items', () => {
+    const normalized = normalizeArrangementResponse({
+      listening_focus: [
+        { text: '注意钢琴和弦', time: 72.5 },
+        { text: '贝斯走向', time: null },
+        '纯文本提示',
+      ],
+    });
+
+    expect(normalized.listening_focus).toEqual([
+      { text: '注意钢琴和弦', time: 72.5 },
+      { text: '贝斯走向', time: null },
+      '纯文本提示',
+    ]);
   });
 });

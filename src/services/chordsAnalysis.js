@@ -145,26 +145,59 @@ function asStringArray(value) {
   return value.map((item) => String(item).trim()).filter(Boolean);
 }
 
+function normalizeFocusItems(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    if (item && typeof item === 'object' && typeof item.text === 'string') {
+      return { text: item.text.trim(), time: typeof item.time === 'number' ? item.time : null };
+    }
+    const s = String(item || '').trim();
+    return s || null;
+  }).filter(Boolean);
+}
+
+function normalizeStringField(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeStemRoles(value) {
+  if (!value || typeof value !== 'object') return {};
+  const out = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!entry || typeof entry !== 'object') continue;
+    out[key] = {
+      role: normalizeStringField(entry.role),
+      timbre: normalizeStringField(entry.timbre),
+      arrangement: normalizeStringField(entry.arrangement),
+    };
+  }
+  return out;
+}
+
 export function normalizeArrangementResponse(payload) {
   const source = payload && typeof payload === 'object' ? payload : {};
 
   return {
-    summary: typeof source.summary === 'string' ? source.summary.trim() : '',
+    artist: normalizeStringField(source.artist),
+    album: normalizeStringField(source.album),
+    credits: normalizeStringField(source.credits),
+    summary: normalizeStringField(source.summary),
     style_tags: asStringArray(source.style_tags),
     mood_tags: asStringArray(source.mood_tags),
-    hook_moment: typeof source.hook_moment === 'string' ? source.hook_moment.trim() : '',
-    climax_moment: typeof source.climax_moment === 'string' ? source.climax_moment.trim() : '',
-    listening_focus: asStringArray(source.listening_focus),
+    hook_moment: normalizeStringField(source.hook_moment),
+    climax_moment: normalizeStringField(source.climax_moment),
+    listening_focus: normalizeFocusItems(source.listening_focus),
     mix_highlights: asStringArray(source.mix_highlights),
+    stem_roles: normalizeStemRoles(source.stem_roles),
     sections: Array.isArray(source.sections)
       ? source.sections.map((section, index) => ({
           name: typeof section?.name === 'string' && section.name.trim() ? section.name.trim() : `Section ${index + 1}`,
           time_start: Number(section?.time_start) || 0,
           time_end: Number(section?.time_end) || 0,
-          energy: typeof section?.energy === 'string' ? section.energy.trim() : '',
-          function: typeof section?.function === 'string' ? section.function.trim() : '',
+          energy: normalizeStringField(section?.energy),
+          function: normalizeStringField(section?.function),
           arrangement_notes: asStringArray(section?.arrangement_notes),
-          transition: typeof section?.transition === 'string' ? section.transition.trim() : '',
+          transition: normalizeStringField(section?.transition),
         }))
       : [],
   };

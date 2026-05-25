@@ -1673,3 +1673,89 @@ export async function handleGetReplays(request, env) {
     return errorResponse('Failed to get replays', 500, env, request);
   }
 }
+
+/**
+ * POST /api/game/strategy-journal — 保存对局策略日志（用于跨局进化）
+ * Body: { gameId, entries: [{ role, playerId, strategiesUsed, claimsMade, outcome, keyMoments }] }
+ */
+export async function handleSaveStrategyJournal(request, env) {
+  try {
+    const body = await request.json();
+    const { gameId, entries } = body;
+    if (!gameId || !entries?.length) {
+      return errorResponse('Missing gameId or entries', 400, env, request);
+    }
+
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS strategy_journal (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      player_id INTEGER NOT NULL,
+      strategies_used TEXT,
+      claims_made TEXT,
+      outcome TEXT,
+      key_moments TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`).run();
+
+    const stmt = env.DB.prepare(
+      'INSERT INTO strategy_journal (game_id, role, player_id, strategies_used, claims_made, outcome, key_moments) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    const batch = entries.map(e => stmt.bind(
+      gameId,
+      e.role || 'unknown',
+      e.playerId || 0,
+      JSON.stringify(e.strategiesUsed || []),
+      JSON.stringify(e.claimsMade || []),
+      e.outcome || 'unknown',
+      JSON.stringify(e.keyMoments || [])
+    ));
+    await env.DB.batch(batch);
+
+    return jsonResponse({ success: true }, 200, env, request);
+  } catch (error) {
+    console.error('handleSaveStrategyJournal:', error);
+    return errorResponse('Failed to save strategy journal', 500, env, request);
+  }
+}
+
+/**
+ * GET /api/game/strategy-evolution — 获取近期策略进化数据
+ * Query: ?role=狼人&limit=5
+ */
+export async function handleGetStrategyEvolution(request, env) {
+  try {
+    // 建表（幂等）
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS strategy_journal (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      player_id INTEGER NOT NULL,
+      strategies_used TEXT,
+      claims_made TEXT,
+      outcome TEXT,
+      key_moments TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`).run();
+
+    const url = new URL(request.url);
+    const role = url.searchParams.get('role');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '10'), 30);
+
+    let rows;
+    if (role) {
+      rows = await env.DB.prepare(
+        'SELECT * FROM strategy_journal WHERE role = ? ORDER BY created_at DESC LIMIT ?'
+      ).bind(role, limit).all();
+    } else {
+      rows = await env.DB.prepare(
+        'SELECT * FROM strategy_journal ORDER BY created_at DESC LIMIT ?'
+      ).bind(limit).all();
+    }
+
+    return jsonResponse({ entries: rows.results || [] }, 200, env, request);
+  } catch (error) {
+    console.error('handleGetStrategyEvolution:', error);
+    return errorResponse('Failed to get strategy evolution', 500, env, request);
+  }
+}

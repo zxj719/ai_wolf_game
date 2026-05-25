@@ -251,6 +251,11 @@ export default {
         return handleChordsHealth(request, env);
       }
 
+      const chordsMediaMatch = path.match(/^\/api\/chords\/published\/([^/]+)\/(.+)$/);
+      if (chordsMediaMatch && ['GET', 'HEAD'].includes(request.method)) {
+        return servePublishedMedia(request, env, chordsMediaMatch[1], chordsMediaMatch[2]);
+      }
+
       // 健康检查 — 包含 ECS werewolf upstream 状态（含 LLM provider token 配置），
       // 让前端 / ops 在出 game 之前就能看清整条链是否就绪，而不是
       // 等到 /api/werewolf/session/ask 90s 超时才暴露。
@@ -330,6 +335,56 @@ async function handleStockKlineProxy(request, env) {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
+}
+
+async function servePublishedMedia(request, env, songId, filename) {
+  const assetPath = `/chords/${songId}/${filename}`;
+  const assetUrl = new URL(assetPath, request.url);
+  const assetResp = await env.ASSETS.fetch(new Request(assetUrl.href, { method: 'GET' }));
+  if (!assetResp.ok) {
+    return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  }
+
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const mimeMap = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4' };
+  const contentType = mimeMap[ext] || assetResp.headers.get('Content-Type') || 'application/octet-stream';
+
+  const cl = assetResp.headers.get('Content-Length');
+  const etag = assetResp.headers.get('ETag') || (cl ? `"${cl}-${songId}"` : `"${songId}"`);
+  const base = {
+    'Content-Type': contentType,
+    'Accept-Ranges': 'bytes',
+    'ETag': etag,
+    'Cache-Control': 'public, max-age=604800',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges',
+  };
+
+  const rangeHeader = request.headers.get('Range');
+  if (!rangeHeader) {
+    const headers = { ...base };
+    if (cl) headers['Content-Length'] = cl;
+    if (request.method === 'HEAD') {
+      return new Response(null, { status: 200, headers });
+    }
+    return new Response(assetResp.body, { status: 200, headers });
+  }
+
+  const body = await assetResp.arrayBuffer();
+  const total = body.byteLength;
+  const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+  if (!match) {
+    return new Response('Invalid Range', { status: 416, headers: { 'Content-Range': `bytes */${total}` } });
+  }
+  const start = parseInt(match[1], 10);
+  const end = match[2] ? parseInt(match[2], 10) : total - 1;
+  if (start >= total || end >= total || start > end) {
+    return new Response('Range Not Satisfiable', { status: 416, headers: { 'Content-Range': `bytes */${total}` } });
+  }
+  return new Response(body.slice(start, end + 1), {
+    status: 206,
+    headers: { ...base, 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${total}` },
+  });
 }
 
 async function serveStaticAsset(request, env) {

@@ -59,13 +59,14 @@ export function handleCors(request, env) {
  * 创建JSON响应
  */
 export function jsonResponse(data, status = 200, env = {}, request = null) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...getCorsHeaders(env, request)
-    }
-  });
+  const headers = {
+    'Content-Type': 'application/json',
+    ...getCorsHeaders(env, request),
+  };
+  if (status >= 400) {
+    headers['Cache-Control'] = 'no-store';
+  }
+  return new Response(JSON.stringify(data), { status, headers });
 }
 
 /**

@@ -15,7 +15,13 @@
     "analyze": "node scripts/analyze-games.js",
     "analyze:stats": "node scripts/analyze-games.js --stats",
     "bt:patch": "npm version patch --prefix server && git add server/package.json && git commit -m \"chore: bump bt-server patch version\"",
-    "bt:minor": "npm version minor --prefix server && git add server/package.json && git commit -m \"chore: bump bt-server minor version\""
+    "bt:minor": "npm version minor --prefix server && git add server/package.json && git commit -m \"chore: bump bt-server minor version\"",
+    "chords": "node scripts/chords-manage.mjs",
+    "chords:list": "node scripts/chords-manage.mjs list",
+    "chords:status": "node scripts/chords-manage.mjs status",
+    "chords:publish": "node scripts/chords-manage.mjs publish",
+    "chords:remove": "node scripts/chords-manage.mjs remove",
+    "chords:deploy": "node scripts/chords-manage.mjs deploy"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.4",

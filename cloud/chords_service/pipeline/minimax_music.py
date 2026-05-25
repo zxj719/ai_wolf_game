@@ -1,22 +1,20 @@
-"""MiniMax-assisted music arrangement analysis helpers."""
+"""LLM-assisted music arrangement analysis via Claude Code CLI."""
 
 from __future__ import annotations
 
 import json
 import os
 import re
+import shutil
+import subprocess
 from typing import Any
-from urllib import error, request
-
-DEFAULT_MINIMAX_API_URL = "https://api.minimaxi.com/anthropic/v1/messages"
-DEFAULT_MINIMAX_MODEL = "MiniMax-M2.7"
 
 
 def extract_json_object(raw_text: str) -> dict[str, Any]:
-    """Extract the first valid JSON object from a free-form model response."""
+    """Extract the first valid JSON object from a free-form LLM response."""
     text = (raw_text or "").strip()
     if not text:
-        raise ValueError("MiniMax response was empty.")
+        raise ValueError("LLM response was empty.")
 
     candidates: list[str] = []
 
@@ -39,7 +37,7 @@ def extract_json_object(raw_text: str) -> dict[str, Any]:
         if isinstance(data, dict):
             return data
 
-    raise ValueError("MiniMax response did not contain a valid JSON object.")
+    raise ValueError("LLM response did not contain a valid JSON object.")
 
 
 def build_track_summary(
@@ -99,128 +97,119 @@ def build_track_summary(
     }
 
 
-def build_arrangement_prompt(track_summary: dict[str, Any]) -> str:
-    """Build a prompt that asks MiniMax for arrangement-centric structured output."""
+def build_arrangement_prompt(track_summary: dict[str, Any], song_info: str = "") -> str:
+    """Build a prompt asking for arrangement-centric structured output."""
+    song_info_block = ""
+    if song_info:
+        song_info_block = (
+            f"\n用户提供的歌曲信息:\n{song_info}\n\n"
+            "请根据上述歌曲信息填写 artist、album、credits 字段。"
+            "同时利用你对该歌曲/艺人的知识来校准 style_tags 和 mood_tags，使之符合真实的风格分类而非仅靠音频特征猜测。\n\n"
+        )
+
     return (
-        "You are a meticulous music arranger and production analyst.\n"
-        "You are NOT listening to raw audio directly. You must infer from the provided "
-        "audio-analysis summary only, and stay honest about uncertainty.\n"
-        "Return one JSON object and no markdown.\n\n"
+        "你是一位严谨的音乐编曲与制作分析师。\n"
+        "你没有直接听到原始音频，只能根据下方提供的音频分析摘要来推断，不确定的地方请如实说明。\n"
+        "返回一个 JSON 对象，不要使用 markdown 格式。\n\n"
+        + song_info_block +
+        "所有文本字段使用中文撰写。英语音乐专业术语（如 BPM、reverb、sidechain、pad 等）\n"
+        "保留英文并在括号中附中文释义，例如\"sidechain（侧链压缩）\"。\n"
+        "style_tags 和 mood_tags 用中文，必要时附英文原词。\n\n"
         "Required schema:\n"
         "{\n"
-        '  "summary": "1-2 sentence arrangement overview",\n'
-        '  "style_tags": ["tag"],\n'
-        '  "mood_tags": ["tag"],\n'
-        '  "hook_moment": "short string",\n'
-        '  "climax_moment": "short string",\n'
-        '  "listening_focus": ["specific listening cue"],\n'
-        '  "mix_highlights": ["specific production note"],\n'
+        '  "artist": "艺人名（如提供了歌曲信息则填写，否则省略此字段）",\n'
+        '  "album": "专辑名与年份（如提供了歌曲信息则填写，否则省略此字段）",\n'
+        '  "credits": "词曲作者/编曲/厂牌（如提供了歌曲信息则填写，否则省略此字段）",\n'
+        '  "summary": "1-2 句编曲概述",\n'
+        '  "style_tags": ["标签"],\n'
+        '  "mood_tags": ["标签"],\n'
+        '  "hook_moment": "简短描述",\n'
+        '  "climax_moment": "简短描述",\n'
+        '  "listening_focus": [\n'
+        '    {"text": "聆听提示文本", "time": 72.5}\n'
+        '  ],\n'
+        '  "_listening_focus_note": "每条 listening_focus 必须包含 text（描述）和 time（秒数，对应 track summary 中的时间戳）",\n'
+        '  "mix_highlights": ["具体的混音制作说明"],\n'
         '  "sections": [\n'
         "    {\n"
-        '      "name": "Intro",\n'
+        '      "name": "前奏（Intro）",\n'
         '      "time_start": 0.0,\n'
         '      "time_end": 12.5,\n'
-        '      "function": "what the section does",\n'
+        '      "function": "这个段落的功能",\n'
         '      "energy": "low|medium|high",\n'
         '      "primary_stems": ["vocals", "bass"],\n'
-        '      "arrangement_notes": ["specific note"],\n'
-        '      "transition": "how it moves into the next section"\n'
+        '      "arrangement_notes": ["具体编曲说明"],\n'
+        '      "transition": "如何过渡到下一段"\n'
         "    }\n"
         "  ],\n"
         '  "stem_roles": {\n'
-        '    "vocals": {"role": "what it contributes", "timbre": "sonic character", "arrangement": "how it is deployed"}\n'
+        '    "vocals": {"role": "该轨的作用", "timbre": "音色特征", "arrangement": "编曲中的使用方式"}\n'
         "  }\n"
         "}\n\n"
-        "Rules:\n"
-        "- Prefer concrete arrangement language: layer entry, density, register, width, groove, release.\n"
-        "- Stay tied to the supplied timing and stem names.\n"
-        "- Do not invent lyrics, artist facts, or unsupported harmonic details.\n"
-        "- Keep each string concise.\n"
-        "- Keep summary under 45 words.\n"
-        "- Use 3-4 style_tags and 3-4 mood_tags.\n"
-        "- Use 3-5 listening_focus items and 3-5 mix_highlights items.\n"
-        "- Keep each arrangement_notes list to 1-3 bullets.\n"
-        "- Keep each role/timbre/arrangement field short enough for UI cards.\n\n"
+        "规则:\n"
+        "- 使用具体的编曲语言：层次进入、密度（density）、音域（register）、声场宽度、律动（groove）、释放（release）。\n"
+        "- 严格基于提供的时间戳和音轨名称。\n"
+        "- 如果未提供歌曲信息，不要编造艺人信息。\n"
+        "- 每个字段保持简洁。\n"
+        "- summary 不超过 60 字。\n"
+        "- 使用 3-4 个 style_tags 和 3-4 个 mood_tags。\n"
+        "- 使用 3-5 个 listening_focus 条目（每条必须是 {text, time} 对象，time 为秒数）和 3-5 个 mix_highlights 条目。\n"
+        "- 每个 arrangement_notes 列表 1-3 条。\n"
+        "- stem_roles 中每个字段控制在卡片展示长度内。\n\n"
         f"Track summary:\n{json.dumps(track_summary, ensure_ascii=False, indent=2)}"
     )
 
 
-def _collect_text_blocks(payload: dict[str, Any]) -> str:
-    """Collect text content from an Anthropic-compatible response."""
-    content = payload.get("content", [])
-    chunks: list[str] = []
-    if isinstance(content, list):
-        for item in content:
-            if isinstance(item, dict) and item.get("type") == "text":
-                chunks.append(str(item.get("text", "")))
-    elif isinstance(content, str):
-        chunks.append(content)
-    return "\n".join(chunk for chunk in chunks if chunk)
+def _find_claude_cli() -> str:
+    """Locate the claude CLI binary."""
+    path = shutil.which("claude")
+    if path:
+        return path
+    for candidate in ("claude.cmd", "claude.exe"):
+        path = shutil.which(candidate)
+        if path:
+            return path
+    raise FileNotFoundError(
+        "Claude Code CLI not found in PATH. "
+        "Install with: npm install -g @anthropic-ai/claude-code"
+    )
 
 
-def analyze_arrangement_with_minimax(
+def analyze_arrangement_with_claude_code(
     track_summary: dict[str, Any],
-    api_key: str | None = None,
-    api_url: str | None = None,
-    model: str | None = None,
-    timeout: int = 120,
+    timeout: int = 180,
+    song_info: str = "",
 ) -> dict[str, Any]:
-    """Call MiniMax's Anthropic-compatible text endpoint for arrangement commentary."""
-    api_key = api_key or os.getenv("MINIMAX_API_KEY")
-    if not api_key:
-        raise ValueError("MINIMAX_API_KEY is required for MiniMax analysis.")
+    """Call Claude Code CLI in print mode for arrangement commentary.
 
-    endpoint = api_url or os.getenv("MINIMAX_API_URL") or DEFAULT_MINIMAX_API_URL
-    chosen_model = model or os.getenv("MINIMAX_MODEL") or DEFAULT_MINIMAX_MODEL
-    prompt = build_arrangement_prompt(track_summary)
-    headers = {
-        "content-type": "application/json",
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-    }
-    last_error: Exception | None = None
-    for max_tokens in (3000, 3600):
-        body = {
-            "model": chosen_model,
-            "max_tokens": max_tokens,
-            "temperature": 0.2,
-            # MiniMax may still return thinking blocks; we only consume text blocks.
-            "thinking": {"type": "disabled"},
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                    ],
-                }
-            ],
-        }
-        data = json.dumps(body).encode("utf-8")
-        req = request.Request(
-            endpoint,
-            data=data,
-            headers=headers,
-            method="POST",
+    Pipes the arrangement prompt via stdin to ``claude -p``,
+    parses the JSON response, and returns the structured result.
+    """
+    claude_bin = _find_claude_cli()
+    prompt = build_arrangement_prompt(track_summary, song_info=song_info)
+
+    try:
+        result = subprocess.run(
+            [claude_bin, "-p"],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            env={**os.environ, "CLAUDE_CODE_DISABLE_NONESSENTIAL": "1"},
         )
-        try:
-            with request.urlopen(req, timeout=timeout) as resp:
-                payload = json.loads(resp.read().decode("utf-8"))
-            response_text = _collect_text_blocks(payload)
-            if not response_text:
-                raise RuntimeError("MiniMax API returned no text content.")
-            result = extract_json_object(response_text)
-            result.setdefault("source", "minimax")
-            result.setdefault("model", chosen_model)
-            return result
-        except error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            last_error = RuntimeError(
-                f"MiniMax API request failed: HTTP {exc.code} {detail}"
-            )
-        except error.URLError as exc:
-            last_error = RuntimeError(f"MiniMax API request failed: {exc.reason}")
-        except (RuntimeError, ValueError) as exc:
-            last_error = exc
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"Claude Code CLI timed out after {timeout}s")
 
-    assert last_error is not None
-    raise last_error
+    if result.returncode != 0:
+        stderr_snippet = (result.stderr or "")[:500]
+        raise RuntimeError(f"Claude Code CLI exited {result.returncode}: {stderr_snippet}")
+
+    response_text = result.stdout.strip()
+    if not response_text:
+        raise RuntimeError("Claude Code CLI returned no output.")
+
+    data = extract_json_object(response_text)
+    data.setdefault("source", "claude-code")
+    return data
