@@ -7,13 +7,14 @@ import {
   Loader2,
   Music4,
   Play,
+  Search,
   Sparkles,
   Trash2,
   Upload,
   Wand2,
 } from 'lucide-react';
 import { StemPlayer } from './StemPlayer';
-import { createChordsJob, deletePublishedSong, getChordsJob, listChordsJobs } from '../services/chordsService.js';
+import { createChordsJob, deletePublishedSong, getChordsJob, invalidateManifestCache, listChordsJobs, searchSongInfo } from '../services/chordsService.js';
 import { useAuth } from '../contexts/AuthContext';
 
 const IS_DEV = import.meta.env.DEV;
@@ -78,6 +79,7 @@ function getCopy(locale) {
       mixTitle: 'Mix highlights',
       songInfoLabel: 'Song info',
       songInfoPlaceholder: 'Artist, song title, album, year — helps enrich the analysis with real data',
+      searchBtn: 'Look up',
     };
   }
 
@@ -137,6 +139,7 @@ function getCopy(locale) {
     mixTitle: '混音亮点（Mix Highlights）',
     songInfoLabel: '歌曲信息',
     songInfoPlaceholder: '歌手、曲名、专辑、年份 — 用于检索真实资料以丰富分析',
+    searchBtn: '搜索',
   };
 }
 
@@ -361,6 +364,7 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
   const [job, setJob] = useState(null);
   const [error, setError] = useState('');
   const [songInfo, setSongInfo] = useState('');
+  const [searching, setSearching] = useState(false);
   const [options, setOptions] = useState({ fourStems: false, noResynth: false, splitVocals: 0 });
 
   useEffect(() => {
@@ -378,7 +382,16 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
   }, [audioUrl]);
 
   useEffect(() => {
-    if (!job?.id || job.status === 'completed' || job.status === 'failed') return undefined;
+    if (!job?.id || job.status === 'failed') return undefined;
+    if (job.status === 'completed') {
+      invalidateManifestCache();
+      listChordsJobs().then((results) => {
+        setSongs(results);
+        const published = results.find((s) => s.sourceFilename === job.sourceFilename || s.id === job.id);
+        if (published) { setSelected(published); setTab('tabOverview'); }
+      }).catch(() => {});
+      return undefined;
+    }
     const tid = window.setTimeout(async () => {
       try { setJob(await getChordsJob(job.id)); }
       catch (e) { setError(e.message || 'Poll failed.'); }
@@ -427,6 +440,18 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
       setError('');
       setJob(await createChordsJob(selectedFile, { ...options, songInfo }));
     } catch (e) { setError(e.message || 'Failed to start job.'); }
+  };
+
+  const handleSearchSongInfo = async () => {
+    const query = songInfo.trim() || selectedFile?.name?.replace(/\.[^.]+$/, '') || '';
+    if (!query) return;
+    try {
+      setSearching(true);
+      setError('');
+      const result = await searchSongInfo(query);
+      if (result.info_text) setSongInfo(result.info_text);
+    } catch (e) { setError(e.message || 'Search failed.'); }
+    finally { setSearching(false); }
   };
 
   const handlePlaySnippet = (start, end) => {
@@ -512,7 +537,18 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                       ) : null}
 
                       <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
-                        <div className="mb-2 text-sm font-semibold text-slate-900">{copy.songInfoLabel}</div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-sm font-semibold text-slate-900">{copy.songInfoLabel}</span>
+                          <button
+                            type="button"
+                            disabled={searching}
+                            onClick={handleSearchSongInfo}
+                            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+                          >
+                            {searching ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+                            {copy.searchBtn}
+                          </button>
+                        </div>
                         <textarea
                           rows={2}
                           value={songInfo}

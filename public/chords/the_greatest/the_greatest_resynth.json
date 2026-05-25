@@ -1,0 +1,30 @@
+{
+  "drums": {
+    "event_count": 592,
+    "samples": {
+      "kick": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_drums_kick_sample.wav",
+      "snare": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_drums_snare_sample.wav",
+      "hihat": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_drums_hihat_sample.wav"
+    }
+  },
+  "bass": {
+    "event_count": 420,
+    "samples": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_bass_sample.wav"
+  },
+  "other": {
+    "event_count": 323,
+    "samples": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_other_sample.wav"
+  },
+  "vocals": {
+    "event_count": 663,
+    "samples": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_vocals_sample.wav"
+  },
+  "guitar": {
+    "event_count": 378,
+    "samples": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_guitar_sample.wav"
+  },
+  "piano": {
+    "event_count": 321,
+    "samples": "C:\\Users\\xingj\\Documents\\agent\\wolfgame\\cloud\\chords_service\\storage\\job_cbd2d684c95b\\output\\the_greatest_piano_sample.wav"
+  }
+}

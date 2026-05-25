@@ -120,3 +120,17 @@ export async function getChordsJob(jobId) {
   }
   return normalizeLocalJob(payload);
 }
+
+export async function searchSongInfo(query) {
+  const formData = new FormData();
+  formData.append('query', query);
+  const response = await fetch(`${LOCAL_SERVICE_URL}/song-info`, {
+    method: 'POST',
+    body: formData,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.error || payload.detail || `Search failed: ${response.status}`);
+  }
+  return payload;
+}

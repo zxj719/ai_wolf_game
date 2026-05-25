@@ -506,6 +506,56 @@ def delete_published_song(song_id: str) -> dict:
     return {"success": True, "removed": song_id, "remaining": len(manifest["songs"])}
 
 
+@app.post("/song-info", dependencies=[Depends(require_auth)])
+def search_song_info(query: str = Form("")) -> dict:
+    """Use Claude Code CLI to research song metadata."""
+    query = (query or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+
+    prompt = (
+        "You are a music metadata researcher. Given the following song query, "
+        "return a JSON object with researched metadata.\n\n"
+        f"Query: {query}\n\n"
+        "Return ONLY a JSON object (no markdown) with these fields:\n"
+        "{\n"
+        '  "artist": "Artist name (original language + romanized if applicable)",\n'
+        '  "album": "Album name (year)",\n'
+        '  "credits": "Writers / Producers / Arrangers / Mix engineers / Label",\n'
+        '  "info_text": "A one-line summary to paste into the song info field"\n'
+        "}\n\n"
+        "Be accurate. If unsure about a credit, omit it rather than guess. "
+        "For the info_text field, combine artist, song title, album, and year into a short string."
+    )
+
+    from pipeline.minimax_music import _find_claude_cli, extract_json_object
+
+    claude_bin = _find_claude_cli()
+    try:
+        result = subprocess.run(
+            [claude_bin, "-p"],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+            env={**os.environ, "CLAUDE_CODE_DISABLE_NONESSENTIAL": "1"},
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Claude CLI timed out")
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=502, detail=f"Claude CLI error: {(result.stderr or '')[:300]}")
+
+    try:
+        data = extract_json_object(result.stdout)
+    except ValueError:
+        raise HTTPException(status_code=502, detail="Could not parse Claude response")
+
+    return {"success": True, **data}
+
+
 @app.on_event("startup")
 def prepare_storage() -> None:
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
