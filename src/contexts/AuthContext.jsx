@@ -105,6 +105,13 @@ export function AuthProvider({ children }) {
         setToken(response.token);
         setStoredUser(response.user);
         setUser(response.user);
+
+        try {
+          const meResp = await fetch('/api/me', { headers: { Authorization: `Bearer ${response.token}` } });
+          const meData = await meResp.json();
+          setIsAdmin(meData.isAdmin === true);
+        } catch { setIsAdmin(false); }
+
         return { success: true };
       }
       return { success: false, error: 'Login failed' };

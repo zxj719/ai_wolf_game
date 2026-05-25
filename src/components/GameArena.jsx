@@ -3,7 +3,7 @@ import { CirclePlayerLayout } from './CirclePlayerLayout';
 import { GameHistoryTable } from './GameHistoryTable';
 import { PhaseActionContainer } from './PhaseActionContainer';
 import { SidePanels } from './SidePanels';
-import { ChevronUp, ChevronDown, History, ArrowLeft } from 'lucide-react';
+import { ChevronUp, ChevronDown, History, ArrowLeft, Brain, Eye, EyeOff } from 'lucide-react';
 
 export function GameArena({
   // 游戏状态
@@ -70,12 +70,22 @@ export function GameArena({
   exitLabel = '返回首页',
 
   // AI
-  AI_MODELS
+  AI_MODELS,
+
+  // 策略进化
+  claimHistory = [],
 }) {
   // 页面滚动控制
   const containerRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0); // 0: 游戏区域, 1: 历史记录
   const isScrollingRef = useRef(false);
+  const [showThinkToggle, setShowThinkToggle] = useState(false);
+
+  // 双预言家对跳检测：找出所有声明预言家身份的玩家
+  const seerClaimants = (claimHistory || [])
+    .filter(c => c.type === 'jump_seer')
+    .reduce((acc, c) => { acc.add(c.playerId); return acc; }, new Set());
+  const hasDualSeer = seerClaimants.size >= 2;
 
   // 获取所有历史发言/行动（累积显示，不再仅显示当前阶段）
   const getAllSpeeches = () => {
@@ -263,6 +273,32 @@ export function GameArena({
           </button>
         </div>
       )}
+      {/* 思维透视开关 */}
+      {gameMode === 'ai-only' && (
+        <div className="fixed top-4 right-4 z-50">
+          <button
+            onClick={() => setShowThinkToggle(v => !v)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+              showThinkToggle
+                ? 'bg-purple-600/90 border-purple-400 text-purple-100'
+                : 'bg-zinc-800/90 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+            }`}
+            title={showThinkToggle ? '隐藏AI内心独白' : '显示AI内心独白'}
+          >
+            <Brain size={14} />
+            {showThinkToggle ? <Eye size={14} /> : <EyeOff size={14} />}
+          </button>
+        </div>
+      )}
+      {/* 双预言家对跳提示 */}
+      {hasDualSeer && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50">
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-600/90 border border-amber-400 rounded-full text-sm text-amber-50 shadow-lg animate-pulse">
+            <span className="font-bold">对跳!</span>
+            <span>{[...seerClaimants].map(id => `${id}号`).join(' vs ')} 均声明预言家</span>
+          </div>
+        </div>
+      )}
       {/* 第一页：游戏区域 */}
       <section
         className={`h-screen relative ${getBackgroundStyle()} text-zinc-100 overflow-hidden`}
@@ -288,6 +324,7 @@ export function GameArena({
             phase={phase}
             gameMode={gameMode}
             userPlayer={userPlayer}
+            showThinkOverride={showThinkToggle}
           />
         )}
 

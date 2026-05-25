@@ -312,7 +312,8 @@ export function SidePanels({
   currentPhaseActions,
   phase,
   gameMode = 'ai-only',
-  userPlayer = null
+  userPlayer = null,
+  showThinkOverride = false,
 }) {
   // 获取玩家名称
   const getPlayerName = (playerId) => {
@@ -322,8 +323,8 @@ export function SidePanels({
 
   // 判断是否是玩家模式
   const isPlayerMode = gameMode !== 'ai-only';
-  // 玩家模式下只在游戏结束时显示AI的思考内容
-  const showAIThought = !isPlayerMode || phase === 'game_over';
+  // 玩家模式下只在游戏结束时显示AI的思考内容；思维透视开关可覆盖
+  const showAIThought = showThinkOverride || !isPlayerMode || phase === 'game_over';
 
   // 过滤行动：玩家模式下只显示用户自己的夜间行动，以及公开信息（投票、猎人击杀、平安夜公告）
   const filteredActions = isPlayerMode

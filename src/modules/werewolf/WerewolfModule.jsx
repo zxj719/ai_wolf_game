@@ -36,6 +36,7 @@ import {
 } from '../../utils/gameUtils';
 import { exportGameLog as exportGameLogUtil } from '../../utils/exportGameLog';
 import { buildReplayTimeline } from '../../utils/buildReplayTimeline';
+import { extractStrategyJournal, saveStrategyJournal } from '../../utils/strategyEvolution';
 import { buildApiUrl } from '../../services/apiBase';
 import { getUiCopy } from '../../i18n/locale.js';
 import { LanguageToggle } from '../../components/LanguageToggle';
@@ -398,6 +399,15 @@ export default function WerewolfModule() {
         }),
       }).catch((err) => logger.error('[replay] save failed:', err));
     } catch (err) { logger.error('[replay] build failed:', err); }
+
+    // 策略进化：提取策略摘要并保存
+    try {
+      const journal = extractStrategyJournal(s, gameResult);
+      if (journal.length > 0) {
+        const gameId = s.modelUsage?.gameSessionId || `local_${Date.now()}`;
+        saveStrategyJournal(gameId, journal);
+      }
+    } catch (err) { logger.error('[strategy-evolution] extract failed:', err); }
   }, [gameResult, gameMode, victoryMode]);
 
   // === AI / 白天 / 夜晚 / 发言流 ===
@@ -727,6 +737,7 @@ export default function WerewolfModule() {
               restartGame={restartGame}
               onReplay={handleReplay}
               AI_MODELS={aiModels}
+              claimHistory={claimHistory}
             />
           </Suspense>
           </QueueGate>

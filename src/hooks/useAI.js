@@ -19,6 +19,7 @@ import { btWolfSpeech } from '../services/btClient';
 import { askWerewolfSessionAI, isWerewolfSessionAIEnabled } from '../services/werewolfSessionClient';
 import { requestWerewolfAI } from '../services/werewolfAITransport';
 import { buildPublicFacts } from '../services/publicFacts';
+import { loadEvolutionContext } from '../utils/strategyEvolution';
 
 export function useAI({
   players,
@@ -55,6 +56,8 @@ export function useAI({
 }) {
   // 身份推理表存储：每个玩家的推理表
   const identityTablesRef = useRef({});
+  // 策略进化上下文缓存（按角色缓存，一局内只加载一次）
+  const evolutionContextRef = useRef({});
 
   // P0增强：增强版发言历史（添加逻辑断言等结构化信息）
   const enhancedSpeechHistory = useMemo(() => {
@@ -195,10 +198,21 @@ export function useAI({
     // 获取该玩家之前的身份推理表
     const previousIdentityTable = identityTablesRef.current[player.id] || null;
 
-    const systemPrompt = generateSystemPrompt(player, gameState, {
+    let systemPrompt = generateSystemPrompt(player, gameState, {
       victoryMode,
       previousIdentityTable
     });
+
+    // 策略进化注入：加载近期对局的策略统计，让AI学习历史成败
+    if (!evolutionContextRef.current[player.role]) {
+      try {
+        evolutionContextRef.current[player.role] = await loadEvolutionContext(player.role);
+      } catch { evolutionContextRef.current[player.role] = ''; }
+    }
+    if (evolutionContextRef.current[player.role]) {
+      systemPrompt += '\n\n' + evolutionContextRef.current[player.role];
+    }
+
     // ── 权威事实块：从游戏状态直接生成，防止 AI 幻觉事实 ──
     const authoritativeFacts = buildPublicFacts(gameState, player);
 
