@@ -212,12 +212,10 @@ export function Dashboard({
                   <Music4 size={16} />
                   {copy.musicLab}
                 </button>
-                {isLoggedIn && !isGuestMode && (
-                  <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
-                    <PenLine size={16} />
-                    小说工作台
-                  </button>
-                )}
+                <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
+                  <PenLine size={16} />
+                  小说工作台
+                </button>
                 <button type="button" onClick={onEnterSites} className="mac-button mac-button-secondary">
                   <Globe size={16} />
                   {copy.enterSites}

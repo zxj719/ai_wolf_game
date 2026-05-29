@@ -1,7 +1,14 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { NovelWorkspaceView } from '../NovelWorkspace.jsx';
+
+// Mock useAuth so the admin-gated branches (CodexChat, NewBook button, edit) render as if logged-in admin.
+// The non-admin / guest read-only path is covered by separate assertions below.
+vi.mock('../../contexts/AuthContext.jsx', () => ({
+  useAuth: () => ({ isAdmin: true, user: { username: 'xingj' } }),
+}));
+
+const { NovelWorkspaceView } = await import('../NovelWorkspace.jsx');
 
 describe('NovelWorkspaceView', () => {
   it('renders user context, chapters, selected content, and story bible', () => {

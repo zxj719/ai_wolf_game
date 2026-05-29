@@ -958,6 +958,7 @@ function ReaderPane({
   dirty,
   saving,
   copy,
+  canEdit = false,
   onChange,
   onEdit,
   onCancel,
@@ -1005,7 +1006,7 @@ function ReaderPane({
                 <span className="hidden sm:inline">{copy.common.md}</span>
               </button>
             )}
-            {editMode ? (
+            {canEdit && editMode && (
               <>
                 <button type="button" onClick={onCancel} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                   <X size={15} />
@@ -1016,7 +1017,8 @@ function ReaderPane({
                   {copy.common.save}
                 </button>
               </>
-            ) : (
+            )}
+            {canEdit && !editMode && (
               <button type="button" onClick={onEdit} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <Edit3 size={15} />
                 <span className="hidden sm:inline">{copy.common.edit}</span>
@@ -1025,7 +1027,7 @@ function ReaderPane({
           </div>
         </div>
 
-        {editMode ? (
+        {editMode && canEdit ? (
           <textarea
             value={draftContent}
             onChange={(event) => onChange(event.target.value)}
@@ -1323,6 +1325,7 @@ function StudioPage({
                   dirty={dirty}
                   saving={saving}
                   copy={copy}
+                  canEdit={isAdmin}
                   onChange={onDocumentChange}
                   onEdit={onEditDocument}
                   onCancel={onCancelEdit}

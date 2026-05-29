@@ -22,7 +22,10 @@ export default function NovelRoute() {
 
   return (
     <div className="mac-app-shell">
-      <QueueGate resource="novel" onPreempted={onPreempted}>
+      {/* readOnly=true because only admin uses Codex (which would consume ECS).
+          Admin bypasses queue anyway. Non-admins are read-only browsers, so no
+          lock is needed — this lets guests and regular users open the workspace. */}
+      <QueueGate resource="novel" onPreempted={onPreempted} readOnly>
         <Suspense fallback={<Loader />}>
           <NovelWorkspace onBack={onBack} />
         </Suspense>

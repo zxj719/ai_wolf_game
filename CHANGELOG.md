@@ -2,6 +2,40 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-05-11] 小说工作台开放只读访问（游客与普通用户）
+
+### 新功能
+
+- **首页入口对全员可见**：Dashboard 上的「小说工作台」按钮不再要求登录，游客也能直接进入。
+- **GET 端点公开化**：CF Worker 的 `/api/novel/*` GET/HEAD 请求不再强制 JWT；POST/PATCH 仍需鉴权。游客和普通用户能浏览章节、故事圣经、章节摘要，但无法触发写操作。
+- **QueueGate `readOnly` 旁路**：只读浏览不消耗 ECS 资源（不调 Codex CLI），所以无需排队锁；这让多个非 admin 用户能同时浏览不同小说。
+
+### 权限矩阵
+
+| 用户 | 首页按钮 | 浏览章节 | 编辑/保存 | Codex 对话 |
+|---|:---:|:---:|:---:|:---:|
+| Admin | ✅ | ✅ | ✅ | ✅ |
+| 普通登录用户 | ✅ | ✅ | ❌ | ❌（锁图标）|
+| 游客 | ✅ | ✅ | ❌ | ❌（锁图标）|
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `workers/auth/novel.js` | 修改 | GET/HEAD 跳过鉴权；写方法仍需 JWT；游客请求标记 `X-Zhaxiaoji-Role: guest` |
+| `src/services/novelService.js` | 修改 | 按 HTTP method 分流：GET 允许无 token，写方法需 token |
+| `src/components/Dashboard.jsx` | 修改 | 移除 `isLoggedIn && !isGuestMode` 限制 |
+| `src/components/QueueGate.jsx` | 修改 | 新增 `readOnly` prop，true 时短路队列锁 |
+| `src/modules/novel/NovelRoute.jsx` | 修改 | 给 QueueGate 传 `readOnly` |
+| `src/components/NovelWorkspace.jsx` | 修改 | `ReaderPane` 加 `canEdit` prop，门控编辑按钮和 textarea |
+| `src/components/__tests__/novelWorkspace.test.jsx` | 修改 | 补 `vi.mock` for useAuth（修复历史遗留的测试断裂）|
+
+### 技术细节
+
+- **HTTP 方法即权限语义**：GET 公开、写方法受控，不引入新的角色字段。每一层（Worker / service / UI）独立守护，任一层被绕过下一层都会兜底。
+- **5 层防御**：QueueGate readOnly → novelService 按 method 鉴权 → Worker 按 method 鉴权 → UI canEdit gating → CodexChat 仅 admin 可见。
+- **测试**：5 frontend + 11 server tests 全部通过。
+
 ## [2026-05-18] Bug 修复 + voteDecided 投票系统 + 8 轮 Prompt 优化
 
 ### Critical Bug 修复

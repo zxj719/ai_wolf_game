@@ -15,14 +15,18 @@ const POLL_INTERVAL = 15_000;
  * Props:
  *   resource    — 'werewolf' | 'novel'
  *   onPreempted — () => void (save snapshot + redirect)
+ *   readOnly    — bool, true = bypass queue (page does not consume ECS resources)
  *   children    — the actual page content
  */
-export function QueueGate({ resource, onPreempted, children }) {
+export function QueueGate({ resource, onPreempted, readOnly = false, children }) {
   const { isAdmin } = useAuth();
   const { isGuestMode } = useShell();
 
   // Admin bypasses queue entirely
   if (isAdmin) return children;
+  // Read-only callers (e.g. non-admin novel browsing) consume no ECS resources,
+  // so the lock would be a UX-blocking no-op. Per CLAUDE.md: "不受队列限制: 小说只读观看".
+  if (readOnly) return children;
 
   return (
     <QueueGateInner

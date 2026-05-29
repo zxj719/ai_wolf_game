@@ -5,9 +5,25 @@ function resolveNovelServiceBase(env) {
   return base ? base.replace(/\/+$/, '') : '';
 }
 
+// Access policy: GET = public read-only (guests included); writes require JWT.
+// Aligns with CLAUDE.md "Novel Codex: guest 看到的是只读版本" semantics.
+const READ_ONLY_METHODS = new Set(['GET', 'HEAD']);
+
 export async function handleNovelProxy(request, env, pathname) {
-  const { user, error } = await authMiddleware(request, env);
-  if (error) return errorResponse(error, 401, env, request);
+  const isReadOnly = READ_ONLY_METHODS.has(request.method);
+  let user = null;
+
+  if (!isReadOnly) {
+    const auth = await authMiddleware(request, env);
+    if (auth.error) return errorResponse(auth.error, 401, env, request);
+    user = auth.user;
+  } else {
+    // Best-effort: include identity if a JWT happens to be present, but never reject.
+    try {
+      const auth = await authMiddleware(request, env);
+      if (!auth.error) user = auth.user;
+    } catch { /* ignore — public read */ }
+  }
 
   const base = resolveNovelServiceBase(env);
   if (!base) {
@@ -21,8 +37,12 @@ export async function handleNovelProxy(request, env, pathname) {
   const contentType = request.headers.get('Content-Type');
   if (contentType) headers.set('Content-Type', contentType);
   headers.set('Accept', 'application/json');
-  headers.set('X-Zhaxiaoji-User-Id', String(user.sub));
-  headers.set('X-Zhaxiaoji-Username', user.username || '');
+  if (user) {
+    headers.set('X-Zhaxiaoji-User-Id', String(user.sub));
+    headers.set('X-Zhaxiaoji-Username', user.username || '');
+  } else {
+    headers.set('X-Zhaxiaoji-Role', 'guest');
+  }
 
   try {
     const upstreamResponse = await fetch(upstreamUrl, {

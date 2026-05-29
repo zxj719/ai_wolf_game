@@ -2,23 +2,29 @@ import { buildApiUrl } from './apiBase';
 import { getToken } from '../utils/authToken';
 
 const REQUEST_TIMEOUT = 30000;
+const READ_ONLY_METHODS = new Set(['GET', 'HEAD']);
 
 async function request(endpoint, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
   const token = getToken();
-  if (!token) {
+  // Only writes require auth; reads are public so guests/non-admins can browse novels.
+  if (!READ_ONLY_METHODS.has(method) && !token) {
     throw new Error('Not authenticated');
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
     const response = await fetch(buildApiUrl(`/api/novel${endpoint}`), {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...options.headers,
-      },
+      headers,
       signal: controller.signal,
     });
 
