@@ -1492,7 +1492,7 @@ export function NovelWorkspaceView({
 }
 
 export function NovelWorkspace({ onBack }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { locale } = useShell();
   const [view, setView] = useState('shelf');
   const [projects, setProjects] = useState([]);
@@ -1724,6 +1724,10 @@ export function NovelWorkspace({ onBack }) {
 
   useEffect(() => {
     if (view !== 'studio' || !selectedProject || !selectedDocument) return undefined;
+    // Non-admins (guests + regular users) have no Codex session to load and the
+    // endpoint (POST) requires auth. Skip the request entirely to avoid "Not
+    // authenticated" errors on every document selection.
+    if (!isAdmin) return undefined;
     let cancelled = false;
     setSessionLoading(true);
     novelService.getCodexSession(selectedProject, sessionTargetFromDocument(selectedDocument))
@@ -1742,7 +1746,7 @@ export function NovelWorkspace({ onBack }) {
     return () => {
       cancelled = true;
     };
-  }, [selectedDocument, selectedProject, view]);
+  }, [selectedDocument, selectedProject, view, isAdmin]);
 
   useEffect(() => {
     if (!isJobRunning(job)) return undefined;
