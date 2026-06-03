@@ -18,7 +18,7 @@ const MAX_BODY_BYTES = 8192;
 const RATE_MSG = { capacity: 10, refillPerSec: 5 };       // chat:message 令牌桶
 const RATE_TYPING = { capacity: 30, refillPerSec: 30 };   // chat:typing 令牌桶
 const RATE_CALL = { capacity: 50, refillPerSec: 25 };     // call:* 令牌桶（吸收 trickle-ICE 突发）
-const CALL_TYPES = new Set(['call:offer', 'call:answer', 'call:ice', 'call:hangup']);
+const CALL_TYPES = new Set(['call:offer', 'call:answer', 'call:ice', 'call:hangup', 'call:screenshare']);
 
 export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
   const connections = new Map();   // userId -> Set<conn>
@@ -150,6 +150,7 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
       if (msg.sdp != null) out.sdp = msg.sdp;
       if (msg.candidate != null) out.candidate = msg.candidate;
       if (msg.reason != null) out.reason = msg.reason;
+      if (msg.on != null) out.on = msg.on;                 // call:screenshare 开关
       sendTo(to, out);
       return;
     }

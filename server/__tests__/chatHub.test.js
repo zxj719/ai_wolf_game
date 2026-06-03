@@ -158,4 +158,20 @@ describe('chatHub call signaling', () => {
     await hub.handleMessage(a, JSON.stringify({ type: 'call:offer', to: 'abc', sdp: 'X' }));
     expect(a.sent.some((m) => m.type === 'call:offer')).toBe(false);
   });
+
+  it('relays call:screenshare on=true between friends (non-admin allowed)', async () => {
+    const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set([1, 2]), now: () => 1 });
+    const a = adminConn(1), b = fakeConn(2);
+    await hub.addConnection(a); await hub.addConnection(b);
+    await hub.handleMessage(b, JSON.stringify({ type: 'call:screenshare', to: 1, on: true }));
+    expect(has(a, (m) => m.type === 'call:screenshare' && m.from === 2 && m.on === true)).toBe(true);
+  });
+
+  it('relays call:screenshare on=false (stop) — guards against a future truthy refactor', async () => {
+    const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set([1, 2]), now: () => 1 });
+    const a = adminConn(1), b = fakeConn(2);
+    await hub.addConnection(a); await hub.addConnection(b);
+    await hub.handleMessage(b, JSON.stringify({ type: 'call:screenshare', to: 1, on: false }));
+    expect(has(a, (m) => m.type === 'call:screenshare' && m.from === 2 && m.on === false)).toBe(true);
+  });
 });
