@@ -61,6 +61,7 @@ import {
   handleFriendRespond,
   handleFriendsList,
 } from './friends.js';
+import { handleChatHistory, handleInternalChatPersist } from './chat.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -104,6 +105,14 @@ export default {
       }
       if (path === '/api/friends' && request.method === 'GET') {
         return handleFriendsList(request, env);
+      }
+
+      // 私聊
+      if (path === '/api/chat/history' && request.method === 'GET') {
+        return handleChatHistory(request, env);
+      }
+      if (path === '/api/internal/chat/persist' && request.method === 'POST') {
+        return handleInternalChatPersist(request, env);
       }
 
       // 资源队列
