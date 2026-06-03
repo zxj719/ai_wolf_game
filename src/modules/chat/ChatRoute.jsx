@@ -2,11 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShell } from '../../shell/ShellContext';
 import { ROUTES } from '../../shell/paths';
 import { friendService } from '../../services/friendService';
+import { useAuth } from '../../contexts/AuthContext';
 import { useChatSocket } from '../../hooks/useChatSocket';
+import { useWebRTC } from '../../hooks/useWebRTC';
 import { AddFriend } from './components/AddFriend';
 import { FriendRequests } from './components/FriendRequests';
 import { FriendList } from './components/FriendList';
 import { ConversationView } from './components/ConversationView';
+import { VideoCallPanel } from './components/VideoCallPanel';
 
 /**
  * ChatRoute — 好友 + 私聊（Phase 2）。
@@ -18,8 +21,10 @@ import { ConversationView } from './components/ConversationView';
  */
 export default function ChatRoute() {
   const { user, navigate, api: shellApi } = useShell();
+  const { isAdmin } = useAuth();
   const api = useMemo(() => shellApi('cf-workers'), [shellApi]);
   const chat = useChatSocket(Boolean(user));
+  const webrtc = useWebRTC({ chat, isAdmin });
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -27,6 +32,11 @@ export default function ChatRoute() {
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [error, setError] = useState(null);
+
+  const nameOf = useCallback(
+    (id) => friends.find((f) => Number(f.id) === Number(id))?.username ?? `#${id}`,
+    [friends]
+  );
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -103,9 +113,21 @@ export default function ChatRoute() {
         </section>
 
         {selectedFriend && (
-          <ConversationView api={api} meId={user.id} friend={selectedFriend} chat={chat} />
+          <ConversationView
+            api={api} meId={user.id} friend={selectedFriend} chat={chat}
+            onStartCall={isAdmin ? () => webrtc.startCall(selectedFriend.id, selectedFriend.username) : null}
+          />
         )}
       </div>
+
+      <VideoCallPanel
+        state={webrtc.state}
+        localStream={webrtc.localStream} remoteStream={webrtc.remoteStream}
+        muted={webrtc.muted} cameraOff={webrtc.cameraOff}
+        accept={webrtc.accept} reject={webrtc.reject} hangup={webrtc.hangup} dismiss={webrtc.dismiss}
+        toggleMute={webrtc.toggleMute} toggleCamera={webrtc.toggleCamera}
+        nameOf={nameOf}
+      />
     </div>
   );
 }

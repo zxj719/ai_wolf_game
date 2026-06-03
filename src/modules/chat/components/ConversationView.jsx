@@ -25,7 +25,7 @@ function mergeServer(prev, incoming) {
  * ConversationView — 与某个好友的会话。
  * props: api, meId, friend{id,username}, chat(useChatSocket 返回值)
  */
-export function ConversationView({ api, meId, friend, chat }) {
+export function ConversationView({ api, meId, friend, chat, onStartCall }) {
   const { subscribe, send, sendTyping, status, onlineFriends, reconnectNonce } = chat;
   const friendId = Number(friend.id);
 
@@ -115,6 +115,9 @@ export function ConversationView({ api, meId, friend, chat }) {
         {friend.username}
         <span className={`inline-block w-2 h-2 rounded-full ${onlineFriends.has(friendId) ? 'bg-green-500' : 'bg-zinc-300'}`} />
         {status !== 'open' && <span className="text-xs text-ink-muted font-normal">（连接中…）</span>}
+        {onStartCall && (
+          <button type="button" onClick={onStartCall} className="ml-auto text-sm text-amber-700">视频通话</button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {error && <p className="text-sm text-red-600">{error}</p>}
