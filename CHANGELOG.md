@@ -2,6 +2,36 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-03] 视频通话 Phase 3（WebRTC，仅管理员发起）
+
+### 新功能
+- **好友 1 对 1 视频通话**：管理员在会话里点「视频通话」发起，好友收到来电浮层可接听/拒绝。
+- **通话控制**：本地+远端画面、静音、关摄像头、挂断；来电浮层（admin 不可见呼叫按钮以外的限制由服务端兜底）。
+
+### 架构
+- 纯前端 WebRTC（原生浏览器 API，无新依赖）；媒体 **P2P 直连 + 公共 STUN**（无 TURN），不过服务器。
+- 信令复用 Phase 2 的 WS 通道：ECS chatHub 中继 `call:offer/answer/ice/hangup`。
+- **无 D1 / 无 Worker handler 改动 / 无新 secret / 无新服务端依赖**（仅 chatHub.js 加中继）。
+
+### 安全 & 健壮性（来自 4 代理对抗评审，5 must-fix）
+- `call:offer` **服务端强制 isAdmin**（前端隐藏按钮不算边界）；call:* 走好友校验 + 令牌桶限流（防 ICE flood 放大成 Worker fetch）。
+- `CONNECTED` 对任意活跃阶段生效（修复"ICE 早于 answer 落地→永远卡连接中"）；信令只订阅一次 + 串行化 + 实时 ref 读忙线（修复重订阅丢帧/竞态）；ICE drain 原子化（修复候选丢失）；每个 await 后校验 pc 身份（修复挂断竞态误发 hangup）；iceConnectionState 兜底 + 45s 振铃超时（Safari/无应答）；独立 error 阶段让相机被拒等错误可见。
+- 非对称发起（仅 admin 发 offer）天然消除 WebRTC glare。
+
+### 文件变更（主要）
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `server/chatHub.js` | 修改 | call:* 中继（offer 校验 isAdmin + 限流 + TTL 好友校验） |
+| `src/modules/chat/webrtcReducer.js` | 新建 | 通话状态机（纯函数，CONNECTED 权威 + error 阶段） |
+| `src/hooks/useWebRTC.js` | 新建 | RTCPeerConnection + getUserMedia + 信令接线（评审修订全并入） |
+| `src/hooks/useChatSocket.js` | 修改 | 加通用 `sendSignal` |
+| `src/modules/chat/components/VideoCallPanel.jsx` | 新建 | 来电/通话/错误浮层 |
+| `src/modules/chat/ChatRoute.jsx` / `ConversationView.jsx` | 修改 | 挂 useWebRTC + 浮层；admin 会话头「视频通话」按钮 |
+
+### 部署注意
+- 前端 `npm run deploy`（已含视频 UI）；ECS `git pull && pm2 restart`（chatHub 中继生效，**无需 npm install / nginx / secret**）。
+- 验证：单元 + 全量 237 测试通过；WebRTC 端到端（双真人视频）需手动验证（jsdom 无 RTCPeerConnection）。
+
 ## [2026-06-03] 实时文字聊天 Phase 2（好友私聊 + 在线状态）
 
 ### 新功能
