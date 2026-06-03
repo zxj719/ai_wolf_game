@@ -122,10 +122,18 @@ export default function ChatRoute() {
 
       <VideoCallPanel
         state={webrtc.state}
-        localStream={webrtc.localStream} remoteStream={webrtc.remoteStream}
+        localStream={webrtc.localStream}
+        remoteCameraStream={webrtc.remoteCameraStream}
+        remoteScreenStream={webrtc.remoteScreenStream}
+        remoteAudioStream={webrtc.remoteAudioStream}
+        localScreenStream={webrtc.localScreenStream}
+        sharingScreen={webrtc.sharingScreen} remoteSharing={webrtc.remoteSharing}
         muted={webrtc.muted} cameraOff={webrtc.cameraOff}
         accept={webrtc.accept} reject={webrtc.reject} hangup={webrtc.hangup} dismiss={webrtc.dismiss}
         toggleMute={webrtc.toggleMute} toggleCamera={webrtc.toggleCamera}
+        startScreenShare={webrtc.startScreenShare} stopScreenShare={webrtc.stopScreenShare}
+        applyShareResolution={webrtc.applyShareResolution}
+        canScreenShare={typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia}
         nameOf={nameOf}
       />
     </div>

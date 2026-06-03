@@ -3,22 +3,27 @@ import { webrtcReducer, initialCallState } from '../modules/chat/webrtcReducer';
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 const RING_TIMEOUT_MS = 45000;
+export const SHARE_RES = { '720p': { width: 1280, height: 720 }, '1080p': { width: 1920, height: 1080 } };
 
 /**
- * useWebRTC — 1对1 视频通话。信令通过 chat.subscribe/chat.sendSignal（两者是稳定 useCallback）。
- * 媒体 P2P（STUN）。仅 admin 能 startCall（UI 隐藏 + 服务端再校验）。
+ * useWebRTC — 1对1 视频通话 + 屏幕共享（屏幕与摄像头同时，预协商第二条视频轨）。
  *
  * 设计要点（对抗评审修订）：
- *   - 信令只订阅一次（依赖稳定的 subscribe，不依赖会变身份的 chat 或 state.phase）
- *   - 串行化 handler（emit 不 await）；ICE drain 原子化（shift 直到空）
- *   - 每个 await 后校验 pcRef 身份，teardown-during-setup 静默退出
- *   - CONNECTED 走 connection+iceConnection 双信号；'calling' 45s 振铃超时
+ *   - 远端轨按 transceiver.kind 识别（video[0]=camera, video[1]=screen），绝不用 receiver.track.kind
+ *   - 远端流身份稳定（原地增删轨，不每次 new MediaStream），远端音频独立常驻
+ *   - setupAnswerer await replaceTrack 再 createAnswer
+ *   - 屏幕共享 sharingRef 闩 + 捕获 sender 身份，防选择器期间跨通话泄漏
  */
 export function useWebRTC({ chat, isAdmin }) {
   const { subscribe, sendSignal } = chat;
   const [state, dispatch] = useReducer(webrtcReducer, initialCallState);
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
+  const [remoteCameraStream, setRemoteCameraStream] = useState(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState(null);
+  const [remoteAudioStream, setRemoteAudioStream] = useState(null);
+  const [localScreenStream, setLocalScreenStream] = useState(null);
+  const [sharingScreen, setSharingScreen] = useState(false);
+  const [remoteSharing, setRemoteSharing] = useState(false);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
 
@@ -30,6 +35,14 @@ export function useWebRTC({ chat, isAdmin }) {
   const phaseRef = useRef(state.phase);
   const ringTimer = useRef(null);
   const taskRef = useRef(Promise.resolve());
+  const screenSenderRef = useRef(null);
+  const screenTrackRef = useRef(null);     // the getDisplayMedia MediaStream
+  const sharingRef = useRef(false);
+  const stopScreenShareRef = useRef(null);
+  // 稳定的远端流（原地增删轨，避免 srcObject 反复重绑）
+  const remoteCamRef = useRef(null);
+  const remoteScreenRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   useEffect(() => { phaseRef.current = state.phase; }, [state.phase]);
 
@@ -37,8 +50,33 @@ export function useWebRTC({ chat, isAdmin }) {
     if (ringTimer.current) { clearTimeout(ringTimer.current); ringTimer.current = null; }
   }, []);
 
+  // 原地同步流的单轨：仅首次创建时 setState，之后增删轨不改流身份。
+  function syncStream(ref, setState, track) {
+    let s = ref.current;
+    if (!s) {
+      if (!track) return;
+      s = new MediaStream([track]); ref.current = s; setState(s); return;
+    }
+    s.getTracks().forEach((t) => { if (t !== track) s.removeTrack(t); });
+    if (track && !s.getTracks().includes(track)) s.addTrack(track);
+  }
+
+  // 按 transceiver.kind 识别：video[0]=camera, video[1]=screen；audio 独立。
+  const remapRemote = useCallback(() => {
+    const pc = pcRef.current; if (!pc) return;
+    const vtx = pc.getTransceivers().filter((t) => t.kind === 'video');
+    const atx = pc.getTransceivers().find((t) => t.kind === 'audio');
+    syncStream(remoteCamRef, setRemoteCameraStream, vtx[0]?.receiver?.track || null);
+    syncStream(remoteScreenRef, setRemoteScreenStream, vtx[1]?.receiver?.track || null);
+    syncStream(remoteAudioRef, setRemoteAudioStream, atx?.receiver?.track || null);
+  }, []);
+
   const cleanup = useCallback(() => {
     clearRingTimer();
+    if (screenTrackRef.current) {
+      screenTrackRef.current.getTracks().forEach((t) => { t.onended = null; try { t.stop(); } catch { /* noop */ } });
+    }
+    screenTrackRef.current = null; screenSenderRef.current = null; sharingRef.current = false;
     try { pcRef.current?.close(); } catch { /* noop */ }
     pcRef.current = null;
     localRef.current?.getTracks().forEach((t) => { try { t.stop(); } catch { /* noop */ } });
@@ -46,14 +84,15 @@ export function useWebRTC({ chat, isAdmin }) {
     peerRef.current = null;
     pendingOffer.current = null;
     pendingIce.current = [];
-    setLocalStream(null); setRemoteStream(null); setMuted(false); setCameraOff(false);
+    remoteCamRef.current = null; remoteScreenRef.current = null; remoteAudioRef.current = null;
+    setLocalStream(null); setRemoteCameraStream(null); setRemoteScreenStream(null); setRemoteAudioStream(null);
+    setLocalScreenStream(null); setSharingScreen(false); setRemoteSharing(false);
+    setMuted(false); setCameraOff(false);
   }, [clearRingTimer]);
 
-  // 稳定 cleanup 引用：订阅副作用/超时回调里用它，无需把 cleanup 放进 deps。
   const cleanupRef = useRef(cleanup);
   useEffect(() => { cleanupRef.current = cleanup; }, [cleanup]);
 
-  // ICE drain 原子化：shift 直到空，await 期间新 push 的也会被这轮取走。
   const drainIce = useCallback(async (pc) => {
     while (pendingIce.current.length) {
       const c = pendingIce.current.shift();
@@ -70,20 +109,20 @@ export function useWebRTC({ chat, isAdmin }) {
         : { candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex, usernameFragment: e.candidate.usernameFragment };
       sendSignal({ type: 'call:ice', to: peerId, candidate: c });
     };
-    pc.ontrack = (e) => { if (e.streams && e.streams[0]) setRemoteStream(e.streams[0]); };
+    pc.ontrack = () => remapRemote();
     const onConnected = () => { clearRingTimer(); dispatch({ type: 'CONNECTED' }); };
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'connected') onConnected();
       else if (pc.connectionState === 'failed') dispatch({ type: 'ERROR', error: '连接失败（可能需要 TURN）' });
     };
-    pc.oniceconnectionstatechange = () => {              // Safari/relay 兜底
+    pc.oniceconnectionstatechange = () => {
       const st = pc.iceConnectionState;
       if (st === 'connected' || st === 'completed') onConnected();
       else if (st === 'failed') dispatch({ type: 'ERROR', error: '连接失败（可能需要 TURN）' });
     };
     pcRef.current = pc;
     return pc;
-  }, [sendSignal, clearRingTimer]);
+  }, [sendSignal, clearRingTimer, remapRemote]);
 
   async function getMedia() {
     const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -94,7 +133,28 @@ export function useWebRTC({ chat, isAdmin }) {
     return e?.name === 'NotAllowedError' ? '需要授权摄像头/麦克风' : (e?.message || '通话失败');
   }
 
-  // 主叫（admin）发起
+  // offerer：video[0]=camera, audio, video[1]=screen（顺序勿改）
+  function setupOfferer(pc, media) {
+    const cam = media.getVideoTracks()[0];
+    const mic = media.getAudioTracks()[0];
+    if (cam) pc.addTrack(cam, media);
+    if (mic) pc.addTrack(mic, media);
+    const screenTx = pc.addTransceiver('video', { direction: 'sendrecv' });
+    screenSenderRef.current = screenTx.sender;
+  }
+  // answerer：按 kind 选发送槽（不靠 receiver.track），await replaceTrack 再 createAnswer
+  async function setupAnswerer(pc, media) {
+    const videoTx = pc.getTransceivers().filter((t) => t.kind === 'video');
+    const audioTx = pc.getTransceivers().find((t) => t.kind === 'audio');
+    const cam = media.getVideoTracks()[0];
+    const mic = media.getAudioTracks()[0];
+    screenSenderRef.current = videoTx[1]?.sender || null;
+    const ps = [];
+    if (videoTx[0] && cam) ps.push(videoTx[0].sender.replaceTrack(cam));
+    if (audioTx && mic) ps.push(audioTx.sender.replaceTrack(mic));
+    await Promise.all(ps);
+  }
+
   const startCall = useCallback(async (peerId, peerName) => {
     if (!isAdmin || phaseRef.current !== 'idle') return;
     const pid = Number(peerId);
@@ -106,9 +166,9 @@ export function useWebRTC({ chat, isAdmin }) {
     }, RING_TIMEOUT_MS);
     try {
       const media = await getMedia();
-      if (peerRef.current !== pid) return;              // 取消/超时
+      if (peerRef.current !== pid) return;
       const pc = newPc(pid);
-      media.getTracks().forEach((t) => pc.addTrack(t, media));
+      setupOfferer(pc, media);
       const offer = await pc.createOffer();
       if (pcRef.current !== pc) return;
       await pc.setLocalDescription(offer);
@@ -120,7 +180,6 @@ export function useWebRTC({ chat, isAdmin }) {
     }
   }, [isAdmin, sendSignal, newPc]);
 
-  // 被叫接听
   const accept = useCallback(async () => {
     if (phaseRef.current !== 'ringing' || !peerRef.current || !pendingOffer.current) return;
     const pid = peerRef.current;
@@ -130,8 +189,9 @@ export function useWebRTC({ chat, isAdmin }) {
       const media = await getMedia();
       if (peerRef.current !== pid) return;
       const pc = newPc(pid);
-      media.getTracks().forEach((t) => pc.addTrack(t, media));
       await pc.setRemoteDescription(offer);
+      if (pcRef.current !== pc) return;
+      await setupAnswerer(pc, media);
       if (pcRef.current !== pc) return;
       await drainIce(pc);
       const answer = await pc.createAnswer();
@@ -139,11 +199,12 @@ export function useWebRTC({ chat, isAdmin }) {
       await pc.setLocalDescription(answer);
       if (pcRef.current !== pc) return;
       sendSignal({ type: 'call:answer', to: pid, sdp: answer });
+      remapRemote();
     } catch (e) {
       sendSignal({ type: 'call:hangup', to: pid });
       cleanupRef.current(); dispatch({ type: 'ERROR', error: mediaError(e) });
     }
-  }, [sendSignal, newPc, drainIce]);
+  }, [sendSignal, newPc, drainIce, remapRemote]);
 
   const reject = useCallback(() => {
     if (peerRef.current) sendSignal({ type: 'call:hangup', to: peerRef.current });
@@ -166,7 +227,54 @@ export function useWebRTC({ chat, isAdmin }) {
     const off = !cameraOff; s.getVideoTracks().forEach((t) => { t.enabled = !off; }); setCameraOff(off);
   }, [cameraOff]);
 
-  // 信令订阅：只订阅一次（deps 仅稳定的 subscribe/drainIce）。串行化，读实时 ref。
+  // ── 屏幕共享 ──────────────────────────────────────────────
+  const stopScreenShare = useCallback(() => {
+    if (!screenTrackRef.current && !sharingRef.current) return;
+    const peer = peerRef.current;
+    if (screenTrackRef.current) {
+      screenTrackRef.current.getTracks().forEach((t) => { t.onended = null; try { t.stop(); } catch { /* noop */ } });
+    }
+    screenTrackRef.current = null;
+    try { screenSenderRef.current?.replaceTrack(null); } catch { /* noop */ }
+    sharingRef.current = false;
+    setLocalScreenStream(null); setSharingScreen(false);
+    if (peer) sendSignal({ type: 'call:screenshare', to: peer, on: false });
+  }, [sendSignal]);
+  useEffect(() => { stopScreenShareRef.current = stopScreenShare; }, [stopScreenShare]);
+
+  const startScreenShare = useCallback(async (resolution) => {
+    if (sharingRef.current || screenTrackRef.current) return;
+    if (!screenSenderRef.current) { dispatch({ type: 'ERROR', error: '当前通话不支持屏幕共享' }); return; }
+    if (!navigator.mediaDevices?.getDisplayMedia) return;
+    sharingRef.current = true;
+    const sender = screenSenderRef.current;          // 捕获身份
+    const r = SHARE_RES[resolution] || SHARE_RES['1080p'];
+    try {
+      const s = await navigator.mediaDevices.getDisplayMedia({
+        video: { width: { ideal: r.width }, height: { ideal: r.height }, frameRate: { ideal: 30 } },
+        audio: false,
+      });
+      if (screenSenderRef.current !== sender) { s.getTracks().forEach((t) => t.stop()); sharingRef.current = false; return; }
+      const track = s.getVideoTracks()[0];
+      screenTrackRef.current = s;
+      await sender.replaceTrack(track);
+      if (screenSenderRef.current !== sender) { s.getTracks().forEach((t) => t.stop()); screenTrackRef.current = null; sharingRef.current = false; return; }
+      track.onended = () => stopScreenShareRef.current?.();   // 浏览器“停止共享”
+      setLocalScreenStream(s); setSharingScreen(true);
+      if (peerRef.current) sendSignal({ type: 'call:screenshare', to: peerRef.current, on: true });
+    } catch (e) {
+      sharingRef.current = false;
+      if (e?.name !== 'NotAllowedError') dispatch({ type: 'ERROR', error: '屏幕共享失败' });
+    }
+  }, [sendSignal]);
+
+  const applyShareResolution = useCallback((resolution) => {
+    const r = SHARE_RES[resolution]; if (!r || !screenTrackRef.current) return;
+    const t = screenTrackRef.current.getVideoTracks()[0];
+    try { t?.applyConstraints({ width: { ideal: r.width }, height: { ideal: r.height } }); } catch { /* noop */ }
+  }, []);
+
+  // ── 信令订阅（只订一次，串行化，读实时 ref）──────────────
   useEffect(() => {
     const handle = async (msg) => {
       if (msg.type === 'call:offer') {
@@ -176,12 +284,14 @@ export function useWebRTC({ chat, isAdmin }) {
         dispatch({ type: 'INCOMING_OFFER', peerId: msg.from });
       } else if (msg.type === 'call:answer') {
         const pc = pcRef.current; if (!pc) return;
-        try { await pc.setRemoteDescription(msg.sdp); await drainIce(pc); dispatch({ type: 'ANSWERED' }); }
+        try { await pc.setRemoteDescription(msg.sdp); await drainIce(pc); remapRemote(); dispatch({ type: 'ANSWERED' }); }
         catch (e) { if (peerRef.current) sendSignal({ type: 'call:hangup', to: peerRef.current }); cleanupRef.current(); dispatch({ type: 'ERROR', error: e?.message || '协商失败' }); }
       } else if (msg.type === 'call:ice') {
         const pc = pcRef.current;
         pendingIce.current.push(msg.candidate);
         if (pc && pc.remoteDescription) await drainIce(pc);
+      } else if (msg.type === 'call:screenshare') {
+        if (Number(msg.from) === peerRef.current) setRemoteSharing(!!msg.on);
       } else if (msg.type === 'call:hangup') {
         if (Number(msg.from) === peerRef.current) { cleanupRef.current(); dispatch({ type: 'REMOTE_HANGUP' }); }
       } else if (msg.type === 'call:error') {
@@ -190,12 +300,17 @@ export function useWebRTC({ chat, isAdmin }) {
     };
     const unsub = subscribe((msg) => {
       if (!msg || typeof msg.type !== 'string' || !msg.type.startsWith('call:')) return;
-      taskRef.current = taskRef.current.then(() => handle(msg)).catch(() => {});   // 串行化
+      taskRef.current = taskRef.current.then(() => handle(msg)).catch(() => {});
     });
     return unsub;
-  }, [subscribe, sendSignal, drainIce]);
+  }, [subscribe, sendSignal, drainIce, remapRemote]);
 
-  useEffect(() => () => cleanupRef.current(), []);       // 卸载清理
+  useEffect(() => () => cleanupRef.current(), []);
 
-  return { state, localStream, remoteStream, muted, cameraOff, startCall, accept, reject, hangup, dismiss, toggleMute, toggleCamera };
+  return {
+    state, localStream, remoteCameraStream, remoteScreenStream, remoteAudioStream, localScreenStream,
+    sharingScreen, remoteSharing, muted, cameraOff,
+    startCall, accept, reject, hangup, dismiss, toggleMute, toggleCamera,
+    startScreenShare, stopScreenShare, applyShareResolution,
+  };
 }
