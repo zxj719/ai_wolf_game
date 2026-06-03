@@ -24,6 +24,7 @@ export const ROUTES = {
   STOCK:  '/stock',
   BLOG:   '/blog',
   NOVEL:  '/novel',
+  CHAT:   '/chat',
 
   // Phase 3 过渡期保留：Phase 4 拆为 chords/stock/blog 三条路由后移除
   SITES: '/sites',
