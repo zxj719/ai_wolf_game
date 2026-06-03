@@ -92,13 +92,20 @@ export function useChatSocket(enabled) {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'chat:typing', to, typing }));
   }, []);
 
+  // 通用信令发送（WebRTC call:* 等）。OPEN 才发，返回是否发出。
+  const sendSignal = useCallback((obj) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify(obj)); return true; }
+    return false;
+  }, []);
+
   const subscribe = useCallback((handler) => {
     handlersRef.current.add(handler);
     return () => handlersRef.current.delete(handler);
   }, []);
 
   return useMemo(
-    () => ({ status, onlineFriends, reconnectNonce, send, sendTyping, subscribe }),
-    [status, onlineFriends, reconnectNonce, send, sendTyping, subscribe]
+    () => ({ status, onlineFriends, reconnectNonce, send, sendTyping, sendSignal, subscribe }),
+    [status, onlineFriends, reconnectNonce, send, sendTyping, sendSignal, subscribe]
   );
 }
