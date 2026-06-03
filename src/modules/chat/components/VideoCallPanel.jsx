@@ -41,14 +41,15 @@ export function VideoCallPanel({ state, localStream, remoteStream, muted, camera
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      <div className="flex-1 relative">
-        <Video stream={remoteStream} className="w-full h-full object-contain bg-black" />
-        <Video stream={localStream} muted className="absolute bottom-4 right-4 w-40 rounded border border-white/30" />
+    <div className="fixed inset-0 z-[100] flex flex-col bg-black overflow-hidden">
+      {/* min-h-0 关键：让视频区在 flex 列里可收缩，避免视频固有高度把控件挤出视口 */}
+      <div className="relative flex-1 min-h-0">
+        <Video stream={remoteStream} className="absolute inset-0 w-full h-full object-contain" />
+        <Video stream={localStream} muted className="absolute bottom-4 right-4 w-28 sm:w-44 rounded border border-white/30 shadow-lg" />
         {state.phase === 'calling' && <p className="absolute top-6 inset-x-0 text-center text-white">正在呼叫 {name}…</p>}
         {state.phase === 'connecting' && <p className="absolute top-6 inset-x-0 text-center text-white">连接中…</p>}
       </div>
-      <div className="flex gap-3 justify-center p-4 bg-zinc-900">
+      <div className="shrink-0 flex flex-wrap gap-3 justify-center p-4 bg-zinc-900">
         <button type="button" onClick={toggleMute} className="px-3 py-2 rounded bg-zinc-700 text-white">{muted ? '取消静音' : '静音'}</button>
         <button type="button" onClick={toggleCamera} className="px-3 py-2 rounded bg-zinc-700 text-white">{cameraOff ? '开摄像头' : '关摄像头'}</button>
         <button type="button" onClick={hangup} className="px-4 py-2 rounded bg-red-600 text-white">挂断</button>
