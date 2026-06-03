@@ -2,25 +2,30 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShell } from '../../shell/ShellContext';
 import { ROUTES } from '../../shell/paths';
 import { friendService } from '../../services/friendService';
+import { useChatSocket } from '../../hooks/useChatSocket';
 import { AddFriend } from './components/AddFriend';
 import { FriendRequests } from './components/FriendRequests';
 import { FriendList } from './components/FriendList';
+import { ConversationView } from './components/ConversationView';
 
 /**
- * ChatRoute — 好友管理页（Phase 1）。
- * Phase 2 起右侧会接入会话窗；当前仅好友/申请/搜索。
+ * ChatRoute — 好友 + 私聊（Phase 2）。
+ * 左侧好友/申请/搜索；选中好友后渲染实时会话窗。
  * 游客（无真实 user）看到登录引导。
  *
- * 认证：用 useShell().api('cf-workers') 拿到已注入 Authorization 的客户端。
+ * 认证：用 useShell().api('cf-workers') 拿到已注入 Authorization 的客户端；
+ * 实时走 useChatSocket（直连 ECS WSS，token 经子协议传递）。
  */
 export default function ChatRoute() {
   const { user, navigate, api: shellApi } = useShell();
   const api = useMemo(() => shellApi('cf-workers'), [shellApi]);
+  const chat = useChatSocket(Boolean(user));
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [requests, setRequests] = useState([]);
   const [friends, setFriends] = useState([]);
+  const [selectedFriend, setSelectedFriend] = useState(null);
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
@@ -94,8 +99,12 @@ export default function ChatRoute() {
         <FriendRequests requests={requests} onAccept={onAccept} onReject={onReject} />
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-ink-muted">我的好友</h2>
-          <FriendList friends={friends} onSelect={() => { /* Phase 2: 打开会话 */ }} />
+          <FriendList friends={friends} onSelect={setSelectedFriend} />
         </section>
+
+        {selectedFriend && (
+          <ConversationView api={api} meId={user.id} friend={selectedFriend} chat={chat} />
+        )}
       </div>
     </div>
   );

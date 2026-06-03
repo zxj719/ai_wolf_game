@@ -26,4 +26,14 @@ export const friendService = {
   listFriends(api) {
     return api.get('/api/friends');
   },
+  /**
+   * 拉历史消息，返回 { messages: [{id, fromUser, body, createdAt}] }（时间升序）。
+   * before 是「消息 id 游标」（取更早的消息）；limit 默认 30，封顶 100。
+   */
+  getHistory(api, friendId, before, limit) {
+    const q = new URLSearchParams({ friendId: String(friendId) });
+    if (before != null) q.set('before', String(before));
+    if (limit != null) q.set('limit', String(limit));
+    return api.get(`/api/chat/history?${q.toString()}`);
+  },
 };

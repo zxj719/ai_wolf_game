@@ -41,4 +41,16 @@ describe('friendService', () => {
     await friendService.listFriends(api);
     expect(api.get).toHaveBeenCalledWith('/api/friends');
   });
+
+  it('getHistory GETs /api/chat/history with friendId', async () => {
+    const api = makeApi();
+    await friendService.getHistory(api, 5);
+    expect(api.get).toHaveBeenCalledWith('/api/chat/history?friendId=5');
+  });
+
+  it('getHistory includes before + limit when provided', async () => {
+    const api = makeApi();
+    await friendService.getHistory(api, 5, 1000, 20);
+    expect(api.get).toHaveBeenCalledWith('/api/chat/history?friendId=5&before=1000&limit=20');
+  });
 });
