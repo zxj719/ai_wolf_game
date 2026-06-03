@@ -96,17 +96,19 @@ export function attachChatSocket(httpServer, opts = {}) {
     const sub = payload ? Number(payload.sub) : NaN;
     if (!payload || !Number.isInteger(sub) || sub <= 0) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }
 
-    wss.handleUpgrade(req, socket, head, async (ws) => {
+    wss.handleUpgrade(req, socket, head, (ws) => {
       const conn = {
         userId: sub,
         token,
         send: (obj) => { try { ws.send(JSON.stringify(obj)); } catch { /* closed */ } },
         close: () => { try { ws.close(); } catch { /* noop */ } },
       };
-      await hub.addConnection(conn);                       // 先注册再接 close，避免半初始化竞态
+      // 同步挂监听器：避免 client 'open' 后立刻发的帧在 addConnection 的 await 窗口里被丢。
       ws.on('message', (data) => hub.handleMessage(conn, data.toString()));
       ws.on('close', () => hub.removeConnection(conn));
       ws.on('error', () => { try { ws.close(); } catch { /* noop */ } });
+      // 注册连接 + presence（异步；handleMessage 内部按需自取好友集，不依赖此完成）
+      Promise.resolve(hub.addConnection(conn)).catch(() => { /* presence best-effort */ });
     });
   });
 
