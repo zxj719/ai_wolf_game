@@ -12,12 +12,13 @@
 ### 架构
 - 浏览器原生 WebSocket **直连 ECS 源站** `wss://novel-origin.zhaxiaoji.com/ws/chat`（CF Worker 无法转发 WS 升级）。
 - ECS 在现有 Express 进程内挂 `ws` 服务（`app.listen` → `http.createServer` + WebSocketServer）；presence 表单进程（PM2 instances:1）。
-- WS 服务复用 `workers/auth/jwt.js` 的 `verifyToken` 验 JWT（Node webcrypto，与 Worker 字节一致）；收到消息回调 CF Worker `POST /api/internal/chat/persist` 写 D1。
+- **握手鉴权委托**：ECS 不持有 JWT_SECRET；WS 握手把 token 交给 Worker `GET /api/me` 验证（消除"两边 secret 字节一致"的脆弱耦合）。收到消息回调 Worker `POST /api/internal/chat/persist` 写 D1。
+- 修复既有 bug：`/api/me` 历史上误用 `user.id`（JWT 载荷字段实为 `sub`）始终返回 undefined；前端只读 isAdmin 未暴露，但鉴权委托依赖 user.id，改为 `user.sub`。
 
 ### 安全加固（来自 4 代理对抗评审，10 must-fix）
 - token 走 `Sec-WebSocket-Protocol` 子协议（不进 URL/nginx 日志）。
 - WS `maxPayload` 16KB + 关压缩（防内存耗尽 DoS）；每连接令牌桶限流；每用户连接数上限 5。
-- 握手验签 + Origin 白名单（cors 不覆盖 upgrade）；`sub` 必须正整数；启动 JWT 自检大声失败。
+- 握手鉴权委托 Worker `/api/me` + Origin 白名单（cors 不覆盖 upgrade）；启动做 Worker 可达性检查。
 - persist 端点：service token + **好友关系校验**（token 泄露也无法向任意会话伪造写入）。
 - 历史分页用唯一 `id` 游标（非 created_at，避免同毫秒丢消息/乱序）。
 
@@ -39,8 +40,8 @@
 | `docs/deploy/phase2-chat-deploy-runbook.md` | 新建 | 手动部署手册（nginx WS、cloudflared、secrets、顺序、烟测） |
 
 ### 部署注意
-- **顺序**：先 D1 迁移 005 + Worker 部署，再 ECS 重启（否则 persist 回调打到旧 Worker 500）。
-- ECS 需新增 `JWT_SECRET`/`CHAT_SERVICE_TOKEN`（从 `/root/.config/wolfgame/*.env` source）+ nginx `/ws/chat` 升级规则 + `npm install`（ws 新依赖）。详见部署手册。
+- **顺序**：先 D1 迁移 005 + Worker 部署（含 /api/me 修复），再 ECS 重启。
+- ECS 只需新增 `CHAT_SERVICE_TOKEN`（从 `/root/.config/wolfgame/*.env` source，**不再需要 JWT_SECRET**）+ nginx `/ws/chat` 升级规则 + `npm install`（ws 新依赖）。详见部署手册。
 - 验证：单元 + 双 client 集成 + **跨服务烟测（ECS WS → Worker → D1 全链路）** 全过；全量 215 测试通过。
 
 ## [2026-06-03] 好友系统 Phase 1（私聊/视频的基础层）

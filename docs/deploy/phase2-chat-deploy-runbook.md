@@ -8,29 +8,26 @@
 - 对外：`novel-origin.zhaxiaoji.com` = Cloudflare Tunnel(cloudflared) → nginx → `127.0.0.1:3001`。
 - WS 地址：浏览器直连 `wss://novel-origin.zhaxiaoji.com/ws/chat`（CF Worker 无法转发 WS 升级）。
 - token 经 `Sec-WebSocket-Protocol` 子协议传，不进 URL/nginx 访问日志。
-- **顺序铁律**：先 D1 迁移 + Worker 部署（含 persist 端点），再 ECS 重启。否则 ECS 的 persist 回调打到旧 Worker → 500。
+- **鉴权委托**：ECS **不持有 JWT_SECRET**。WS 握手时把 token 交给 Worker `GET /api/me` 验证。ECS 只需要 `CHAT_SERVICE_TOKEN`（持久化回调用）。
+- **顺序铁律**：先 D1 迁移 + Worker 部署（含 persist 端点 + /api/me 返回 user.id 修复），再 ECS 重启。否则 ECS 的 persist 回调打到旧 Worker → 500，且鉴权委托拿不到 user.id。
 
-## 1. 准备 secrets（两边必须字节一致）
+## 1. 准备 secret（只需 ECS 一侧持有 CHAT_SERVICE_TOKEN）
 
 CF Worker（本地执行）：
 ```bash
-# 生成一个强随机 token 给 ECS↔Worker 的 persist 回调鉴权
-npx wrangler secret put CHAT_SERVICE_TOKEN     # 粘贴随机值，记下它，下面 ECS 也要用同一个
-# 确认 JWT_SECRET 已是 Worker secret（Phase 1 登录就在用）：
-npx wrangler secret list                       # 应能看到 JWT_SECRET
+# 已在本次发布中设好 CHAT_SERVICE_TOKEN（wrangler secret put）。如需轮换重设即可。
+npx wrangler secret list                       # 应能看到 CHAT_SERVICE_TOKEN
 ```
 
-ECS（SSH 到机器）——把同样的值写进 env 文件：
+ECS（SSH 到机器）——只写 service token（**不再需要 JWT_SECRET**）：
 ```bash
 ssh <ecs>
-# 取 Worker 现用的 JWT_SECRET 值（你设置 Worker secret 时的原值；必须一致）
 vi /root/.config/wolfgame/werewolf-ai.env
-#   追加两行（值与上面 Worker 完全一致）：
-#   JWT_SECRET=<与 Worker JWT_SECRET 完全相同>
-#   CHAT_SERVICE_TOKEN=<与上面 wrangler secret put 完全相同>
+#   追加一行（值与 Worker 的 CHAT_SERVICE_TOKEN secret 完全一致）：
+#   CHAT_SERVICE_TOKEN=<与 Worker secret 相同>
 chmod 600 /root/.config/wolfgame/werewolf-ai.env
 ```
-> ⚠️ 若 ECS 的 JWT_SECRET 与 Worker 不一致，WS 握手会**静默全拒**（验签返回 null）。ECS 启动自检会打印 `[chatSocket] JWT self-test OK` / 或 `FATAL`，见第 6 步。
+> ✅ 不再有"JWT_SECRET 两边必须字节一致"的脆弱耦合——握手鉴权全部委托给 Worker `/api/me`。CHAT_SERVICE_TOKEN 仅用于 persist 回调；不一致只会导致写库 403（持久化失败），不影响连接/收发本身（消息仍实时转发，只是不入库——日志会报 `persist 403`）。
 
 ## 2. D1 迁移（生产）
 
@@ -87,8 +84,8 @@ pm2 save
 立即看日志确认 JWT 自检 + 不破坏原服务：
 ```bash
 pm2 logs bt-server --lines 40 --nostream
-#   期望看到：[chatSocket] JWT self-test OK
-#   若 [chatSocket] FATAL ... → JWT_SECRET 缺失/不匹配，回到第 1 步修正
+#   期望看到：[chatSocket] worker https://zhaxiaoji.com reachable (HTTP 200/503)
+#   若 WARN worker unreachable → 检查 CHAT_WORKER_URL / 出网；鉴权委托与 persist 都依赖它
 curl --noproxy '*' http://127.0.0.1:3001/health      # REST 仍正常（200）
 ```
 
@@ -125,7 +122,7 @@ ssh <ecs> 'cd /var/www/wolfgame && git revert <ecs-commit> && pm2 restart ecosys
 ## 10. 部署后核对清单
 
 - [ ] `curl .../api/chat/history?friendId=1` → 401（路由在）
-- [ ] `pm2 logs bt-server` 见 `JWT self-test OK`
+- [ ] `pm2 logs bt-server` 见 `worker ... reachable`
 - [ ] `wscat` 连 `wss://novel-origin.zhaxiaoji.com/ws/chat`（子协议带 token）→ 收到 presence:init
 - [ ] 两真人实时收发 + 历史 + presence + typing 正常
 - [ ] `/health`、`/bt/*`、`/novel/*` 仍正常（http.createServer 重构未伤及）

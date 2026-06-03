@@ -31,7 +31,9 @@ export async function handleGetMe(request, env) {
   return jsonResponse({
     isAdmin: admin,
     isGuest: false,
-    user: { id: user.id, username: user.username, email: user.email },
+    // JWT 载荷里用户 id 字段是 sub（不是 id）。历史上这里误用 user.id 始终返回 undefined；
+    // 前端只读 isAdmin 所以没暴露问题，但 Phase 2 ECS 鉴权委托依赖 user.id，必须用 sub。
+    user: { id: user.sub, username: user.username, email: user.email },
   });
 }
 

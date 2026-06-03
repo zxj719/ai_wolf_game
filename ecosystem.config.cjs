@@ -20,10 +20,9 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3001,
         ALLOWED_ORIGIN: 'https://zhaxiaoji.com',
-        // Phase 2 私聊：JWT 验签密钥（必须与 CF Worker 的 JWT_SECRET 字节一致）+
-        // 持久化回调 service token。两者从 /root/.config/wolfgame/*.env source 后由
-        // `pm2 restart --update-env` 注入；绝不在此写明文。
-        JWT_SECRET: process.env.JWT_SECRET || '',
+        // Phase 2 私聊：持久化回调 service token（必须与 Worker secret CHAT_SERVICE_TOKEN 一致）。
+        // 从 /root/.config/wolfgame/*.env source 后由 `pm2 restart --update-env` 注入；绝不写明文。
+        // 注意：ECS 不再需要 JWT_SECRET —— 握手鉴权委托给 Worker GET /api/me。
         CHAT_SERVICE_TOKEN: process.env.CHAT_SERVICE_TOKEN || '',
         CHAT_WORKER_URL: process.env.CHAT_WORKER_URL || 'https://zhaxiaoji.com',
         NOVEL_WORKSPACE_DIR: '/var/www/novel_generator/meta_writing',
