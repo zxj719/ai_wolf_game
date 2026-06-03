@@ -17,10 +17,11 @@ const RES_OPTIONS = ['1080p', '720p'];
 export function VideoCallPanel(props) {
   const {
     state, localStream, remoteCameraStream, remoteScreenStream, remoteAudioStream, localScreenStream,
-    sharingScreen, remoteSharing, muted, cameraOff,
+    sharingScreen, remoteSharing, screenShareReady, muted, cameraOff,
     accept, reject, hangup, dismiss, toggleMute, toggleCamera,
     startScreenShare, stopScreenShare, applyShareResolution, canScreenShare, nameOf,
   } = props;
+  const showShare = canScreenShare && screenShareReady;   // 仅当本端真有屏幕发送轨时才显示
 
   const panelRef = useRef(null);
   const [controlsHidden, setControlsHidden] = useState(false);
@@ -111,7 +112,7 @@ export function VideoCallPanel(props) {
         <div className="shrink-0 flex flex-wrap gap-2 justify-center items-center p-3 bg-zinc-900">
           <button type="button" onClick={toggleMute} className={btn}>{muted ? '取消静音' : '静音'}</button>
           <button type="button" onClick={toggleCamera} className={btn}>{cameraOff ? '开摄像头' : '关摄像头'}</button>
-          {canScreenShare && (
+          {showShare && (
             <>
               <button type="button" onClick={sharingScreen ? stopScreenShare : () => startScreenShare(shareRes)} className={btn}>
                 {sharingScreen ? '停止共享' : '共享屏幕'}

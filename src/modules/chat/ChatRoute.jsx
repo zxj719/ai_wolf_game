@@ -128,6 +128,7 @@ export default function ChatRoute() {
         remoteAudioStream={webrtc.remoteAudioStream}
         localScreenStream={webrtc.localScreenStream}
         sharingScreen={webrtc.sharingScreen} remoteSharing={webrtc.remoteSharing}
+        screenShareReady={webrtc.screenShareReady}
         muted={webrtc.muted} cameraOff={webrtc.cameraOff}
         accept={webrtc.accept} reject={webrtc.reject} hangup={webrtc.hangup} dismiss={webrtc.dismiss}
         toggleMute={webrtc.toggleMute} toggleCamera={webrtc.toggleCamera}

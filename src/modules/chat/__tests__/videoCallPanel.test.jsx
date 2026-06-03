@@ -6,7 +6,7 @@ import { VideoCallPanel } from '../components/VideoCallPanel.jsx';
 const noop = () => {};
 const base = {
   localStream: null, remoteCameraStream: null, remoteScreenStream: null, remoteAudioStream: null, localScreenStream: null,
-  sharingScreen: false, remoteSharing: false, muted: false, cameraOff: false,
+  sharingScreen: false, remoteSharing: false, screenShareReady: true, muted: false, cameraOff: false,
   accept: noop, reject: noop, hangup: noop, dismiss: noop, toggleMute: noop, toggleCamera: noop,
   startScreenShare: noop, stopScreenShare: noop, applyShareResolution: noop, canScreenShare: true,
   nameOf: () => 'alice',
@@ -35,6 +35,10 @@ describe('VideoCallPanel', () => {
   });
   it('hides screen-share controls when canScreenShare=false (mobile)', () => {
     const html = renderToStaticMarkup(<VideoCallPanel state={{ phase: 'connected', peerId: 1 }} {...base} canScreenShare={false} />);
+    expect(html).not.toContain('共享屏幕');
+  });
+  it('hides screen-share controls when peer lacks screen transceiver (screenShareReady=false)', () => {
+    const html = renderToStaticMarkup(<VideoCallPanel state={{ phase: 'connected', peerId: 1 }} {...base} screenShareReady={false} />);
     expect(html).not.toContain('共享屏幕');
   });
   it('shows the share-resolution selector with 1080p option', () => {

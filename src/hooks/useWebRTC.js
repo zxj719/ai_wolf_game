@@ -24,6 +24,7 @@ export function useWebRTC({ chat, isAdmin }) {
   const [localScreenStream, setLocalScreenStream] = useState(null);
   const [sharingScreen, setSharingScreen] = useState(false);
   const [remoteSharing, setRemoteSharing] = useState(false);
+  const [screenShareReady, setScreenShareReady] = useState(false);   // 本端是否有可用的屏幕发送轨
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
 
@@ -87,7 +88,7 @@ export function useWebRTC({ chat, isAdmin }) {
     remoteCamRef.current = null; remoteScreenRef.current = null; remoteAudioRef.current = null;
     setLocalStream(null); setRemoteCameraStream(null); setRemoteScreenStream(null); setRemoteAudioStream(null);
     setLocalScreenStream(null); setSharingScreen(false); setRemoteSharing(false);
-    setMuted(false); setCameraOff(false);
+    setScreenShareReady(false); setMuted(false); setCameraOff(false);
   }, [clearRingTimer]);
 
   const cleanupRef = useRef(cleanup);
@@ -141,6 +142,7 @@ export function useWebRTC({ chat, isAdmin }) {
     if (mic) pc.addTrack(mic, media);
     const screenTx = pc.addTransceiver('video', { direction: 'sendrecv' });
     screenSenderRef.current = screenTx.sender;
+    setScreenShareReady(true);
   }
   // answerer：按 kind 选发送槽（不靠 receiver.track），await replaceTrack 再 createAnswer
   async function setupAnswerer(pc, media) {
@@ -149,6 +151,7 @@ export function useWebRTC({ chat, isAdmin }) {
     const cam = media.getVideoTracks()[0];
     const mic = media.getAudioTracks()[0];
     screenSenderRef.current = videoTx[1]?.sender || null;
+    setScreenShareReady(!!screenSenderRef.current);
     const ps = [];
     if (videoTx[0] && cam) ps.push(videoTx[0].sender.replaceTrack(cam));
     if (audioTx && mic) ps.push(audioTx.sender.replaceTrack(mic));
@@ -244,7 +247,7 @@ export function useWebRTC({ chat, isAdmin }) {
 
   const startScreenShare = useCallback(async (resolution) => {
     if (sharingRef.current || screenTrackRef.current) return;
-    if (!screenSenderRef.current) { dispatch({ type: 'ERROR', error: '当前通话不支持屏幕共享' }); return; }
+    if (!screenSenderRef.current) return;                 // 不支持时静默（按钮已 gate，不再 ERROR 拆掉通话视图）
     if (!navigator.mediaDevices?.getDisplayMedia) return;
     sharingRef.current = true;
     const sender = screenSenderRef.current;          // 捕获身份
@@ -309,7 +312,7 @@ export function useWebRTC({ chat, isAdmin }) {
 
   return {
     state, localStream, remoteCameraStream, remoteScreenStream, remoteAudioStream, localScreenStream,
-    sharingScreen, remoteSharing, muted, cameraOff,
+    sharingScreen, remoteSharing, screenShareReady, muted, cameraOff,
     startCall, accept, reject, hangup, dismiss, toggleMute, toggleCamera,
     startScreenShare, stopScreenShare, applyShareResolution,
   };
