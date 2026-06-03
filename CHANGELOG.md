@@ -2,6 +2,33 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-03] 屏幕共享 Phase 4（参考钉钉/腾讯：屏幕+摄像头同时）
+
+### 新功能
+- **桌面端屏幕共享**：通话中点「共享屏幕」，对方**同时**看到你的屏幕（主视图）+ 摄像头（缩略图）；双方都可共享；停止共享回到摄像头。
+- **会议级 UI**：摄像头小窗**可拖动 + 拉边框缩放**（画中画）；控制栏「全屏」「隐藏栏」「最小化摄像头」；屏幕共享**清晰度选择 720p/1080p**（默认 1080p）。
+
+### 架构
+- **预协商第二条视频 transceiver**（camera + screen），屏幕共享 = `replaceTrack`，**无需重新协商**（沿用 Phase 3 稳健性）。媒体仍 P2P，不过服务器。
+- 收发端按 **transceiver.kind** 识别 camera/screen（非 receiver.track.kind，避免静默对调）。
+- 信令复用 WS：`call:screenshare{on}` 中继（chatHub）。**无 D1/Worker/secret/依赖改动。**
+
+### 健壮性（来自 3 代理对抗评审，5 must-fix）
+- transceiver.kind 识别；远端流身份稳定（原地增删轨，防闪烁）；远端音频独立常驻 `<audio>`（布局切换不断音）；setupAnswerer await replaceTrack 再 createAnswer（防 recvonly）；getDisplayMedia sharingRef 闩 + 捕获 sender 身份（防跨通话泄漏）。
+
+### 文件变更（主要）
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `server/chatHub.js` | 修改 | CALL_TYPES 加 call:screenshare，透传 on |
+| `src/hooks/useWebRTC.js` | 修改 | 第二 transceiver + 远端轨重映射 + start/stop/applyResolution 屏幕共享 |
+| `src/modules/chat/pipUtils.js` + `components/DraggablePiP.jsx` | 新建 | 画中画夹取纯函数 + 可拖动/缩放容器 |
+| `src/modules/chat/components/VideoCallPanel.jsx` | 修改 | 会议布局 + 独立音频 + 全屏/隐藏栏/最小化/清晰度 |
+| `src/modules/chat/ChatRoute.jsx` | 修改 | 透传屏幕共享相关 props + canScreenShare |
+
+### 部署注意
+- 前端 `npm run deploy`；ECS `git pull && pm2 restart`（call:screenshare 中继；无 npm install/nginx/secret）。
+- 验证：245 测试通过；屏幕共享端到端（桌面双真人）需手动验证。
+
 ## [2026-06-03] 视频通话 Phase 3（WebRTC，仅管理员发起）
 
 ### 新功能
