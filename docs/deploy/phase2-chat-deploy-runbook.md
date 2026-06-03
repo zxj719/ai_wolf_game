@@ -5,7 +5,7 @@
 ## 0. 前置概念（来自 understand 工作流核实）
 
 - ECS：PM2 app `bt-server`，cwd `/var/www/wolfgame`，端口 `3001`；env 文件 `/root/.config/wolfgame/werewolf-ai.env`（mode 600）。
-- 对外：`novel-origin.zhaxiaoji.com` = Cloudflare Tunnel(cloudflared) → nginx → `127.0.0.1:3001`。
+- 对外：`novel-origin.zhaxiaoji.com` = Cloudflare Tunnel(cloudflared) → **直连** `127.0.0.1:3001`（2026-06-03 实测；nginx 不在此路径，见 §4）。Node 自处理 WS 升级，cloudflared 默认透传。
 - WS 地址：浏览器直连 `wss://novel-origin.zhaxiaoji.com/ws/chat`（CF Worker 无法转发 WS 升级）。
 - token 经 `Sec-WebSocket-Protocol` 子协议传，不进 URL/nginx 访问日志。
 - **鉴权委托**：ECS **不持有 JWT_SECRET**。WS 握手时把 token 交给 Worker `GET /api/me` 验证。ECS 只需要 `CHAT_SERVICE_TOKEN`（持久化回调用）。
@@ -15,9 +15,15 @@
 
 CF Worker（本地执行）：
 ```bash
-# 已在本次发布中设好 CHAT_SERVICE_TOKEN（wrangler secret put）。如需轮换重设即可。
+# 已在本次发布中设好 CHAT_SERVICE_TOKEN。如需轮换重设即可。
 npx wrangler secret list                       # 应能看到 CHAT_SERVICE_TOKEN
 ```
+> ⚠️ **设 secret 不要用 PowerShell 管道**（`$tok | wrangler secret put`）——PS 管道会追加换行且无法抑制，wrangler **原样存入**（含 `\n`），导致 Worker 端 secret 与 ECS 端 `echo` 的干净值**不匹配** → persist 静默 403 → 聊天"发送失败"。正确做法（PowerShell 5.1 无 `<` 重定向，借 cmd）：
+> ```powershell
+> [System.IO.File]::WriteAllText("$env:TEMP\cst.txt", $tok, (New-Object System.Text.UTF8Encoding($false)))
+> cmd /c "npx.cmd wrangler secret put CHAT_SERVICE_TOKEN < `"$env:TEMP\cst.txt`""
+> ```
+> 验证：用该 token POST `/api/internal/chat/persist`，返回 `Not friends`/`Invalid users`=匹配；返回 `Forbidden`=不匹配。
 
 ECS（SSH 到机器）——只写 service token（**不再需要 JWT_SECRET**）：
 ```bash
@@ -47,28 +53,29 @@ npm run deploy
 curl -s -o /dev/null -w "%{http_code}\n" "https://zhaxiaoji.com/api/chat/history?friendId=1"   # 期望 401
 ```
 
-## 4. nginx 加 WebSocket 升级 location（ECS）
+## 4. nginx —— 本拓扑【无需改动】
 
-在 `novel-origin.zhaxiaoji.com` 对应的 server 块里加（与现有 `/novel/` location 同级）：
-```nginx
-location /ws/chat {
-    proxy_pass http://127.0.0.1:3001;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_read_timeout 3600s;          # 长连接
-    access_log off;                     # token 在子协议头里，本就不进 $request；这里再保险
-}
-```
-```bash
-nginx -t && systemctl reload nginx
-```
+> **本生产环境实测（2026-06-03）**：cloudflared **直连** Node `127.0.0.1:3001`（`ss -tnp | grep cloudflared` 显示 `→ 127.0.0.1:3001`），**nginx 不在 novel-origin 的路径上**。Node 的 `http.createServer` 自己处理 WS 升级，cloudflared 默认透传 101 升级，所以**这一步跳过**。
+>
+> 先用 `ss -tnp | grep cloudflared | grep 127.0.0.1` 确认 cloudflared 的本地 origin 端口：
+> - `→ 127.0.0.1:3001` → 直连 Node，**跳过 nginx**（本环境就是这种）。
+> - `→ 127.0.0.1:80`/`:8080` → cloudflared 经 nginx，才需要在对应 `default_server`/server 块里加下面的 location：
+> ```nginx
+> location /ws/chat {
+>     proxy_pass http://127.0.0.1:3001;
+>     proxy_http_version 1.1;
+>     proxy_set_header Upgrade $http_upgrade;
+>     proxy_set_header Connection "upgrade";
+>     proxy_set_header Host $host;
+>     proxy_read_timeout 3600s;
+>     access_log off;
+> }
+> ```
+> 然后 `nginx -t && systemctl reload nginx`。
 
 ## 5. cloudflared（ECS）
 
-cloudflared 默认透传 WebSocket（101 升级），通常无需改动。若用显式 ingress rules，确认 `novel-origin.zhaxiaoji.com` 指向本机 nginx（或 `http://localhost:3001`）。重启隧道（如有改动）：`systemctl restart cloudflared`。
+token 型隧道（`cloudflared tunnel run --token ...`）的 ingress 在 Cloudflare 面板配置；默认透传 WebSocket，**无需改动**。本环境 ingress 直指 `http://localhost:3001`。
 
 ## 6. 部署 ECS 代码 + 重启（注意 server/package.json 变了，要 npm install）
 
