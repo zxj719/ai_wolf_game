@@ -30,8 +30,9 @@ import werewolf from '../modules/werewolf';
 import chords from '../modules/chords';
 import sites from '../modules/sites';
 import novel from '../modules/novel';
+import chat from '../modules/chat';
 
-const modules = [home, auth, werewolf, novel, chords, sites];
+const modules = [home, auth, werewolf, novel, chat, chords, sites];
 
 export default modules;
 

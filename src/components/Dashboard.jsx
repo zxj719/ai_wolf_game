@@ -50,6 +50,7 @@ export function Dashboard({
   onEnterSites,
   onEnterChords,
   onEnterNovel,
+  onEnterChat,
   onEnterThinkingLibrary,
   onLogout,
   isGuestMode = false,
@@ -216,6 +217,12 @@ export function Dashboard({
                   <PenLine size={16} />
                   小说工作台
                 </button>
+                {!isGuestMode && (
+                  <button type="button" onClick={onEnterChat} className="mac-button mac-button-secondary">
+                    <MessageSquare size={16} />
+                    好友
+                  </button>
+                )}
                 <button type="button" onClick={onEnterSites} className="mac-button mac-button-secondary">
                   <Globe size={16} />
                   {copy.enterSites}

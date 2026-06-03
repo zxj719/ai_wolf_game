@@ -35,6 +35,7 @@ export default function HomeRoute() {
   const onEnterSites = useCallback(() => navigate(ROUTES.SITES), [navigate]);
   const onEnterChords = useCallback(() => navigate(ROUTES.CHORDS), [navigate]);
   const onEnterNovel = useCallback(() => navigate(ROUTES.NOVEL), [navigate]);
+  const onEnterChat = useCallback(() => navigate(ROUTES.CHAT), [navigate]);
   const onEnterThinkingLibrary = useCallback(() => {
     window.location.assign('/site/index.html');
   }, []);
@@ -60,6 +61,7 @@ export default function HomeRoute() {
           onEnterSites={onEnterSites}
           onEnterChords={onEnterChords}
           onEnterNovel={onEnterNovel}
+          onEnterChat={onEnterChat}
           onEnterThinkingLibrary={onEnterThinkingLibrary}
           onLogout={handleLogout}
           isGuestMode={isGuestMode}
