@@ -54,6 +54,13 @@ import {
   handleSaveReplay,
   handleGetReplays,
 } from './handlers.js';
+import {
+  handleUserSearch,
+  handleFriendRequest,
+  handleFriendRequestsList,
+  handleFriendRespond,
+  handleFriendsList,
+} from './friends.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -80,6 +87,23 @@ export default {
       // 用户信息 + 权限
       if (path === '/api/me' && request.method === 'GET') {
         return handleGetMe(request, env);
+      }
+
+      // 好友系统
+      if (path === '/api/users/search' && request.method === 'GET') {
+        return handleUserSearch(request, env);
+      }
+      if (path === '/api/friends/request' && request.method === 'POST') {
+        return handleFriendRequest(request, env);
+      }
+      if (path === '/api/friends/requests' && request.method === 'GET') {
+        return handleFriendRequestsList(request, env);
+      }
+      if (path === '/api/friends/respond' && request.method === 'POST') {
+        return handleFriendRespond(request, env);
+      }
+      if (path === '/api/friends' && request.method === 'GET') {
+        return handleFriendsList(request, env);
       }
 
       // 资源队列
