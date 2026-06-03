@@ -2,6 +2,47 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-03] 实时文字聊天 Phase 2（好友私聊 + 在线状态）
+
+### 新功能
+- **好友 1 对 1 实时文字聊天**：好友之间实时收发消息，消息持久化到 D1（单一数据源）。
+- **在线状态(presence)**：好友上线/离线实时显示绿点；「对方正在输入…」提示。
+- **断线自愈**：WS 指数退避自动重连，重连后自动补拉断线期消息；发送乐观更新 + ack 对账 + 失败态。
+
+### 架构
+- 浏览器原生 WebSocket **直连 ECS 源站** `wss://novel-origin.zhaxiaoji.com/ws/chat`（CF Worker 无法转发 WS 升级）。
+- ECS 在现有 Express 进程内挂 `ws` 服务（`app.listen` → `http.createServer` + WebSocketServer）；presence 表单进程（PM2 instances:1）。
+- WS 服务复用 `workers/auth/jwt.js` 的 `verifyToken` 验 JWT（Node webcrypto，与 Worker 字节一致）；收到消息回调 CF Worker `POST /api/internal/chat/persist` 写 D1。
+
+### 安全加固（来自 4 代理对抗评审，10 must-fix）
+- token 走 `Sec-WebSocket-Protocol` 子协议（不进 URL/nginx 日志）。
+- WS `maxPayload` 16KB + 关压缩（防内存耗尽 DoS）；每连接令牌桶限流；每用户连接数上限 5。
+- 握手验签 + Origin 白名单（cors 不覆盖 upgrade）；`sub` 必须正整数；启动 JWT 自检大声失败。
+- persist 端点：service token + **好友关系校验**（token 泄露也无法向任意会话伪造写入）。
+- 历史分页用唯一 `id` 游标（非 created_at，避免同毫秒丢消息/乱序）。
+
+### 数据库迁移
+- `migrations/005_chat_messages.sql`：`chat_messages` 表 + `(conversation_key, id)` 索引。
+
+### 文件变更（主要）
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `migrations/005_chat_messages.sql` | 新建 | 私聊消息表 |
+| `workers/auth/chatLib.js` / `chat.js` | 新建 | conversationKey/分页纯函数 + history/persist 端点 |
+| `workers/auth/index.js` | 修改 | 注册 `/api/chat/history`、`/api/internal/chat/persist` |
+| `server/chatHub.js` / `chatSocket.js` | 新建 | WS 实时核心（限流/连接表/presence/多标签）+ 接线（子协议鉴权/maxPayload/自检） |
+| `server/index.js` | 修改 | `app.listen` → `http.createServer` + 挂 WS（REST 不变） |
+| `server/package.json` / `ecosystem.config.cjs` | 修改 | 加 `ws` 依赖；env 透传 JWT_SECRET/CHAT_SERVICE_TOKEN |
+| `src/hooks/useChatSocket.js` | 新建 | WS 连接/重连/收发/presence hook |
+| `src/modules/chat/components/{MessageList,MessageInput,ConversationView}.jsx` | 新建 | 会话 UI |
+| `src/modules/chat/ChatRoute.jsx` / `src/services/friendService.js` | 修改 | 接入会话 + getHistory |
+| `docs/deploy/phase2-chat-deploy-runbook.md` | 新建 | 手动部署手册（nginx WS、cloudflared、secrets、顺序、烟测） |
+
+### 部署注意
+- **顺序**：先 D1 迁移 005 + Worker 部署，再 ECS 重启（否则 persist 回调打到旧 Worker 500）。
+- ECS 需新增 `JWT_SECRET`/`CHAT_SERVICE_TOKEN`（从 `/root/.config/wolfgame/*.env` source）+ nginx `/ws/chat` 升级规则 + `npm install`（ws 新依赖）。详见部署手册。
+- 验证：单元 + 双 client 集成 + **跨服务烟测（ECS WS → Worker → D1 全链路）** 全过；全量 215 测试通过。
+
 ## [2026-06-03] 好友系统 Phase 1（私聊/视频的基础层）
 
 ### 新功能
