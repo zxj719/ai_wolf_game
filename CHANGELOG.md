@@ -2,6 +2,48 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-03] 好友系统 Phase 1（私聊/视频的基础层）
+
+### 新功能
+
+- **好友系统**：用户名/邮箱搜索 → 发好友申请 → 对方同意/拒绝 → 好友列表。作为新 `chat` 模块（`/chat`，标题「好友」），与狼人杀/小说/音乐实验室平级。
+- **首页入口对游客隐藏**：仅登录用户能在 Dashboard 看到「好友」按钮；游客直接访问 `/chat` 会看到登录引导。
+- **不受资源队列限制**：真人好友交互不调 ECS LLM，与思考博物馆同属豁免。
+- **后续阶段**：Phase 2（ECS WebSocket 实时文字聊天 + presence）、Phase 3（WebRTC 视频通话，仅管理员）已在 spec/plan 中规划，本次仅交付 Phase 1。
+
+### 权限矩阵
+
+| 用户 | 首页入口 | 搜索/加好友 | 文字聊天(P2) | 视频(P3) |
+|---|:---:|:---:|:---:|:---:|
+| Admin | ✅ | ✅ | ✅ | ✅ |
+| 普通登录用户 | ✅ | ✅ | ✅ | ❌ |
+| 游客 | ❌（隐藏） | ❌ | ❌ | ❌ |
+
+### 数据库迁移
+
+- `migrations/004_friendships.sql`：新增 `friendships`（无向边，规范化 user_a<user_b）、`friend_requests`（带 UNIQUE 去重）两表 + 申请索引。已应用到本地与生产 D1。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `migrations/004_friendships.sql` | 新建 | 好友关系 + 好友申请表 |
+| `workers/auth/friendsLib.js` | 新建 | 纯函数：`normalizeFriendship` / `sanitizeSearchQuery`（含单测） |
+| `workers/auth/friends.js` | 新建 | 5 个 API：搜索/申请/申请列表/响应/好友列表（脱敏，仅返回 id+username） |
+| `workers/auth/index.js` | 修改 | 注册 `/api/users/search` 与 `/api/friends*` 路由 |
+| `src/services/friendService.js` | 新建 | 前端封装（基于 `useShell().api('cf-workers')`，含单测） |
+| `src/modules/chat/` | 新建 | 模块描述符 + ChatRoute + AddFriend/FriendRequests/FriendList（含组件冒烟测试） |
+| `src/shell/paths.js` | 修改 | 新增 `CHAT: '/chat'` |
+| `src/shell/ModuleRegistry.js` | 修改 | 注册 chat 模块 |
+| `src/components/Dashboard.jsx` | 修改 | 新增「好友」按钮（游客隐藏） |
+| `src/modules/home/HomeRoute.jsx` | 修改 | 新增 `onEnterChat` 回调 |
+
+### 技术细节
+
+- WS 服务的 JWT 认证可复用现有 `verifyToken`（HS256/Web Crypto，Node 端可同密钥验签）——为 Phase 2 预留。
+- `isAdmin` 不在 JWT 内，由 `admins` 表判定（Phase 3 视频鉴权时 WS 服务回调 Worker）。
+- 验证：15 个新单测 + 全量 188/188 通过；本地 `wrangler dev` + D1 跑通完整好友流程，确认搜索/好友列表无 email/password 泄漏、自加好友 400、未登录 401。
+
 ## [2026-05-11] 小说工作台开放只读访问（游客与普通用户）
 
 ### 新功能
