@@ -17,7 +17,9 @@
 
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'node:http';
 import { createRequire } from 'module';
+import { attachChatSocket } from './chatSocket.js';
 
 // ── 版本（从 package.json 读取，与 git tag 对应）────────────
 const require = createRequire(import.meta.url);
@@ -540,7 +542,9 @@ app.get('/novel/jobs/:jobId', (req, res) => {
 
 // ── 启动 ─────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const httpServer = createServer(app);
+attachChatSocket(httpServer);   // 挂载 /ws/chat（含 JWT 自检；自检失败大声告警但不阻断 REST）
+httpServer.listen(PORT, () => {
   console.log(`[BT Server v${AI_VERSION}] 监听端口 :${PORT}`);
   console.log(`[BT Server] BT引擎版本: ${BT_VERSION}`);
   console.log(`[BT Server] 允许来源: ${process.env.ALLOWED_ORIGIN || 'https://zhaxiaoji.com'}`);
