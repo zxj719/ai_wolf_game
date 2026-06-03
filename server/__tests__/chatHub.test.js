@@ -110,3 +110,52 @@ describe('chatHub typing', () => {
     expect(has(b, (m) => m.type === 'chat:typing' && m.from === 1 && m.typing === true)).toBe(true);
   });
 });
+
+describe('chatHub call signaling', () => {
+  function adminConn(id) { const c = fakeConn(id); c.isAdmin = true; return c; }
+
+  it('relays call:offer from an admin to a friend (with from)', async () => {
+    const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set([1, 2]), now: () => 1 });
+    const a = adminConn(1), b = fakeConn(2);
+    await hub.addConnection(a); await hub.addConnection(b);
+    await hub.handleMessage(a, JSON.stringify({ type: 'call:offer', to: 2, sdp: 'OFFER' }));
+    expect(has(b, (m) => m.type === 'call:offer' && m.from === 1 && m.sdp === 'OFFER')).toBe(true);
+  });
+
+  it('REJECTS call:offer from a non-admin and does not relay', async () => {
+    const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set([1, 2]), now: () => 1 });
+    const a = fakeConn(1), b = fakeConn(2);          // a NOT admin
+    await hub.addConnection(a); await hub.addConnection(b);
+    await hub.handleMessage(a, JSON.stringify({ type: 'call:offer', to: 2, sdp: 'X' }));
+    expect(has(b, (m) => m.type === 'call:offer')).toBe(false);
+    expect(has(a, (m) => m.type === 'call:error' && m.error === 'not allowed')).toBe(true);
+  });
+
+  it('relays answer / ice / hangup between friends (non-admin allowed)', async () => {
+    const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set([1, 2]), now: () => 1 });
+    const a = adminConn(1), b = fakeConn(2);
+    await hub.addConnection(a); await hub.addConnection(b);
+    await hub.handleMessage(b, JSON.stringify({ type: 'call:answer', to: 1, sdp: 'ANS' }));
+    await hub.handleMessage(b, JSON.stringify({ type: 'call:ice', to: 1, candidate: 'C' }));
+    await hub.handleMessage(b, JSON.stringify({ type: 'call:hangup', to: 1, reason: 'busy' }));
+    expect(has(a, (m) => m.type === 'call:answer' && m.from === 2 && m.sdp === 'ANS')).toBe(true);
+    expect(has(a, (m) => m.type === 'call:ice' && m.from === 2 && m.candidate === 'C')).toBe(true);
+    expect(has(a, (m) => m.type === 'call:hangup' && m.from === 2 && m.reason === 'busy')).toBe(true);
+  });
+
+  it('drops call:* to a non-friend', async () => {
+    const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set(), now: () => 1 });
+    const a = adminConn(1);
+    await hub.addConnection(a);
+    await hub.handleMessage(a, JSON.stringify({ type: 'call:offer', to: 9, sdp: 'X' }));
+    expect(a.sent.some((m) => m.type === 'call:offer')).toBe(false);
+  });
+
+  it('drops call:offer with a non-numeric to', async () => {
+    const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set([1, 2]), now: () => 1 });
+    const a = adminConn(1);
+    await hub.addConnection(a);
+    await hub.handleMessage(a, JSON.stringify({ type: 'call:offer', to: 'abc', sdp: 'X' }));
+    expect(a.sent.some((m) => m.type === 'call:offer')).toBe(false);
+  });
+});

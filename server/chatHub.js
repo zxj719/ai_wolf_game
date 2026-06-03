@@ -17,6 +17,8 @@ const MAX_BODY_CHARS = 4000;
 const MAX_BODY_BYTES = 8192;
 const RATE_MSG = { capacity: 10, refillPerSec: 5 };       // chat:message 令牌桶
 const RATE_TYPING = { capacity: 30, refillPerSec: 30 };   // chat:typing 令牌桶
+const RATE_CALL = { capacity: 50, refillPerSec: 25 };     // call:* 令牌桶（吸收 trickle-ICE 突发）
+const CALL_TYPES = new Set(['call:offer', 'call:answer', 'call:ice', 'call:hangup']);
 
 export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
   const connections = new Map();   // userId -> Set<conn>
@@ -132,9 +134,25 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
       conn.send({ type: 'chat:ack', clientMsgId: msg.clientMsgId, id: saved.id, createdAt: finalCreatedAt });
       return;
     }
-    // call:* (Phase 3 视频信令) 当前忽略。
-    // NOTE(Phase 3): 加 call:* 时必须同时加"非 admin 发起→拒绝"的错误路径，
-    // 否则半部署的 Phase 3 前端打到 Phase 2 后端会挂起（spec §8）。
+    // call:* (Phase 3 视频信令中继)
+    if (CALL_TYPES.has(msg.type)) {
+      if (!takeToken(conn, 'call', RATE_CALL)) return;     // 限流（先于好友查，防 ICE flood 放大）
+      const to = Number(msg.to);
+      if (!Number.isFinite(to)) return;
+      if (msg.type === 'call:offer' && !conn.isAdmin) {     // 仅管理员可发起（前端隐藏不算边界）
+        conn.send({ type: 'call:error', error: 'not allowed' });
+        return;
+      }
+      // 好友校验用 TTL 缓存集（不强制 refetch；mid-call 的 flood 全命中缓存，不放大成 Worker fetch）
+      const friends = await friendsOf(conn);
+      if (!friends.has(to)) return;
+      const out = { type: msg.type, from: conn.userId, to };
+      if (msg.sdp != null) out.sdp = msg.sdp;
+      if (msg.candidate != null) out.candidate = msg.candidate;
+      if (msg.reason != null) out.reason = msg.reason;
+      sendTo(to, out);
+      return;
+    }
   }
 
   return { addConnection, removeConnection, handleMessage, online, _connections: connections, _friendCache: friendCache };
