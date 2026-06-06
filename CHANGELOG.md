@@ -2,6 +2,28 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-06] UI 重构 M1a — 狼人杀颜色 token 化
+
+### 新功能
+- **游戏颜色 token 注册表**：新增 `--role-*`（9 个角色）/`--phase-*`（夜/昼/投票/结算）/`--state-*`（选中/发言/胜负/思考）token，含 `*-soft` 淡底变体，双主题适配。
+- **角色色集中化**：狼人杀 ~183 处硬编码色全部收敛到 token，每个色相语义唯一（消除 indigo/amber/rose/emerald/purple 的多义重载）。
+- **修复夜间选中不可见**：选中目标高亮从「靛蓝（=夜晚背景）」改为「青色」，夜晚清晰可见。
+- **中性色统一**：游戏 `zinc-*` 并入 Phase F 的 `--bg/--ink/--border`（深色 token 本就源自 zinc，视觉一致）。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/styles/tokens.css` | 修改 | 角色/阶段/状态 token（双主题档） |
+| `tailwind.config.js` | 修改 | role/phase/state 颜色命名空间 |
+| `src/components/CirclePlayerLayout.jsx` | 修改 | ~92 处 token 化 |
+| `src/components/{PlayerCardList,GameArena,ActionPanel,SpeechBubble,GameHeader,VotePanel}.jsx` | 修改 | 逐文件 token 化 |
+| `src/styles/game-animations.css` | 修改 | hex → CSS 变量 / color-mix |
+
+### 技术细节
+- 半透明淡底用预定义 `*-soft`（rgba 实色）token，规避 Tailwind alpha 对 CSS 变量的支持缺口；动画 hex 用 `color-mix()` 保留色阶。
+- 验收：`npm run build` 通过；258 测试全绿；7 个游戏组件硬编码品牌色计数 = 0。
+- 范围：仅游戏深色组件；SetupScreen/RoleSelector（浅色）归 M2；狼人杀手机端圆桌重做归 M1b。
+
 ## [2026-06-06] UI 重构 Phase F — 设计系统地基（taste-skill）
 
 ### 新功能
