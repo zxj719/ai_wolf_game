@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, useEffect } from 'react';
 import { ShellContext } from './ShellContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LOCALE_STORAGE_KEY, normalizeLocale, readStoredLocale, writeStoredLocale } from '../i18n/locale.js';
+import { THEME_STORAGE_KEY, readStoredThemePref, writeStoredThemePref, normalizeThemePref } from './theme.js';
 import { createApiClient } from '../services/api/client';
 import { getToken as getStoredAuthToken } from '../utils/authToken';
 import { normalizePath, resolveLegacyPath } from './paths';
@@ -23,6 +24,7 @@ export function ShellProvider({ children }) {
   const { user } = auth;
 
   const [locale, setLocaleState] = useState(() => readStoredLocale());
+  const [themePref, setThemePrefState] = useState(() => readStoredThemePref());
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [showTokenManager, setShowTokenManager] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -67,12 +69,29 @@ export function ShellProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    writeStoredThemePref(themePref);
+  }, [themePref]);
+
+  const setThemePref = useCallback((next) => {
+    setThemePrefState(normalizeThemePref(next));
+  }, []);
+
+  useEffect(() => {
     const onStorage = (event) => {
       if (event.key !== LOCALE_STORAGE_KEY) return;
       setLocaleState(normalizeLocale(event.newValue));
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  useEffect(() => {
+    const onThemeStorage = (event) => {
+      if (event.key !== THEME_STORAGE_KEY) return;
+      setThemePrefState(normalizeThemePref(event.newValue));
+    };
+    window.addEventListener('storage', onThemeStorage);
+    return () => window.removeEventListener('storage', onThemeStorage);
   }, []);
 
   const navigate = useCallback((path, { replace = false } = {}) => {
@@ -107,6 +126,9 @@ export function ShellProvider({ children }) {
       // 国际化
       locale,
       setLocale,
+      // 主题
+      themePref,
+      setThemePref,
       // 路由
       currentPath,
       navigate,
@@ -125,6 +147,8 @@ export function ShellProvider({ children }) {
       isGuestMode,
       locale,
       setLocale,
+      themePref,
+      setThemePref,
       currentPath,
       navigate,
       showTokenManager,
