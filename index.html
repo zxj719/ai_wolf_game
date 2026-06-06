@@ -47,6 +47,18 @@
         "inLanguage": "zh-CN"
       }
     </script>
+    <script>
+      // 防 FOUC：仅当用户显式选了 light/dark 时提前置于 <html>。
+      // 与 src/shell/theme.js 的 THEME_STORAGE_KEY='wolfgame-theme' 保持一致。
+      (function () {
+        try {
+          var p = localStorage.getItem('wolfgame-theme');
+          if (p === 'light' || p === 'dark') {
+            document.documentElement.setAttribute('data-theme', p);
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
