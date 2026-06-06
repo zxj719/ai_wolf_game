@@ -35,6 +35,9 @@ import {
 } from '../novelWorkspace.js';
 
 const tempRoots = [];
+// Shared owner context for tests. Workspaces are seeded with this user_id so
+// ownership checks pass without needing the admin auto-claim path.
+const OWNER_CTX = { userId: 42, isAdmin: true };
 
 function makeWorkspace() {
   const root = mkdtempSync(join(tmpdir(), 'novel-workspace-'));
@@ -45,7 +48,7 @@ function makeWorkspace() {
   mkdirSync(join(project, 'story_data', 'chapter_summaries'), { recursive: true });
   writeFileSync(
     join(project, '.meta-writing-project.json'),
-    JSON.stringify({ name: 'alpha', workflow_mode: 'manual' }),
+    JSON.stringify({ name: 'alpha', workflow_mode: 'manual', owner_id: OWNER_CTX.userId }),
     'utf8',
   );
   writeFileSync(join(project, 'creator_guidance.md'), '# Creator\nKeep it intimate.', 'utf8');
@@ -68,7 +71,7 @@ describe('novelWorkspace', () => {
   it('lists projects with chapter counts and active metadata', () => {
     const root = makeWorkspace();
 
-    const projects = listNovelProjects(root);
+    const projects = listNovelProjects(root, OWNER_CTX);
 
     expect(projects).toEqual([
       expect.objectContaining({
@@ -83,7 +86,7 @@ describe('novelWorkspace', () => {
   it('loads a project with ordered chapters and story bible files', () => {
     const root = makeWorkspace();
 
-    const project = getNovelProject(root, 'alpha');
+    const project = getNovelProject(root, 'alpha', OWNER_CTX);
 
     expect(project.chapters.map((chapter) => chapter.id)).toEqual(['001', '002']);
     expect(project.chapters[1]).toMatchObject({ title: '第二章', excerpt: 'A sharper turn.' });
@@ -96,13 +99,13 @@ describe('novelWorkspace', () => {
   it('loads a chapter without allowing path traversal', () => {
     const root = makeWorkspace();
 
-    expect(getNovelChapter(root, 'alpha', '002')).toMatchObject({
+    expect(getNovelChapter(root, 'alpha', '002', OWNER_CTX)).toMatchObject({
       id: '002',
       title: '第二章',
       content: expect.stringContaining('A sharper turn.'),
     });
     expect(() => resolveProjectDir(root, '../secret')).toThrow(/Invalid project name/);
-    expect(() => getNovelChapter(root, 'alpha', '../002')).toThrow(/Invalid chapter id/);
+    expect(() => getNovelChapter(root, 'alpha', '../002', OWNER_CTX)).toThrow(/Invalid chapter id/);
   });
 
   it('creates new projects with initial story bible files', () => {
@@ -116,7 +119,7 @@ describe('novelWorkspace', () => {
       style: 'Quiet and sharp.',
       concept: 'A rescue that becomes a haunting.',
       outline: 'Chapter one opens with a bargain.',
-    });
+    }, OWNER_CTX);
 
     expect(project).toMatchObject({
       name: 'New Story',
@@ -126,25 +129,25 @@ describe('novelWorkspace', () => {
     expect(project.chapters).toEqual([]);
     expect(project.storyBible.sections.map((section) => section.name)).toContain('story_bible.md');
     expect(project.storyBible.sections.find((section) => section.name === 'story_bible.md')?.content).toContain('A moonlit city.');
-    expect(() => createNovelProject(root, { name: 'New Story', slug: 'new-story' })).toThrow(/already exists/);
+    expect(() => createNovelProject(root, { name: 'New Story', slug: 'new-story' }, OWNER_CTX)).toThrow(/already exists/);
   });
 
   it('updates chapter and project memory files without path traversal', () => {
     const root = makeWorkspace();
 
-    const chapter = updateNovelChapter(root, 'alpha', '002', '# Revised\n\nManual edit.');
+    const chapter = updateNovelChapter(root, 'alpha', '002', '# Revised\n\nManual edit.', OWNER_CTX);
     expect(chapter).toMatchObject({
       id: '002',
       title: 'Revised',
       content: expect.stringContaining('Manual edit.'),
     });
 
-    const memory = updateNovelMemoryFile(root, 'alpha', 'story_core.yaml', 'current_chapter: 3\n');
+    const memory = updateNovelMemoryFile(root, 'alpha', 'story_core.yaml', 'current_chapter: 3\n', OWNER_CTX);
     expect(memory).toEqual({ path: 'story_core.yaml', content: 'current_chapter: 3\n' });
-    expect(getNovelProject(root, 'alpha').storyBible.sections.find((section) => section.name === 'story_core.yaml')?.content)
+    expect(getNovelProject(root, 'alpha', OWNER_CTX).storyBible.sections.find((section) => section.name === 'story_core.yaml')?.content)
       .toContain('current_chapter: 3');
 
-    expect(() => updateNovelMemoryFile(root, 'alpha', '../secret.md', 'nope')).toThrow(/Invalid memory file path/);
+    expect(() => updateNovelMemoryFile(root, 'alpha', '../secret.md', 'nope', OWNER_CTX)).toThrow(/Invalid memory file path/);
   });
 
   it('starts Codex jobs with stdin closed so exec mode does not hang waiting for input', async () => {
@@ -164,6 +167,7 @@ describe('novelWorkspace', () => {
     const job = startCodexGeneration({
       workspaceRoot: root,
       projectName: 'alpha',
+      ctx: OWNER_CTX,
       guidance: 'Keep the next chapter quiet.',
       env: {
         ...process.env,
@@ -200,6 +204,7 @@ describe('novelWorkspace', () => {
     const job = startCodexGeneration({
       workspaceRoot: root,
       projectName: 'alpha',
+      ctx: OWNER_CTX,
       guidance: 'Use only this project.',
       env: {
         ...process.env,
@@ -240,6 +245,7 @@ describe('novelWorkspace', () => {
     const job = startCodexGeneration({
       workspaceRoot: root,
       projectName: 'alpha',
+      ctx: OWNER_CTX,
       guidance: 'Plan the next two chapters.',
       mode: 'plan',
       targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
@@ -284,6 +290,7 @@ describe('novelWorkspace', () => {
     const first = startCodexGeneration({
       workspaceRoot: root,
       projectName: 'alpha',
+      ctx: OWNER_CTX,
       guidance: 'Revise chapter 2.',
       mode: 'revise_document',
       targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
@@ -304,7 +311,7 @@ describe('novelWorkspace', () => {
     });
     expect(finished.output).toContain('Edited chapter 2.');
 
-    const session = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' });
+    const session = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' }, OWNER_CTX);
     expect(session).toMatchObject({
       key: 'chapter:002',
       runtimeSessionId: 'novel-session-002',
@@ -315,6 +322,7 @@ describe('novelWorkspace', () => {
     const second = startCodexGeneration({
       workspaceRoot: root,
       projectName: 'alpha',
+      ctx: OWNER_CTX,
       guidance: 'Continue this chapter.',
       mode: 'revise_document',
       targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
@@ -349,6 +357,7 @@ describe('novelWorkspace', () => {
     const job = startCodexGeneration({
       workspaceRoot: root,
       projectName: 'alpha',
+      ctx: OWNER_CTX,
       guidance: 'Generate the next chapter after chapter 2.',
       mode: 'next_chapter',
       targetDocument: { type: 'chapter', id: '002', title: '第二章', filename: '002.md' },
@@ -368,12 +377,12 @@ describe('novelWorkspace', () => {
       runtimeSessionId: 'novel-session-003',
     });
 
-    const newChapterSession = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '003', title: 'Chapter 003', filename: '003.md' });
+    const newChapterSession = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '003', title: 'Chapter 003', filename: '003.md' }, OWNER_CTX);
     expect(newChapterSession).toMatchObject({
       key: 'chapter:003',
       runtimeSessionId: 'novel-session-003',
     });
-    const previousChapterSession = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' });
+    const previousChapterSession = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' }, OWNER_CTX);
     expect(previousChapterSession.lastJob).toBeNull();
   });
 
@@ -399,7 +408,7 @@ describe('novelWorkspace', () => {
       'utf8',
     );
 
-    const session = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' });
+    const session = getNovelCodexSession(root, 'alpha', { type: 'chapter', id: '002', title: '第二章', filename: '002.md' }, OWNER_CTX);
 
     expect(session).toMatchObject({
       key: 'chapter:002',
@@ -407,5 +416,65 @@ describe('novelWorkspace', () => {
       lastJob: expect.objectContaining({ status: 'interrupted' }),
     });
     expect(session.lastJob.messages.at(-1).content).toContain('interrupted');
+  });
+
+  // ── Ownership / visibility ─────────────────────────────────────────────
+  it('hides projects from non-owners and surfaces them only to the owner', () => {
+    const root = makeWorkspace();
+    // makeWorkspace seeds 'alpha' with owner_id=42 (OWNER_CTX)
+    const STRANGER_CTX = { userId: 99, isAdmin: false };
+
+    expect(listNovelProjects(root, OWNER_CTX)).toHaveLength(1);
+    expect(listNovelProjects(root, STRANGER_CTX)).toEqual([]);
+    expect(() => getNovelProject(root, 'alpha', STRANGER_CTX)).toThrow(/Project not found/);
+    expect(() => getNovelChapter(root, 'alpha', '002', STRANGER_CTX)).toThrow(/Project not found/);
+  });
+
+  it('returns empty list for unauthenticated context', () => {
+    const root = makeWorkspace();
+    expect(listNovelProjects(root, {})).toEqual([]);
+    expect(listNovelProjects(root)).toEqual([]);
+  });
+
+  it('auto-claims legacy projects (no owner_id) for the first admin who lists them', () => {
+    const root = mkdtempSync(join(tmpdir(), 'novel-workspace-'));
+    tempRoots.push(root);
+    const legacy = join(root, 'novels', 'legacy');
+    mkdirSync(join(legacy, 'chapters'), { recursive: true });
+    // Legacy metadata has NO owner_id — pre-feature project.
+    writeFileSync(
+      join(legacy, '.meta-writing-project.json'),
+      JSON.stringify({ name: 'legacy', workflow_mode: 'manual' }),
+      'utf8',
+    );
+
+    // First admin to list claims it.
+    const ADMIN_CTX = { userId: 7, isAdmin: true };
+    const projects = listNovelProjects(root, ADMIN_CTX);
+    expect(projects).toHaveLength(1);
+    expect(projects[0].slug).toBe('legacy');
+
+    // Metadata now persists owner_id=7.
+    const persisted = JSON.parse(readFileSync(join(legacy, '.meta-writing-project.json'), 'utf8'));
+    expect(persisted.owner_id).toBe(7);
+
+    // Another user can't see it.
+    expect(listNovelProjects(root, { userId: 99, isAdmin: false })).toEqual([]);
+  });
+
+  it('records owner_id when a project is created', () => {
+    const root = mkdtempSync(join(tmpdir(), 'novel-workspace-'));
+    tempRoots.push(root);
+
+    createNovelProject(root, { name: 'Alice Book', slug: 'alice-book' }, { userId: 42, isAdmin: false });
+
+    const meta = JSON.parse(readFileSync(join(root, 'novels', 'alice-book', '.meta-writing-project.json'), 'utf8'));
+    expect(meta.owner_id).toBe(42);
+  });
+
+  it('rejects project creation without an authenticated user', () => {
+    const root = mkdtempSync(join(tmpdir(), 'novel-workspace-'));
+    tempRoots.push(root);
+    expect(() => createNovelProject(root, { name: 'Anon Book', slug: 'anon-book' }, {})).toThrow(/Sign in/);
   });
 });

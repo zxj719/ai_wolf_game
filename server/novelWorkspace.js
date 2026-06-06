@@ -168,10 +168,60 @@ export function resolveProjectDir(workspaceRoot, projectName) {
   return projectDir;
 }
 
-export function createNovelProject(workspaceRoot, input = {}) {
+// ── Ownership ───────────────────────────────────────────────
+// Each project's metadata file (.meta-writing-project.json) carries an
+// `owner_id` (numeric user_id from the JWT `sub` claim). A project is
+// visible only to its owner.
+//
+// LEGACY MIGRATION (auto-claim):
+//   Projects created before this feature have no `owner_id`. The first time
+//   an admin lists/gets a project, we opportunistically claim it for that
+//   admin. This makes the legacy 3 novels naturally become zxj's on first
+//   bookshelf visit — no separate migration script needed.
+//
+// ctx shape (built by server/index.js from worker headers):
+//   { userId: number|null, isAdmin: boolean }
+function readProjectMetadata(projectDir) {
+  return readJsonObject(join(projectDir, '.meta-writing-project.json'), {});
+}
+
+function writeProjectMetadata(projectDir, metadata) {
+  writeJson(join(projectDir, '.meta-writing-project.json'), metadata);
+}
+
+function normalizeOwnerId(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function autoClaimIfAdmin(projectDir, metadata, ctx) {
+  if (!ctx || !ctx.isAdmin || !ctx.userId) return metadata;
+  if (normalizeOwnerId(metadata.owner_id) !== null) return metadata;
+  const claimed = { ...metadata, owner_id: ctx.userId };
+  writeProjectMetadata(projectDir, claimed);
+  return claimed;
+}
+
+function isProjectVisible(metadata, ctx) {
+  if (!ctx || ctx.userId == null) return false;
+  return normalizeOwnerId(metadata.owner_id) === ctx.userId;
+}
+
+function assertProjectVisible(projectDir, metadata, ctx) {
+  if (!isProjectVisible(metadata, ctx)) {
+    // 404 (not 403) to avoid leaking project existence to non-owners.
+    throw new Error(`Project not found`);
+  }
+}
+
+export function createNovelProject(workspaceRoot, input = {}, ctx = {}) {
   const name = String(input.name || '').trim();
   if (!name) {
     throw new Error('Project name is required');
+  }
+  if (!ctx.userId) {
+    throw new Error('Sign in required to create a novel');
   }
 
   const safeSlug = ensureProjectName(input.slug || slugifyProjectName(name));
@@ -189,7 +239,7 @@ export function createNovelProject(workspaceRoot, input = {}) {
 
   writeProjectText(
     resolve(projectDir, '.meta-writing-project.json'),
-    `${JSON.stringify({ name, workflow_mode: 'manual' }, null, 2)}\n`,
+    `${JSON.stringify({ name, workflow_mode: 'manual', owner_id: ctx.userId }, null, 2)}\n`,
   );
   writeProjectText(
     resolve(projectDir, 'creator_guidance.md'),
@@ -225,18 +275,21 @@ export function createNovelProject(workspaceRoot, input = {}) {
     ].join('\n'),
   );
 
-  return getNovelProject(workspaceRoot, safeSlug);
+  return getNovelProject(workspaceRoot, safeSlug, ctx);
 }
 
-export function listNovelProjects(workspaceRoot) {
+export function listNovelProjects(workspaceRoot, ctx = {}) {
   const novelsDir = resolve(workspaceRoot, 'novels');
   if (!existsSync(novelsDir)) return [];
+  if (!ctx.userId) return []; // unauthenticated → empty list
 
   return readdirSync(novelsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
       const projectDir = join(novelsDir, entry.name);
-      const metadata = readJson(join(projectDir, '.meta-writing-project.json')) || {};
+      let metadata = readProjectMetadata(projectDir);
+      metadata = autoClaimIfAdmin(projectDir, metadata, ctx);
+      if (!isProjectVisible(metadata, ctx)) return null;
       const chapters = listMarkdownChapters(join(projectDir, 'chapters'));
       const latest = chapters.at(-1);
       return {
@@ -248,12 +301,15 @@ export function listNovelProjects(workspaceRoot) {
         latestTitle: latest?.title || '',
       };
     })
+    .filter(Boolean)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function getNovelProject(workspaceRoot, projectName) {
+export function getNovelProject(workspaceRoot, projectName, ctx = {}) {
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
-  const metadata = readJson(join(projectDir, '.meta-writing-project.json')) || {};
+  let metadata = readProjectMetadata(projectDir);
+  metadata = autoClaimIfAdmin(projectDir, metadata, ctx);
+  assertProjectVisible(projectDir, metadata, ctx);
   return {
     name: metadata.name || basename(projectDir),
     slug: basename(projectDir),
@@ -267,9 +323,12 @@ export function getNovelProject(workspaceRoot, projectName) {
   };
 }
 
-export function getNovelChapter(workspaceRoot, projectName, chapterId) {
+export function getNovelChapter(workspaceRoot, projectName, chapterId, ctx = {}) {
   const safeChapterId = ensureChapterId(chapterId);
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
+  let metadata = readProjectMetadata(projectDir);
+  metadata = autoClaimIfAdmin(projectDir, metadata, ctx);
+  assertProjectVisible(projectDir, metadata, ctx);
   const chaptersDir = resolve(projectDir, 'chapters');
   const chapterPath = resolve(chaptersDir, `${safeChapterId}.md`);
   assertInside(chaptersDir, chapterPath);
@@ -285,9 +344,11 @@ export function getNovelChapter(workspaceRoot, projectName, chapterId) {
   };
 }
 
-export function updateNovelChapter(workspaceRoot, projectName, chapterId, content = '') {
+export function updateNovelChapter(workspaceRoot, projectName, chapterId, content = '', ctx = {}) {
   const safeChapterId = ensureChapterId(chapterId);
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
+  const metadata = readProjectMetadata(projectDir);
+  assertProjectVisible(projectDir, metadata, ctx);
   const chaptersDir = resolve(projectDir, 'chapters');
   const chapterPath = resolve(chaptersDir, `${safeChapterId}.md`);
   assertInside(chaptersDir, chapterPath);
@@ -295,12 +356,14 @@ export function updateNovelChapter(workspaceRoot, projectName, chapterId, conten
     throw new Error(`Chapter not found: ${safeChapterId}`);
   }
   writeProjectText(chapterPath, content);
-  return getNovelChapter(workspaceRoot, projectName, safeChapterId);
+  return getNovelChapter(workspaceRoot, projectName, safeChapterId, ctx);
 }
 
-export function updateNovelMemoryFile(workspaceRoot, projectName, filePath, content = '') {
+export function updateNovelMemoryFile(workspaceRoot, projectName, filePath, content = '', ctx = {}) {
   const safePath = ensureMemoryFilePath(filePath);
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
+  const metadata = readProjectMetadata(projectDir);
+  assertProjectVisible(projectDir, metadata, ctx);
   const allowedRoot = resolve(projectDir, 'story_data');
   let targetPath;
 
@@ -499,8 +562,10 @@ function hydrateCodexSessionEntry(entry, key) {
   return { ...entry, key };
 }
 
-export function getNovelCodexSession(workspaceRoot, projectName, targetDocument = null) {
+export function getNovelCodexSession(workspaceRoot, projectName, targetDocument = null, ctx = {}) {
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
+  const metadata = readProjectMetadata(projectDir);
+  assertProjectVisible(projectDir, metadata, ctx);
   const target = inferCodexTarget({ mode: 'revise_document', targetDocument });
   const key = codexSessionKey(target);
   const entry = loadCodexSessionEntry(projectDir, key);
@@ -752,9 +817,12 @@ export function startCodexGeneration({
   mode = 'next_chapter',
   targetDocument = null,
   env = process.env,
+  ctx = {},
 }) {
   const projectDir = resolveProjectDir(workspaceRoot, projectName);
-  const project = getNovelProject(workspaceRoot, projectName);
+  const metadata = readProjectMetadata(projectDir);
+  assertProjectVisible(projectDir, metadata, ctx);
+  const project = getNovelProject(workspaceRoot, projectName, ctx);
   const projectSlug = basename(projectDir);
   const latestNumber = Math.max(0, ...project.chapters.map((chapter) => Number.parseInt(chapter.id, 10)).filter(Number.isFinite));
   const codexTarget = inferCodexTarget({

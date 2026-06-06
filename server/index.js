@@ -424,10 +424,23 @@ app.get('/bt/export', (req, res) => {
 });
 
 // 小说工作台。Cloudflare Worker 会在 /api/novel/* 做鉴权后代理到这里。
+// User identity comes via X-Zhaxiaoji-* headers set by the Worker; we trust
+// them because the Worker is the only path into this endpoint in production.
+function userContextFromRequest(req) {
+  const rawId = req.headers['x-zhaxiaoji-user-id'];
+  const userId = rawId ? Number(rawId) : null;
+  const isAdmin = req.headers['x-zhaxiaoji-is-admin'] === '1';
+  return {
+    userId: Number.isFinite(userId) ? userId : null,
+    isAdmin,
+  };
+}
+
 app.get('/novel/projects', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
-    res.json({ success: true, projects: listNovelProjects(workspaceRoot) });
+    const ctx = userContextFromRequest(req);
+    res.json({ success: true, projects: listNovelProjects(workspaceRoot, ctx) });
   } catch (err) {
     console.error('[Novel projects]', err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -437,18 +450,23 @@ app.get('/novel/projects', (req, res) => {
 app.post('/novel/projects', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
-    const project = createNovelProject(workspaceRoot, req.body || {});
+    const ctx = userContextFromRequest(req);
+    const project = createNovelProject(workspaceRoot, req.body || {}, ctx);
     res.status(201).json({ success: true, project });
   } catch (err) {
     console.error('[Novel create project]', err.message);
-    res.status(err.message.includes('already exists') ? 409 : 400).json({ success: false, error: err.message });
+    const status = err.message.includes('Sign in') ? 401
+      : err.message.includes('already exists') ? 409
+      : 400;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
 app.get('/novel/projects/:project/chapters/:chapter', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
-    const chapter = getNovelChapter(workspaceRoot, req.params.project, req.params.chapter);
+    const ctx = userContextFromRequest(req);
+    const chapter = getNovelChapter(workspaceRoot, req.params.project, req.params.chapter, ctx);
     res.json({ success: true, chapter });
   } catch (err) {
     console.error('[Novel chapter]', err.message);
@@ -459,11 +477,13 @@ app.get('/novel/projects/:project/chapters/:chapter', (req, res) => {
 app.patch('/novel/projects/:project/chapters/:chapter', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
+    const ctx = userContextFromRequest(req);
     const chapter = updateNovelChapter(
       workspaceRoot,
       req.params.project,
       req.params.chapter,
       typeof req.body?.content === 'string' ? req.body.content : '',
+      ctx,
     );
     res.json({ success: true, chapter });
   } catch (err) {
@@ -475,10 +495,12 @@ app.patch('/novel/projects/:project/chapters/:chapter', (req, res) => {
 app.post('/novel/projects/:project/session', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
+    const ctx = userContextFromRequest(req);
     const session = getNovelCodexSession(
       workspaceRoot,
       req.params.project,
       req.body?.targetDocument || null,
+      ctx,
     );
     res.json({ success: true, session });
   } catch (err) {
@@ -490,7 +512,8 @@ app.post('/novel/projects/:project/session', (req, res) => {
 app.get('/novel/projects/:project', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
-    const project = getNovelProject(workspaceRoot, req.params.project);
+    const ctx = userContextFromRequest(req);
+    const project = getNovelProject(workspaceRoot, req.params.project, ctx);
     res.json({ success: true, project });
   } catch (err) {
     console.error('[Novel project]', err.message);
@@ -501,11 +524,13 @@ app.get('/novel/projects/:project', (req, res) => {
 app.patch('/novel/projects/:project/memory', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
+    const ctx = userContextFromRequest(req);
     const file = updateNovelMemoryFile(
       workspaceRoot,
       req.params.project,
       req.body?.path,
       typeof req.body?.content === 'string' ? req.body.content : '',
+      ctx,
     );
     res.json({ success: true, file });
   } catch (err) {
@@ -517,12 +542,14 @@ app.patch('/novel/projects/:project/memory', (req, res) => {
 app.post('/novel/projects/:project/generate', (req, res) => {
   try {
     const workspaceRoot = resolveNovelWorkspaceRoot();
+    const ctx = userContextFromRequest(req);
     const job = startCodexGeneration({
       workspaceRoot,
       projectName: req.params.project,
       guidance: typeof req.body?.guidance === 'string' ? req.body.guidance : '',
       mode: typeof req.body?.mode === 'string' ? req.body.mode : 'next_chapter',
       targetDocument: req.body?.targetDocument || null,
+      ctx,
     });
     res.status(202).json({ success: true, job });
   } catch (err) {

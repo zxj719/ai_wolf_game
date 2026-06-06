@@ -5,6 +5,14 @@ function resolveNovelServiceBase(env) {
   return base ? base.replace(/\/+$/, '') : '';
 }
 
+// Inline admin lookup — same logic as queue.js' isAdmin(). Kept local to
+// avoid cross-module exports just for one D1 query.
+async function lookupIsAdmin(email, env) {
+  if (!email) return false;
+  const row = await env.DB.prepare('SELECT email FROM admins WHERE email = ?').bind(email).first();
+  return !!row;
+}
+
 // Access policy: GET = public read-only (guests included); writes require JWT.
 // Aligns with CLAUDE.md "Novel Codex: guest 看到的是只读版本" semantics.
 const READ_ONLY_METHODS = new Set(['GET', 'HEAD']);
@@ -25,6 +33,10 @@ export async function handleNovelProxy(request, env, pathname) {
     } catch { /* ignore — public read */ }
   }
 
+  // Per-request admin check so ECS can apply the "owner OR admin auto-claim" rule.
+  // Skipped for guests (no user.email) to avoid a needless D1 hit.
+  const isAdmin = user ? await lookupIsAdmin(user.email, env) : false;
+
   const base = resolveNovelServiceBase(env);
   if (!base) {
     return errorResponse('Novel service is not configured', 503, env, request);
@@ -40,6 +52,7 @@ export async function handleNovelProxy(request, env, pathname) {
   if (user) {
     headers.set('X-Zhaxiaoji-User-Id', String(user.sub));
     headers.set('X-Zhaxiaoji-Username', user.username || '');
+    headers.set('X-Zhaxiaoji-Is-Admin', isAdmin ? '1' : '0');
   } else {
     headers.set('X-Zhaxiaoji-Role', 'guest');
   }

@@ -2,6 +2,40 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-07] 小说工作台所有权过滤（每用户只看自己的）
+
+### 新功能
+
+- **每个项目带 `owner_id`**：`.meta-writing-project.json` 新增 `owner_id` 字段（来自 JWT `sub`）。项目只对所有者可见。
+- **遗留项目自动认领**：现有 3 本小说（legacy-microfeel、rescue-male-lead、tomato-romance）metadata 无 `owner_id`。当 admin（zxj）首次访问书架时，所有无主项目**自动认领为 admin 的 user_id**。幂等，无需迁移脚本。
+- **非 admin 可创建新小说**：BookshelfPage 的「新建小说」按钮对所有登录用户开放（之前仅 admin）。新项目自动绑定到创建者。
+- **编辑/Codex 仍 admin 独占**："只有管理员才能编辑" 不变；NewBookPage 的"创建并生成第一章"按钮（调用 Codex）仅 admin 可见。
+
+### 权限矩阵（更新后）
+
+| 用户 | 看到的小说 | 创建新小说 | 编辑章节 | Codex 对话 |
+|---|---|:---:|:---:|:---:|
+| Admin (zxj) | 自己创建的 + 遗留 3 本（首次访问后认领）| ✅ | ✅ | ✅ |
+| 普通登录用户 | 仅自己创建的 | ✅ | ❌ | ❌ |
+| 游客 | 空列表 | ❌ | ❌ | ❌ |
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `server/novelWorkspace.js` | 修改 | 加 `owner_id` 读写 + `isProjectVisible` / `autoClaimIfAdmin` / `assertProjectVisible`，所有 list/get/update 函数加 `ctx` 参数 |
+| `server/index.js` | 修改 | 新增 `userContextFromRequest(req)` 从 `X-Zhaxiaoji-*` headers 构建 ctx，传给所有 novel handler |
+| `workers/auth/novel.js` | 修改 | 加 `lookupIsAdmin(email, env)`，对已登录用户传 `X-Zhaxiaoji-Is-Admin: 1\|0` |
+| `src/components/NovelWorkspace.jsx` | 修改 | BookshelfPage 「新建小说」从 isAdmin 改 isLoggedIn；NewBookPage 「创建并生成」仅 admin |
+| `server/__tests__/novelWorkspace.test.js` | 修改 | 所有调用加 `OWNER_CTX`；新增 5 个所有权 / 自动认领测试 |
+
+### 技术细节
+
+- **HTTP 方法分层依然保留**：GET 公开（但 ECS 过滤），写方法仍需 JWT。所有权过滤在 ECS 数据层，不在 Worker 层做。
+- **404 (not 403) for non-owners**：避免泄露项目是否存在。
+- **自动认领是幂等的**：第二次访问不再写入；如果 admin 失去 admin 状态，他们仍拥有这些项目（owner_id 已永久写入）。
+- **ECS 需要重启**：`server/*.js` 改动属于 ECS Node.js 服务，需 `git pull` + `pm2 restart bt-server` 才能生效。Cloudflare 部署只覆盖 Worker + 前端 bundle。
+
 ## [2026-06-06] UI 重构 M1a — 狼人杀颜色 token 化
 
 ### 新功能

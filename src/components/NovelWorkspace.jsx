@@ -1045,6 +1045,8 @@ function ReaderPane({
 
 function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh, onOpenProject, onNewBook }) {
   const { isAdmin } = useAuth();
+  // Per "每个用户可以写自己的小说": any signed-in user can create. Guests can't (no JWT).
+  const canCreate = !!user;
   return (
     <div className="px-2 py-4 md:px-6 md:py-10">
       <div className="mx-auto max-w-[1300px]">
@@ -1062,7 +1064,7 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
               </div>
             </div>
             <div className="flex items-center gap-1.5 md:gap-2">
-              {isAdmin && (
+              {canCreate && (
               <button type="button" onClick={onNewBook} className="mac-button mac-button-primary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
                 <Plus size={15} />
                 <span className="hidden sm:inline">{copy.shelf.newBook}</span>
@@ -1127,7 +1129,7 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
                     {project.latestTitle && <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600 md:mt-4">{project.latestTitle}</p>}
                   </button>
                 ))}
-                {isAdmin && (
+                {canCreate && (
                 <button
                   type="button"
                   onClick={onNewBook}
@@ -1170,6 +1172,7 @@ function Field({ label, value, onChange, textarea = false, placeholder = '' }) {
 }
 
 function NewBookPage({ draft, busy, error, copy, onBack, onDraftChange, onCreateBook }) {
+  const { isAdmin } = useAuth();
   return (
     <div className="px-2 py-4 md:px-6 md:py-10">
       <div className="mx-auto max-w-[1100px]">
@@ -1203,14 +1206,17 @@ function NewBookPage({ draft, busy, error, copy, onBack, onDraftChange, onCreate
               <Field label={copy.newBook.outline} value={draft.outline} onChange={(value) => onDraftChange('outline', value)} textarea />
             </div>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end md:mt-6">
-              <button type="button" onClick={() => onCreateBook(false)} disabled={busy} className="mac-button mac-button-secondary w-full sm:w-auto">
+              <button type="button" onClick={() => onCreateBook(false)} disabled={busy} className={`mac-button ${isAdmin ? 'mac-button-secondary' : 'mac-button-primary'} w-full sm:w-auto`}>
                 <FolderOpen size={15} />
                 {copy.newBook.create}
               </button>
-              <button type="button" onClick={() => onCreateBook(true)} disabled={busy} className="mac-button mac-button-primary w-full sm:w-auto">
-                {busy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
-                {copy.newBook.createAndGenerate}
-              </button>
+              {/* "create + generate first chapter" calls Codex — admin only */}
+              {isAdmin && (
+                <button type="button" onClick={() => onCreateBook(true)} disabled={busy} className="mac-button mac-button-primary w-full sm:w-auto">
+                  {busy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
+                  {copy.newBook.createAndGenerate}
+                </button>
+              )}
             </div>
           </main>
         </div>
