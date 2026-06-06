@@ -2,6 +2,7 @@ import { Suspense, useMemo, useRef, useEffect } from 'react';
 import modules, { findRoute } from './ModuleRegistry';
 import { useShell } from './ShellContext';
 import { ThemeScope } from './ThemeScope';
+import { resolveTheme, getSystemTheme } from './theme.js';
 import { resolveNavigation } from './navGuards';
 import { ROUTES } from './paths';
 import { useDocumentMeta } from './useDocumentMeta';
@@ -26,7 +27,7 @@ function DefaultLoader() {
  * Phase 2a：文件已就绪但未挂入 main.jsx。Phase 2b 再切换入口。
  */
 export function Router({ authRoutes = [], homeRoute, fallback = <DefaultLoader /> }) {
-  const { currentPath, user, isGuestMode, navigate, locale } = useShell();
+  const { currentPath, user, isGuestMode, navigate, locale, themePref } = useShell();
   const isAuthed = Boolean(user) || isGuestMode;
 
   const match = useMemo(() => {
@@ -79,7 +80,11 @@ export function Router({ authRoutes = [], homeRoute, fallback = <DefaultLoader /
   if (!match) return fallback;
 
   const Component = match.route.component;
-  const theme = match.module?.theme ?? 'light';
+  const theme = resolveTheme({
+    userPref: themePref,
+    moduleDefault: match.module?.theme ?? null,
+    systemTheme: getSystemTheme(),
+  });
 
   return (
     <ThemeScope theme={theme} className="min-h-screen">
