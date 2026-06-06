@@ -5,6 +5,7 @@ import { createContext, useContext } from 'react';
  *
  * 模块组件用 useShell() 拿到：
  *   - locale, setLocale    语言与切换
+ *   - themePref, setThemePref  主题偏好（'light' | 'dark' | 'system'）
  *   - user, isGuestMode    认证状态
  *   - navigate(path, opts) 路由跳转
  *   - openTokenManager() / openStats() / closeTokenManager() / closeStats()

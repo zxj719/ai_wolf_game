@@ -22,9 +22,8 @@ function DefaultLoader() {
  *   1. 从 currentPath 解析出 { module, route }
  *   2. navGuards 判断要不要重定向（登录/未登录/匹配失败）
  *   3. 上一个 route 的 onLeave(ctx) 触发（用于狼人杀 endGame 这类清理）
- *   4. 渲染 <ThemeScope theme={module.theme}><Suspense>{Component}</Suspense></ThemeScope>
- *
- * Phase 2a：文件已就绪但未挂入 main.jsx。Phase 2b 再切换入口。
+ *   4. 用 resolveTheme(用户偏好 > 模块默认 > 系统) 解析主题，渲染
+ *      <ThemeScope theme={theme}><Suspense>{Component}</Suspense></ThemeScope>
  */
 export function Router({ authRoutes = [], homeRoute, fallback = <DefaultLoader /> }) {
   const { currentPath, user, isGuestMode, navigate, locale, themePref } = useShell();
