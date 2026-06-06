@@ -17,7 +17,7 @@
   }
 
   html {
-    background: var(--homepage-bg);
+    background-color: var(--bg);
   }
 
   html,
@@ -27,16 +27,20 @@
   }
 
   body {
-    background:
-      radial-gradient(circle at top center, rgba(255, 255, 255, 0.92), transparent 42%),
-      radial-gradient(circle at bottom left, rgba(225, 229, 237, 0.6), transparent 28%),
-      linear-gradient(180deg, #f7f7f8 0%, #eff1f4 100%);
+    background-color: var(--bg);
     color: var(--mac-ink);
     font-family: var(--font-sans);
   }
 
-  body::before,
-  body::after {
+  html:not([data-theme="dark"]) body {
+    background:
+      radial-gradient(circle at top center, rgba(255, 255, 255, 0.92), transparent 42%),
+      radial-gradient(circle at bottom left, rgba(225, 229, 237, 0.6), transparent 28%),
+      linear-gradient(180deg, #f7f7f8 0%, #eff1f4 100%);
+  }
+
+  html:not([data-theme="dark"]) body::before,
+  html:not([data-theme="dark"]) body::after {
     content: '';
     position: fixed;
     inset: auto;
@@ -48,13 +52,13 @@
     z-index: 0;
   }
 
-  body::before {
+  html:not([data-theme="dark"]) body::before {
     top: -12rem;
     right: -8rem;
     background: rgba(255, 255, 255, 0.8);
   }
 
-  body::after {
+  html:not([data-theme="dark"]) body::after {
     bottom: -16rem;
     left: -10rem;
     background: rgba(215, 220, 229, 0.42);
