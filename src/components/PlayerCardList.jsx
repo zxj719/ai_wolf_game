@@ -36,7 +36,7 @@ export function PlayerCardList({
           <div 
             key={p.id} 
             onClick={() => p.isAlive && setSelectedTarget(p.id)}
-            className={`relative p-4 rounded-[2rem] border-2 transition-all cursor-pointer ${selectedTarget === p.id ? 'border-state-selected bg-state-selected-soft ring-4 ring-state-selected/10' : 'bg-bg-raised border-line'} ${!p.isAlive ? 'opacity-20 grayscale' : 'hover:border-line-strong'} ${isSpeaking ? 'ring-2 ring-state-speaking' : ''}`}
+            className={`relative p-4 rounded-[2rem] border-2 transition-all cursor-pointer ${selectedTarget === p.id ? 'border-state-selected bg-state-selected-soft ring-4 ring-state-selected-soft' : 'bg-bg-raised border-line'} ${!p.isAlive ? 'opacity-20 grayscale' : 'hover:border-line-strong'} ${isSpeaking ? 'ring-2 ring-state-speaking' : ''}`}
           >
             <div className="flex flex-col items-center">
               <span className="absolute top-3 left-3 text-[10px] font-black text-ink-faint bg-bg-raised px-2 py-0.5 rounded-full">{p.id}</span>

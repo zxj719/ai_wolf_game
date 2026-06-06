@@ -875,10 +875,10 @@ export function CirclePlayerLayout({
               className={`
                 relative p-2 sm:p-3 rounded-2xl border-2 transition-transform select-none touch-none
                 w-[var(--card-width)] min-h-[var(--card-height)] flex flex-col items-center
-                ${selectedTarget === p.id ? 'border-state-selected bg-state-selected-soft ring-4 ring-state-selected/30 scale-110' : 'bg-bg-raised border-line-strong'}
+                ${selectedTarget === p.id ? 'border-state-selected bg-state-selected-soft ring-4 ring-state-selected-soft scale-110' : 'bg-bg-raised border-line-strong'}
                 ${!p.isAlive ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-grab hover:border-line hover:scale-105'}
                 ${isSpeaking ? 'ring-2 ring-state-speaking animate-pulse' : ''}
-                ${isDragging ? 'shadow-2xl ring-2 ring-state-selected/40 scale-105 cursor-grabbing' : 'shadow-xl'}
+                ${isDragging ? 'shadow-2xl ring-2 ring-state-selected-soft scale-105 cursor-grabbing' : 'shadow-xl'}
                 backdrop-blur-sm
               `}
             >

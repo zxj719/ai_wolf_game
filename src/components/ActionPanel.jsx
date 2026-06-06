@@ -102,7 +102,7 @@ export function ActionPanel({
         {/* 狼人必须选择目标，不允许空刀 */}
 
         {userPlayer?.role === '女巫' && (
-          <div className="mb-4 text-left bg-bg-raised/50 p-4 rounded-xl text-[11px]">
+          <div className="mb-4 text-left bg-bg-raised p-4 rounded-xl text-[11px]">
             <p className="text-ink-muted mb-2">
               今晚被刀：{nightDecisions.wolfTarget !== null ? `[${nightDecisions.wolfTarget}号]` : '无人（狼人空刀）'}
             </p>

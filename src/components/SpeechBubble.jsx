@@ -65,7 +65,7 @@ export function SpeechBubble({
         className={`
           relative bg-bg-raised border-2 rounded-2xl p-3 shadow-xl
           min-w-[120px] max-w-[200px]
-          ${isNightContent ? 'border-phase-night/50' : 'border-phase-day/50'}
+          ${isNightContent ? 'border-phase-night-soft' : 'border-phase-day-soft'}
           transition-all duration-300 hover:shadow-2xl
         `}
       >

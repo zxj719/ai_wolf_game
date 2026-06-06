@@ -3,9 +3,9 @@ import { Moon, Sun, Brain } from 'lucide-react';
 
 export const GameHeader = ({ phase, dayCount, isThinking, children }) => {
   return (
-    <header className="max-w-6xl mx-auto w-full flex justify-between items-center mb-6 bg-bg-raised/60 p-5 rounded-[2rem] border border-white/5 backdrop-blur-xl">
+    <header className="max-w-6xl mx-auto w-full flex justify-between items-center mb-6 bg-bg-raised p-5 rounded-[2rem] border border-white/5 backdrop-blur-xl">
       <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-2xl ${phase.includes('night') ? 'bg-state-selected-soft text-phase-night' : 'bg-role-hunter-soft text-phase-day'}`}>
+        <div className={`p-3 rounded-2xl ${phase.includes('night') ? 'bg-phase-night-soft text-phase-night' : 'bg-role-hunter-soft text-phase-day'}`}>
           {phase.includes('night') ? <Moon size={28}/> : <Sun size={28}/>}
         </div>
         <div>
@@ -19,7 +19,7 @@ export const GameHeader = ({ phase, dayCount, isThinking, children }) => {
 
       <div className="flex items-center gap-6">
          {isThinking && (
-           <div className="flex items-center gap-2 px-4 py-2 bg-state-selected-soft border border-state-selected/20 rounded-xl animate-pulse">
+           <div className="flex items-center gap-2 px-4 py-2 bg-phase-night-soft border border-phase-night-soft rounded-xl animate-pulse">
              <Brain size={14} className="text-phase-night"/>
              <span className="text-[10px] text-phase-night font-black">AI REASONING</span>
            </div>

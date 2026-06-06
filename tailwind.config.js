@@ -43,8 +43,8 @@ export default {
           villager: 'var(--role-villager)', 'villager-soft': 'var(--role-villager-soft)',
         },
         phase: {
-          night: 'var(--phase-night)', 'night-bg': 'var(--phase-night-bg)',
-          day: 'var(--phase-day)', 'day-bg': 'var(--phase-day-bg)',
+          night: 'var(--phase-night)', 'night-bg': 'var(--phase-night-bg)', 'night-soft': 'var(--phase-night-soft)',
+          day: 'var(--phase-day)', 'day-bg': 'var(--phase-day-bg)', 'day-soft': 'var(--phase-day-soft)',
           vote: 'var(--phase-vote)', resolution: 'var(--phase-resolution)',
         },
         state: {

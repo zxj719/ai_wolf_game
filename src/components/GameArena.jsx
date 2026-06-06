@@ -266,7 +266,7 @@ export function GameArena({
         <div className="fixed top-4 left-4 z-50">
           <button
             onClick={onExit}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-bg-raised/90 hover:bg-bg-raised text-ink-muted rounded-lg border border-line-strong transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-bg-raised hover:bg-bg-raised text-ink-muted rounded-lg border border-line-strong transition-colors"
           >
             <ArrowLeft size={14} />
             {exitLabel}
@@ -280,8 +280,8 @@ export function GameArena({
             onClick={() => setShowThinkToggle(v => !v)}
             className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
               showThinkToggle
-                ? 'bg-state-thinking/90 border-state-thinking text-ink'
-                : 'bg-bg-raised/90 border-line text-ink-muted hover:bg-bg-raised'
+                ? 'bg-state-thinking border-state-thinking text-ink'
+                : 'bg-bg-raised border-line text-ink-muted hover:bg-bg-raised'
             }`}
             title={showThinkToggle ? '隐藏AI内心独白' : '显示AI内心独白'}
           >
@@ -293,7 +293,7 @@ export function GameArena({
       {/* 双预言家对跳提示 */}
       {hasDualSeer && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-2 px-4 py-2 bg-accent/90 border border-accent rounded-full text-sm text-ink shadow-lg animate-pulse">
+          <div className="flex items-center gap-2 px-4 py-2 bg-accent border border-accent rounded-full text-sm text-ink shadow-lg animate-pulse">
             <span className="font-bold">对跳!</span>
             <span>{[...seerClaimants].map(id => `${id}号`).join(' vs ')} 均声明预言家</span>
           </div>
@@ -383,7 +383,7 @@ export function GameArena({
           {/* 历史记录入口按钮 */}
           <button
             onClick={() => scrollToPage(1)}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-bg-raised/80 hover:bg-bg-raised/90 border border-line-strong rounded-full text-xs font-bold text-ink-muted hover:text-ink transition-all backdrop-blur-sm shadow-lg z-30"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-bg-raised hover:bg-bg-raised border border-line-strong rounded-full text-xs font-bold text-ink-muted hover:text-ink transition-all backdrop-blur-sm shadow-lg z-30"
           >
             <History size={14} />
             <span>查看历史记录</span>
@@ -443,7 +443,7 @@ export function GameArena({
         {/* 顶部翻页提示 */}
         <button
           onClick={() => scrollToPage(0)}
-          className="py-3 flex flex-col items-center gap-1 text-ink-faint hover:text-ink-muted transition-colors border-b border-line bg-bg-raised/50 flex-shrink-0"
+          className="py-3 flex flex-col items-center gap-1 text-ink-faint hover:text-ink-muted transition-colors border-b border-line bg-bg-raised flex-shrink-0"
         >
           <ChevronUp size={20} />
           <span className="text-[10px] font-medium uppercase tracking-wider">返回游戏</span>
