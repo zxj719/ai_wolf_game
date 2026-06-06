@@ -24,7 +24,7 @@ export function ThemeToggle({ pref = 'system', onChange, locale = 'zh' }) {
       onClick={() => onChange?.(NEXT[pref] ?? 'system')}
       className="inline-flex h-9 w-9 items-center justify-center rounded-button border border-line bg-bg-raised text-ink-muted shadow-card transition-colors duration-200 hover:text-ink hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.96]"
     >
-      <Icon size={18} strokeWidth={1.8} />
+      <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
     </button>
   );
 }
