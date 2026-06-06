@@ -59,27 +59,27 @@
 
 /* 角色发光 */
 .glow-indigo {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--phase-night) 40%, transparent);
 }
 
 .glow-amber {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--phase-day) 40%, transparent);
 }
 
 .glow-rose {
-  box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--role-wolf) 40%, transparent);
 }
 
 /* 渐变标题文字 */
 .text-gradient-gold {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--phase-day) 120%, white), var(--phase-day), color-mix(in srgb, var(--phase-day) 80%, black));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-purple {
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--state-thinking) 80%, white), var(--state-thinking), color-mix(in srgb, var(--state-thinking) 80%, black));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -101,7 +101,7 @@
 
 /* 表格行 hover 高亮（投票/历史表用） */
 .table-row-highlight:hover {
-  background: rgba(99, 102, 241, 0.1) !important;
+  background: color-mix(in srgb, var(--phase-night) 10%, transparent) !important;
 }
 
 /* 发言气泡尾巴 */
