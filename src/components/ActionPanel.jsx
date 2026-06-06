@@ -39,26 +39,26 @@ export function ActionPanel({
   if (type === 'game_over') {
     return (
       <div className="text-center">
-        <h2 className="text-2xl font-black mb-4 uppercase tracking-widest text-amber-400">Game Over</h2>
-        <p className="text-sm text-zinc-400 mb-6">查看上方日志了解游戏结果</p>
+        <h2 className="text-2xl font-black mb-4 uppercase tracking-widest text-phase-day">Game Over</h2>
+        <p className="text-sm text-ink-muted mb-6">查看上方日志了解游戏结果</p>
         <div className="flex gap-3 justify-center flex-wrap">
           <button
             onClick={exportGameLog}
-            className="px-8 py-4 bg-indigo-600 rounded-2xl font-black text-xs uppercase hover:bg-indigo-500 transition-all flex items-center gap-2"
+            className="px-8 py-4 bg-accent rounded-2xl font-black text-xs uppercase hover:bg-accent-hover transition-all flex items-center gap-2"
           >
             <Download size={18}/> 导出记录
           </button>
           {onReplay && (
           <button
             onClick={onReplay}
-            className="px-8 py-4 bg-amber-600 rounded-2xl font-black text-xs uppercase hover:bg-amber-500 transition-all flex items-center gap-2"
+            className="px-8 py-4 bg-accent rounded-2xl font-black text-xs uppercase hover:bg-accent-hover transition-all flex items-center gap-2"
           >
             <PlayCircle size={18}/> 回放
           </button>
           )}
           <button
             onClick={restartGame}
-            className="px-8 py-4 bg-emerald-600 rounded-2xl font-black text-xs uppercase hover:bg-emerald-500 transition-all flex items-center gap-2"
+            className="px-8 py-4 bg-success rounded-2xl font-black text-xs uppercase hover:opacity-90 transition-all flex items-center gap-2"
           >
             <RotateCcw size={18}/> 重新开始
           </button>
@@ -71,14 +71,14 @@ export function ActionPanel({
     const hunterInfo = hunterPlayer ? `[${hunterPlayer.id}号] ${hunterPlayer.name}` : '猎人';
     return (
       <div className="text-center">
-        <h2 className="text-lg font-black mb-2 uppercase tracking-widest text-orange-400">🔫 猎人开枪</h2>
-        <p className="text-sm text-zinc-400 mb-4">{hunterInfo} 必须选择带走一名玩家</p>
-        <p className="text-[10px] text-zinc-500 mb-6">点击头像选择目标，猎人死亡时必须开枪！</p>
+        <h2 className="text-lg font-black mb-2 uppercase tracking-widest text-role-hunter">🔫 猎人开枪</h2>
+        <p className="text-sm text-ink-muted mb-4">{hunterInfo} 必须选择带走一名玩家</p>
+        <p className="text-[10px] text-ink-faint mb-6">点击头像选择目标，猎人死亡时必须开枪！</p>
         <div className="flex gap-4 justify-center">
           <button
             onClick={handleUserHunterShoot}
             disabled={selectedTarget === null}
-            className={`px-10 py-4 rounded-2xl font-black text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-orange-600 hover:bg-orange-500' : 'bg-zinc-700 cursor-not-allowed opacity-50'}`}
+            className={`px-10 py-4 rounded-2xl font-black text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-role-hunter hover:opacity-90' : 'bg-bg-raised border border-line cursor-not-allowed opacity-50'}`}
           >
             {selectedTarget !== null ? `开枪 [${selectedTarget}号]` : '请选择目标'}
           </button>
@@ -90,10 +90,10 @@ export function ActionPanel({
   if (type === 'night_user' && isUserTurn()) {
     return (
       <div className="text-center">
-        <h2 className="text-lg font-black mb-2 uppercase tracking-widest text-indigo-400">Night Phase: {userPlayer?.role}</h2>
-        <p className="text-[10px] text-zinc-500 mb-2">点击头像选择你的行动目标</p>
+        <h2 className="text-lg font-black mb-2 uppercase tracking-widest text-phase-night">Night Phase: {userPlayer?.role}</h2>
+        <p className="text-[10px] text-ink-faint mb-2">点击头像选择你的行动目标</p>
         {userPlayer?.role === '守卫' && nightDecisions.lastGuardTarget !== null && (
-          <p className="text-[10px] text-amber-400 mb-4">
+          <p className="text-[10px] text-phase-day mb-4">
             <AlertTriangle size={12} className="inline mr-1"/>
             上夜守护了 [{nightDecisions.lastGuardTarget}号]，今晚不能守同一人
           </p>
@@ -102,8 +102,8 @@ export function ActionPanel({
         {/* 狼人必须选择目标，不允许空刀 */}
 
         {userPlayer?.role === '女巫' && (
-          <div className="mb-4 text-left bg-zinc-800/50 p-4 rounded-xl text-[11px]">
-            <p className="text-zinc-400 mb-2">
+          <div className="mb-4 text-left bg-bg-raised/50 p-4 rounded-xl text-[11px]">
+            <p className="text-ink-muted mb-2">
               今晚被刀：{nightDecisions.wolfTarget !== null ? `[${nightDecisions.wolfTarget}号]` : '无人（狼人空刀）'}
             </p>
             <div className="flex gap-4 justify-center mt-4">
@@ -118,20 +118,20 @@ export function ActionPanel({
                     setWitchHistory({ ...witchHistory, savedIds: [...witchHistory.savedIds, nightDecisions.wolfTarget] });
                     proceedNight(newDecisions);
                   }}
-                  className="px-6 py-2 bg-emerald-600 rounded-xl text-white font-bold hover:bg-emerald-500"
+                  className="px-6 py-2 bg-success rounded-xl text-ink font-bold hover:opacity-90"
                 >
                   使用解药救人
                 </button>
               )}
               <button 
                 onClick={() => proceedNight()}
-                className="px-6 py-2 bg-zinc-700 rounded-xl font-bold hover:bg-zinc-600"
+                className="px-6 py-2 bg-bg-raised rounded-xl border border-line font-bold hover:bg-bg-sunken"
               >
                 不使用药水
               </button>
             </div>
             {userPlayer.hasWitchPoison && (
-              <p className="text-amber-400 mt-3 text-center">
+              <p className="text-phase-day mt-3 text-center">
                 或选择一个目标使用毒药（点击头像后确认）
               </p>
             )}
@@ -162,7 +162,7 @@ export function ActionPanel({
                 }
                 proceedNight(updatedDecisions);
               }}
-              className="px-14 py-4 bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-600 rounded-2xl font-black text-xs uppercase hover:bg-indigo-500 transition-all"
+              className="px-14 py-4 bg-accent disabled:bg-bg-raised disabled:text-ink-faint rounded-2xl font-black text-xs uppercase hover:bg-accent-hover transition-all"
             >
               Confirm Action
             </button>
@@ -177,7 +177,7 @@ export function ActionPanel({
                   addLogFn(`你选择了空守`, 'info');
                   proceedNight(updatedDecisions);
                 }}
-                className="px-8 py-2 text-zinc-400 hover:text-white underline text-[10px] transition-all"
+                className="px-8 py-2 text-ink-muted hover:text-ink underline text-[10px] transition-all"
               >
                 选择空守 (Skip Guard)
               </button>
@@ -191,7 +191,7 @@ export function ActionPanel({
                    addLogFn(`你选择了不查验`, 'info');
                    proceedNight(); // 直接下一步
                 }}
-                className="px-8 py-2 text-zinc-400 hover:text-white underline text-[10px] transition-all"
+                className="px-8 py-2 text-ink-muted hover:text-ink underline text-[10px] transition-all"
               >
                 选择不查验 (Skip Check)
               </button>
@@ -210,7 +210,7 @@ export function ActionPanel({
               setWitchHistory({ ...witchHistory, poisonedIds: [...witchHistory.poisonedIds, selectedTarget] });
               proceedNight(newDecisions);
             }}
-            className="px-14 py-4 bg-rose-600 rounded-2xl font-black text-xs uppercase hover:bg-rose-500 transition-all"
+            className="px-14 py-4 bg-danger rounded-2xl font-black text-xs uppercase hover:opacity-90 transition-all"
           >
             使用毒药毒杀 [{selectedTarget}号]
           </button>
@@ -221,19 +221,19 @@ export function ActionPanel({
 
   if (type === 'night_ai') {
     return (
-      <div className="py-8 flex flex-col items-center justify-center text-zinc-600">
-        <Moon className="mb-2 text-indigo-500" size={32}/>
-        <p className="text-sm font-bold text-indigo-400">{getCurrentNightRole()} 行动中...</p>
-        <p className="text-[10px] text-zinc-500 mt-1">请等待...</p>
+      <div className="py-8 flex flex-col items-center justify-center text-ink-faint">
+        <Moon className="mb-2 text-phase-night" size={32}/>
+        <p className="text-sm font-bold text-phase-night">{getCurrentNightRole()} 行动中...</p>
+        <p className="text-[10px] text-ink-faint mt-1">请等待...</p>
       </div>
     );
   }
 
   if (type === 'day_announce') {
     return (
-      <div className="py-8 flex flex-col items-center justify-center text-zinc-600">
-        <Sun className="mb-2 text-amber-500" size={32}/>
-        <p className="text-sm font-bold text-amber-400">天亮了...</p>
+      <div className="py-8 flex flex-col items-center justify-center text-ink-faint">
+        <Sun className="mb-2 text-phase-day" size={32}/>
+        <p className="text-sm font-bold text-phase-day">天亮了...</p>
       </div>
     );
   }
