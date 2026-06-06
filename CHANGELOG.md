@@ -2,6 +2,32 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-06] UI 重构 Phase F — 设计系统地基（taste-skill）
+
+### 新功能
+- **全局明暗切换**：右上角三态 toggle（跟随系统 / 浅色 / 深色），偏好持久化到 localStorage；解析优先级 = 用户显式偏好 > 模块默认主题 > 系统 `prefers-color-scheme`（狼人杀默认深色、生产力模块默认浅色）。内联脚本防 FOUC。
+- **设计 token 修订**：凹陷面改 off-black（弃用纯黑）、新增 `--market-up/down`（A股红涨绿跌，与 UI 语义色解耦）、阴影染背景色调、新增 `rounded-input` 圆角档位。
+- **legacy `.mac-*` 双主题化**：旧组件无需改 JSX，通过 `[data-theme="dark"]` 变量覆盖自动适配深色（Dashboard/Auth/Setup/Sites 等一次性受益）。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/shell/theme.js` | 新建 | resolveTheme + 偏好持久化（含单测） |
+| `src/components/ThemeToggle.jsx` | 新建 | 三态切换组件（含单测） |
+| `src/shell/ShellProvider.jsx` | 修改 | themePref 跨模块状态 |
+| `src/shell/Router.jsx` | 修改 | 按偏好解析主题 |
+| `src/shell/GlobalOverlays.jsx` | 修改 | 挂载 ThemeToggle |
+| `index.html` | 修改 | 防 FOUC 内联脚本 |
+| `src/styles/tokens.css` | 修改 | token 修订（off-black/market/阴影/radius） |
+| `src/styles/legacy-mac.css` | 修改 | `.mac-*` 双主题变量 + 暗色对比度修复 |
+| `src/styles/base.css` | 修改 | 页面底色随主题、装饰渐变仅浅色 |
+| `tailwind.config.js` | 修改 | rounded-input/pill + market 色映射 |
+
+### 技术细节
+- 主题机制：`ThemeScope` 在模块根写 `[data-theme]`，全局 toggle 由 `ShellProvider` 持有偏好、`Router` 调 `resolveTheme` 解析；CSS 变量自动切换，无需逐组件改写。
+- 验收：`npm run build` 通过（check-build 无 localhost 泄漏）；37 个测试文件 / 256 用例全绿；`src/ui/` 9 个原语 100% token 化、无任意圆角。
+- 范围：本期为地基（视觉打磨 + 响应式起步），不含各业务组件硬编码色逐一替换、狼人杀手机端重做、股票主题修复——留待 M1–M4。
+
 ## [2026-06-03] 屏幕共享 Phase 4（参考钉钉/腾讯：屏幕+摄像头同时）
 
 ### 新功能
