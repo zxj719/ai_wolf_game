@@ -31,6 +31,28 @@ export default {
           up:   'var(--market-up)',
           down: 'var(--market-down)',
         },
+        role: {
+          wolf: 'var(--role-wolf)', 'wolf-soft': 'var(--role-wolf-soft)',
+          seer: 'var(--role-seer)', 'seer-soft': 'var(--role-seer-soft)',
+          witch: 'var(--role-witch)', 'witch-soft': 'var(--role-witch-soft)',
+          hunter: 'var(--role-hunter)', 'hunter-soft': 'var(--role-hunter-soft)',
+          guard: 'var(--role-guard)', 'guard-soft': 'var(--role-guard-soft)',
+          magician: 'var(--role-magician)', 'magician-soft': 'var(--role-magician-soft)',
+          knight: 'var(--role-knight)', 'knight-soft': 'var(--role-knight-soft)',
+          dreamweaver: 'var(--role-dreamweaver)', 'dreamweaver-soft': 'var(--role-dreamweaver-soft)',
+          villager: 'var(--role-villager)', 'villager-soft': 'var(--role-villager-soft)',
+        },
+        phase: {
+          night: 'var(--phase-night)', 'night-bg': 'var(--phase-night-bg)',
+          day: 'var(--phase-day)', 'day-bg': 'var(--phase-day-bg)',
+          vote: 'var(--phase-vote)', resolution: 'var(--phase-resolution)',
+        },
+        state: {
+          selected: 'var(--state-selected)', 'selected-soft': 'var(--state-selected-soft)',
+          speaking: 'var(--state-speaking)', dead: 'var(--state-dead)',
+          'win-good': 'var(--state-win-good)', 'win-evil': 'var(--state-win-evil)',
+          thinking: 'var(--state-thinking)',
+        },
       },
       borderColor: {
         line:          'var(--border)',
