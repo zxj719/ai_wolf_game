@@ -185,9 +185,9 @@ export function GameArena({
   // 获取游戏背景样式
   const getBackgroundStyle = () => {
     if (phase === 'night') {
-      return 'bg-gradient-to-b from-indigo-950 via-zinc-950 to-zinc-950';
+      return 'bg-gradient-to-b from-phase-night-bg via-bg to-bg';
     }
-    return 'bg-gradient-to-b from-amber-950/20 via-zinc-950 to-zinc-950';
+    return 'bg-gradient-to-b from-phase-day-bg via-bg to-bg';
   };
 
   // 滚动到指定页面
@@ -266,7 +266,7 @@ export function GameArena({
         <div className="fixed top-4 left-4 z-50">
           <button
             onClick={onExit}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 rounded-lg border border-zinc-700 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-bg-raised/90 hover:bg-bg-raised text-ink-muted rounded-lg border border-line-strong transition-colors"
           >
             <ArrowLeft size={14} />
             {exitLabel}
@@ -280,8 +280,8 @@ export function GameArena({
             onClick={() => setShowThinkToggle(v => !v)}
             className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
               showThinkToggle
-                ? 'bg-purple-600/90 border-purple-400 text-purple-100'
-                : 'bg-zinc-800/90 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                ? 'bg-state-thinking/90 border-state-thinking text-ink'
+                : 'bg-bg-raised/90 border-line text-ink-muted hover:bg-bg-raised'
             }`}
             title={showThinkToggle ? '隐藏AI内心独白' : '显示AI内心独白'}
           >
@@ -301,7 +301,7 @@ export function GameArena({
       )}
       {/* 第一页：游戏区域 */}
       <section
-        className={`h-screen relative ${getBackgroundStyle()} text-zinc-100 overflow-hidden`}
+        className={`h-screen relative ${getBackgroundStyle()} text-ink overflow-hidden`}
       >
         {/* 动态生成的主题背景图像 */}
         {gameBackground && (
@@ -383,7 +383,7 @@ export function GameArena({
           {/* 历史记录入口按钮 */}
           <button
             onClick={() => scrollToPage(1)}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-zinc-800/80 hover:bg-zinc-700/90 border border-zinc-700 rounded-full text-xs font-bold text-zinc-300 hover:text-white transition-all backdrop-blur-sm shadow-lg z-30"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-bg-raised/80 hover:bg-bg-raised/90 border border-line-strong rounded-full text-xs font-bold text-ink-muted hover:text-ink transition-all backdrop-blur-sm shadow-lg z-30"
           >
             <History size={14} />
             <span>查看历史记录</span>
@@ -439,11 +439,11 @@ export function GameArena({
       </section>
 
       {/* 第二页：历史记录 */}
-      <section className="h-screen bg-zinc-950 text-zinc-100 overflow-hidden flex flex-col">
+      <section className="h-screen bg-bg text-ink overflow-hidden flex flex-col">
         {/* 顶部翻页提示 */}
         <button
           onClick={() => scrollToPage(0)}
-          className="py-3 flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors border-b border-zinc-800 bg-zinc-900/50 flex-shrink-0"
+          className="py-3 flex flex-col items-center gap-1 text-ink-faint hover:text-ink-muted transition-colors border-b border-line bg-bg-raised/50 flex-shrink-0"
         >
           <ChevronUp size={20} />
           <span className="text-[10px] font-medium uppercase tracking-wider">返回游戏</span>
@@ -476,14 +476,14 @@ export function GameArena({
         <button
           onClick={() => scrollToPage(0)}
           className={`w-2 h-2 rounded-full transition-all ${
-            currentPage === 0 ? 'bg-white scale-125' : 'bg-zinc-600 hover:bg-zinc-400'
+            currentPage === 0 ? 'bg-white scale-125' : 'bg-ink-faint hover:bg-ink-muted'
           }`}
           title="游戏区域"
         />
         <button
           onClick={() => scrollToPage(1)}
           className={`w-2 h-2 rounded-full transition-all ${
-            currentPage === 1 ? 'bg-white scale-125' : 'bg-zinc-600 hover:bg-zinc-400'
+            currentPage === 1 ? 'bg-white scale-125' : 'bg-ink-faint hover:bg-ink-muted'
           }`}
           title="历史记录"
         />
