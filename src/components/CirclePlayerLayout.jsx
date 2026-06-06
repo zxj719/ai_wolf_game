@@ -89,13 +89,13 @@ export function CirclePlayerLayout({
 
   const getRoleIcon = (role, size = 16) => {
     switch(role) {
-      case '狼人': return <Skull size={size} className="text-rose-500"/>;
-      case '预言家': return <Eye size={size} className="text-purple-500"/>;
-      case '女巫': return <FlaskConical size={size} className="text-emerald-500"/>;
-      case '猎人': return <Target size={size} className="text-orange-500"/>;
-      case '守卫': return <Shield size={size} className="text-blue-500"/>;
-      case '魔术师': return <Shuffle size={size} className="text-violet-500"/>;
-      default: return <User size={size} className="text-zinc-500"/>;
+      case '狼人': return <Skull size={size} className="text-role-wolf"/>;
+      case '预言家': return <Eye size={size} className="text-role-seer"/>;
+      case '女巫': return <FlaskConical size={size} className="text-role-witch"/>;
+      case '猎人': return <Target size={size} className="text-role-hunter"/>;
+      case '守卫': return <Shield size={size} className="text-role-guard"/>;
+      case '魔术师': return <Shuffle size={size} className="text-role-magician"/>;
+      default: return <User size={size} className="text-ink-faint"/>;
     }
   };
 
@@ -122,7 +122,7 @@ export function CirclePlayerLayout({
           icons.push(
             <span
               key={`hunter-${idx}`}
-              className="inline-flex items-center gap-0.5 text-orange-400 bg-orange-500/20 px-1.5 py-0.5 rounded"
+              className="inline-flex items-center gap-0.5 text-role-hunter bg-role-hunter-soft px-1.5 py-0.5 rounded"
               title={`${phaseLabel} 开枪 ${action.target}号`}
             >
               <Target size={12} /><span className="text-[10px] font-bold">{action.target}</span>
@@ -133,7 +133,7 @@ export function CirclePlayerLayout({
           icons.push(
             <span
               key={`kill-${idx}`}
-              className="inline-flex items-center gap-0.5 text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded"
+              className="inline-flex items-center gap-0.5 text-role-wolf bg-role-wolf-soft px-1.5 py-0.5 rounded"
               title={`${phaseLabel} 袭击 ${action.target}号`}
             >
               <Crosshair size={12} /><span className="text-[10px] font-bold">{action.target}</span>
@@ -144,7 +144,7 @@ export function CirclePlayerLayout({
           icons.push(
             <span
               key={`check-${idx}`}
-              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded ${action.result === '狼人' ? 'text-rose-400 bg-rose-500/20' : 'text-emerald-400 bg-emerald-500/20'}`}
+              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded ${action.result === '狼人' ? 'text-role-wolf bg-role-wolf-soft' : 'text-role-witch bg-role-witch-soft'}`}
               title={`${phaseLabel} 查验 ${action.target}号 = ${action.result}`}
             >
               <Eye size={12} /><span className="text-[10px] font-bold">{action.target}</span>
@@ -155,7 +155,7 @@ export function CirclePlayerLayout({
           icons.push(
             <span
               key={`save-${idx}`}
-              className="inline-flex items-center gap-0.5 text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded"
+              className="inline-flex items-center gap-0.5 text-role-witch bg-role-witch-soft px-1.5 py-0.5 rounded"
               title={`${phaseLabel} 救 ${action.target}号`}
             >
               <Syringe size={12} /><span className="text-[10px] font-bold">{action.target}</span>
@@ -166,7 +166,7 @@ export function CirclePlayerLayout({
           icons.push(
             <span
               key={`poison-${idx}`}
-              className="inline-flex items-center gap-0.5 text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded"
+              className="inline-flex items-center gap-0.5 text-role-seer bg-role-seer-soft px-1.5 py-0.5 rounded"
               title={`${phaseLabel} 毒 ${action.target}号`}
             >
               <FlaskConical size={12} /><span className="text-[10px] font-bold">{action.target}</span>
@@ -177,7 +177,7 @@ export function CirclePlayerLayout({
           icons.push(
             <span
               key={`guard-${idx}`}
-              className="inline-flex items-center gap-0.5 text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded"
+              className="inline-flex items-center gap-0.5 text-role-guard bg-role-guard-soft px-1.5 py-0.5 rounded"
               title={`${phaseLabel} 守护 ${action.target}号`}
             >
               <Shield size={12} /><span className="text-[10px] font-bold">{action.target}</span>
@@ -199,7 +199,7 @@ export function CirclePlayerLayout({
           );
         } else {
           icons.push(
-            <span key={`vote-${dayIdx}`} className="inline-flex items-center gap-0.5 text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded" title={`D${dayVote.day} 投 ${vote.to}号`}>
+            <span key={`vote-${dayIdx}`} className="inline-flex items-center gap-0.5 text-phase-day bg-phase-day-bg px-1.5 py-0.5 rounded" title={`D${dayVote.day} 投 ${vote.to}号`}>
               <Vote size={12} /><span className="text-[10px] font-bold">{vote.to}</span>
             </span>
           );
@@ -377,29 +377,29 @@ export function CirclePlayerLayout({
 
   // 获取游戏阶段显示文字
   const getPhaseText = () => {
-    if (phase === 'night') return { icon: <Moon size={phaseIconSize} />, text: `第${dayCount}夜`, color: 'text-indigo-400' };
-    if (phase === 'day_discussion') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 讨论`, color: 'text-amber-400' };
-    if (phase === 'day_voting') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 投票`, color: 'text-orange-400' };
-    if (phase === 'day_announce') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 公告`, color: 'text-yellow-400' };
-    if (phase === 'day_resolution') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 结算`, color: 'text-yellow-400' };
-    if (phase === 'hunter_shoot') return { icon: <Target size={phaseIconSize} />, text: '猎人开枪', color: 'text-red-400' };
+    if (phase === 'night') return { icon: <Moon size={phaseIconSize} />, text: `第${dayCount}夜`, color: 'text-phase-night' };
+    if (phase === 'day_discussion') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 讨论`, color: 'text-phase-day' };
+    if (phase === 'day_voting') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 投票`, color: 'text-phase-vote' };
+    if (phase === 'day_announce') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 公告`, color: 'text-phase-resolution' };
+    if (phase === 'day_resolution') return { icon: <Sun size={phaseIconSize} />, text: `第${dayCount}天 - 结算`, color: 'text-phase-resolution' };
+    if (phase === 'hunter_shoot') return { icon: <Target size={phaseIconSize} />, text: '猎人开枪', color: 'text-role-hunter' };
     if (phase === 'game_over') {
       const aliveWolves = players.filter(p => p.isAlive && p.role === '狼人').length;
       const goodWin = aliveWolves === 0;
       return {
         icon: goodWin ? <Sun size={phaseIconSize} /> : <Skull size={phaseIconSize} />,
         text: goodWin ? '好人胜利' : '坏人胜利',
-        color: goodWin ? 'text-emerald-400' : 'text-rose-400'
+        color: goodWin ? 'text-state-win-good' : 'text-state-win-evil'
       };
     }
-    return { icon: null, text: '', color: 'text-zinc-400' };
+    return { icon: null, text: '', color: 'text-ink-muted' };
   };
 
   const phaseInfo = getPhaseText();
   const aliveWolves = players.filter(p => p.isAlive && p.role === '狼人').length;
   const gameOverWinner = aliveWolves === 0
-    ? { text: '好人胜利！', color: 'text-emerald-400' }
-    : { text: '坏人胜利！', color: 'text-rose-400' };
+    ? { text: '好人胜利！', color: 'text-state-win-good' }
+    : { text: '坏人胜利！', color: 'text-state-win-evil' };
   const layoutStyle = {
     '--panel-size': `${layout.panel}px`,
     '--card-width': `${layout.card}px`,
@@ -431,32 +431,32 @@ export function CirclePlayerLayout({
     <div ref={containerRef} className="relative w-full aspect-square max-w-5xl mx-auto" style={layoutStyle}>
       {/* 中央状态区域 - 圆形面板 */}
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-        <div className="bg-zinc-900/95 border-2 border-zinc-700 rounded-full p-3 sm:p-4 md:p-6 shadow-2xl backdrop-blur-lg w-[var(--panel-size)] h-[var(--panel-size)] flex items-center justify-center">
+        <div className="bg-bg-raised border-2 border-line-strong rounded-full p-3 sm:p-4 md:p-6 shadow-2xl backdrop-blur-lg w-[var(--panel-size)] h-[var(--panel-size)] flex items-center justify-center">
           <div className={`flex flex-col items-center gap-2 ${phaseInfo.color} w-full`}>
-            <div className="w-[var(--icon-size)] h-[var(--icon-size)] rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 border-2 border-zinc-700 flex items-center justify-center shadow-xl">
+            <div className="w-[var(--icon-size)] h-[var(--icon-size)] rounded-full bg-gradient-to-br from-bg-raised to-bg border-2 border-line-strong flex items-center justify-center shadow-xl">
               {phaseInfo.icon}
             </div>
             <span className="text-sm sm:text-base md:text-lg font-black tracking-wide leading-tight text-center">{phaseInfo.text}</span>
 
             {/* 发言顺序（只读指示，配置在 SetupScreen） */}
             {phase === 'day_discussion' && speakerIndex >= 0 && (
-              <div className="text-[10px] text-zinc-500 font-bold mt-1">
+              <div className="text-[10px] text-ink-faint font-bold mt-1">
                 {speakingOrder === 'left' ? '↻ 顺时针' : '↺ 逆时针'}
               </div>
             )}
 
             {phase === 'night' && getCurrentNightRole && (
-              <div className="text-xs text-zinc-400 font-medium">
+              <div className="text-xs text-ink-muted font-medium">
                 {getCurrentNightRole()} 行动中...
               </div>
             )}
             {phase === 'day_discussion' && speakerIndex >= 0 && (
-              <div className="text-xs text-zinc-400 font-medium truncate max-w-[12rem] text-center">
+              <div className="text-xs text-ink-muted font-medium truncate max-w-[12rem] text-center">
                 {aliveList[speakerIndex]?.name} 正在发言
               </div>
             )}
             {isThinking && (
-              <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+              <div className="flex items-center gap-1 text-[10px] text-ink-faint">
                 <RefreshCw size={12} className="animate-spin" />
                 <span>AI思考中...</span>
               </div>
@@ -467,8 +467,8 @@ export function CirclePlayerLayout({
             {/* 白天讨论 - 用户发言输入 */}
             {phase === 'day_discussion' && speakerIndex >= 0 && aliveList[speakerIndex]?.isUser && gameMode !== 'ai-only' && (
               <div className="w-full mt-2 space-y-1 max-w-[14rem]">
-                <div className="flex items-center gap-1 text-[10px] text-emerald-400 justify-center">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="flex items-center gap-1 text-[10px] text-state-speaking justify-center">
+                  <div className="h-1.5 w-1.5 rounded-full bg-state-speaking animate-pulse" />
                   <span className="font-bold">轮到你发言</span>
                 </div>
                 <div className="flex gap-1">
@@ -476,13 +476,13 @@ export function CirclePlayerLayout({
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
                     placeholder="输入你的分析..."
-                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-indigo-500 transition-colors"
+                    className="flex-1 bg-bg-raised border border-line-strong rounded-lg px-2 py-1.5 text-xs outline-none focus:border-accent transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && userInput?.trim() && handleUserSpeak()}
                   />
                   <button
                     onClick={handleUserSpeak}
                     disabled={!userInput?.trim()}
-                    className="px-2 bg-indigo-600 rounded-lg hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all"
+                    className="px-2 bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 disabled:hover:bg-accent transition-all"
                   >
                     <Send size={14}/>
                   </button>
@@ -495,17 +495,17 @@ export function CirclePlayerLayout({
               <div className="w-full mt-2 text-center">
                 {userPlayer?.isAlive ? (
                   <>
-                    <p className="text-[10px] text-zinc-400 mb-2">请基于逻辑投出放逐票</p>
+                    <p className="text-[10px] text-ink-muted mb-2">请基于逻辑投出放逐票</p>
                     <button
                       disabled={selectedTarget === null || isThinking}
                       onClick={handleVote}
-                      className="px-6 py-2 bg-amber-600 disabled:bg-zinc-800 disabled:text-zinc-600 text-black rounded-lg font-bold text-xs uppercase hover:bg-amber-500 transition-all"
+                      className="px-6 py-2 bg-amber-600 disabled:bg-bg-raised disabled:text-ink-faint text-black rounded-lg font-bold text-xs uppercase hover:bg-amber-500 transition-all"
                     >
                       投票
                     </button>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-zinc-500 text-xs">
+                  <div className="flex flex-col items-center gap-1 text-ink-faint text-xs">
                     <RefreshCw className="animate-spin" size={14}/>
                     <span>AI正在投票...</span>
                   </div>
@@ -516,11 +516,11 @@ export function CirclePlayerLayout({
             {/* 夜间用户行动 */}
             {phase === 'night' && isUserTurn && isUserTurn() && (
               <div className="w-full mt-2 text-center space-y-2 max-w-[14rem]">
-                <p className="text-xs text-indigo-400 font-bold">{userPlayer?.role} 行动</p>
-                <p className="text-[10px] text-zinc-500">点击头像选择目标</p>
+                <p className="text-xs text-phase-night font-bold">{userPlayer?.role} 行动</p>
+                <p className="text-[10px] text-ink-faint">点击头像选择目标</p>
 
                 {userPlayer?.role === '守卫' && nightDecisions?.lastGuardTarget !== null && (
-                  <p className="text-[10px] text-amber-400 flex items-center justify-center gap-1">
+                  <p className="text-[10px] text-phase-day flex items-center justify-center gap-1">
                     <AlertTriangle size={10}/>
                     上夜守护{nightDecisions.lastGuardTarget}号
                   </p>
@@ -529,8 +529,8 @@ export function CirclePlayerLayout({
                 {/* 狼人必须选择目标，不允许空刀 */}
 
                 {userPlayer?.role === '女巫' ? (
-                  <div className="text-left bg-zinc-800/50 p-2 rounded-lg text-[10px] space-y-2">
-                    <p className="text-zinc-400 text-center">
+                  <div className="text-left bg-bg-raised p-2 rounded-lg text-[10px] space-y-2">
+                    <p className="text-ink-muted text-center">
                       被刀：{nightDecisions?.wolfTarget !== null ? `${nightDecisions.wolfTarget}号` : '无'}
                     </p>
                     <div className="flex gap-1 justify-center flex-wrap">
@@ -544,14 +544,14 @@ export function CirclePlayerLayout({
                             setWitchHistory({ ...witchHistory, savedIds: [...witchHistory.savedIds, nightDecisions.wolfTarget] });
                             proceedNight(newDecisions);
                           }}
-                          className="px-2 py-1 bg-emerald-600 rounded text-white font-bold hover:bg-emerald-500"
+                          className="px-2 py-1 bg-success rounded text-white font-bold hover:opacity-90"
                         >
                           解药
                         </button>
                       )}
                       <button
                         onClick={() => proceedNight()}
-                        className="px-2 py-1 bg-zinc-700 rounded font-bold hover:bg-zinc-600"
+                        className="px-2 py-1 bg-bg-raised border border-line rounded font-bold hover:bg-bg-sunken"
                       >
                         不使用
                       </button>
@@ -566,27 +566,27 @@ export function CirclePlayerLayout({
                           setWitchHistory({ ...witchHistory, poisonedIds: [...witchHistory.poisonedIds, selectedTarget] });
                           proceedNight(newDecisions);
                         }}
-                        className="w-full px-2 py-1 bg-rose-600 rounded font-bold hover:bg-rose-500"
+                        className="w-full px-2 py-1 bg-danger rounded font-bold hover:opacity-90"
                       >
                         毒{selectedTarget}号
                       </button>
                     )}
                   </div>
                 ) : userPlayer?.role === '魔术师' ? (
-                  <div className="text-left bg-zinc-800/50 p-2 rounded-lg text-[10px] space-y-2">
-                    <p className="text-zinc-400 text-center">选择两个玩家进行交换</p>
+                  <div className="text-left bg-bg-raised p-2 rounded-lg text-[10px] space-y-2">
+                    <p className="text-ink-muted text-center">选择两个玩家进行交换</p>
                     {magicianHistory?.lastSwap && (
-                      <p className="text-amber-400 text-[9px] text-center flex items-center justify-center gap-1">
+                      <p className="text-phase-day text-[9px] text-center flex items-center justify-center gap-1">
                         <AlertTriangle size={9}/>
                         上次交换了{magicianHistory.lastSwap.player1Id}和{magicianHistory.lastSwap.player2Id}号
                       </p>
                     )}
                     <div className="flex gap-2 justify-center items-center">
-                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player1 !== null ? 'bg-violet-600' : 'bg-zinc-700'}`}>
+                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player1 !== null ? 'bg-role-magician' : 'bg-bg-raised border border-line'}`}>
                         {magicianSwapSelection.player1 !== null ? `${magicianSwapSelection.player1}号` : '?'}
                       </div>
-                      <Shuffle size={12} className="text-violet-400"/>
-                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player2 !== null ? 'bg-violet-600' : 'bg-zinc-700'}`}>
+                      <Shuffle size={12} className="text-role-magician"/>
+                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player2 !== null ? 'bg-role-magician' : 'bg-bg-raised border border-line'}`}>
                         {magicianSwapSelection.player2 !== null ? `${magicianSwapSelection.player2}号` : '?'}
                       </div>
                     </div>
@@ -603,7 +603,7 @@ export function CirclePlayerLayout({
                             }
                           }}
                           disabled={magicianSwapSelection.player1 !== null && magicianSwapSelection.player2 !== null}
-                          className="px-2 py-1 bg-violet-600 rounded font-bold hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+                          className="px-2 py-1 bg-role-magician rounded font-bold hover:opacity-90 disabled:bg-bg-raised disabled:border disabled:border-line disabled:text-ink-faint"
                         >
                           {magicianSwapSelection.player1 === null ? `选择${selectedTarget}号为第一个` : `选择${selectedTarget}号为第二个`}
                         </button>
@@ -627,7 +627,7 @@ export function CirclePlayerLayout({
                               addLog(`交换无效：${validation.reason}`, 'warning');
                             }
                           }}
-                          className="px-2 py-1 bg-indigo-600 rounded font-bold hover:bg-indigo-500"
+                          className="px-2 py-1 bg-accent rounded font-bold hover:bg-accent-hover"
                         >
                           确认交换
                         </button>
@@ -636,7 +636,7 @@ export function CirclePlayerLayout({
                         {magicianSwapSelection.player1 !== null && (
                           <button
                             onClick={() => setMagicianSwapSelection({ ...magicianSwapSelection, player1: null })}
-                            className="flex-1 px-1 py-1 bg-zinc-700 rounded text-[9px] hover:bg-zinc-600"
+                            className="flex-1 px-1 py-1 bg-bg-raised border border-line rounded text-[9px] hover:bg-bg-sunken"
                           >
                             清除第一个
                           </button>
@@ -644,7 +644,7 @@ export function CirclePlayerLayout({
                         {magicianSwapSelection.player2 !== null && (
                           <button
                             onClick={() => setMagicianSwapSelection({ ...magicianSwapSelection, player2: null })}
-                            className="flex-1 px-1 py-1 bg-zinc-700 rounded text-[9px] hover:bg-zinc-600"
+                            className="flex-1 px-1 py-1 bg-bg-raised border border-line rounded text-[9px] hover:bg-bg-sunken"
                           >
                             清除第二个
                           </button>
@@ -658,21 +658,21 @@ export function CirclePlayerLayout({
                           addLog(`你选择不交换`, 'info');
                           proceedNight({ ...nightDecisions, magicianSwap: null });
                         }}
-                        className="px-2 py-1 bg-zinc-700 rounded font-bold hover:bg-zinc-600"
+                        className="px-2 py-1 bg-bg-raised border border-line rounded font-bold hover:bg-bg-sunken"
                       >
                         不交换
                       </button>
                     </div>
                   </div>
                 ) : userPlayer?.role === ROLE_DEFINITIONS.DREAMWEAVER ? (
-                  <div className="text-left bg-zinc-800/50 p-2 rounded-lg text-[10px] space-y-2">
-                    <p className="text-zinc-400 text-center">选择一名玩家入梦（每晚必须）</p>
+                  <div className="text-left bg-bg-raised p-2 rounded-lg text-[10px] space-y-2">
+                    <p className="text-ink-muted text-center">选择一名玩家入梦（每晚必须）</p>
                     {dreamweaverHistory?.lastDreamTarget !== null && (
-                      <p className="text-amber-400 text-[9px] text-center flex items-center justify-center gap-1">
+                      <p className="text-phase-day text-[9px] text-center flex items-center justify-center gap-1">
                         <AlertTriangle size={9}/>
                         上晚入梦了{dreamweaverHistory.lastDreamTarget}号
                         {selectedTarget === dreamweaverHistory.lastDreamTarget && (
-                          <span className="text-rose-400 font-bold ml-1">连梦将击杀TA!</span>
+                          <span className="text-state-win-evil font-bold ml-1">连梦将击杀TA!</span>
                         )}
                       </p>
                     )}
@@ -693,9 +693,9 @@ export function CirclePlayerLayout({
                       }}
                       className={`w-full px-2 py-1.5 rounded font-bold hover:opacity-90 transition-all ${
                         selectedTarget !== null && selectedTarget === dreamweaverHistory?.lastDreamTarget
-                          ? 'bg-rose-600 text-white'
-                          : 'bg-indigo-600 text-white'
-                      } disabled:bg-zinc-700 disabled:text-zinc-500`}
+                          ? 'bg-danger text-white'
+                          : 'bg-role-dreamweaver text-white'
+                      } disabled:bg-bg-raised disabled:border disabled:border-line disabled:text-ink-faint`}
                     >
                       {selectedTarget !== null
                         ? (selectedTarget === dreamweaverHistory?.lastDreamTarget
@@ -727,7 +727,7 @@ export function CirclePlayerLayout({
                         }
                         proceedNight(updatedDecisions);
                       }}
-                      className="px-6 py-1.5 bg-indigo-600 disabled:bg-zinc-800 disabled:text-zinc-600 rounded-lg font-bold text-xs hover:bg-indigo-500 transition-all"
+                      className="px-6 py-1.5 bg-accent disabled:bg-bg-raised disabled:text-ink-faint rounded-lg font-bold text-xs hover:bg-accent-hover transition-all"
                     >
                       确认行动
                     </button>
@@ -758,11 +758,11 @@ export function CirclePlayerLayout({
              userPlayer?.role === ROLE_DEFINITIONS.KNIGHT &&
              !userPlayer?.hasUsedDuel && (
               <div className="w-full mt-2 text-center space-y-2">
-                <p className="text-xs text-amber-400 font-bold">⚔️ 骑士决斗</p>
-                <p className="text-[10px] text-zinc-400">
+                <p className="text-xs text-phase-day font-bold">⚔️ 骑士决斗</p>
+                <p className="text-[10px] text-ink-muted">
                   选择一名玩家发动决斗（整局一次）
                 </p>
-                <p className="text-[9px] text-zinc-500">
+                <p className="text-[9px] text-ink-faint">
                   对方是狼人→狼出局；对方是好人→你自刎
                 </p>
                 <button
@@ -771,7 +771,7 @@ export function CirclePlayerLayout({
                   className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${
                     selectedTarget !== null
                       ? 'bg-amber-600 hover:bg-amber-500 cursor-pointer'
-                      : 'bg-zinc-700 cursor-not-allowed opacity-50'
+                      : 'bg-bg-raised cursor-not-allowed opacity-50'
                   }`}
                 >
                   {selectedTarget !== null ? `决斗 ${selectedTarget}号` : '请选择目标'}
@@ -782,8 +782,8 @@ export function CirclePlayerLayout({
             {/* 猎人开枪 */}
             {phase === 'hunter_shoot' && hunterShooting && (
               <div className="w-full mt-2 text-center space-y-2">
-                <p className="text-xs text-orange-400 font-bold">猎人开枪</p>
-                <p className="text-[10px] text-zinc-400">
+                <p className="text-xs text-role-hunter font-bold">猎人开枪</p>
+                <p className="text-[10px] text-ink-muted">
                   {hunterShooting.id}号 可带走一人
                 </p>
                 <button
@@ -793,7 +793,7 @@ export function CirclePlayerLayout({
                     hunterShooting?.flowSource,
                     hunterShooting?.chainDepth
                   )}
-                  className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-orange-600 hover:bg-orange-500' : 'bg-zinc-700 hover:bg-zinc-600'}`}
+                  className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-role-hunter hover:opacity-90' : 'bg-bg-raised border border-line hover:bg-bg-sunken'}`}
                 >
                   {selectedTarget !== null ? `开枪${selectedTarget}号` : '不开枪'}
                 </button>
@@ -804,12 +804,12 @@ export function CirclePlayerLayout({
             {phase === 'game_over' && (
               <div className="w-full mt-2 text-center space-y-2">
                 <p className={`text-sm font-black tracking-wide ${gameOverWinner.color}`}>{gameOverWinner.text}</p>
-                <h2 className="text-lg font-black uppercase tracking-widest text-amber-400">Game Over</h2>
-                <p className="text-[10px] text-zinc-400">查看历史记录</p>
+                <h2 className="text-lg font-black uppercase tracking-widest text-phase-day">Game Over</h2>
+                <p className="text-[10px] text-ink-muted">查看历史记录</p>
                 <div className="flex gap-2 justify-center flex-wrap">
                   <button
                     onClick={exportGameLog}
-                    className="px-4 py-1.5 bg-indigo-600 rounded-lg font-bold text-xs uppercase hover:bg-indigo-500 transition-all flex items-center gap-1"
+                    className="px-4 py-1.5 bg-accent rounded-lg font-bold text-xs uppercase hover:bg-accent-hover transition-all flex items-center gap-1"
                   >
                     <Download size={12}/> 导出
                   </button>
@@ -823,7 +823,7 @@ export function CirclePlayerLayout({
                   )}
                   <button
                     onClick={restartGame}
-                    className="px-4 py-1.5 bg-emerald-600 rounded-lg font-bold text-xs uppercase hover:bg-emerald-500 transition-all flex items-center gap-1"
+                    className="px-4 py-1.5 bg-success rounded-lg font-bold text-xs uppercase hover:opacity-90 transition-all flex items-center gap-1"
                   >
                     <RotateCcw size={12}/> 重开
                   </button>
@@ -834,7 +834,7 @@ export function CirclePlayerLayout({
             {Object.keys(cardPositions).length > 0 && (
               <button
                 onClick={resetPositions}
-                className="mt-2 text-[9px] text-zinc-500 hover:text-zinc-300 underline"
+                className="mt-2 text-[9px] text-ink-faint hover:text-ink-muted underline"
               >
                 重置卡片位置
               </button>
@@ -875,16 +875,16 @@ export function CirclePlayerLayout({
               className={`
                 relative p-2 sm:p-3 rounded-2xl border-2 transition-transform select-none touch-none
                 w-[var(--card-width)] min-h-[var(--card-height)] flex flex-col items-center
-                ${selectedTarget === p.id ? 'border-indigo-500 bg-indigo-500/20 ring-4 ring-indigo-500/30 scale-110' : 'bg-zinc-900/95 border-zinc-700'}
-                ${!p.isAlive ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-grab hover:border-zinc-500 hover:scale-105'}
-                ${isSpeaking ? 'ring-2 ring-emerald-500 animate-pulse' : ''}
-                ${isDragging ? 'shadow-2xl ring-2 ring-indigo-400/40 scale-105 cursor-grabbing' : 'shadow-xl'}
+                ${selectedTarget === p.id ? 'border-state-selected bg-state-selected-soft ring-4 ring-state-selected/30 scale-110' : 'bg-bg-raised border-line-strong'}
+                ${!p.isAlive ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-grab hover:border-line hover:scale-105'}
+                ${isSpeaking ? 'ring-2 ring-state-speaking animate-pulse' : ''}
+                ${isDragging ? 'shadow-2xl ring-2 ring-state-selected/40 scale-105 cursor-grabbing' : 'shadow-xl'}
                 backdrop-blur-sm
               `}
             >
 
               {/* 玩家编号 */}
-              <span className="absolute -top-2 -left-1 text-[10px] sm:text-xs font-black text-zinc-100 bg-zinc-700 px-2 py-0.5 rounded-full border border-zinc-600 leading-none shadow-lg">
+              <span className="absolute -top-2 -left-1 text-[10px] sm:text-xs font-black text-ink bg-bg-raised px-2 py-0.5 rounded-full border border-line-strong leading-none shadow-lg">
                 {p.id}
               </span>
 
@@ -914,7 +914,7 @@ export function CirclePlayerLayout({
                 )}
                 {!p.isAlive && (
                   <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                    <Skull size={18} className="text-rose-600" />
+                    <Skull size={18} className="text-state-win-evil" />
                   </div>
                 )}
               </div>
@@ -924,7 +924,7 @@ export function CirclePlayerLayout({
 
               {/* AI模型名称 */}
               {!p.isUser && modelLabel && (
-                <div className="text-[8px] text-zinc-500 mt-0.5 truncate w-full text-center leading-tight px-1">
+                <div className="text-[8px] text-ink-faint mt-0.5 truncate w-full text-center leading-tight px-1">
                   {String(modelLabel).slice(0, 18)}
                 </div>
               )}
@@ -932,17 +932,17 @@ export function CirclePlayerLayout({
               {/* 身份标签 */}
               <div className="flex flex-wrap gap-0.5 justify-center mt-1">
                 {p.isUser && (
-                  <span className="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-black flex items-center gap-0.5 whitespace-nowrap">
+                  <span className="text-[9px] bg-state-speaking text-white px-1.5 py-0.5 rounded font-black flex items-center gap-0.5 whitespace-nowrap">
                     {getRoleIcon(p.role, 10)} {p.role}
                   </span>
                 )}
                 {isTeammate && (
-                  <span className="text-[9px] bg-rose-500 text-white px-1.5 py-0.5 rounded font-black flex items-center gap-0.5 whitespace-nowrap">
+                  <span className="text-[9px] bg-role-wolf text-white px-1.5 py-0.5 rounded font-black flex items-center gap-0.5 whitespace-nowrap">
                     {getRoleIcon('狼人', 10)} 狼
                   </span>
                 )}
                 {((gameMode === 'ai-only') || (phase === 'game_over')) && !p.isUser && !isTeammate && p.role && (
-                  <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 whitespace-nowrap">
+                  <span className="text-[9px] bg-accent text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 whitespace-nowrap">
                     {getRoleIcon(p.role, 10)} {p.role}
                   </span>
                 )}
@@ -953,7 +953,7 @@ export function CirclePlayerLayout({
                 <div className="flex flex-wrap gap-0.5 justify-center mt-1.5 max-w-full">
                   {actionIcons.slice(0, 4)}
                   {actionIcons.length > 4 && (
-                    <span className="text-[8px] text-zinc-500">+{actionIcons.length - 4}</span>
+                    <span className="text-[8px] text-ink-faint">+{actionIcons.length - 4}</span>
                   )}
                 </div>
               )}
@@ -968,7 +968,7 @@ export function CirclePlayerLayout({
           onClick={() => setPreviewPlayer(null)}
         >
           <div
-            className="relative w-[min(90vw,420px)] aspect-square bg-zinc-900/95 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden"
+            className="relative w-[min(90vw,420px)] aspect-square bg-bg-raised border border-line-strong rounded-3xl shadow-2xl overflow-hidden"
             onClick={(event) => event.stopPropagation()}
           >
             {previewPlayer.avatarUrl ? (
@@ -979,18 +979,18 @@ export function CirclePlayerLayout({
               />
             ) : (
               <div
-                className="w-full h-full flex items-center justify-center text-zinc-400"
+                className="w-full h-full flex items-center justify-center text-ink-muted"
                 style={{ backgroundColor: previewPlayer.avatarColor }}
               >
                 <User size={48} className="text-white/60" />
               </div>
             )}
             <div className="absolute bottom-0 left-0 right-0 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
-              <div className="text-sm font-bold text-zinc-100">{previewPlayer.name}</div>
-              <div className="text-[10px] text-zinc-300">{previewPlayer.role || '身份未知'}</div>
+              <div className="text-sm font-bold text-ink">{previewPlayer.name}</div>
+              <div className="text-[10px] text-ink-muted">{previewPlayer.role || '身份未知'}</div>
             </div>
             <button
-              className="absolute top-3 right-3 text-zinc-300 hover:text-white text-xs bg-zinc-800/80 px-2 py-1 rounded-full"
+              className="absolute top-3 right-3 text-ink-muted hover:text-ink text-xs bg-bg-raised px-2 py-1 rounded-full"
               onClick={() => setPreviewPlayer(null)}
             >
               关闭
