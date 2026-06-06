@@ -15,22 +15,22 @@ export function SpeechBubble({
     right: {
       container: 'left-full ml-3 top-1/2 -translate-y-1/2',
       tail: 'left-0 top-1/2 -translate-y-1/2 -translate-x-full',
-      tailShape: 'border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-zinc-800'
+      tailShape: 'border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-bg-raised'
     },
     left: {
       container: 'right-full mr-3 top-1/2 -translate-y-1/2',
       tail: 'right-0 top-1/2 -translate-y-1/2 translate-x-full',
-      tailShape: 'border-t-8 border-b-8 border-l-8 border-t-transparent border-b-transparent border-l-zinc-800'
+      tailShape: 'border-t-8 border-b-8 border-l-8 border-t-transparent border-b-transparent border-l-bg-raised'
     },
     top: {
       container: 'bottom-full mb-3 left-1/2 -translate-x-1/2',
       tail: 'bottom-0 left-1/2 -translate-x-1/2 translate-y-full',
-      tailShape: 'border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-zinc-800'
+      tailShape: 'border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-bg-raised'
     },
     bottom: {
       container: 'top-full mt-3 left-1/2 -translate-x-1/2',
       tail: 'top-0 left-1/2 -translate-x-1/2 -translate-y-full',
-      tailShape: 'border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-zinc-800'
+      tailShape: 'border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-bg-raised'
     }
   };
 
@@ -63,28 +63,28 @@ export function SpeechBubble({
       {/* 气泡主体 */}
       <div 
         className={`
-          relative bg-zinc-800 border-2 rounded-2xl p-3 shadow-xl
+          relative bg-bg-raised border-2 rounded-2xl p-3 shadow-xl
           min-w-[120px] max-w-[200px]
-          ${isNightContent ? 'border-indigo-500/50' : 'border-amber-500/50'}
+          ${isNightContent ? 'border-phase-night/50' : 'border-phase-day/50'}
           transition-all duration-300 hover:shadow-2xl
         `}
       >
         {/* 阶段图标 */}
         <div className={`
           absolute -top-2 -right-2 p-1 rounded-full
-          ${isNightContent ? 'bg-indigo-600' : 'bg-amber-500'}
+          ${isNightContent ? 'bg-phase-night' : 'bg-phase-day'}
         `}>
           {isNightContent ? <Moon size={12} className="text-white" /> : <MessageCircle size={12} className="text-white" />}
         </div>
 
         {/* 思考过程（如果有） */}
         {thought && (
-          <div className="mb-2 pb-2 border-b border-zinc-700">
+          <div className="mb-2 pb-2 border-b border-line-strong">
             <div className="flex items-center gap-1 mb-1">
-              <Brain size={10} className="text-purple-400 flex-shrink-0" />
-              <span className="text-[0.5rem] md:text-[0.625rem] text-purple-400 font-bold uppercase">思考</span>
+              <Brain size={10} className="text-role-seer flex-shrink-0" />
+              <span className="text-[0.5rem] md:text-[0.625rem] text-role-seer font-bold uppercase">思考</span>
             </div>
-            <p className={`text-[0.5rem] md:text-[0.625rem] text-zinc-400 italic leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
+            <p className={`text-[0.5rem] md:text-[0.625rem] text-ink-muted italic leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
               {thought}
             </p>
             {thought.length > 80 && (
@@ -93,7 +93,7 @@ export function SpeechBubble({
                   e.stopPropagation();
                   setIsExpanded(!isExpanded);
                 }}
-                className="flex items-center gap-0.5 mt-1 text-[0.5rem] text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-0.5 mt-1 text-[0.5rem] text-ink-faint hover:text-ink-muted transition-colors"
               >
                 {isExpanded ? (
                   <>收起 <ChevronUp size={10} /></>
@@ -109,12 +109,12 @@ export function SpeechBubble({
         <div>
           {action && (
             <div className="flex items-center gap-1 mb-1">
-              <span className={`text-[8px] font-bold uppercase ${isNightContent ? 'text-indigo-400' : 'text-amber-400'}`}>
+              <span className={`text-[8px] font-bold uppercase ${isNightContent ? 'text-phase-night' : 'text-phase-day'}`}>
                 {action.actionType || '行动'}
               </span>
             </div>
           )}
-          <p className="text-[10px] text-zinc-200 leading-relaxed">
+          <p className="text-[10px] text-ink leading-relaxed">
             {displayContent}
           </p>
           
@@ -125,7 +125,7 @@ export function SpeechBubble({
                 e.stopPropagation();
                 setIsExpanded(!isExpanded);
               }}
-              className="flex items-center gap-0.5 mt-1 text-[8px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="flex items-center gap-0.5 mt-1 text-[8px] text-ink-faint hover:text-ink-muted transition-colors"
             >
               {isExpanded ? (
                 <>收起 <ChevronUp size={10} /></>
