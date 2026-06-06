@@ -499,7 +499,7 @@ export function CirclePlayerLayout({
                     <button
                       disabled={selectedTarget === null || isThinking}
                       onClick={handleVote}
-                      className="px-6 py-2 bg-amber-600 disabled:bg-bg-raised disabled:text-ink-faint text-black rounded-lg font-bold text-xs uppercase hover:bg-amber-500 transition-all"
+                      className="px-6 py-2 bg-accent disabled:bg-bg-raised disabled:text-ink-faint text-black rounded-lg font-bold text-xs uppercase hover:bg-accent-hover transition-all"
                     >
                       投票
                     </button>
@@ -770,7 +770,7 @@ export function CirclePlayerLayout({
                   disabled={selectedTarget === null}
                   className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${
                     selectedTarget !== null
-                      ? 'bg-amber-600 hover:bg-amber-500 cursor-pointer'
+                      ? 'bg-accent hover:bg-accent-hover cursor-pointer'
                       : 'bg-bg-raised cursor-not-allowed opacity-50'
                   }`}
                 >
@@ -816,7 +816,7 @@ export function CirclePlayerLayout({
                   {onReplay && (
                   <button
                     onClick={onReplay}
-                    className="px-4 py-1.5 bg-amber-600 rounded-lg font-bold text-xs uppercase hover:bg-amber-500 transition-all flex items-center gap-1"
+                    className="px-4 py-1.5 bg-accent rounded-lg font-bold text-xs uppercase hover:bg-accent-hover transition-all flex items-center gap-1"
                   >
                     <PlayCircle size={12}/> 回放
                   </button>

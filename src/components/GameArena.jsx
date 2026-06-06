@@ -293,7 +293,7 @@ export function GameArena({
       {/* 双预言家对跳提示 */}
       {hasDualSeer && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-2 px-4 py-2 bg-amber-600/90 border border-amber-400 rounded-full text-sm text-amber-50 shadow-lg animate-pulse">
+          <div className="flex items-center gap-2 px-4 py-2 bg-accent/90 border border-accent rounded-full text-sm text-ink shadow-lg animate-pulse">
             <span className="font-bold">对跳!</span>
             <span>{[...seerClaimants].map(id => `${id}号`).join(' vs ')} 均声明预言家</span>
           </div>
