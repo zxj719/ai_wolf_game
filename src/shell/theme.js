@@ -36,3 +36,18 @@ export function writeStoredThemePref(pref) {
   if (typeof window === 'undefined' || !window.localStorage) return;
   window.localStorage.setItem(THEME_STORAGE_KEY, normalizeThemePref(pref));
 }
+
+/**
+ * 把全局主题偏好同步到 <html data-theme>，与 index.html 的防 FOUC 脚本逻辑一致：
+ * 仅显式 light/dark 写属性；'system' 移除属性（交回 :root / 模块默认）。
+ * 供 ShellProvider 在 themePref 变化时调用，实现运行时即时切换（无需刷新）。
+ */
+export function applyDocumentThemePref(pref) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (pref === 'light' || pref === 'dark') {
+    root.setAttribute('data-theme', pref);
+  } else {
+    root.removeAttribute('data-theme');
+  }
+}

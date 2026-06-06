@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   THEME_STORAGE_KEY,
   DEFAULT_THEME_PREF,
@@ -6,6 +6,7 @@ import {
   readStoredThemePref,
   writeStoredThemePref,
   resolveTheme,
+  applyDocumentThemePref,
 } from '../theme.js';
 
 describe('normalizeThemePref', () => {
@@ -48,5 +49,20 @@ describe('storage round-trip', () => {
   it('normalizes junk on read', () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'banana');
     expect(readStoredThemePref()).toBe(DEFAULT_THEME_PREF);
+  });
+});
+
+describe('applyDocumentThemePref', () => {
+  afterEach(() => document.documentElement.removeAttribute('data-theme'));
+  it('sets data-theme for explicit light/dark', () => {
+    applyDocumentThemePref('dark');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    applyDocumentThemePref('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+  });
+  it('removes data-theme for system', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    applyDocumentThemePref('system');
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
   });
 });

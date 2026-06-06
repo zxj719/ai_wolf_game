@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, useEffect } from 'react';
 import { ShellContext } from './ShellContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LOCALE_STORAGE_KEY, normalizeLocale, readStoredLocale, writeStoredLocale } from '../i18n/locale.js';
-import { THEME_STORAGE_KEY, readStoredThemePref, writeStoredThemePref, normalizeThemePref } from './theme.js';
+import { THEME_STORAGE_KEY, readStoredThemePref, writeStoredThemePref, normalizeThemePref, applyDocumentThemePref } from './theme.js';
 import { createApiClient } from '../services/api/client';
 import { getToken as getStoredAuthToken } from '../utils/authToken';
 import { normalizePath, resolveLegacyPath } from './paths';
@@ -70,6 +70,10 @@ export function ShellProvider({ children }) {
 
   useEffect(() => {
     writeStoredThemePref(themePref);
+  }, [themePref]);
+
+  useEffect(() => {
+    applyDocumentThemePref(themePref);
   }, [themePref]);
 
   const setThemePref = useCallback((next) => {
