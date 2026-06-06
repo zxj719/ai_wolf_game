@@ -33,20 +33,25 @@
   --success: #10b981;
   --warning: #f59e0b;
 
+  /* 市场语义（A股：红涨绿跌）—— 与 UI 语义色解耦，仅股票模块使用 */
+  --market-up:   #ef4444;
+  --market-down: #10b981;
+
   /* 阴影 */
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.04);
-  --shadow-pop:  0 20px 48px rgb(0 0 0 / 0.12);
+  --shadow-card: 0 1px 2px rgb(10 36 64 / 0.06), 0 0 0 1px rgb(10 36 64 / 0.04);
+  --shadow-pop:  0 20px 48px rgb(10 36 64 / 0.12);
 
   /* 圆角 */
   --radius-card:   16px;
   --radius-button: 10px;
+  --radius-input:  8px;
   --radius-pill:   9999px;
 }
 
 [data-theme="dark"] {
   --bg:        #09090b;
   --bg-raised: #18181b;
-  --bg-sunken: #000000;
+  --bg-sunken: #050506;
 
   --border:        #27272a;
   --border-strong: #3f3f46;
@@ -64,6 +69,10 @@
   --success: #10b981;
   --warning: #f59e0b;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.04);
-  --shadow-pop:  0 20px 48px rgb(0 0 0 / 0.6);
+  /* 市场语义（A股：红涨绿跌）—— 与 UI 语义色解耦，仅股票模块使用 */
+  --market-up:   #f87171;
+  --market-down: #34d399;
+
+  --shadow-card: 0 1px 2px rgb(20 12 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-pop:  0 24px 56px rgb(0 0 0 / 0.65);
 }

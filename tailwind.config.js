@@ -27,6 +27,10 @@ export default {
         danger:  'var(--danger)',
         success: 'var(--success)',
         warning: 'var(--warning)',
+        market: {
+          up:   'var(--market-up)',
+          down: 'var(--market-down)',
+        },
       },
       borderColor: {
         line:          'var(--border)',
@@ -35,6 +39,8 @@ export default {
       borderRadius: {
         card:   'var(--radius-card)',
         button: 'var(--radius-button)',
+        input:  'var(--radius-input)',
+        pill:   'var(--radius-pill)',
       },
       boxShadow: {
         card: 'var(--shadow-card)',
