@@ -39,9 +39,9 @@ export function MessageInput({ value, onChange, onSend, onTyping, disabled }) {
         onChange={(e) => handleChange(e.target.value)}
         onBlur={stopTyping}
         placeholder={disabled ? '连接中…' : '输入消息'}
-        className="flex-1 px-3 py-2 rounded border border-zinc-300 text-ink disabled:opacity-50"
+        className="flex-1 px-3 py-2 rounded border border-line bg-bg-raised text-ink disabled:opacity-50"
       />
-      <button type="submit" disabled={disabled} className="px-4 py-2 rounded bg-amber-600 text-white disabled:opacity-50">发送</button>
+      <button type="submit" disabled={disabled} className="px-4 py-2 rounded bg-accent hover:bg-accent-hover text-white disabled:opacity-50">发送</button>
     </form>
   );
 }

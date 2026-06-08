@@ -18,12 +18,12 @@ export function MessageList({ meId, messages }) {
             <span
               className={[
                 'inline-block max-w-[75%] px-3 py-2 rounded-lg text-sm',
-                mine ? 'bg-amber-600 text-white' : 'bg-zinc-100 text-ink',
+                mine ? 'bg-accent text-white' : 'bg-bg-raised text-ink',
                 m.pending ? 'opacity-60' : '',
               ].join(' ')}
             >
               {m.body}
-              {m.failed && <span className="block text-xs text-red-200 mt-0.5">发送失败</span>}
+              {m.failed && <span className="block text-xs text-danger mt-0.5">发送失败</span>}
             </span>
           </div>
         );

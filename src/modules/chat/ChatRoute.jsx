@@ -84,7 +84,7 @@ export default function ChatRoute() {
       <div className="mac-app-shell min-h-screen flex items-center justify-center bg-bg">
         <div className="text-center space-y-3">
           <p className="text-ink">好友功能需要登录</p>
-          <button type="button" onClick={() => navigate(ROUTES.LOGIN)} className="px-4 py-2 rounded bg-amber-600 text-white">
+          <button type="button" onClick={() => navigate(ROUTES.LOGIN)} className="px-4 py-2 rounded bg-accent hover:bg-accent-hover text-white">
             去登录
           </button>
         </div>
@@ -100,7 +100,7 @@ export default function ChatRoute() {
           <button type="button" onClick={() => navigate(ROUTES.HOME)} className="text-sm text-ink-muted">返回</button>
         </header>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <AddFriend
           query={query} results={results}

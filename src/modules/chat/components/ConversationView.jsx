@@ -110,22 +110,22 @@ export function ConversationView({ api, meId, friend, chat, onStartCall }) {
   }, [draft, send, friendId, meId]);
 
   return (
-    <div className="flex flex-col h-[60vh] border border-zinc-200 rounded">
-      <div className="px-3 py-2 border-b text-sm font-semibold text-ink flex items-center gap-2">
+    <div className="flex flex-col h-[60vh] border border-line rounded">
+      <div className="px-3 py-2 border-b border-line text-sm font-semibold text-ink flex items-center gap-2">
         {friend.username}
-        <span className={`inline-block w-2 h-2 rounded-full ${onlineFriends.has(friendId) ? 'bg-green-500' : 'bg-zinc-300'}`} />
+        <span className={`inline-block w-2 h-2 rounded-full ${onlineFriends.has(friendId) ? 'bg-success' : 'bg-ink-faint'}`} />
         {status !== 'open' && <span className="text-xs text-ink-muted font-normal">（连接中…）</span>}
         {onStartCall && (
-          <button type="button" onClick={onStartCall} className="ml-auto text-sm text-amber-700">视频通话</button>
+          <button type="button" onClick={onStartCall} className="ml-auto text-sm text-accent">视频通话</button>
         )}
       </div>
       <div className="flex-1 overflow-y-auto p-3">
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <MessageList meId={meId} messages={messages} />
         {peerTyping && <p className="text-xs text-ink-muted mt-2">对方正在输入…</p>}
         <div ref={endRef} />
       </div>
-      <div className="p-2 border-t">
+      <div className="p-2 border-t border-line">
         <MessageInput
           value={draft}
           disabled={status !== 'open'}

@@ -48,9 +48,9 @@ export function VideoCallPanel(props) {
   if (state.phase === 'error') {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-        <div className="bg-white rounded-lg p-6 text-center space-y-4 max-w-sm">
-          <p className="text-red-600">{state.error || '通话失败'}</p>
-          <button type="button" onClick={dismiss} className="px-4 py-2 rounded bg-zinc-700 text-white">关闭</button>
+        <div className="bg-bg-raised rounded-lg p-6 text-center space-y-4 max-w-sm">
+          <p className="text-danger">{state.error || '通话失败'}</p>
+          <button type="button" onClick={dismiss} className="px-4 py-2 rounded bg-bg-sunken text-ink">关闭</button>
         </div>
       </div>
     );
@@ -59,11 +59,11 @@ export function VideoCallPanel(props) {
   if (state.phase === 'ringing') {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-        <div className="bg-white rounded-lg p-6 text-center space-y-4">
+        <div className="bg-bg-raised rounded-lg p-6 text-center space-y-4">
           <p className="text-ink">{name} 邀请你视频通话</p>
           <div className="flex gap-4 justify-center">
-            <button type="button" onClick={accept} className="px-4 py-2 rounded bg-green-600 text-white">接听</button>
-            <button type="button" onClick={reject} className="px-4 py-2 rounded bg-red-600 text-white">拒绝</button>
+            <button type="button" onClick={accept} className="px-4 py-2 rounded bg-success text-white">接听</button>
+            <button type="button" onClick={reject} className="px-4 py-2 rounded bg-danger text-white">拒绝</button>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@ export function VideoCallPanel(props) {
           <button type="button" onClick={() => setCameraMinimized((v) => !v)} className={btn}>{cameraMinimized ? '显示摄像头' : '最小化摄像头'}</button>
           <button type="button" onClick={() => setControlsHidden(true)} className={btn}>隐藏栏</button>
           <button type="button" onClick={toggleFullscreen} className={btn}>{isFullscreen ? '退出全屏' : '全屏'}</button>
-          <button type="button" onClick={hangup} className="px-4 py-2 rounded bg-red-600 text-white text-sm">挂断</button>
+          <button type="button" onClick={hangup} className="px-4 py-2 rounded bg-danger text-white text-sm">挂断</button>
         </div>
       )}
     </div>

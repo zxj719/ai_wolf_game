@@ -12,7 +12,7 @@ export function FriendList({ friends, onSelect }) {
           <button
             type="button"
             onClick={() => onSelect?.(f)}
-            className="w-full text-left px-3 py-2 rounded hover:bg-zinc-100 text-ink"
+            className="w-full text-left px-3 py-2 rounded hover:bg-bg-sunken text-ink"
           >
             {f.username}
           </button>
