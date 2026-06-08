@@ -139,10 +139,7 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
       if (!takeToken(conn, 'call', RATE_CALL)) return;     // 限流（先于好友查，防 ICE flood 放大）
       const to = Number(msg.to);
       if (!Number.isFinite(to)) return;
-      if (msg.type === 'call:offer' && !conn.isAdmin) {     // 仅管理员可发起（前端隐藏不算边界）
-        conn.send({ type: 'call:error', error: 'not allowed' });
-        return;
-      }
+      // 任意登录用户都可发起视频/屏幕共享（对标腾讯会议/钉钉），仅需是好友。
       // 好友校验用 TTL 缓存集（不强制 refetch；mid-call 的 flood 全命中缓存，不放大成 Worker fetch）
       const friends = await friendsOf(conn);
       if (!friends.has(to)) return;

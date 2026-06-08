@@ -159,7 +159,7 @@ export function useWebRTC({ chat, isAdmin }) {
   }
 
   const startCall = useCallback(async (peerId, peerName) => {
-    if (!isAdmin || phaseRef.current !== 'idle') return;
+    if (phaseRef.current !== 'idle') return;             // 任意登录用户都可发起
     const pid = Number(peerId);
     peerRef.current = pid;
     dispatch({ type: 'START_CALL', peerId: pid, peerName });
@@ -181,7 +181,7 @@ export function useWebRTC({ chat, isAdmin }) {
       sendSignal({ type: 'call:hangup', to: pid });
       cleanupRef.current(); dispatch({ type: 'ERROR', error: mediaError(e) });
     }
-  }, [isAdmin, sendSignal, newPc]);
+  }, [sendSignal, newPc]);
 
   const accept = useCallback(async () => {
     if (phaseRef.current !== 'ringing' || !peerRef.current || !pendingOffer.current) return;

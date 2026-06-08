@@ -115,7 +115,7 @@ export default function ChatRoute() {
         {selectedFriend && (
           <ConversationView
             api={api} meId={user.id} friend={selectedFriend} chat={chat}
-            onStartCall={isAdmin ? () => webrtc.startCall(selectedFriend.id, selectedFriend.username) : null}
+            onStartCall={() => webrtc.startCall(selectedFriend.id, selectedFriend.username)}
           />
         )}
       </div>

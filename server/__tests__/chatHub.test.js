@@ -122,13 +122,12 @@ describe('chatHub call signaling', () => {
     expect(has(b, (m) => m.type === 'call:offer' && m.from === 1 && m.sdp === 'OFFER')).toBe(true);
   });
 
-  it('REJECTS call:offer from a non-admin and does not relay', async () => {
+  it('relays call:offer from a NON-admin friend (any logged-in user may call)', async () => {
     const hub = createChatHub({ persist: vi.fn(), getFriends: async () => new Set([1, 2]), now: () => 1 });
     const a = fakeConn(1), b = fakeConn(2);          // a NOT admin
     await hub.addConnection(a); await hub.addConnection(b);
     await hub.handleMessage(a, JSON.stringify({ type: 'call:offer', to: 2, sdp: 'X' }));
-    expect(has(b, (m) => m.type === 'call:offer')).toBe(false);
-    expect(has(a, (m) => m.type === 'call:error' && m.error === 'not allowed')).toBe(true);
+    expect(has(b, (m) => m.type === 'call:offer' && m.from === 1 && m.sdp === 'X')).toBe(true);
   });
 
   it('relays answer / ice / hangup between friends (non-admin allowed)', async () => {
