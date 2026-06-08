@@ -64,7 +64,7 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
   };
 
   const Rule = ({ passed, label }) => (
-    <div className={`flex items-center gap-2 text-sm ${passed ? 'text-emerald-600' : 'text-slate-400'}`}>
+    <div className={`flex items-center gap-2 text-sm ${passed ? 'text-success' : 'text-ink-faint'}`}>
       {passed ? <Check size={14} /> : <X size={14} />}
       <span>{label}</span>
     </div>
@@ -73,14 +73,14 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
   return (
     <AuthShell locale={locale} title={authCopy.registerTitle} subtitle={authCopy.guestDescription}>
       {(localError || error) && (
-        <div className="mb-6 rounded-[22px] border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-600">
+        <div className="mb-6 rounded-[22px] border border-danger bg-danger-soft p-4 text-sm text-danger">
           {localError || error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <label className="block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.username}</span>
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.username}</span>
           <input
             id="register-username"
             type="text"
@@ -91,11 +91,11 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
             disabled={isLoading}
             autoComplete="username"
           />
-          {username && !isUsernameValid && <p className="mt-2 text-sm text-rose-600">{authCopy.invalidUsername}</p>}
+          {username && !isUsernameValid && <p className="mt-2 text-sm text-danger">{authCopy.invalidUsername}</p>}
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.email}</span>
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.email}</span>
           <input
             id="register-email"
             type="email"
@@ -109,7 +109,7 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.password}</span>
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.password}</span>
           <div className="relative">
             <input
               id="register-password"
@@ -125,7 +125,7 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
               type="button"
               onClick={() => setShowPassword((value) => !value)}
               aria-label={showPassword ? authCopy.hidePassword : authCopy.showPassword}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -142,7 +142,7 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.confirmPassword}</span>
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.confirmPassword}</span>
           <input
             id="register-confirm-password"
             type={showPassword ? 'text' : 'password'}
@@ -154,7 +154,7 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
             autoComplete="new-password"
           />
           {confirmPassword && password !== confirmPassword && (
-            <p className="mt-2 text-sm text-rose-600">{authCopy.passwordMismatch}</p>
+            <p className="mt-2 text-sm text-danger">{authCopy.passwordMismatch}</p>
           )}
         </label>
 
@@ -177,9 +177,9 @@ export function RegisterForm({ onSwitchToLogin, locale = 'zh' }) {
         </button>
       </form>
 
-      <div className="mt-6 text-sm text-slate-500">
+      <div className="mt-6 text-sm text-ink-muted">
         {authCopy.hasAccount}{' '}
-        <button type="button" onClick={onSwitchToLogin} className="font-semibold text-sky-600 hover:text-sky-500">
+        <button type="button" onClick={onSwitchToLogin} className="font-semibold text-accent hover:text-accent-hover">
           {authCopy.loginNow}
         </button>
       </div>

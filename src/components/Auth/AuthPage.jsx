@@ -49,11 +49,11 @@ export function AuthPage({ onGuestPlay, locale = 'zh' }) {
       <button type="button" onClick={onGuestPlay} className="mac-button mac-button-secondary">
         {authCopy.guestEnter}
       </button>
-      <p className="mt-4 text-xs leading-6 text-slate-400">
+      <p className="mt-4 text-xs leading-6 text-ink-faint">
         {authCopy.guestTermsPrefix}{' '}
-        <a href="/terms.html" className="text-slate-500 hover:text-slate-700">{dashboardCopy.footerTerms}</a>
+        <a href="/terms.html" className="text-ink-muted hover:text-ink">{dashboardCopy.footerTerms}</a>
         {' '}{termsJoiner}{' '}
-        <a href="/privacy.html" className="text-slate-500 hover:text-slate-700">{dashboardCopy.footerPrivacy}</a>
+        <a href="/privacy.html" className="text-ink-muted hover:text-ink">{dashboardCopy.footerPrivacy}</a>
       </p>
     </div>
   ) : null;

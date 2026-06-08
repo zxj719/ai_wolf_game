@@ -33,11 +33,11 @@ export function VerifyEmailPage({ token, onSuccess, onBack, locale = 'zh' }) {
   if (status === 'verifying') {
     return (
       <AuthShell locale={locale} title={authCopy.verifyTitle} subtitle={authCopy.verifyLoading}>
-        <div className="rounded-[24px] border border-sky-200 bg-sky-50/90 p-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500/12 text-sky-600">
+        <div className="rounded-[24px] border border-line bg-bg-raised p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft text-accent">
             <Loader2 size={28} className="animate-spin" />
           </div>
-          <div className="text-base font-semibold text-slate-900">{authCopy.verifyLoading}</div>
+          <div className="text-base font-semibold text-ink">{authCopy.verifyLoading}</div>
         </div>
       </AuthShell>
     );
@@ -46,12 +46,12 @@ export function VerifyEmailPage({ token, onSuccess, onBack, locale = 'zh' }) {
   if (status === 'success') {
     return (
       <AuthShell locale={locale} title={authCopy.verifySuccess} subtitle={authCopy.verifySuccessDescription}>
-        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/90 p-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600">
+        <div className="rounded-[24px] border border-success bg-success-soft p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
             <CheckCircle size={28} />
           </div>
-          <div className="text-base font-semibold text-slate-900">{authCopy.verifySuccess}</div>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{authCopy.verifySuccessDescription}</p>
+          <div className="text-base font-semibold text-ink">{authCopy.verifySuccess}</div>
+          <p className="mt-2 text-sm leading-6 text-ink-muted">{authCopy.verifySuccessDescription}</p>
           <button type="button" onClick={onSuccess || onBack} className="mac-button mac-button-primary mt-6">
             {authCopy.continueLabel}
           </button>
@@ -62,12 +62,12 @@ export function VerifyEmailPage({ token, onSuccess, onBack, locale = 'zh' }) {
 
   return (
     <AuthShell locale={locale} title={authCopy.verifyError} subtitle={error || authCopy.verifyInvalid}>
-      <div className="rounded-[24px] border border-rose-200 bg-rose-50/90 p-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/12 text-rose-600">
+      <div className="rounded-[24px] border border-danger bg-danger-soft p-6 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft text-danger">
           <XCircle size={28} />
         </div>
-        <div className="text-base font-semibold text-slate-900">{authCopy.verifyError}</div>
-        <p className="mt-2 text-sm leading-6 text-slate-500">{error || authCopy.verifyInvalid}</p>
+        <div className="text-base font-semibold text-ink">{authCopy.verifyError}</div>
+        <p className="mt-2 text-sm leading-6 text-ink-muted">{error || authCopy.verifyInvalid}</p>
         <button type="button" onClick={onBack} className="mac-button mac-button-primary mt-6">
           {common.back}
         </button>

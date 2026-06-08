@@ -41,14 +41,14 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
   return (
     <AuthShell locale={locale} title={authCopy.loginTitle} subtitle={authCopy.guestDescription}>
       {(localError || error) && (
-        <div className="mb-6 rounded-[22px] border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-600">
+        <div className="mb-6 rounded-[22px] border border-danger bg-danger-soft p-4 text-sm text-danger">
           {localError || error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <label className="block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.email}</span>
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.email}</span>
           <input
             id="login-email"
             type="email"
@@ -66,9 +66,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
 
         <label className="block">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.password}</span>
+            <span className="text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.password}</span>
             {onForgotPassword && (
-              <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-sky-600 hover:text-sky-500">
+              <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-accent hover:text-accent-hover">
                 {authCopy.forgotPassword}
               </button>
             )}
@@ -88,7 +88,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
               type="button"
               onClick={() => setShowPassword((value) => !value)}
               aria-label={showPassword ? authCopy.hidePassword : authCopy.showPassword}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -110,9 +110,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
         </button>
       </form>
 
-      <div className="mt-6 text-sm text-slate-500">
+      <div className="mt-6 text-sm text-ink-muted">
         {authCopy.noAccount}{' '}
-        <button type="button" onClick={onSwitchToRegister} className="font-semibold text-sky-600 hover:text-sky-500">
+        <button type="button" onClick={onSwitchToRegister} className="font-semibold text-accent hover:text-accent-hover">
           {authCopy.registerNow}
         </button>
       </div>

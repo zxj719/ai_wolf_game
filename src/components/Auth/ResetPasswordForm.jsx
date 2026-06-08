@@ -60,12 +60,12 @@ export function ResetPasswordForm({ token, onSuccess, onBack, locale = 'zh' }) {
   if (success) {
     return (
       <AuthShell locale={locale} title={authCopy.resetSuccess} subtitle={authCopy.resetSuccessDescription}>
-        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/90 p-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600">
+        <div className="rounded-[24px] border border-success bg-success-soft p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success">
             <CheckCircle size={28} />
           </div>
-          <div className="text-base font-semibold text-slate-900">{authCopy.resetSuccess}</div>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{authCopy.resetSuccessDescription}</p>
+          <div className="text-base font-semibold text-ink">{authCopy.resetSuccess}</div>
+          <p className="mt-2 text-sm leading-6 text-ink-muted">{authCopy.resetSuccessDescription}</p>
           <button type="button" onClick={onSuccess || onBack} className="mac-button mac-button-primary mt-6">
             {authCopy.goLogin}
           </button>
@@ -77,12 +77,12 @@ export function ResetPasswordForm({ token, onSuccess, onBack, locale = 'zh' }) {
   if (!token) {
     return (
       <AuthShell locale={locale} title={authCopy.invalidLink} subtitle={authCopy.resetInvalid}>
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50/90 p-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/12 text-rose-600">
+        <div className="rounded-[24px] border border-danger bg-danger-soft p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft text-danger">
             <XCircle size={28} />
           </div>
-          <div className="text-base font-semibold text-slate-900">{authCopy.invalidLink}</div>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{authCopy.resetInvalid}</p>
+          <div className="text-base font-semibold text-ink">{authCopy.invalidLink}</div>
+          <p className="mt-2 text-sm leading-6 text-ink-muted">{authCopy.resetInvalid}</p>
           <button type="button" onClick={onBack} className="mac-button mac-button-primary mt-6">
             {authCopy.backToLogin}
           </button>
@@ -93,11 +93,11 @@ export function ResetPasswordForm({ token, onSuccess, onBack, locale = 'zh' }) {
 
   return (
     <AuthShell locale={locale} title={authCopy.resetTitle} subtitle={authCopy.resetDescription}>
-      {error && <div className="mb-6 rounded-[22px] border border-rose-200 bg-rose-50/90 p-4 text-sm text-rose-600">{error}</div>}
+      {error && <div className="mb-6 rounded-[22px] border border-danger bg-danger-soft p-4 text-sm text-danger">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <label className="block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.password}</span>
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.password}</span>
           <div className="relative">
             <input
               id="reset-password"
@@ -113,21 +113,21 @@ export function ResetPasswordForm({ token, onSuccess, onBack, locale = 'zh' }) {
               type="button"
               onClick={() => setShowPassword((value) => !value)}
               aria-label={showPassword ? authCopy.hidePassword : authCopy.showPassword}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
           <div className="mt-3 grid gap-2 text-sm">
-            <div className={passwordChecks.length ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[0]}</div>
-            <div className={passwordChecks.lowercase ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[1]}</div>
-            <div className={passwordChecks.uppercase ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[2]}</div>
-            <div className={passwordChecks.number ? 'text-emerald-600' : 'text-slate-400'}>{authCopy.passwordRules[3]}</div>
+            <div className={passwordChecks.length ? 'text-success' : 'text-ink-faint'}>{authCopy.passwordRules[0]}</div>
+            <div className={passwordChecks.lowercase ? 'text-success' : 'text-ink-faint'}>{authCopy.passwordRules[1]}</div>
+            <div className={passwordChecks.uppercase ? 'text-success' : 'text-ink-faint'}>{authCopy.passwordRules[2]}</div>
+            <div className={passwordChecks.number ? 'text-success' : 'text-ink-faint'}>{authCopy.passwordRules[3]}</div>
           </div>
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{authCopy.confirmPassword}</span>
+          <span className="mb-2 block text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.confirmPassword}</span>
           <input
             id="reset-confirm-password"
             type={showPassword ? 'text' : 'password'}
@@ -139,9 +139,9 @@ export function ResetPasswordForm({ token, onSuccess, onBack, locale = 'zh' }) {
             autoComplete="new-password"
           />
           {confirmPassword && !passwordsMatch && (
-            <p className="mt-2 text-sm text-rose-600">{authCopy.passwordMismatch}</p>
+            <p className="mt-2 text-sm text-danger">{authCopy.passwordMismatch}</p>
           )}
-          {passwordsMatch && <p className="mt-2 text-sm text-emerald-600">{authCopy.passwordMatched}</p>}
+          {passwordsMatch && <p className="mt-2 text-sm text-success">{authCopy.passwordMatched}</p>}
         </label>
 
         <button

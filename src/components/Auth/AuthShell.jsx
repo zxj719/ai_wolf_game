@@ -17,7 +17,7 @@ export function AuthShell({ locale = 'zh', title, subtitle, children, footer }) 
     <div className="flex min-h-screen items-center justify-center px-4 py-16 md:px-6">
       <div className="mac-window w-full max-w-5xl overflow-hidden">
         <div className="grid lg:grid-cols-[0.82fr_1.18fr]">
-          <section className="hidden border-r border-slate-200/70 bg-white/42 px-8 py-10 lg:flex lg:flex-col lg:justify-between">
+          <section className="hidden border-r border-line bg-bg-raised px-8 py-10 lg:flex lg:flex-col lg:justify-between">
             <div className="space-y-5">
               <div className="mac-window-chrome">
                 <span className="mac-window-dot mac-dot-red" />
@@ -26,16 +26,16 @@ export function AuthShell({ locale = 'zh', title, subtitle, children, footer }) 
               </div>
               <div>
                 <div className="mac-eyebrow">{authCopy.productName}</div>
-                <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+                <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-ink">
                   {authCopy.heroTitle}
                 </h1>
-                <p className="mt-4 text-base leading-7 text-slate-500">{authCopy.heroBody}</p>
+                <p className="mt-4 text-base leading-7 text-ink-muted">{authCopy.heroBody}</p>
               </div>
             </div>
 
             <div className="space-y-3">
               {notes.map((note) => (
-                <div key={note} className="mac-muted-card text-sm leading-6 text-slate-500">
+                <div key={note} className="mac-muted-card text-sm leading-6 text-ink-muted">
                   {note}
                 </div>
               ))}
@@ -53,8 +53,8 @@ export function AuthShell({ locale = 'zh', title, subtitle, children, footer }) 
 
             <div className="mb-8">
               <div className="mac-eyebrow">{authCopy.productName}</div>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{subtitle}</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-ink-muted">{subtitle}</p>
             </div>
 
             {children}
