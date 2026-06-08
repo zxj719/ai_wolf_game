@@ -346,34 +346,34 @@ function statusMeta(job, copy) {
     return {
       label: copy.status.idle,
       icon: MessageSquare,
-      className: 'border-slate-200 bg-white/80 text-slate-600',
+      className: 'border-line bg-bg-raised text-ink-muted',
     };
   }
   if (job.status === 'completed') {
     return {
       label: copy.status.completed,
       icon: CheckCircle2,
-      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      className: 'border-line bg-success-soft text-success',
     };
   }
   if (job.status === 'failed') {
     return {
       label: copy.status.failed,
       icon: AlertTriangle,
-      className: 'border-rose-200 bg-rose-50 text-rose-700',
+      className: 'border-line bg-danger-soft text-danger',
     };
   }
   if (job.status === 'interrupted') {
     return {
       label: copy.status.interrupted,
       icon: Clock3,
-      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      className: 'border-line bg-warning-soft text-warning',
     };
   }
   return {
     label: copy.status.running,
     icon: Loader2,
-    className: 'border-blue-200 bg-blue-50 text-blue-700',
+    className: 'border-accent bg-accent-soft text-accent',
   };
 }
 
@@ -404,7 +404,7 @@ function MobileTabBar({ activeTab, onTabChange, job, copy }) {
   };
   const visibleTabs = isAdmin ? MOBILE_TABS : MOBILE_TABS.filter((t) => t.key !== 'chat');
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 backdrop-blur-md md:hidden"
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-bg-raised backdrop-blur-md md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="flex">
         {visibleTabs.map((tab) => {
@@ -417,13 +417,13 @@ function MobileTabBar({ activeTab, onTabChange, job, copy }) {
               type="button"
               onClick={() => onTabChange(tab.key)}
               className={`relative flex flex-1 flex-col items-center gap-1 py-2.5 transition-colors ${
-                active ? 'text-slate-900' : 'text-slate-400'
+                active ? 'text-ink' : 'text-ink-faint'
               }`}
             >
               <Icon size={20} />
               <span className="text-[10px] font-medium leading-none">{tabLabels[tab.key]}</span>
               {showDot && (
-                <span className="absolute right-1/2 top-1.5 ml-4 h-2 w-2 translate-x-4 rounded-full bg-blue-500" />
+                <span className="absolute right-1/2 top-1.5 ml-4 h-2 w-2 translate-x-4 rounded-full bg-accent" />
               )}
             </button>
           );
@@ -523,7 +523,7 @@ function ChatBubble({ role, label, source, children }) {
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
         <span className={`mac-icon-tile mt-1 h-8 w-8 shrink-0 rounded-[13px] ${
-          isError ? 'text-rose-600' : isRetry ? 'text-amber-600' : ''
+          isError ? 'text-danger' : isRetry ? 'text-warning' : ''
         }`}>
           {isError ? <AlertTriangle size={15} /> : isRetry ? <Clock3 size={15} /> : <Bot size={15} />}
         </span>
@@ -531,17 +531,17 @@ function ChatBubble({ role, label, source, children }) {
       <div
         className={`max-w-[86%] rounded-[18px] border px-3.5 py-3 ${
           isUser
-            ? 'border-slate-300 bg-slate-950 text-white'
+            ? 'border-accent bg-accent text-white'
             : isError
-              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              ? 'border-line bg-danger-soft text-danger'
               : isRetry
-                ? 'border-amber-200 bg-amber-50 text-amber-800'
-                : 'border-slate-200 bg-white/90 text-slate-700'
+                ? 'border-line bg-warning-soft text-warning'
+                : 'border-line bg-bg-raised text-ink'
         }`}
       >
         <div
           className={`mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-            isUser ? 'text-slate-300' : isError ? 'text-rose-500' : isRetry ? 'text-amber-500' : 'text-slate-400'
+            isUser ? 'text-ink-faint' : isError ? 'text-danger' : isRetry ? 'text-warning' : 'text-ink-faint'
           }`}
         >
           {label}
@@ -631,7 +631,7 @@ function parseMarkdownBlocks(content) {
 function MarkdownView({ content, copy }) {
   const blocks = useMemo(() => parseMarkdownBlocks(content), [content]);
   if (!compactText(content)) {
-    return <div className="text-sm text-slate-500">{copy.reader.empty}</div>;
+    return <div className="text-sm text-ink-muted">{copy.reader.empty}</div>;
   }
   return (
     <div className="space-y-5">
@@ -640,37 +640,37 @@ function MarkdownView({ content, copy }) {
           const Heading = `h${Math.min(block.level + 1, 5)}`;
           const size = block.level === 1 ? 'text-3xl' : block.level === 2 ? 'text-2xl' : 'text-xl';
           return (
-            <Heading key={index} className={`${size} font-semibold leading-tight text-slate-950`}>
+            <Heading key={index} className={`${size} font-semibold leading-tight text-ink`}>
               {block.text}
             </Heading>
           );
         }
         if (block.type === 'ul') {
           return (
-            <ul key={index} className="list-disc space-y-2 pl-6 text-base leading-8 text-slate-700">
+            <ul key={index} className="list-disc space-y-2 pl-6 text-base leading-8 text-ink">
               {block.items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}
             </ul>
           );
         }
         if (block.type === 'quote') {
           return (
-            <blockquote key={index} className="border-l-4 border-slate-300 pl-4 text-base leading-8 text-slate-600">
+            <blockquote key={index} className="border-l-4 border-line-strong pl-4 text-base leading-8 text-ink-muted">
               {block.text}
             </blockquote>
           );
         }
         if (block.type === 'code') {
           return (
-            <pre key={index} className="overflow-auto rounded-[14px] bg-slate-950 p-4 text-sm leading-6 text-slate-100">
+            <pre key={index} className="overflow-auto rounded-[14px] bg-bg-sunken p-4 text-sm leading-6 text-ink">
               <code>{block.text}</code>
             </pre>
           );
         }
         if (block.type === 'hr') {
-          return <hr key={index} className="border-slate-200" />;
+          return <hr key={index} className="border-line" />;
         }
         return (
-          <p key={index} className="text-base leading-8 text-slate-700">
+          <p key={index} className="text-base leading-8 text-ink">
             {block.text}
           </p>
         );
@@ -724,20 +724,20 @@ function CodexChat({
 
   return (
     <div className="mac-panel flex min-h-[400px] flex-col overflow-hidden p-0 md:min-h-[620px]">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 px-3 py-2.5 md:gap-3 md:px-4 md:py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2.5 md:gap-3 md:px-4 md:py-3">
         <div className="flex min-w-0 items-center gap-2 md:gap-3">
           <span className="mac-icon-tile h-8 w-8 rounded-[13px] md:h-10 md:w-10 md:rounded-[16px]">
             <Sparkles size={16} />
           </span>
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-slate-900">{copy.chat.title}</h3>
-            <p className="hidden text-xs text-slate-500 md:block">{copy.chat.subtitle}</p>
+            <h3 className="truncate text-sm font-semibold text-ink">{copy.chat.title}</h3>
+            <p className="hidden text-xs text-ink-muted md:block">{copy.chat.subtitle}</p>
           </div>
         </div>
         <JobPill job={job} copy={copy} compact />
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto bg-slate-50/70 px-3 py-3 md:px-4 md:py-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-auto bg-bg-sunken px-3 py-3 md:px-4 md:py-4">
         {messages.map((message, index) => (
           <ChatBubble
             key={`${message.at || index}-${message.source || 'message'}`}
@@ -749,13 +749,13 @@ function CodexChat({
           </ChatBubble>
         ))}
         {isRunning && messages.length === 0 && (
-          <div className="rounded-[16px] border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+          <div className="rounded-[16px] border border-accent bg-accent-soft px-3 py-2 text-sm text-accent">
             {copy.chat.running}
           </div>
         )}
       </div>
 
-      <div className="border-t border-slate-200/70 bg-white/80 p-3">
+      <div className="border-t border-line bg-bg-raised p-3">
         <div className="mb-3 grid grid-cols-2 gap-1.5 md:gap-2">
           {ACTION_MODES.map((mode) => {
             const item = copy.chat.modes[mode];
@@ -767,12 +767,12 @@ function CodexChat({
                 onClick={() => onActionModeChange(mode)}
                 className={`rounded-[12px] border px-2.5 py-2 text-left transition md:rounded-[14px] md:px-3 ${
                   active
-                    ? 'border-slate-300 bg-slate-950 text-white'
-                    : 'border-slate-200 bg-white/80 text-slate-700 hover:bg-white'
+                    ? 'border-accent bg-accent text-white'
+                    : 'border-line bg-bg-raised text-ink hover:bg-bg-sunken'
                 }`}
               >
                 <div className="text-[11px] font-semibold md:text-xs">{item.title}</div>
-                <div className={`mt-0.5 line-clamp-2 text-[10px] leading-[14px] md:mt-1 md:text-[11px] md:leading-4 ${active ? 'text-slate-300' : 'text-slate-500'}`}>
+                <div className={`mt-0.5 line-clamp-2 text-[10px] leading-[14px] md:mt-1 md:text-[11px] md:leading-4 ${active ? 'text-ink-faint' : 'text-ink-muted'}`}>
                   {item.hint}
                 </div>
               </button>
@@ -785,27 +785,27 @@ function CodexChat({
           className="mac-textarea min-h-[80px] resize-none md:min-h-[104px]"
           placeholder={copy.chat.placeholder[actionMode]}
         />
-        <div className="mt-2 space-y-1 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <div className="mt-2 space-y-1 rounded-[14px] border border-line bg-bg-sunken px-3 py-2 text-xs text-ink-muted">
           <div>
-            {copy.chat.targetProject}: <span className="font-semibold text-slate-900">{project?.name || copy.chat.selectProject}</span>
-            {project?.slug && <span className="ml-2 text-slate-400">/{project.slug}</span>}
+            {copy.chat.targetProject}: <span className="font-semibold text-ink">{project?.name || copy.chat.selectProject}</span>
+            {project?.slug && <span className="ml-2 text-ink-faint">/{project.slug}</span>}
           </div>
           <div>
-            {copy.chat.targetDocument}: <span className="font-semibold text-slate-900">{selectedDocument?.title || copy.chat.noDocument}</span>
+            {copy.chat.targetDocument}: <span className="font-semibold text-ink">{selectedDocument?.title || copy.chat.noDocument}</span>
           </div>
           <div className="flex min-w-0 items-center gap-1">
-            {copy.common.session}: <span className="font-semibold text-slate-900">
+            {copy.common.session}: <span className="font-semibold text-ink">
               {sessionLoading ? copy.chat.restoring : session?.lastJob ? copy.chat.restored : copy.chat.noSession}
             </span>
             {session?.runtimeSessionId && (
-              <span className="truncate text-slate-400" title={session.runtimeSessionId}>
+              <span className="truncate text-ink-faint" title={session.runtimeSessionId}>
                 · {copy.chat.sessionId}: {session.runtimeSessionId.slice(0, 8)}
               </span>
             )}
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-ink-muted">
             {isRunning ? <Clock3 size={14} /> : <MessageSquare size={14} />}
             {isRunning ? copy.chat.running : copy.chat.outputHint}
           </div>
@@ -830,14 +830,14 @@ function DocumentButton({ item, active, onClick }) {
       type="button"
       onClick={() => onClick(item)}
       className={`w-full rounded-[14px] border px-3 py-2.5 text-left transition-colors ${
-        active ? 'border-slate-300 bg-white shadow-sm' : 'border-transparent hover:border-slate-200 hover:bg-white/80'
+        active ? 'border-line-strong bg-bg-raised shadow-sm' : 'border-transparent hover:border-line hover:bg-bg-raised'
       }`}
     >
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+      <div className="flex items-center gap-2 text-sm font-semibold text-ink">
         <FileText size={15} />
         <span className="truncate">{item.title}</span>
       </div>
-      {item.excerpt && <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.excerpt}</div>}
+      {item.excerpt && <div className="mt-1 line-clamp-2 text-xs leading-5 text-ink-muted">{item.excerpt}</div>}
     </button>
   );
 }
@@ -869,14 +869,14 @@ function ProjectMemoryColumn({
     { key: 'rules', label: copy.studio.learnedRules, items: memory.rules },
   ];
   return (
-    <aside className="border-b border-slate-200/70 bg-slate-50/70 p-4 xl:max-h-[840px] xl:overflow-auto xl:border-b-0 xl:border-r">
+    <aside className="border-b border-line bg-bg-sunken p-4 xl:max-h-[840px] xl:overflow-auto xl:border-b-0 xl:border-r">
       <div className="mb-4 flex items-center gap-3">
         <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
           <FolderOpen size={17} />
         </span>
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">{copy.studio.projectMemory}</h3>
-          <p className="text-xs text-slate-500">{copy.studio.projectMemoryHint}</p>
+          <h3 className="text-sm font-semibold text-ink">{copy.studio.projectMemory}</h3>
+          <p className="text-xs text-ink-muted">{copy.studio.projectMemoryHint}</p>
         </div>
       </div>
       <label className="mb-5 block">
@@ -897,11 +897,11 @@ function ProjectMemoryColumn({
       </label>
 
       <div className="space-y-3">
-        <details className="rounded-[16px] border border-slate-200 bg-white/60 p-3" open>
-          <summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+        <details className="rounded-[16px] border border-line bg-bg-raised p-3" open>
+          <summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
             <BookOpen size={13} />
             {copy.studio.chapters}
-            <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[10px] tracking-normal text-slate-500">{chapterItems.length}</span>
+            <span className="ml-auto rounded-full bg-bg-sunken px-2 py-0.5 text-[10px] tracking-normal text-ink-muted">{chapterItems.length}</span>
           </summary>
           <div className="mt-3 space-y-2">
             {chapterItems.length ? chapterItems.map((chapter) => (
@@ -912,7 +912,7 @@ function ProjectMemoryColumn({
                 onClick={() => onSelectChapter(chapter.id)}
               />
             )) : (
-              <div className="rounded-[14px] border border-dashed border-slate-300 bg-white/70 px-4 py-5 text-sm text-slate-500">
+              <div className="rounded-[14px] border border-dashed border-line bg-bg-raised px-4 py-5 text-sm text-ink-muted">
                 {copy.studio.noChapters}
               </div>
             )}
@@ -922,13 +922,13 @@ function ProjectMemoryColumn({
         {groups.map(({ key, label, items }) => (
           <details
             key={key}
-            className="rounded-[16px] border border-slate-200 bg-white/60 p-3"
+            className="rounded-[16px] border border-line bg-bg-raised p-3"
             open={items.some((item) => item.key === activeKey)}
           >
-            <summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            <summary className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
               <ScrollText size={13} />
               {label}
-              <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[10px] tracking-normal text-slate-500">{items.length}</span>
+              <span className="ml-auto rounded-full bg-bg-sunken px-2 py-0.5 text-[10px] tracking-normal text-ink-muted">{items.length}</span>
             </summary>
             <div className="mt-3 space-y-2">
               {items.length ? items.map((item) => (
@@ -939,7 +939,7 @@ function ProjectMemoryColumn({
                   onClick={onSelectMemoryFile}
                 />
               )) : (
-                <div className="rounded-[14px] border border-dashed border-slate-300 bg-white/70 px-3 py-3 text-xs text-slate-500">
+                <div className="rounded-[14px] border border-dashed border-line bg-bg-raised px-3 py-3 text-xs text-ink-muted">
                   {copy.common.empty}
                 </div>
               )}
@@ -981,8 +981,8 @@ function ReaderPane({
 
   if (!document) {
     return (
-      <section className="min-w-0 bg-white/70 p-4 md:p-7">
-        <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500 md:min-h-[620px]">
+      <section className="min-w-0 bg-bg p-4 md:p-7">
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-ink-muted md:min-h-[620px]">
           {copy.studio.noDocument}
         </div>
       </section>
@@ -990,12 +990,12 @@ function ReaderPane({
   }
 
   return (
-    <section className="min-w-0 bg-white/70 p-3 md:p-7">
+    <section className="min-w-0 bg-bg p-3 md:p-7">
       <article className="mx-auto max-w-3xl">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3 md:mb-6 md:gap-4">
           <div className="min-w-0">
             <div className="mac-eyebrow">{documentGroupLabel(document.group || document.type, copy)}</div>
-            <h2 className="mt-1.5 break-words text-xl font-semibold leading-tight text-slate-950 md:mt-2 md:text-[clamp(2rem,4vw,3.2rem)]">
+            <h2 className="mt-1.5 break-words text-xl font-semibold leading-tight text-ink md:mt-2 md:text-[clamp(2rem,4vw,3.2rem)]">
               {document.title}
             </h2>
           </div>
@@ -1034,7 +1034,7 @@ function ReaderPane({
             className="mac-textarea min-h-[50vh] resize-y font-mono text-sm leading-6 md:min-h-[640px]"
           />
         ) : (
-          <div className="rounded-[16px] border border-slate-200 bg-white/75 px-4 py-5 shadow-sm md:rounded-[18px] md:px-6 md:py-7">
+          <div className="rounded-[16px] border border-line bg-bg-raised px-4 py-5 shadow-sm md:rounded-[18px] md:px-6 md:py-7">
             <MarkdownView content={content} copy={copy} />
           </div>
         )}
@@ -1060,7 +1060,7 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
               </div>
               <div className="min-w-0">
                 <div className="mac-eyebrow hidden md:block">Meta Writing</div>
-                <h1 className="truncate text-sm font-semibold text-slate-900 md:text-base">{copy.shelf.title}</h1>
+                <h1 className="truncate text-sm font-semibold text-ink md:text-base">{copy.shelf.title}</h1>
               </div>
             </div>
             <div className="flex items-center gap-1.5 md:gap-2">
@@ -1080,24 +1080,24 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
             </div>
           </div>
 
-          <main className="border-t border-slate-200/70 bg-slate-50/70 p-4 md:p-8">
+          <main className="border-t border-line bg-bg-sunken p-4 md:p-8">
             <div className="mb-4 flex items-center gap-3 md:mb-6">
               <span className="mac-icon-tile h-10 w-10 rounded-[16px] md:h-11 md:w-11 md:rounded-[18px]">
                 <User size={17} />
               </span>
               <div>
-                <div className="text-sm font-semibold text-slate-900">{user?.username || copy.common.userFallback}</div>
-                <div className="text-xs text-slate-500">{projects.length} {copy.shelf.books}</div>
+                <div className="text-sm font-semibold text-ink">{user?.username || copy.common.userFallback}</div>
+                <div className="text-xs text-ink-muted">{projects.length} {copy.shelf.books}</div>
               </div>
             </div>
 
             {loading ? (
-              <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-slate-500 md:min-h-[420px]">
+              <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-ink-muted md:min-h-[420px]">
                 <Loader2 size={16} className="animate-spin" />
                 {copy.common.loading}
               </div>
             ) : error ? (
-              <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+              <div className="rounded-[18px] border border-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-3">
                 {projects.map((project) => (
@@ -1105,38 +1105,38 @@ function BookshelfPage({ user, projects, loading, error, copy, onBack, onRefresh
                     key={project.slug || project.name}
                     type="button"
                     onClick={() => onOpenProject(project.slug || project.name)}
-                    className="group min-h-[160px] rounded-[8px] border border-slate-200 bg-white/85 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md md:min-h-[210px] md:p-5"
+                    className="group min-h-[160px] rounded-[8px] border border-line bg-bg-raised p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-line-strong hover:shadow-md md:min-h-[210px] md:p-5"
                   >
                     <div className="mb-4 flex items-start justify-between gap-3 md:mb-7">
-                      <span className="mac-icon-tile h-10 w-10 rounded-[16px] text-slate-700 md:h-12 md:w-12 md:rounded-[18px]">
+                      <span className="mac-icon-tile h-10 w-10 rounded-[16px] text-ink md:h-12 md:w-12 md:rounded-[18px]">
                         <BookMarked size={18} />
                       </span>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-500 md:px-2.5 md:py-1 md:text-xs">
+                      <span className="rounded-full border border-line bg-bg-sunken px-2 py-0.5 text-[10px] font-medium text-ink-muted md:px-2.5 md:py-1 md:text-xs">
                         {(project.workflowMode || 'manual') === 'manual' ? copy.shelf.manual : project.workflowMode}
                       </span>
                     </div>
-                    <h2 className="line-clamp-2 text-lg font-semibold leading-tight text-slate-950 md:text-xl">{project.name}</h2>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500 md:mt-4">
-                      <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:rounded-[12px] md:px-3 md:py-2">
-                        <div className="font-semibold text-slate-900">{project.chapterCount}</div>
+                    <h2 className="line-clamp-2 text-lg font-semibold leading-tight text-ink md:text-xl">{project.name}</h2>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-ink-muted md:mt-4">
+                      <div className="rounded-[10px] border border-line bg-bg-sunken px-2.5 py-1.5 md:rounded-[12px] md:px-3 md:py-2">
+                        <div className="font-semibold text-ink">{project.chapterCount}</div>
                         <div>{copy.shelf.chapters}</div>
                       </div>
-                      <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:rounded-[12px] md:px-3 md:py-2">
-                        <div className="truncate font-semibold text-slate-900">{project.latestChapter || '-'}</div>
+                      <div className="rounded-[10px] border border-line bg-bg-sunken px-2.5 py-1.5 md:rounded-[12px] md:px-3 md:py-2">
+                        <div className="truncate font-semibold text-ink">{project.latestChapter || '-'}</div>
                         <div>{copy.shelf.latest}</div>
                       </div>
                     </div>
-                    {project.latestTitle && <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600 md:mt-4">{project.latestTitle}</p>}
+                    {project.latestTitle && <p className="mt-3 line-clamp-2 text-sm leading-6 text-ink-muted md:mt-4">{project.latestTitle}</p>}
                   </button>
                 ))}
                 {canCreate && (
                 <button
                   type="button"
                   onClick={onNewBook}
-                  className="flex min-h-[160px] flex-col items-center justify-center rounded-[8px] border border-dashed border-slate-300 bg-white/60 p-4 text-center text-slate-500 transition hover:border-slate-400 hover:bg-white md:min-h-[210px] md:p-5"
+                  className="flex min-h-[160px] flex-col items-center justify-center rounded-[8px] border border-dashed border-line bg-bg-raised p-4 text-center text-ink-muted transition hover:border-line-strong hover:bg-bg-raised md:min-h-[210px] md:p-5"
                 >
                   <Plus size={24} />
-                  <div className="mt-3 text-sm font-semibold text-slate-800">{copy.shelf.addBook}</div>
+                  <div className="mt-3 text-sm font-semibold text-ink">{copy.shelf.addBook}</div>
                 </button>
                 )}
               </div>
@@ -1186,7 +1186,7 @@ function NewBookPage({ draft, busy, error, copy, onBack, onDraftChange, onCreate
               </div>
               <div className="min-w-0">
                 <div className="mac-eyebrow hidden md:block">Meta Writing</div>
-                <h1 className="truncate text-sm font-semibold text-slate-900 md:text-base">{copy.newBook.title}</h1>
+                <h1 className="truncate text-sm font-semibold text-ink md:text-base">{copy.newBook.title}</h1>
               </div>
             </div>
             <button type="button" onClick={onBack} className="mac-button mac-button-secondary !px-2.5 !py-2 md:!px-4 md:!py-2.5">
@@ -1195,8 +1195,8 @@ function NewBookPage({ draft, busy, error, copy, onBack, onDraftChange, onCreate
             </button>
           </div>
 
-          <main className="border-t border-slate-200/70 bg-slate-50/70 p-4 md:p-8">
-            {error && <div className="mb-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 md:mb-5">{error}</div>}
+          <main className="border-t border-line bg-bg-sunken p-4 md:p-8">
+            {error && <div className="mb-4 rounded-[18px] border border-line bg-danger-soft px-4 py-3 text-sm text-danger md:mb-5">{error}</div>}
             <div className="grid gap-4 md:gap-5 lg:grid-cols-2">
               <Field label={copy.newBook.titleField} value={draft.name} onChange={(value) => onDraftChange('name', value)} />
               <Field label={copy.newBook.slug} value={draft.slug} onChange={(value) => onDraftChange('slug', value)} />
@@ -1277,7 +1277,7 @@ function StudioPage({
               </div>
               <div className="min-w-0">
                 <div className="mac-eyebrow hidden md:block">Meta Writing</div>
-                <h1 className="truncate text-sm font-semibold text-slate-900 md:text-base">{project?.name || copy.studio.titleFallback}</h1>
+                <h1 className="truncate text-sm font-semibold text-ink md:text-base">{project?.name || copy.studio.titleFallback}</h1>
               </div>
             </div>
 
@@ -1298,16 +1298,16 @@ function StudioPage({
           </div>
 
           {loading ? (
-            <div className="flex min-h-[60vh] items-center justify-center gap-2 border-t border-slate-200/70 text-sm text-slate-500 md:min-h-[760px]">
+            <div className="flex min-h-[60vh] items-center justify-center gap-2 border-t border-line text-sm text-ink-muted md:min-h-[760px]">
               <Loader2 size={16} className="animate-spin" />
               {copy.common.loading}
             </div>
           ) : error ? (
-            <div className="border-t border-slate-200/70 bg-white/70 p-4 md:p-5">
-              <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+            <div className="border-t border-line bg-bg p-4 md:p-5">
+              <div className="rounded-[18px] border border-line bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>
             </div>
           ) : (
-            <main className="grid gap-0 border-t border-slate-200/70 md:min-h-[840px] xl:grid-cols-[320px_minmax(0,1fr)_430px]">
+            <main className="grid gap-0 border-t border-line md:min-h-[840px] xl:grid-cols-[320px_minmax(0,1fr)_430px]">
               {/* Memory column: hidden on mobile unless active tab */}
               <div className={mobileTab !== 'memory' ? 'hidden md:block' : ''}>
                 <ProjectMemoryColumn
@@ -1339,14 +1339,14 @@ function StudioPage({
                 />
               </div>
               {/* Chat column: hidden on mobile unless active tab */}
-              <aside className={`border-t border-slate-200/70 bg-slate-50/80 p-3 md:p-4 xl:border-l xl:border-t-0 ${mobileTab !== 'chat' ? 'hidden md:block' : ''}`}>
+              <aside className={`border-t border-line bg-bg-sunken p-3 md:p-4 xl:border-l xl:border-t-0 ${mobileTab !== 'chat' ? 'hidden md:block' : ''}`}>
                 <div className="mb-4 hidden items-center gap-3 md:flex">
                   <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
                     <User size={17} />
                   </span>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900">{user?.username || copy.common.userFallback}</div>
-                    <div className="text-xs text-slate-500">{copy.studio.subtitle}</div>
+                    <div className="truncate text-sm font-semibold text-ink">{user?.username || copy.common.userFallback}</div>
+                    <div className="text-xs text-ink-muted">{copy.studio.subtitle}</div>
                   </div>
                 </div>
                 {isAdmin ? (
@@ -1367,10 +1367,10 @@ function StudioPage({
                     onGenerate={onGenerate}
                   />
                 ) : (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white/60 px-6 py-12 text-center">
-                    <Lock size={28} className="mb-3 text-slate-400" />
-                    <p className="text-sm font-medium text-slate-600">仅管理员可使用 Codex</p>
-                    <p className="mt-1 text-xs text-slate-400">您可以浏览章节内容和大纲</p>
+                  <div className="flex flex-col items-center justify-center rounded-2xl border border-line bg-bg-raised px-6 py-12 text-center">
+                    <Lock size={28} className="mb-3 text-ink-faint" />
+                    <p className="text-sm font-medium text-ink-muted">仅管理员可使用 Codex</p>
+                    <p className="mt-1 text-xs text-ink-faint">您可以浏览章节内容和大纲</p>
                   </div>
                 )}
               </aside>
