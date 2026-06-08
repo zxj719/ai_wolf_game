@@ -10,16 +10,22 @@
 - **修复**：`ThemeScope` 作用域根加 `style={{ color: 'var(--mac-ink)' }}`，在自己的主题里重新声明前景色 —— 深色作用域内 `--mac-ink` 解析为 #fafafa（浅色），继承文字随之变亮。浅色模块零变化（`--mac-ink`=#111827，与原 body 继承值相同）。
 - **验证**：浏览器实测狼人杀 `[data-theme=dark]` 作用域 `color` 由继承的 rgb(17,24,39) 变为 rgb(250,250,250)；首页（light 模块）作用域仍为 rgb(17,24,39)，无回归。竞技场（player cards / GameActionControls）文字均为继承色或 token，已随之修复。
 
+### 第二处根因：hub/setup 屏硬编码 slate 文字（同次一并修复）
+
+- **根因**：`WolfgameHub`/`SetupScreen`/`RoleSelector` 是「浅色岛」设计 —— `.mac-*` 主题化 surface（暗色档变深）上叠 **硬编码** `text-slate-900/950`（始终深色）+ `bg-white/78` 白卡。在 dark 模块里：mac 面板变深但 slate 文字仍深 → 深底深字不可读；白卡又是"深色 UI 里飘白卡"，即用户说的"设计不合理"。ThemeScope 修复覆盖不到（显式 class 覆盖继承色）。
+- **修复**：对 surface + 文字 + 边框**整体 token 化**：`text-slate-900/950`→`text-ink`、`text-slate-500`→`text-ink-muted`、`bg-white/7x`→`bg-bg-raised`、`border-slate-200*`→`border-line`、选中态 `bg-slate-900`→`bg-accent`（与 M1a 选中语义一致）。深浅双档都可读、配色统一。
+- **验证**：hub 实测 h2 由 rgb(2,6,23) 变 rgb(250,250,250)（深→浅），截图确认整屏可读；新增 `RoleSelector` token 守门测试（断言渲染含 text-ink/bg-bg-raised、无 text-slate-*/bg-white/7x）。
+
 ### 文件变更
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
 | `src/shell/ThemeScope.jsx` | 修改 | 作用域根重新声明 `color: var(--mac-ink)`，合并调用方 `style` |
 | `src/shell/__tests__/themeScope.test.jsx` | 新建 | 3 个单测（data-theme、前景色、保留调用方 style） |
-
-### 已知遗留（独立 issue，未在本次修复范围）
-
-- **狼人杀 hub / setup 屏**（`WolfgameHub`/`SetupScreen`/`RoleSelector`）混用 `.mac-*` 主题化 surface（暗色档变深）与**硬编码** `text-slate-900/950` 文字（始终深色）→ 深底深字。ThemeScope 修复无法覆盖（显式 class 覆盖继承色），需对这些屏做 token 化（属 M2 相邻范围）。
+| `src/components/WolfgameHub.jsx` | 修改 | slate 文字 → ink token |
+| `src/components/SetupScreen.jsx` | 修改 | slate 文字 + 白卡 surface + 选中态 → token |
+| `src/components/RoleSelector.jsx` | 修改 | 同上（角色选择卡 token 化） |
+| `src/components/__tests__/roleSelectorTokens.test.jsx` | 新建 | token 守门测试（无 slate/白卡回归） |
 
 ## [2026-06-07] UI 重构 M1b：狼人杀手机端卡片网格 + 底部行动抽屉
 

@@ -43,8 +43,8 @@ function MultiRoleCard({ roleKey, count, onChange, maxCount, locale }) {
       <div className="flex items-center gap-3">
         <RoleIcon roleKey={roleKey} />
         <div>
-          <div className="text-sm font-semibold text-slate-900">{getRoleLabel(roleKey, locale)}</div>
-          <div className="text-sm text-slate-500">{getRoleDescription(roleKey, locale)}</div>
+          <div className="text-sm font-semibold text-ink">{getRoleLabel(roleKey, locale)}</div>
+          <div className="text-sm text-ink-muted">{getRoleDescription(roleKey, locale)}</div>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -56,7 +56,7 @@ function MultiRoleCard({ roleKey, count, onChange, maxCount, locale }) {
         >
           <Minus size={14} />
         </button>
-        <span className="w-8 text-center text-base font-semibold text-slate-900">{count}</span>
+        <span className="w-8 text-center text-base font-semibold text-ink">{count}</span>
         <button
           type="button"
           onClick={() => onChange(Math.min(maxCount, count + 1))}
@@ -77,8 +77,8 @@ function UniqueRoleCard({ roleKey, selected, onChange, locale }) {
       onClick={() => onChange(selected ? 0 : 1)}
       className={`w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
         selected
-          ? 'border-slate-900/12 bg-slate-900 text-white'
-          : 'border-slate-200/80 bg-white/76 text-slate-900'
+          ? 'border-accent bg-accent text-white'
+          : 'border-line bg-bg-raised text-ink'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
@@ -87,11 +87,11 @@ function UniqueRoleCard({ roleKey, selected, onChange, locale }) {
             {React.createElement(ROLE_ICONS[roleKey] || User, { size: 17 })}
           </span>
           <div>
-            <div className={`text-sm font-semibold ${selected ? 'text-white' : 'text-slate-900'}`}>{getRoleLabel(roleKey, locale)}</div>
-            <div className={`text-sm ${selected ? 'text-white/72' : 'text-slate-500'}`}>{getRoleDescription(roleKey, locale)}</div>
+            <div className={`text-sm font-semibold ${selected ? 'text-white' : 'text-ink'}`}>{getRoleLabel(roleKey, locale)}</div>
+            <div className={`text-sm ${selected ? 'text-white/72' : 'text-ink-muted'}`}>{getRoleDescription(roleKey, locale)}</div>
           </div>
         </div>
-        <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selected ? 'bg-white/12 text-white' : 'bg-slate-100 text-slate-500'}`}>
+        <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selected ? 'bg-white/12 text-white' : 'bg-bg-sunken text-ink-muted'}`}>
           {selected ? 'On' : 'Off'}
         </div>
       </div>
@@ -116,16 +116,16 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="mac-eyebrow">{copy.roleCounts}</div>
-          <h3 className="mt-1 text-lg font-semibold text-slate-900">{copy.customRoles}</h3>
+          <h3 className="mt-1 text-lg font-semibold text-ink">{copy.customRoles}</h3>
         </div>
         <div className="mac-badge">
-          {copy.totalPlayers}: <span className="font-semibold text-slate-900">{validation.total}</span>
+          {copy.totalPlayers}: <span className="font-semibold text-ink">{validation.total}</span>
         </div>
       </div>
 
       <div className="space-y-6">
         <section className="space-y-3">
-          <div className="text-sm font-semibold text-slate-900">{copy.wolfCamp}</div>
+          <div className="text-sm font-semibold text-ink">{copy.wolfCamp}</div>
           <MultiRoleCard
             roleKey="WEREWOLF"
             count={selections.WEREWOLF || 0}
@@ -136,7 +136,7 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
         </section>
 
         <section className="space-y-3">
-          <div className="text-sm font-semibold text-slate-900">{copy.specialRoles}</div>
+          <div className="text-sm font-semibold text-ink">{copy.specialRoles}</div>
           <div className="grid gap-3 md:grid-cols-2">
             {UNIQUE_ROLES.map((roleKey) => (
               <UniqueRoleCard
@@ -151,7 +151,7 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
         </section>
 
         <section className="space-y-3">
-          <div className="text-sm font-semibold text-slate-900">{copy.goodCamp}</div>
+          <div className="text-sm font-semibold text-ink">{copy.goodCamp}</div>
           <div className="grid gap-3 md:grid-cols-2">
             {MULTI_ROLES.filter((roleKey) => roleKey !== 'WEREWOLF').map((roleKey) => (
               <MultiRoleCard
@@ -167,9 +167,9 @@ export function RoleSelector({ selections, onChange, validation, locale = 'zh' }
         </section>
       </div>
 
-      <div className="mt-6 space-y-3 border-t border-slate-200/70 pt-5">
-        <div className="text-sm text-slate-500">
-          {copy.configSummary}: <span className="font-medium text-slate-900">{copy.buildSummary(description)}</span>
+      <div className="mt-6 space-y-3 border-t border-line pt-5">
+        <div className="text-sm text-ink-muted">
+          {copy.configSummary}: <span className="font-medium text-ink">{copy.buildSummary(description)}</span>
         </div>
 
         {validation.errors.length > 0 && (

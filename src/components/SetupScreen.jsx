@@ -25,8 +25,8 @@ import { getUiCopy, getVictoryModeCopy } from '../i18n/locale.js';
 
 function ActionCard({ icon: Icon, title, description, onClick, disabled, selected = false }) {
   const toneClass = selected
-    ? 'border-slate-900/10 bg-slate-900 text-white shadow-sm'
-    : 'border-slate-200 bg-white/78 text-slate-900';
+    ? 'border-accent bg-accent text-white shadow-sm'
+    : 'border-line bg-bg-raised text-ink';
 
   return (
     <button
@@ -41,8 +41,8 @@ function ActionCard({ icon: Icon, title, description, onClick, disabled, selecte
           <Icon size={18} />
         </span>
         <div>
-          <div className={`text-sm font-semibold ${selected ? 'text-white' : 'text-slate-900'}`}>{title}</div>
-          <div className={`mt-1 text-sm leading-6 ${selected ? 'text-white/72' : 'text-slate-500'}`}>{description}</div>
+          <div className={`text-sm font-semibold ${selected ? 'text-white' : 'text-ink'}`}>{title}</div>
+          <div className={`mt-1 text-sm leading-6 ${selected ? 'text-white/72' : 'text-ink-muted'}`}>{description}</div>
         </div>
       </div>
     </button>
@@ -169,7 +169,7 @@ export function SetupScreen({
             <aside className="space-y-4">
               <div className="space-y-3">
                 <div className="mac-eyebrow">{copy.subtitle}</div>
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-950">{copy.chooseMode}</h2>
+                <h2 className="text-3xl font-semibold tracking-tight text-ink">{copy.chooseMode}</h2>
                 <p className="mac-section-copy">{copy.bannerDescription}</p>
               </div>
 
@@ -222,8 +222,8 @@ export function SetupScreen({
                       <History size={18} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-slate-900">{resumeCopy.title}</div>
-                      <div className="mt-1 text-sm leading-6 text-slate-500">
+                      <div className="text-sm font-semibold text-ink">{resumeCopy.title}</div>
+                      <div className="mt-1 text-sm leading-6 text-ink-muted">
                         {locale === 'en'
                           ? `${resumeCopy.day} ${pendingSnapshot.state?.dayCount || 1} · ${pendingSnapshot.state?.phase || 'setup'}`
                           : `${resumeCopy.day}${pendingSnapshot.state?.dayCount || 1}天 · ${pendingSnapshot.state?.phase || 'setup'}`}
@@ -266,13 +266,13 @@ export function SetupScreen({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="mac-eyebrow">{selectionLabel}</div>
-                    <div className="mt-1 text-base font-semibold text-slate-900">
+                    <div className="mt-1 text-base font-semibold text-ink">
                       {selectedModeLabel || selectionEmpty}
                     </div>
                   </div>
                   {selectedModeLabel && <div className="mac-badge">{selectedModeLabel}</div>}
                 </div>
-                <p className="mt-3 text-sm leading-6 text-slate-500">{startHelperText}</p>
+                <p className="mt-3 text-sm leading-6 text-ink-muted">{startHelperText}</p>
                 <button
                   type="button"
                   onClick={handleStartGame}
@@ -291,8 +291,8 @@ export function SetupScreen({
                     onClick={() => setVictoryMode('edge')}
                     className={`w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
                       victoryMode === 'edge'
-                        ? 'border-slate-900/12 bg-slate-900 text-white'
-                        : 'border-slate-200/80 bg-white/78 text-slate-900'
+                        ? 'border-accent bg-accent text-white'
+                        : 'border-line bg-bg-raised text-ink'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -300,8 +300,8 @@ export function SetupScreen({
                         <Swords size={16} />
                       </span>
                       <div>
-                        <div className={`text-sm font-semibold ${victoryMode === 'edge' ? 'text-white' : 'text-slate-900'}`}>{edgeCopy.name}</div>
-                        <div className={`mt-1 text-sm ${victoryMode === 'edge' ? 'text-white/72' : 'text-slate-500'}`}>{edgeCopy.description}</div>
+                        <div className={`text-sm font-semibold ${victoryMode === 'edge' ? 'text-white' : 'text-ink'}`}>{edgeCopy.name}</div>
+                        <div className={`mt-1 text-sm ${victoryMode === 'edge' ? 'text-white/72' : 'text-ink-muted'}`}>{edgeCopy.description}</div>
                       </div>
                     </div>
                   </button>
@@ -311,8 +311,8 @@ export function SetupScreen({
                     onClick={() => setVictoryMode('town')}
                     className={`w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
                       victoryMode === 'town'
-                        ? 'border-slate-900/12 bg-slate-900 text-white'
-                        : 'border-slate-200/80 bg-white/78 text-slate-900'
+                        ? 'border-accent bg-accent text-white'
+                        : 'border-line bg-bg-raised text-ink'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -320,8 +320,8 @@ export function SetupScreen({
                         <Shield size={16} />
                       </span>
                       <div>
-                        <div className={`text-sm font-semibold ${victoryMode === 'town' ? 'text-white' : 'text-slate-900'}`}>{townCopy.name}</div>
-                        <div className={`mt-1 text-sm ${victoryMode === 'town' ? 'text-white/72' : 'text-slate-500'}`}>{townCopy.description}</div>
+                        <div className={`text-sm font-semibold ${victoryMode === 'town' ? 'text-white' : 'text-ink'}`}>{townCopy.name}</div>
+                        <div className={`mt-1 text-sm ${victoryMode === 'town' ? 'text-white/72' : 'text-ink-muted'}`}>{townCopy.description}</div>
                       </div>
                     </div>
                   </button>
@@ -336,8 +336,8 @@ export function SetupScreen({
                     onClick={() => setSpeakingOrder('left')}
                     className={`flex-1 rounded-[18px] border px-4 py-3 text-center transition-colors ${
                       speakingOrder === 'left'
-                        ? 'border-slate-900/12 bg-slate-900 text-white'
-                        : 'border-slate-200/80 bg-white/78 text-slate-900'
+                        ? 'border-accent bg-accent text-white'
+                        : 'border-line bg-bg-raised text-ink'
                     }`}
                   >
                     <div className="text-lg">↻</div>
@@ -348,8 +348,8 @@ export function SetupScreen({
                     onClick={() => setSpeakingOrder('right')}
                     className={`flex-1 rounded-[18px] border px-4 py-3 text-center transition-colors ${
                       speakingOrder === 'right'
-                        ? 'border-slate-900/12 bg-slate-900 text-white'
-                        : 'border-slate-200/80 bg-white/78 text-slate-900'
+                        ? 'border-accent bg-accent text-white'
+                        : 'border-line bg-bg-raised text-ink'
                     }`}
                   >
                     <div className="text-lg">↺</div>
@@ -364,10 +364,10 @@ export function SetupScreen({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="mac-eyebrow">{copy.configSummary}</div>
-                    <div className="mt-1 text-base font-semibold text-slate-900">{copy.buildSummary(customValidation.description)}</div>
+                    <div className="mt-1 text-base font-semibold text-ink">{copy.buildSummary(customValidation.description)}</div>
                   </div>
                   <div className="mac-badge">
-                    {copy.totalPlayers}: <span className="font-semibold text-slate-900">{customValidation.total}</span>
+                    {copy.totalPlayers}: <span className="font-semibold text-ink">{customValidation.total}</span>
                   </div>
                 </div>
               </div>

@@ -89,7 +89,7 @@ export function WolfgameHub({
               </div>
               <div>
                 <div className="mac-eyebrow">Wolfgame</div>
-                <h1 className="text-base font-semibold text-slate-900">{statusLabel}</h1>
+                <h1 className="text-base font-semibold text-ink">{statusLabel}</h1>
               </div>
             </div>
 
@@ -122,10 +122,10 @@ export function WolfgameHub({
             <section className="space-y-6">
               <div className="space-y-4">
                 <div className="mac-eyebrow">{copy.subtitle}</div>
-                <h2 className="text-[clamp(2.25rem,5vw,3.75rem)] font-semibold tracking-tight text-slate-950">
+                <h2 className="text-[clamp(2.25rem,5vw,3.75rem)] font-semibold tracking-tight text-ink">
                   {copy.title}
                 </h2>
-                <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.description}</p>
+                <p className="max-w-2xl text-base leading-7 text-ink-muted">{copy.description}</p>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -156,7 +156,7 @@ export function WolfgameHub({
                         <span className="mac-icon-tile h-9 w-9 rounded-[14px]">
                           <Waypoints size={16} />
                         </span>
-                        <code className="text-sm font-medium text-slate-900">{route}</code>
+                        <code className="text-sm font-medium text-ink">{route}</code>
                       </div>
                     </div>
                   ))}
@@ -167,8 +167,8 @@ export function WolfgameHub({
             <aside className="space-y-3">
               {copy.notes.map((note) => (
                 <div key={note.title} className="mac-muted-card">
-                  <div className="text-sm font-semibold text-slate-900">{note.title}</div>
-                  <div className="mt-2 text-sm leading-6 text-slate-500">{note.body}</div>
+                  <div className="text-sm font-semibold text-ink">{note.title}</div>
+                  <div className="mt-2 text-sm leading-6 text-ink-muted">{note.body}</div>
                 </div>
               ))}
             </aside>
