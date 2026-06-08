@@ -4,15 +4,15 @@ import { MessageCircle, Brain, Moon, Sun, ChevronDown, ChevronUp, Swords, Eye, S
 // 获取行动类型图标
 const getActionIcon = (type) => {
   switch(type) {
-    case '袭击': return <Swords size={12} className="text-rose-400" />;
-    case '查验': return <Eye size={12} className="text-purple-400" />;
-    case '守护': return <Shield size={12} className="text-blue-400" />;
+    case '袭击': return <Swords size={12} className="text-role-wolf" />;
+    case '查验': return <Eye size={12} className="text-role-seer" />;
+    case '守护': return <Shield size={12} className="text-role-guard" />;
     case '解药':
-    case '毒药': return <FlaskConical size={12} className="text-emerald-400" />;
-    case '猎人开枪': return <Target size={12} className="text-orange-400" />;
-    case '投票结果': return <Vote size={12} className="text-amber-400" />;
-    case '公告': return <MessageCircle size={12} className="text-emerald-400" />;
-    default: return <Moon size={12} className="text-indigo-400" />;
+    case '毒药': return <FlaskConical size={12} className="text-role-witch" />;
+    case '猎人开枪': return <Target size={12} className="text-role-hunter" />;
+    case '投票结果': return <Vote size={12} className="text-phase-day" />;
+    case '公告': return <MessageCircle size={12} className="text-success" />;
+    default: return <Moon size={12} className="text-phase-night" />;
   }
 };
 
@@ -40,42 +40,42 @@ function MessageItem({ data, type, playerName, playerId, isNight, showThought = 
     <div className={`
       p-3 rounded-xl border transition-all
       ${isSystemMessage
-        ? 'bg-emerald-950/50 border-emerald-500/30 hover:border-emerald-500/50'
+        ? 'bg-success-soft border-line hover:border-line-strong'
         : type === 'action'
-          ? 'bg-indigo-950/50 border-indigo-500/30 hover:border-indigo-500/50'
-          : 'bg-amber-950/30 border-amber-500/30 hover:border-amber-500/50'}
+          ? 'bg-phase-night-soft border-line hover:border-line-strong'
+          : 'bg-phase-day-soft border-line hover:border-line-strong'}
     `}>
       {/* 头部：玩家信息 + 类型标签 + 时间戳 */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {isSystemMessage ? (
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-600/50 text-emerald-200">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-success-soft text-success">
               📢
             </span>
           ) : (
             <span className={`
               text-xs font-bold px-2 py-0.5 rounded-full
-              ${type === 'action' ? 'bg-indigo-600/50 text-indigo-200' : 'bg-amber-600/50 text-amber-200'}
+              ${type === 'action' ? 'bg-phase-night-bg text-phase-night' : 'bg-phase-day-bg text-phase-day'}
             `}>
               {playerId}号
             </span>
           )}
-          <span className="text-[10px] text-zinc-400 truncate max-w-[80px]">{playerName}</span>
+          <span className="text-[10px] text-ink-muted truncate max-w-[80px]">{playerName}</span>
         </div>
         <div className="flex items-center gap-2">
           {/* 时间戳 */}
           {timestamp && (
-            <span className="text-[8px] text-zinc-500">{formatTimestamp(timestamp)}</span>
+            <span className="text-[8px] text-ink-faint">{formatTimestamp(timestamp)}</span>
           )}
           {type === 'action' ? (
             <div className="flex items-center gap-1">
               {getActionIcon(data.type)}
-              <span className="text-[9px] text-zinc-400">{data.type}</span>
+              <span className="text-[9px] text-ink-muted">{data.type}</span>
             </div>
           ) : (
             <div className="flex items-center gap-1">
-              <MessageCircle size={10} className="text-amber-400" />
-              <span className="text-[9px] text-zinc-400">发言</span>
+              <MessageCircle size={10} className="text-phase-day" />
+              <span className="text-[9px] text-ink-muted">发言</span>
             </div>
           )}
         </div>
@@ -83,19 +83,19 @@ function MessageItem({ data, type, playerName, playerId, isNight, showThought = 
 
       {/* 思考过程 */}
       {thought && (
-        <div className="mb-2 pb-2 border-b border-zinc-700/50">
+        <div className="mb-2 pb-2 border-b border-line">
           <div className="flex items-center gap-1 mb-1">
-            <Brain size={10} className="text-purple-400" />
-            <span className="text-[8px] text-purple-400 font-bold uppercase">思考</span>
+            <Brain size={10} className="text-state-thinking" />
+            <span className="text-[8px] text-state-thinking font-bold uppercase">思考</span>
           </div>
-          <p className="text-[10px] text-zinc-400 italic leading-relaxed">
+          <p className="text-[10px] text-ink-muted italic leading-relaxed">
             {thought.length > 80 && !isExpanded ? thought.slice(0, 80) + '...' : thought}
           </p>
         </div>
       )}
 
       {/* 主要内容 */}
-      <p className="text-[11px] text-zinc-200 leading-relaxed whitespace-pre-wrap">
+      <p className="text-[11px] text-ink leading-relaxed whitespace-pre-wrap">
         {displayContent}
       </p>
 
@@ -103,7 +103,7 @@ function MessageItem({ data, type, playerName, playerId, isNight, showThought = 
       {(shouldCollapse || (thought && thought.length > 80)) && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-1 mt-2 text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="flex items-center gap-1 mt-2 text-[9px] text-ink-muted hover:text-ink transition-colors"
         >
           {isExpanded ? (
             <>收起 <ChevronUp size={12} /></>
@@ -193,8 +193,8 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
       className={`
         fixed top-20 ${side === 'left' ? 'left-2 xl:left-4' : 'right-2 xl:right-4'}
         ${panelStyle} max-h-[calc(100vh-180px)] ${zIndex}
-        bg-zinc-900/95 backdrop-blur-lg
-        border border-zinc-700/50 rounded-2xl
+        bg-bg-raised backdrop-blur-lg
+        border border-line rounded-2xl
         shadow-2xl overflow-hidden
         transition-all duration-300 ease-out
         ${isHovered && isCollapsed ? 'scale-[1.02]' : ''}
@@ -206,27 +206,27 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className={`
-          w-full px-3 py-2.5 border-b border-zinc-800
-          ${accentColor === 'indigo' ? 'bg-indigo-900/30' : 'bg-amber-900/20'}
-          hover:bg-zinc-800/50 transition-colors
+          w-full px-3 py-2.5 border-b border-line
+          ${accentColor === 'indigo' ? 'bg-phase-night-soft' : 'bg-phase-day-soft'}
+          hover:bg-bg-sunken transition-colors
           flex items-center ${showExpanded ? 'justify-between' : 'justify-center'}
         `}
       >
         <div className="flex items-center gap-2">
-          <Icon size={14} className={accentColor === 'indigo' ? 'text-indigo-400' : 'text-amber-400'} />
+          <Icon size={14} className={accentColor === 'indigo' ? 'text-phase-night' : 'text-phase-day'} />
           {showExpanded && (
             <>
-              <span className={`text-xs font-bold ${accentColor === 'indigo' ? 'text-indigo-300' : 'text-amber-300'}`}>
+              <span className={`text-xs font-bold ${accentColor === 'indigo' ? 'text-phase-night' : 'text-phase-day'}`}>
                 {title}
               </span>
-              <span className="text-[10px] text-zinc-500">({messages.length})</span>
+              <span className="text-[10px] text-ink-faint">({messages.length})</span>
             </>
           )}
         </div>
         {showExpanded && (
           <ChevronDown
             size={14}
-            className={`text-zinc-500 transition-transform duration-300 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`}
+            className={`text-ink-muted transition-transform duration-300 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`}
           />
         )}
       </button>
@@ -241,7 +241,7 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
         `}
       >
         {isEmpty ? (
-          <div className="text-center py-8 text-zinc-500 text-[11px]">
+          <div className="text-center py-8 text-ink-faint text-[11px]">
             暂无记录
           </div>
         ) : (
@@ -253,8 +253,8 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
                 sticky top-0 z-10 px-2 py-1.5 mb-2 rounded-lg
                 text-[10px] font-bold flex items-center gap-1.5
                 ${dayNight.startsWith('N')
-                  ? 'bg-indigo-900/60 text-indigo-300 border border-indigo-700/50'
-                  : 'bg-amber-900/40 text-amber-300 border border-amber-700/50'}
+                  ? 'bg-phase-night-soft text-phase-night border border-line'
+                  : 'bg-phase-day-soft text-phase-day border border-line'}
                 backdrop-blur-sm
               `}>
                 {dayNight.startsWith('N') ? (
@@ -268,7 +268,7 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
                     <span>第{dayNight.slice(1)}天</span>
                   </>
                 )}
-                <span className="text-zinc-500 ml-1">({groupedMessages.groups[dayNight].length})</span>
+                <span className="text-ink-faint ml-1">({groupedMessages.groups[dayNight].length})</span>
               </div>
               {/* 该组内的消息 */}
               <div className="space-y-2">
@@ -294,8 +294,8 @@ function SidePanel({ side, messages, phase, title, icon: Icon, accentColor, show
       {!showExpanded && messages.length > 0 && (
         <div className={`
           absolute -top-1 -right-1 w-5 h-5 rounded-full
-          flex items-center justify-center text-[10px] font-bold
-          ${accentColor === 'indigo' ? 'bg-indigo-500 text-white' : 'bg-amber-500 text-zinc-900'}
+          flex items-center justify-center text-[10px] font-bold text-white
+          ${accentColor === 'indigo' ? 'bg-phase-night' : 'bg-phase-day'}
           animate-pulse
         `}>
           {messages.length > 9 ? '9+' : messages.length}

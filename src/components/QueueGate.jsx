@@ -146,10 +146,10 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
 
   if (status === 'acquiring') {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-zinc-400">正在获取游戏资源...</p>
+          <div className="animate-spin h-8 w-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-ink-muted">正在获取游戏资源...</p>
         </div>
       </div>
     );
@@ -157,14 +157,14 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
 
   if (status === 'waiting') {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">⏳</div>
-          <h2 className="text-xl font-bold text-white mb-2">排队中</h2>
-          <p className="text-zinc-400 mb-4">
+          <h2 className="text-xl font-bold text-ink mb-2">排队中</h2>
+          <p className="text-ink-muted mb-4">
             当前有其他{queueInfo?.holderRole === 'admin' ? '管理员' : '用户'}正在使用，请稍候。
           </p>
-          <p className="text-zinc-500 text-sm">系统会自动检查可用性，无需手动刷新。</p>
+          <p className="text-ink-faint text-sm">系统会自动检查可用性，无需手动刷新。</p>
         </div>
       </div>
     );
@@ -172,18 +172,18 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
 
   if (status === 'preempted') {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">👋</div>
-          <h2 className="text-xl font-bold text-white mb-2">管理员已接管</h2>
-          <p className="text-zinc-400 mb-4">
+          <h2 className="text-xl font-bold text-ink mb-2">管理员已接管</h2>
+          <p className="text-ink-muted mb-4">
             {isGuest
               ? '管理员使用完毕后您可以重新开始。'
               : '您的游戏进度已自动保存，管理员使用完毕后您可以继续。'}
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent-hover transition"
           >
             重新排队
           </button>
@@ -194,9 +194,9 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-400">获取资源失败，请刷新重试。</p>
+          <p className="text-danger">获取资源失败，请刷新重试。</p>
         </div>
       </div>
     );

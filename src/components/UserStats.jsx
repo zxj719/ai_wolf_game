@@ -66,9 +66,9 @@ export function UserStats({ onClose }) {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-        <div className="bg-slate-800 rounded-xl p-8">
-          <div className="animate-spin w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full mx-auto" />
-          <p className="text-slate-400 mt-4">加载中...</p>
+        <div className="bg-bg-raised rounded-xl p-8">
+          <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto" />
+          <p className="text-ink-muted mt-4">加载中...</p>
         </div>
       </div>
     );
@@ -76,28 +76,28 @@ export function UserStats({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
+      <div className="bg-bg-raised rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-amber-400">
+        <div className="p-4 border-b border-line flex items-center justify-between">
+          <h2 className="text-xl font-bold text-accent">
             {user?.username} 的战绩
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-2xl"
+            className="text-ink-muted hover:text-ink text-2xl"
           >
             &times;
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-700">
+        <div className="flex border-b border-line">
           <button
             onClick={() => setActiveTab('stats')}
             className={`flex-1 py-3 text-center transition-colors ${
               activeTab === 'stats'
-                ? 'text-amber-400 border-b-2 border-amber-400'
-                : 'text-slate-400 hover:text-slate-300'
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             统计数据
@@ -106,8 +106,8 @@ export function UserStats({ onClose }) {
             onClick={() => setActiveTab('history')}
             className={`flex-1 py-3 text-center transition-colors ${
               activeTab === 'history'
-                ? 'text-amber-400 border-b-2 border-amber-400'
-                : 'text-slate-400 hover:text-slate-300'
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             对局记录
@@ -120,36 +120,36 @@ export function UserStats({ onClose }) {
             <div className="space-y-6">
               {/* Overview */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-white">{stats.totalGames}</div>
-                  <div className="text-slate-400 text-sm">总场次</div>
+                <div className="bg-bg-sunken rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-ink">{stats.totalGames}</div>
+                  <div className="text-ink-muted text-sm">总场次</div>
                 </div>
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-amber-400">{stats.winRate}%</div>
-                  <div className="text-slate-400 text-sm">胜率</div>
+                <div className="bg-bg-sunken rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-accent">{stats.winRate}%</div>
+                  <div className="text-ink-muted text-sm">胜率</div>
                 </div>
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-green-400">{stats.wins}</div>
-                  <div className="text-slate-400 text-sm">胜利</div>
+                <div className="bg-bg-sunken rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-state-win-good">{stats.wins}</div>
+                  <div className="text-ink-muted text-sm">胜利</div>
                 </div>
-                <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-red-400">{stats.losses}</div>
-                  <div className="text-slate-400 text-sm">失败</div>
+                <div className="bg-bg-sunken rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-state-win-evil">{stats.losses}</div>
+                  <div className="text-ink-muted text-sm">失败</div>
                 </div>
               </div>
 
               {/* Recent Results */}
               {stats.recentResults && stats.recentResults.length > 0 && (
                 <div>
-                  <h3 className="text-slate-300 mb-2">最近10场</h3>
+                  <h3 className="text-ink mb-2">最近10场</h3>
                   <div className="flex gap-1">
                     {stats.recentResults.map((result, i) => (
                       <div
                         key={i}
                         className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
                           result === 'win'
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'
+                            ? 'bg-success-soft text-success'
+                            : 'bg-danger-soft text-danger'
                         }`}
                       >
                         {result === 'win' ? 'W' : 'L'}
@@ -162,15 +162,15 @@ export function UserStats({ onClose }) {
               {/* Role Stats */}
               {stats.roleStats && stats.roleStats.length > 0 && (
                 <div>
-                  <h3 className="text-slate-300 mb-2">角色统计</h3>
+                  <h3 className="text-ink mb-2">角色统计</h3>
                   <div className="space-y-2">
                     {stats.roleStats.map((role, i) => (
-                      <div key={i} className="flex items-center justify-between bg-slate-700/30 rounded p-2">
-                        <span className="text-white">{role.role}</span>
+                      <div key={i} className="flex items-center justify-between bg-bg-sunken rounded p-2">
+                        <span className="text-ink">{role.role}</span>
                         <div className="flex items-center gap-4">
-                          <span className="text-slate-400 text-sm">{role.games} 场</span>
-                          <span className="text-green-400 text-sm">{role.wins} 胜</span>
-                          <span className="text-amber-400 text-sm">
+                          <span className="text-ink-muted text-sm">{role.games} 场</span>
+                          <span className="text-success text-sm">{role.wins} 胜</span>
+                          <span className="text-accent text-sm">
                             {role.games > 0 ? Math.round((role.wins / role.games) * 100) : 0}%
                           </span>
                         </div>
@@ -185,7 +185,7 @@ export function UserStats({ onClose }) {
           {activeTab === 'history' && (
             <div className="space-y-2">
               {history.length === 0 ? (
-                <div className="text-center text-slate-400 py-8">
+                <div className="text-center text-ink-muted py-8">
                   暂无对局记录
                 </div>
               ) : (
@@ -193,32 +193,32 @@ export function UserStats({ onClose }) {
                   {history.map((game, i) => (
                     <div
                       key={game.id || i}
-                      className={`flex items-center justify-between p-3 rounded-lg ${
+                      className={`flex items-center justify-between p-3 rounded-lg border border-line ${
                         game.result === 'win'
-                          ? 'bg-green-500/10 border border-green-500/20'
-                          : 'bg-red-500/10 border border-red-500/20'
+                          ? 'bg-success-soft'
+                          : 'bg-danger-soft'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <span
                           className={`px-2 py-1 rounded text-xs font-bold ${
                             game.result === 'win'
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'bg-red-500/20 text-red-400'
+                              ? 'bg-success-soft text-success'
+                              : 'bg-danger-soft text-danger'
                           }`}
                         >
                           {game.result === 'win' ? '胜利' : '失败'}
                         </span>
                         <div>
-                          <div className="text-white">{game.role}</div>
-                          <div className="text-slate-400 text-xs">{game.game_mode}</div>
+                          <div className="text-ink">{game.role}</div>
+                          <div className="text-ink-muted text-xs">{game.game_mode}</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-slate-400 text-sm">
+                        <div className="text-ink-muted text-sm">
                           {formatDuration(game.duration_seconds)}
                         </div>
-                        <div className="text-slate-500 text-xs">
+                        <div className="text-ink-faint text-xs">
                           {formatDate(game.created_at)}
                         </div>
                       </div>
@@ -228,7 +228,7 @@ export function UserStats({ onClose }) {
                   {hasMore && (
                     <button
                       onClick={loadMoreHistory}
-                      className="w-full py-2 text-amber-400 hover:text-amber-300 text-sm"
+                      className="w-full py-2 text-accent hover:text-accent-hover text-sm"
                     >
                       加载更多
                     </button>

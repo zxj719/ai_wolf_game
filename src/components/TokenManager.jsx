@@ -182,43 +182,43 @@ export function TokenManager({ onClose, onTokenSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-xl max-w-lg w-full p-6 relative border border-zinc-700">
+      <div className="bg-bg-raised rounded-xl max-w-lg w-full p-6 relative border border-line">
         {/* 关闭按钮 */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
+          className="absolute top-4 right-4 text-ink-muted hover:text-ink transition-colors"
         >
           <X size={20} />
         </button>
 
         {/* 标题 */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-amber-600/20 rounded-full flex items-center justify-center">
-            <Key className="text-amber-500" size={20} />
+          <div className="w-10 h-10 bg-accent-soft rounded-full flex items-center justify-center">
+            <Key className="text-accent" size={20} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">ModelScope 令牌配置</h2>
-            <p className="text-sm text-zinc-400">配置您的 API 令牌以使用 AI 狼人杀</p>
+            <h2 className="text-xl font-bold text-ink">ModelScope 令牌配置</h2>
+            <p className="text-sm text-ink-muted">配置您的 API 令牌以使用 AI 狼人杀</p>
           </div>
         </div>
 
         {/* 当前状态 */}
-        <div className="mb-6 p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+        <div className="mb-6 p-4 rounded-lg bg-bg-sunken border border-line">
           <div className="flex items-center justify-between">
-            <span className="text-zinc-300">当前状态</span>
+            <span className="text-ink">当前状态</span>
             {verifying ? (
-              <span className="flex items-center gap-2 text-zinc-400">
+              <span className="flex items-center gap-2 text-ink-muted">
                 <Loader2 size={16} className="animate-spin" />
                 验证中（测试 AI 调用）...
               </span>
             ) : tokenStatus.hasToken ? (
               tokenStatus.isValid ? (
-                <span className="flex items-center gap-2 text-green-400">
+                <span className="flex items-center gap-2 text-success">
                   <Check size={16} />
                   ✓ 已验证，可以开始游戏！
                 </span>
               ) : (
-                <span className="flex items-center gap-2 text-red-400">
+                <span className="flex items-center gap-2 text-danger">
                   <AlertCircle size={16} />
                   {tokenStatus.errorType === 'account_not_verified'
                     ? '需要完成阿里云绑定/实名认证'
@@ -230,7 +230,7 @@ export function TokenManager({ onClose, onTokenSaved }) {
                 </span>
               )
             ) : (
-              <span className="flex items-center gap-2 text-yellow-400">
+              <span className="flex items-center gap-2 text-warning">
                 <AlertCircle size={16} />
                 未配置
               </span>
@@ -238,13 +238,13 @@ export function TokenManager({ onClose, onTokenSaved }) {
           </div>
           {tokenStatus.message && !tokenStatus.isValid && tokenStatus.hasToken && (
             <div className="mt-2 space-y-2">
-              <p className="text-xs text-red-400">
+              <p className="text-xs text-danger">
                 {tokenStatus.message}
               </p>
               {tokenStatus.errorType === 'network_error' && (
-                <div className="text-xs text-amber-400 bg-amber-900/20 border border-amber-700/30 rounded p-2">
+                <div className="text-xs text-warning bg-warning-soft border border-line rounded p-2">
                   <p className="font-medium mb-1">💡 网络问题排查建议：</p>
-                  <ul className="list-disc list-inside space-y-1 text-amber-300/90">
+                  <ul className="list-disc list-inside space-y-1 text-warning">
                     <li>关闭 VPN（部分 VPN 节点无法访问 ModelScope）</li>
                     <li>切换网络（尝试手机热点或其他 WiFi）</li>
                     <li>检查防火墙设置</li>
@@ -255,83 +255,83 @@ export function TokenManager({ onClose, onTokenSaved }) {
             </div>
           )}
           {tokenStatus.verifiedAt && tokenStatus.isValid && (
-            <p className="text-xs text-zinc-500 mt-2">
+            <p className="text-xs text-ink-faint mt-2">
               上次验证: {new Date(tokenStatus.verifiedAt).toLocaleString('zh-CN')}
             </p>
           )}
         </div>
 
         {/* 获取令牌指引 */}
-        <div className="mb-6 p-4 rounded-lg bg-blue-900/20 border border-blue-700/50">
-          <h3 className="text-sm font-medium text-blue-300 mb-3">📋 配置步骤（请按顺序完成）</h3>
-          <ol className="text-sm text-zinc-300 space-y-3">
+        <div className="mb-6 p-4 rounded-lg bg-bg-sunken border border-line">
+          <h3 className="text-sm font-medium text-ink mb-3">📋 配置步骤（请按顺序完成）</h3>
+          <ol className="text-sm text-ink space-y-3">
             <li className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold text-white">1</span>
+              <span className="flex-shrink-0 w-6 h-6 bg-accent rounded-full flex items-center justify-center text-xs font-bold text-white">1</span>
               <div className="flex-1">
-                <span className="font-medium text-white">注册 ModelScope 账户</span>
+                <span className="font-medium text-ink">注册 ModelScope 账户</span>
                 <a
                   href="https://modelscope.cn/register?back=%2Fmodels"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-2 inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-xs"
+                  className="ml-2 inline-flex items-center gap-1 text-accent hover:text-accent-hover transition-colors text-xs"
                 >
                   前往注册 <ExternalLink size={12} />
                 </a>
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-6 h-6 bg-amber-600 rounded-full flex items-center justify-center text-xs font-bold text-white">2</span>
+              <span className="flex-shrink-0 w-6 h-6 bg-accent rounded-full flex items-center justify-center text-xs font-bold text-white">2</span>
               <div className="flex-1">
-                <span className="font-medium text-white">绑定阿里云账号</span>
-                <span className="text-amber-400 text-xs ml-1">(必需)</span>
+                <span className="font-medium text-ink">绑定阿里云账号</span>
+                <span className="text-warning text-xs ml-1">(必需)</span>
                 <a
                   href="https://modelscope.cn/docs/accounts/aliyun-binding-and-authorization"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-2 inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-xs"
+                  className="ml-2 inline-flex items-center gap-1 text-accent hover:text-accent-hover transition-colors text-xs"
                 >
                   绑定教程 <ExternalLink size={12} />
                 </a>
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-6 h-6 bg-amber-600 rounded-full flex items-center justify-center text-xs font-bold text-white">3</span>
+              <span className="flex-shrink-0 w-6 h-6 bg-accent rounded-full flex items-center justify-center text-xs font-bold text-white">3</span>
               <div className="flex-1">
-                <span className="font-medium text-white">完成阿里云实名认证</span>
-                <span className="text-amber-400 text-xs ml-1">(必需)</span>
+                <span className="font-medium text-ink">完成阿里云实名认证</span>
+                <span className="text-warning text-xs ml-1">(必需)</span>
                 <a
                   href="https://help.aliyun.com/zh/account/account-verification-overview"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-2 inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-xs"
+                  className="ml-2 inline-flex items-center gap-1 text-accent hover:text-accent-hover transition-colors text-xs"
                 >
                   认证指南 <ExternalLink size={12} />
                 </a>
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-xs font-bold text-white">4</span>
+              <span className="flex-shrink-0 w-6 h-6 bg-accent rounded-full flex items-center justify-center text-xs font-bold text-white">4</span>
               <div className="flex-1">
-                <span className="font-medium text-white">获取 Access Token</span>
+                <span className="font-medium text-ink">获取 Access Token</span>
                 <a
                   href="https://modelscope.cn/my/access/token"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-2 inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-xs"
+                  className="ml-2 inline-flex items-center gap-1 text-accent hover:text-accent-hover transition-colors text-xs"
                 >
                   获取令牌 <ExternalLink size={12} />
                 </a>
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="flex-shrink-0 w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-xs font-bold text-white">5</span>
+              <span className="flex-shrink-0 w-6 h-6 bg-accent rounded-full flex items-center justify-center text-xs font-bold text-white">5</span>
               <div className="flex-1">
-                <span className="font-medium text-white">复制并粘贴到下方输入框</span>
+                <span className="font-medium text-ink">复制并粘贴到下方输入框</span>
               </div>
             </li>
           </ol>
-          <div className="mt-3 p-2 rounded bg-amber-900/30 border border-amber-700/50">
-            <p className="text-xs text-amber-300">
+          <div className="mt-3 p-2 rounded bg-warning-soft border border-line">
+            <p className="text-xs text-warning">
               ⚠️ <strong>重要提示：</strong>步骤 2-3 必须完成，否则 API 无法正常使用！
             </p>
           </div>
@@ -339,7 +339,7 @@ export function TokenManager({ onClose, onTokenSaved }) {
 
         {/* 令牌输入 */}
         <div className="mb-4">
-          <label className="block text-sm text-zinc-300 mb-2">
+          <label className="block text-sm text-ink mb-2">
             {tokenStatus.hasToken ? '更新令牌' : '输入令牌'}
           </label>
           <div className="relative">
@@ -348,13 +348,13 @@ export function TokenManager({ onClose, onTokenSaved }) {
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
               placeholder="粘贴您的 ModelScope Access Token"
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 pr-12"
+              className="w-full px-4 py-3 bg-bg-sunken border border-line rounded-lg text-ink placeholder-ink-faint focus:outline-none focus:border-accent pr-12"
               disabled={loading}
             />
             <button
               type="button"
               onClick={() => setShowToken(!showToken)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink transition-colors"
             >
               {showToken ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -363,10 +363,10 @@ export function TokenManager({ onClose, onTokenSaved }) {
 
         {/* 网络诊断结果 */}
         {networkStatus && (
-          <div className={`mb-4 p-3 rounded-lg border text-sm ${
+          <div className={`mb-4 p-3 rounded-lg border border-line text-sm ${
             networkStatus.success
-              ? 'bg-green-900/30 border-green-700/50 text-green-300'
-              : 'bg-red-900/30 border-red-700/50 text-red-300'
+              ? 'bg-success-soft text-success'
+              : 'bg-danger-soft text-danger'
           }`}>
             <p className="font-medium">{networkStatus.message}</p>
             {networkStatus.suggestion && (
@@ -377,12 +377,12 @@ export function TokenManager({ onClose, onTokenSaved }) {
 
         {/* 错误/成功消息 */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700/50 text-red-300 text-sm">
+          <div className="mb-4 p-3 rounded-lg bg-danger-soft border border-line text-danger text-sm">
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-4 p-3 rounded-lg bg-green-900/30 border border-green-700/50 text-green-300 text-sm">
+          <div className="mb-4 p-3 rounded-lg bg-success-soft border border-line text-success text-sm">
             {success}
           </div>
         )}
@@ -393,7 +393,7 @@ export function TokenManager({ onClose, onTokenSaved }) {
             <button
               onClick={handleSaveToken}
               disabled={loading || !tokenInput.trim()}
-              className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-accent hover:bg-accent-hover disabled:bg-bg-sunken disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -412,7 +412,7 @@ export function TokenManager({ onClose, onTokenSaved }) {
               <button
                 onClick={handleDeleteToken}
                 disabled={loading}
-                className="px-4 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 text-red-400 rounded-lg transition-colors"
+                className="px-4 py-3 bg-danger-soft hover:bg-danger-soft border border-line text-danger rounded-lg transition-colors"
               >
                 删除
               </button>
@@ -423,7 +423,7 @@ export function TokenManager({ onClose, onTokenSaved }) {
           <button
             onClick={handleNetworkDiagnose}
             disabled={networkDiagnosing}
-            className="w-full py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 text-blue-400 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+            className="w-full py-2.5 bg-accent-soft hover:bg-accent-soft border border-line text-accent rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
           >
             {networkDiagnosing ? (
               <>
@@ -440,7 +440,7 @@ export function TokenManager({ onClose, onTokenSaved }) {
         </div>
 
         {/* 隐私说明 */}
-        <p className="mt-4 text-xs text-zinc-500 text-center">
+        <p className="mt-4 text-xs text-ink-faint text-center">
           您的令牌将安全存储在服务器端，仅用于 AI 狼人杀游戏的 API 调用。
         </p>
       </div>

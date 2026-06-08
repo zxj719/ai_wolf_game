@@ -47,12 +47,12 @@ export function GameHistoryTable({
 
   const getRoleIcon = (role) => {
     switch(role) {
-      case '狼人': return <Skull size={12} className="text-rose-500"/>;
-      case '预言家': return <Eye size={12} className="text-purple-500"/>;
-      case '女巫': return <FlaskConical size={12} className="text-emerald-500"/>;
-      case '猎人': return <Target size={12} className="text-orange-500"/>;
-      case '守卫': return <Shield size={12} className="text-blue-500"/>;
-      default: return <User size={12} className="text-zinc-500"/>;
+      case '狼人': return <Skull size={12} className="text-role-wolf"/>;
+      case '预言家': return <Eye size={12} className="text-role-seer"/>;
+      case '女巫': return <FlaskConical size={12} className="text-role-witch"/>;
+      case '猎人': return <Target size={12} className="text-role-hunter"/>;
+      case '守卫': return <Shield size={12} className="text-role-guard"/>;
+      default: return <User size={12} className="text-ink-muted"/>;
     }
   };
 
@@ -175,14 +175,14 @@ export function GameHistoryTable({
     return (
       <div className={`${isExpanded ? '' : 'line-clamp-2'}`}>
         <div className="flex items-center gap-1 mb-0.5">
-          <Brain size={8} className="text-purple-400" />
-          <span className="text-[7px] text-purple-400">思考</span>
+          <Brain size={8} className="text-state-thinking" />
+          <span className="text-[7px] text-state-thinking">思考</span>
         </div>
-        <p className="text-[8px] text-zinc-400 italic">{thoughtText}</p>
+        <p className="text-[8px] text-ink-muted italic">{thoughtText}</p>
         {shouldCollapse && (
           <button
             onClick={(e) => { e.stopPropagation(); toggleCell(cellKey); }}
-            className="flex items-center gap-0.5 mt-1 text-[7px] text-zinc-500 hover:text-zinc-300"
+            className="flex items-center gap-0.5 mt-1 text-[7px] text-ink-muted hover:text-ink"
           >
             {isExpanded ? <><ChevronUp size={8} /> 收起</> : <><ChevronDown size={8} /> 展开</>}
           </button>
@@ -193,18 +193,18 @@ export function GameHistoryTable({
 
   // 渲染夜间行动内容
   const renderNightAction = (actions, cellKey, isExpanded, playerId) => {
-    if (!actions || actions.length === 0) return <span className="text-zinc-600 text-[10px]">-</span>;
+    if (!actions || actions.length === 0) return <span className="text-ink-faint text-[10px]">-</span>;
 
     return (
       <div className="space-y-1">
         {actions.map((action, idx) => (
-          <div key={idx} className="bg-indigo-900/30 rounded-lg p-2">
+          <div key={idx} className="bg-phase-night-soft rounded-lg p-2">
             <div className="flex items-center gap-1 mb-1">
-              <span className="text-[9px] font-bold text-indigo-400">{action.type}</span>
+              <span className="text-[9px] font-bold text-phase-night">{action.type}</span>
               {action.target !== undefined && (
-                <span className="text-[9px] text-zinc-400">
+                <span className="text-[9px] text-ink-muted">
                   → {action.target}号
-                  {action.result && <span className={action.result === '狼人' ? 'text-rose-400' : 'text-emerald-400'}> ({action.result})</span>}
+                  {action.result && <span className={action.result === '狼人' ? 'text-role-wolf' : 'text-role-witch'}> ({action.result})</span>}
                 </span>
               )}
             </div>
@@ -227,28 +227,28 @@ export function GameHistoryTable({
     );
 
     if (speeches.length === 0 && dayActions.length === 0 && !vote && !death) {
-      return <span className="text-zinc-600 text-[10px]">-</span>;
+      return <span className="text-ink-faint text-[10px]">-</span>;
     }
 
     return (
       <div className="space-y-2">
         {dayActions.map((action, idx) => (
-          <div key={`day-action-${idx}`} className="bg-orange-900/20 rounded-lg p-1.5">
-            <span className="text-[8px] text-orange-400 font-bold">{action.type}</span>
-            {action.target !== undefined && <span className="text-[8px] text-zinc-400"> → {action.target}号</span>}
+          <div key={`day-action-${idx}`} className="bg-role-hunter-soft rounded-lg p-1.5">
+            <span className="text-[8px] text-role-hunter font-bold">{action.type}</span>
+            {action.target !== undefined && <span className="text-[8px] text-ink-muted"> → {action.target}号</span>}
             {renderThought(action.thought, `${cellKey}-action-thought-${idx}`, isExpanded, playerId)}
           </div>
         ))}
         {speeches.map((speech, idx) => (
-          <div key={idx} className="bg-amber-900/20 rounded-lg p-2">
+          <div key={idx} className="bg-phase-day-soft rounded-lg p-2">
             {renderThought(speech.thought, `${cellKey}-thought-${idx}`, isExpanded, playerId)}
-            <p className={`text-[9px] text-zinc-200 ${isExpanded ? '' : 'line-clamp-3'}`}>
+            <p className={`text-[9px] text-ink ${isExpanded ? '' : 'line-clamp-3'}`}>
               {speech.content}
             </p>
             {(speech.content?.length > 80 || speech.thought?.length > 50) && (
               <button
                 onClick={() => toggleCell(cellKey)}
-                className="flex items-center gap-0.5 mt-1 text-[7px] text-zinc-500 hover:text-zinc-300"
+                className="flex items-center gap-0.5 mt-1 text-[7px] text-ink-muted hover:text-ink"
               >
                 {isExpanded ? <><ChevronUp size={8} /> 收起</> : <><ChevronDown size={8} /> 展开</>}
               </button>
@@ -256,13 +256,13 @@ export function GameHistoryTable({
           </div>
         ))}
         {vote && (
-          <div className="bg-orange-900/20 rounded-lg p-1.5">
-            <span className="text-[8px] text-orange-400">投票 → {vote.to}号</span>
+          <div className="bg-phase-day-bg rounded-lg p-1.5">
+            <span className="text-[8px] text-phase-day">投票 → {vote.to}号</span>
           </div>
         )}
         {death && (
-          <div className="bg-rose-900/30 rounded-lg p-1.5">
-            <span className="text-[8px] text-rose-400">💀 {death.cause}</span>
+          <div className="bg-danger-soft rounded-lg p-1.5">
+            <span className="text-[8px] text-danger">💀 {death.cause}</span>
           </div>
         )}
       </div>
@@ -281,18 +281,18 @@ export function GameHistoryTable({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-zinc-800/30">
-              <th className="sticky left-0 z-10 bg-zinc-900 p-3 text-left text-[10px] font-black text-zinc-400 uppercase border-r border-zinc-800 min-w-[100px]">
+            <tr className="bg-bg-sunken">
+              <th className="sticky left-0 z-10 bg-bg-raised p-3 text-left text-[10px] font-black text-ink-muted uppercase border-r border-line min-w-[100px]">
                 回合
               </th>
               {players.map((player) => (
                 <th
                   key={`header-player-${player.id}`}
-                  className="p-3 text-center text-[10px] font-black uppercase border-r border-zinc-800 min-w-[160px] bg-zinc-800/20"
+                  className="p-3 text-center text-[10px] font-black uppercase border-r border-line min-w-[160px] bg-bg-sunken"
                 >
                   <div className="flex items-center justify-center gap-2">
                     <div
-                      className="w-6 h-6 rounded-full border border-zinc-700 overflow-hidden flex-shrink-0"
+                      className="w-6 h-6 rounded-full border border-line overflow-hidden flex-shrink-0"
                       style={{ backgroundColor: player.avatarColor }}
                     >
                       {player.avatarUrl ? (
@@ -304,17 +304,17 @@ export function GameHistoryTable({
                       )}
                     </div>
                     <div className="text-left">
-                      <div className="text-zinc-300">{player.id}号 {player.name}</div>
+                      <div className="text-ink">{player.id}号 {player.name}</div>
                       <div className="flex items-center gap-1">
                         {shouldShowRole(player) ? (
                           <>
                             {getRoleIcon(player.role)}
-                            <span className="text-[8px] text-zinc-500 font-normal">{player.role}</span>
+                            <span className="text-[8px] text-ink-muted font-normal">{player.role}</span>
                           </>
                         ) : (
-                          <span className="text-[8px] text-zinc-600 font-normal">???</span>
+                          <span className="text-[8px] text-ink-faint font-normal">???</span>
                         )}
-                        {!player.isAlive && <Skull size={10} className="text-rose-500" />}
+                        {!player.isAlive && <Skull size={10} className="text-role-wolf" />}
                       </div>
                     </div>
                   </div>
@@ -324,15 +324,15 @@ export function GameHistoryTable({
           </thead>
           <tbody>
             {rounds.map((round) => (
-              <tr key={`round-${round.day}`} className="border-b border-zinc-800/50">
+              <tr key={`round-${round.day}`} className="border-b border-line">
                 {/* 回合标签列 */}
-                <td className="sticky left-0 z-10 bg-zinc-900 p-2 border-r border-zinc-800 align-top">
+                <td className="sticky left-0 z-10 bg-bg-raised p-2 border-r border-line align-top">
                   <div className="space-y-2">
-                    <div className="flex items-center gap-1 text-indigo-400">
+                    <div className="flex items-center gap-1 text-phase-night">
                       <Moon size={12} />
                       <span className="text-[10px] font-bold">{round.nightLabel}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-amber-400">
+                    <div className="flex items-center gap-1 text-phase-day">
                       <Sun size={12} />
                       <span className="text-[10px] font-bold">{round.dayLabel}</span>
                     </div>
@@ -347,23 +347,23 @@ export function GameHistoryTable({
                   const actions = shouldShowNightAction(player.id) ? getNightAction(player.id, round.day) : null;
 
                   return (
-                    <td key={`cell-${player.id}-${round.day}`} className={`p-2 border-r border-zinc-800/50 align-top ${!player.isAlive ? 'opacity-50' : ''}`}>
+                    <td key={`cell-${player.id}-${round.day}`} className={`p-2 border-r border-line align-top ${!player.isAlive ? 'opacity-50' : ''}`}>
                       <div className="space-y-2">
                         {/* 夜间行动 */}
-                        <div className="bg-indigo-900/10 rounded-lg p-2 border border-indigo-500/20">
-                          <div className="flex items-center gap-1 mb-1 text-indigo-400">
+                        <div className="bg-phase-night-soft rounded-lg p-2 border border-line">
+                          <div className="flex items-center gap-1 mb-1 text-phase-night">
                             <Moon size={10} />
                             <span className="text-[8px] font-bold uppercase">夜间</span>
                           </div>
                           {shouldShowNightAction(player.id) ? (
                             renderNightAction(actions, nightCellKey, isNightExpanded, player.id)
                           ) : (
-                            <span className="text-zinc-600 text-[10px]">-</span>
+                            <span className="text-ink-faint text-[10px]">-</span>
                           )}
                         </div>
                         {/* 白天发言 */}
-                        <div className="bg-amber-900/10 rounded-lg p-2 border border-amber-500/20">
-                          <div className="flex items-center gap-1 mb-1 text-amber-400">
+                        <div className="bg-phase-day-soft rounded-lg p-2 border border-line">
+                          <div className="flex items-center gap-1 mb-1 text-phase-day">
                             <Sun size={10} />
                             <span className="text-[8px] font-bold uppercase">白天</span>
                           </div>
@@ -382,14 +382,14 @@ export function GameHistoryTable({
   };
 
   return (
-    <div className="w-full bg-zinc-900/50 rounded-3xl border border-zinc-800 overflow-hidden">
+    <div className="w-full bg-bg-raised rounded-3xl border border-line overflow-hidden">
       {/* 表格标题 */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-800/50">
-        <h3 className="text-sm font-black text-zinc-300 uppercase tracking-wider">游戏历史记录</h3>
+      <div className="flex items-center justify-between p-4 border-b border-line bg-bg-sunken">
+        <h3 className="text-sm font-black text-ink uppercase tracking-wider">游戏历史记录</h3>
         {exportFullLog && (
           <button
             onClick={exportFullLog}
-            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-[10px] font-bold transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-lg text-[10px] font-bold transition-colors"
           >
             <Download size={12} />
             导出完整记录
