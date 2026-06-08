@@ -2,6 +2,25 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-08] 修复 ThemeScope 跨主题前景色（狼人杀深色卡片深色字不可读）
+
+### Bug 修复
+
+- **根因**：`ThemeScope` 用 `data-theme` 切换 CSS **变量**，但不设置 `color` 属性。当模块主题与文档 `<html>` 主题不一致时（狼人杀模块标 `theme:'dark'`，而全局默认 `system`→light，`<html>` 无 `data-theme`），子树拿到深色 surface 变量（`--bg-raised`=#18181b），却**继承**了浅色文档 `body` 的 `color: var(--mac-ink)`=#111827（深色）。结果：未显式设色的文字（如 `PlayerCard` 玩家名）深色字压深色卡，不可读（"什么都看不到"）。
+- **修复**：`ThemeScope` 作用域根加 `style={{ color: 'var(--mac-ink)' }}`，在自己的主题里重新声明前景色 —— 深色作用域内 `--mac-ink` 解析为 #fafafa（浅色），继承文字随之变亮。浅色模块零变化（`--mac-ink`=#111827，与原 body 继承值相同）。
+- **验证**：浏览器实测狼人杀 `[data-theme=dark]` 作用域 `color` 由继承的 rgb(17,24,39) 变为 rgb(250,250,250)；首页（light 模块）作用域仍为 rgb(17,24,39)，无回归。竞技场（player cards / GameActionControls）文字均为继承色或 token，已随之修复。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/shell/ThemeScope.jsx` | 修改 | 作用域根重新声明 `color: var(--mac-ink)`，合并调用方 `style` |
+| `src/shell/__tests__/themeScope.test.jsx` | 新建 | 3 个单测（data-theme、前景色、保留调用方 style） |
+
+### 已知遗留（独立 issue，未在本次修复范围）
+
+- **狼人杀 hub / setup 屏**（`WolfgameHub`/`SetupScreen`/`RoleSelector`）混用 `.mac-*` 主题化 surface（暗色档变深）与**硬编码** `text-slate-900/950` 文字（始终深色）→ 深底深字。ThemeScope 修复无法覆盖（显式 class 覆盖继承色），需对这些屏做 token 化（属 M2 相邻范围）。
+
 ## [2026-06-07] UI 重构 M1b：狼人杀手机端卡片网格 + 底部行动抽屉
 
 ### 新功能
