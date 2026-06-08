@@ -40,27 +40,27 @@ export function StockDetail({ symbol, name, market = 'stock', onBack }) {
   }, [tab, klinePeriod, symbol, fetchKline]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-bg text-ink">
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-900/60 backdrop-blur-sm sticky top-0 z-40">
+      <header className="border-b border-line bg-bg-raised/60 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 text-sm bg-bg-sunken hover:bg-bg-raised text-ink-muted rounded-lg transition-colors flex items-center gap-1"
             >
               <ChevronLeft size={15} />
               返回列表
             </button>
-            <div className="h-4 w-px bg-zinc-700" />
+            <div className="h-4 w-px bg-line-strong" />
             <div>
-              <span className="text-white font-semibold">{name || symbol}</span>
-              <span className="text-zinc-500 text-sm ml-2 font-mono">{symbol}</span>
+              <span className="text-ink font-semibold">{name || symbol}</span>
+              <span className="text-ink-muted text-sm ml-2 font-mono">{symbol}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500' : 'bg-zinc-600'}`} />
-            <span className="text-zinc-500">{status === 'connected' ? '实时' : '离线'}</span>
+            <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-success' : 'bg-ink-faint'}`} />
+            <span className="text-ink-muted">{status === 'connected' ? '实时' : '离线'}</span>
           </div>
         </div>
       </header>
@@ -74,13 +74,13 @@ export function StockDetail({ symbol, name, market = 'stock', onBack }) {
           {/* 左侧：图表 */}
           <div className="md:col-span-2 space-y-4">
             {/* Tab 切换 */}
-            <div className="flex items-center gap-1 border-b border-zinc-800 pb-0">
+            <div className="flex items-center gap-1 border-b border-line pb-0">
               <button
                 onClick={() => setTab('timeline')}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tab === 'timeline'
-                    ? 'border-amber-500 text-amber-400'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-ink-muted hover:text-ink'
                 }`}
               >
                 分时
@@ -89,8 +89,8 @@ export function StockDetail({ symbol, name, market = 'stock', onBack }) {
                 onClick={() => setTab('kline')}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tab === 'kline'
-                    ? 'border-amber-500 text-amber-400'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-ink-muted hover:text-ink'
                 }`}
               >
                 K线
@@ -104,8 +104,8 @@ export function StockDetail({ symbol, name, market = 'stock', onBack }) {
                       onClick={() => setKlinePeriod(p.value)}
                       className={`px-2.5 py-1 text-xs rounded transition-colors ${
                         klinePeriod === p.value
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                          ? 'bg-accent text-white'
+                          : 'bg-bg-sunken text-ink-muted hover:bg-bg-raised'
                       }`}
                     >
                       {p.label}
@@ -116,19 +116,19 @@ export function StockDetail({ symbol, name, market = 'stock', onBack }) {
             </div>
 
             {/* 图表 */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="bg-bg-raised border border-line rounded-xl overflow-hidden">
               {tab === 'timeline' ? (
                 <PriceLineChart prices={quote?.priceHistory} height={320} />
               ) : (
                 <>
                   {klineLoading && (
-                    <div className="flex items-center justify-center py-20 gap-2 text-zinc-500 text-sm">
+                    <div className="flex items-center justify-center py-20 gap-2 text-ink-muted text-sm">
                       <Loader2 size={16} className="animate-spin" />
                       加载K线数据...
                     </div>
                   )}
                   {klineError && !klineLoading && (
-                    <div className="flex items-center justify-center py-20 text-red-400 text-sm">
+                    <div className="flex items-center justify-center py-20 text-danger text-sm">
                       加载失败: {klineError}
                     </div>
                   )}
@@ -136,7 +136,7 @@ export function StockDetail({ symbol, name, market = 'stock', onBack }) {
                     <CandlestickChart candles={klineData} periodKey={klinePeriod} height={400} />
                   )}
                   {!klineLoading && !klineError && !klineData && (
-                    <div className="flex items-center justify-center py-20 text-zinc-600 text-sm">
+                    <div className="flex items-center justify-center py-20 text-ink-faint text-sm">
                       暂无K线数据
                     </div>
                   )}

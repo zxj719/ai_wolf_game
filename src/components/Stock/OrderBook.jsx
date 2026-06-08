@@ -1,15 +1,15 @@
 /**
  * OrderBook - 五档盘口显示组件
- * 上方：5 档卖盘（红色，从高到低）
+ * 上方：5 档卖盘（红色 market-up，从高到低）
  * 中间：价差
- * 下方：5 档买盘（绿色，从高到低）
+ * 下方：5 档买盘（绿色 market-down，从高到低）
  */
 export function OrderBook({ depth }) {
   if (!depth || (!depth.asks?.length && !depth.bids?.length)) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-        <div className="text-xs text-zinc-500 mb-2 font-medium">五档盘口</div>
-        <div className="text-sm text-zinc-600 text-center py-6">等待盘口数据...</div>
+      <div className="bg-bg-raised border border-line rounded-xl p-4">
+        <div className="text-xs text-ink-muted mb-2 font-medium">五档盘口</div>
+        <div className="text-sm text-ink-faint text-center py-6">等待盘口数据...</div>
       </div>
     );
   }
@@ -33,18 +33,18 @@ export function OrderBook({ depth }) {
   const spreadPct = spread && bestBid ? (spread / bestBid) * 100 : null;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-      <div className="text-xs text-zinc-500 mb-3 font-medium">五档盘口</div>
+    <div className="bg-bg-raised border border-line rounded-xl p-4">
+      <div className="text-xs text-ink-muted mb-3 font-medium">五档盘口</div>
 
-      {/* 卖盘 */}
+      {/* 卖盘 — 价格用 market-up(红)；深度条无 market-soft token，用中性 bg-bg-sunken */}
       <div className="space-y-0.5 mb-2">
         {askRows.map((ask, i) => {
           const label = `卖${5 - i}`;
           if (!ask) {
             return (
               <div key={label} className="flex items-center gap-2 text-xs h-6">
-                <span className="w-6 text-zinc-600 shrink-0">{label}</span>
-                <span className="text-zinc-700">—</span>
+                <span className="w-6 text-ink-faint shrink-0">{label}</span>
+                <span className="text-ink-faint">—</span>
               </div>
             );
           }
@@ -53,30 +53,30 @@ export function OrderBook({ depth }) {
             <div key={label} className="flex items-center gap-2 text-xs h-6 relative">
               {/* 背景条 */}
               <div
-                className="absolute right-0 top-0 bottom-0 bg-red-500/10 rounded-r"
+                className="absolute right-0 top-0 bottom-0 bg-bg-sunken rounded-r"
                 style={{ width: `${pct}%` }}
               />
-              <span className="w-6 text-zinc-600 shrink-0 relative z-10">{label}</span>
-              <span className="flex-1 text-red-400 font-mono relative z-10">{ask.price.toFixed(2)}</span>
-              <span className="text-zinc-400 font-mono relative z-10">{fmtVol(ask.volume)}</span>
+              <span className="w-6 text-ink-faint shrink-0 relative z-10">{label}</span>
+              <span className="flex-1 text-market-up font-mono relative z-10">{ask.price.toFixed(2)}</span>
+              <span className="text-ink-muted font-mono relative z-10">{fmtVol(ask.volume)}</span>
             </div>
           );
         })}
       </div>
 
       {/* 价差 */}
-      <div className="border-t border-b border-zinc-800 py-1.5 mb-2 text-center">
+      <div className="border-t border-b border-line py-1.5 mb-2 text-center">
         {spread !== null ? (
-          <span className="text-xs text-zinc-500">
-            价差 <span className="text-zinc-300 font-mono">{spread.toFixed(2)}</span>
-            <span className="text-zinc-600 ml-1">({spreadPct.toFixed(2)}%)</span>
+          <span className="text-xs text-ink-muted">
+            价差 <span className="text-ink font-mono">{spread.toFixed(2)}</span>
+            <span className="text-ink-faint ml-1">({spreadPct.toFixed(2)}%)</span>
           </span>
         ) : (
-          <span className="text-xs text-zinc-700">—</span>
+          <span className="text-xs text-ink-faint">—</span>
         )}
       </div>
 
-      {/* 买盘 */}
+      {/* 买盘 — 价格用 market-down(绿)；深度条用中性 bg-bg-sunken */}
       <div className="space-y-0.5">
         {[0, 1, 2, 3, 4].map(i => {
           const bid = bids[i];
@@ -84,8 +84,8 @@ export function OrderBook({ depth }) {
           if (!bid) {
             return (
               <div key={label} className="flex items-center gap-2 text-xs h-6">
-                <span className="w-6 text-zinc-600 shrink-0">{label}</span>
-                <span className="text-zinc-700">—</span>
+                <span className="w-6 text-ink-faint shrink-0">{label}</span>
+                <span className="text-ink-faint">—</span>
               </div>
             );
           }
@@ -93,12 +93,12 @@ export function OrderBook({ depth }) {
           return (
             <div key={label} className="flex items-center gap-2 text-xs h-6 relative">
               <div
-                className="absolute right-0 top-0 bottom-0 bg-green-500/10 rounded-r"
+                className="absolute right-0 top-0 bottom-0 bg-bg-sunken rounded-r"
                 style={{ width: `${pct}%` }}
               />
-              <span className="w-6 text-zinc-600 shrink-0 relative z-10">{label}</span>
-              <span className="flex-1 text-green-400 font-mono relative z-10">{bid.price.toFixed(2)}</span>
-              <span className="text-zinc-400 font-mono relative z-10">{fmtVol(bid.volume)}</span>
+              <span className="w-6 text-ink-faint shrink-0 relative z-10">{label}</span>
+              <span className="flex-1 text-market-down font-mono relative z-10">{bid.price.toFixed(2)}</span>
+              <span className="text-ink-muted font-mono relative z-10">{fmtVol(bid.volume)}</span>
             </div>
           );
         })}

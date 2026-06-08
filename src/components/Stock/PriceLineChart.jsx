@@ -10,7 +10,7 @@ export function PriceLineChart({ prices, height = 260 }) {
 
   if (!prices || prices.length < 2) {
     return (
-      <div style={{ height }} className="flex items-center justify-center text-zinc-600 text-sm">
+      <div style={{ height }} className="flex items-center justify-center text-ink-faint text-sm">
         等待实时数据积累中...
       </div>
     );
@@ -39,10 +39,11 @@ export function PriceLineChart({ prices, height = 260 }) {
     prices.map((p, i) => `L${toX(i).toFixed(1)},${toY(p).toFixed(1)}`).join(' ') +
     ` L${toX(prices.length - 1).toFixed(1)},${pad.top + chartH} L${toX(0).toFixed(1)},${pad.top + chartH} Z`;
 
+  // A股红涨绿跌：涨=market-up / 跌=market-down。用 CSS 变量让 SVG 在所在 [data-theme]
+  // 作用域内正确解析（light/dark 自动适配），渐变用同色 + stop-opacity 实现淡出。
   const isUp = prices[prices.length - 1] >= prices[0];
-  const lineColor = isUp ? '#ef4444' : '#22c55e';
+  const lineColor = isUp ? 'var(--market-up)' : 'var(--market-down)';
   const fillId = isUp ? 'priceGradUp' : 'priceGradDown';
-  const gradColors = isUp ? ['rgba(239,68,68,0.25)', 'rgba(239,68,68,0)'] : ['rgba(34,197,94,0.25)', 'rgba(34,197,94,0)'];
 
   // Y 轴标签
   const yLabels = [];
@@ -79,8 +80,8 @@ export function PriceLineChart({ prices, height = 260 }) {
       >
         <defs>
           <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={gradColors[0]} />
-            <stop offset="100%" stopColor={gradColors[1]} />
+            <stop offset="0%" stopColor={lineColor} stopOpacity="0.25" />
+            <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -88,9 +89,9 @@ export function PriceLineChart({ prices, height = 260 }) {
         {yLabels.map(({ val, y }, i) => (
           <g key={i}>
             <line x1={pad.left} y1={y} x2={width - pad.right} y2={y}
-              stroke="#27272a" strokeWidth="0.5" />
+              stroke="var(--border)" strokeWidth="0.5" />
             <text x={width - 4} y={y + 3} textAnchor="end"
-              fill="#71717a" fontSize="10" fontFamily="monospace">
+              fill="var(--ink-faint)" fontSize="10" fontFamily="monospace">
               {val >= 1000 ? val.toFixed(0) : val.toFixed(2)}
             </text>
           </g>
@@ -107,13 +108,13 @@ export function PriceLineChart({ prices, height = 260 }) {
         {hoverIdx >= 0 && (
           <>
             <line x1={hoverX} y1={pad.top} x2={hoverX} y2={pad.top + chartH}
-              stroke="rgba(161,161,170,0.4)" strokeWidth="0.5" strokeDasharray="3,3" />
-            <circle cx={hoverX} cy={hoverY} r="3" fill={lineColor} stroke="#18181b" strokeWidth="1.5" />
+              stroke="var(--ink-faint)" strokeOpacity="0.6" strokeWidth="0.5" strokeDasharray="3,3" />
+            <circle cx={hoverX} cy={hoverY} r="3" fill={lineColor} stroke="var(--bg-raised)" strokeWidth="1.5" />
             {/* 价格标签 */}
             <rect x={hoverX - 30} y={hoverY - 20} width="60" height="16" rx="3"
-              fill="#3f3f46" />
+              fill="var(--border-strong)" />
             <text x={hoverX} y={hoverY - 9} textAnchor="middle"
-              fill="#e4e4e7" fontSize="10" fontFamily="monospace">
+              fill="var(--ink)" fontSize="10" fontFamily="monospace">
               {hoverPrice >= 1000 ? hoverPrice.toFixed(0) : hoverPrice.toFixed(2)}
             </text>
           </>

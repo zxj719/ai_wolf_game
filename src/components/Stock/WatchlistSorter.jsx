@@ -36,7 +36,7 @@ export function WatchlistSorter({ sortConfig, onSort }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-bg-sunken border border-line rounded-lg text-ink-muted hover:text-ink hover:border-line-strong transition-colors"
       >
         {sortConfig.key !== 'default' ? (
           sortConfig.asc ? <ArrowUp size={12} /> : <ArrowDown size={12} />
@@ -47,15 +47,15 @@ export function WatchlistSorter({ sortConfig, onSort }) {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden z-20 min-w-[100px] shadow-xl">
+        <div className="absolute top-full right-0 mt-1 bg-bg-raised border border-line rounded-lg overflow-hidden z-20 min-w-[100px] shadow-xl">
           {SORT_OPTIONS.map(opt => (
             <button
               key={opt.key}
               onClick={() => handleSelect(opt.key)}
               className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
                 sortConfig.key === opt.key
-                  ? 'bg-amber-600/20 text-amber-400'
-                  : 'text-zinc-300 hover:bg-zinc-700'
+                  ? 'bg-accent-soft text-accent'
+                  : 'text-ink hover:bg-bg-sunken'
               }`}
             >
               {opt.label}

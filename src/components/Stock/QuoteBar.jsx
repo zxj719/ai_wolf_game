@@ -19,24 +19,25 @@ export function QuoteBar({ quote }) {
   const isFlat = changePct === 0;
   const hasData = price !== undefined;
 
-  // A 股配色：涨红跌绿
-  const priceColor = isFlat ? 'text-zinc-200' : isUp ? 'text-red-400' : 'text-green-400';
+  // A 股配色：涨红跌绿。涨=market-up(红) / 跌=market-down(绿)。
+  // market 无 soft token，背景统一用中性 surface，仅边框 + 文字带涨跌色。
+  const priceColor = isFlat ? 'text-ink' : isUp ? 'text-market-up' : 'text-market-down';
   const bgColor = isFlat
-    ? 'border-zinc-700'
+    ? 'border-line'
     : isUp
-      ? 'border-red-900/30 bg-red-950/20'
-      : 'border-green-900/30 bg-green-950/20';
+      ? 'border-market-up'
+      : 'border-market-down';
 
   if (!hasData) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-        <div className="text-zinc-600 text-sm">等待行情数据...</div>
+      <div className="bg-bg-raised border border-line rounded-xl p-4">
+        <div className="text-ink-faint text-sm">等待行情数据...</div>
       </div>
     );
   }
 
   return (
-    <div className={`bg-zinc-900 border rounded-xl p-4 ${bgColor}`}>
+    <div className={`bg-bg-raised border rounded-xl p-4 ${bgColor}`}>
       {/* 价格行 */}
       <div className="flex items-baseline gap-3 mb-3">
         <span className={`text-3xl font-mono font-bold ${priceColor}`}>
@@ -51,27 +52,27 @@ export function QuoteBar({ quote }) {
         </span>
       </div>
 
-      {/* 统计行 */}
+      {/* 统计行 — 最高=涨(market-up 红) / 最低=跌(market-down 绿) */}
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-xs">
         <div className="flex flex-col">
-          <span className="text-zinc-500">今开</span>
-          <span className="text-zinc-300 font-mono">{quote.open?.toFixed(2) ?? '—'}</span>
+          <span className="text-ink-muted">今开</span>
+          <span className="text-ink font-mono">{quote.open?.toFixed(2) ?? '—'}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-zinc-500">最高</span>
-          <span className="text-red-400/80 font-mono">{quote.high?.toFixed(2) ?? '—'}</span>
+          <span className="text-ink-muted">最高</span>
+          <span className="text-market-up font-mono">{quote.high?.toFixed(2) ?? '—'}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-zinc-500">最低</span>
-          <span className="text-green-400/80 font-mono">{quote.low?.toFixed(2) ?? '—'}</span>
+          <span className="text-ink-muted">最低</span>
+          <span className="text-market-down font-mono">{quote.low?.toFixed(2) ?? '—'}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-zinc-500">成交量</span>
-          <span className="text-zinc-300 font-mono">{fmtMoney(quote.volume)}</span>
+          <span className="text-ink-muted">成交量</span>
+          <span className="text-ink font-mono">{fmtMoney(quote.volume)}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-zinc-500">成交额</span>
-          <span className="text-zinc-300 font-mono">{fmtMoney(quote.turnover)}</span>
+          <span className="text-ink-muted">成交额</span>
+          <span className="text-ink font-mono">{fmtMoney(quote.turnover)}</span>
         </div>
       </div>
     </div>

@@ -36,7 +36,7 @@ function getAShareMarketStatus() {
 // 纯 SVG Sparkline 折线图
 function Sparkline({ prices, isUp, width = 72, height = 28 }) {
   if (!prices || prices.length < 2) {
-    return <div style={{ width, height }} className="flex items-end text-zinc-700 text-xs pb-1">—</div>;
+    return <div style={{ width, height }} className="flex items-end text-ink-faint text-xs pb-1">—</div>;
   }
   const min = Math.min(...prices);
   const max = Math.max(...prices);
@@ -46,10 +46,12 @@ function Sparkline({ prices, isUp, width = 72, height = 28 }) {
     const y = height - ((p - min) / range) * (height - 2) - 1;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
-  const color = isUp ? '#22c55e' : '#ef4444';
+  // A股红涨绿跌：上涨用 market-up(红)，下跌用 market-down(绿)。修复此前 up/down 颜色反转的 bug。
+  // 用 currentColor 让 stroke 跟随 token 文字色，在 light/dark 两套 [data-theme] 下都正确解析。
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      <polyline points={points} fill="none" stroke={color}
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}
+      className={isUp ? 'text-market-up' : 'text-market-down'}>
+      <polyline points={points} fill="none" stroke="currentColor"
         strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
     </svg>
   );
@@ -58,10 +60,10 @@ function Sparkline({ prices, isUp, width = 72, height = 28 }) {
 // WebSocket 状态指示
 function StatusBadge({ status }) {
   const map = {
-    connected:    { dot: 'bg-green-500',            text: '实时', color: 'text-green-400' },
-    connecting:   { dot: 'bg-amber-400 animate-pulse', text: '连接中', color: 'text-amber-400' },
-    disconnected: { dot: 'bg-zinc-500',             text: '已断开', color: 'text-zinc-400' },
-    error:        { dot: 'bg-red-500',              text: '错误', color: 'text-red-400' },
+    connected:    { dot: 'bg-success',                text: '实时', color: 'text-success' },
+    connecting:   { dot: 'bg-warning animate-pulse',  text: '连接中', color: 'text-warning' },
+    disconnected: { dot: 'bg-ink-faint',              text: '已断开', color: 'text-ink-muted' },
+    error:        { dot: 'bg-danger',                 text: '错误', color: 'text-danger' },
   };
   const cfg = map[status] ?? map.disconnected;
   return (
@@ -87,14 +89,14 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick, stock
   const isFlat = changePct === 0;
   const hasData = quote?.price !== undefined;
 
-  const priceColor = isFlat ? 'text-zinc-300' : isUp ? 'text-red-400' : 'text-green-400';
+  const priceColor = isFlat ? 'text-ink' : isUp ? 'text-market-up' : 'text-market-down';
 
   return (
-    <div className="group relative bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition-all cursor-pointer" onClick={onClick}>
+    <div className="group relative bg-bg-raised border border-line rounded-xl p-4 hover:border-line-strong transition-all cursor-pointer" onClick={onClick}>
       {/* 移除按钮 */}
       <button
         onClick={(e) => { e.stopPropagation(); onRemove(symbol); }}
-        className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-zinc-600 hover:text-red-400 transition-all"
+        className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-ink-faint hover:text-danger transition-all"
         title="移除"
       >
         <X size={12} />
@@ -104,7 +106,7 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick, stock
       {onTagClick && (
         <button
           onClick={(e) => { e.stopPropagation(); onTagClick(symbol); }}
-          className="absolute top-2.5 right-9 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-zinc-600 hover:text-amber-400 transition-all"
+          className="absolute top-2.5 right-9 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-ink-faint hover:text-accent transition-all"
           title="标签"
         >
           <Tag size={11} />
@@ -114,8 +116,8 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick, stock
       {/* 头部：名称 + Sparkline */}
       <div className="flex items-start justify-between mb-2">
         <div className="min-w-0 pr-2">
-          <div className="text-white font-semibold text-sm truncate">{name || symbol}</div>
-          <div className="text-zinc-500 text-xs mt-0.5 font-mono">{symbol}</div>
+          <div className="text-ink font-semibold text-sm truncate">{name || symbol}</div>
+          <div className="text-ink-muted text-xs mt-0.5 font-mono">{symbol}</div>
         </div>
         <Sparkline prices={quote?.priceHistory} isUp={isUp} />
       </div>
@@ -134,23 +136,23 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick, stock
           </div>
 
           {/* 涨跌额 + 成交额 */}
-          <div className="flex justify-between mt-1.5 text-xs text-zinc-500">
+          <div className="flex justify-between mt-1.5 text-xs text-ink-muted">
             <span>
               {quote.change >= 0 ? '+' : ''}{(quote.change ?? 0).toFixed(3)}
             </span>
             <span>成交 {fmtMoney(quote.turnover)}</span>
           </div>
 
-          {/* 最高/最低 */}
+          {/* 最高/最低 — 高=涨(market-up 红) / 低=跌(market-down 绿) */}
           {(quote.high || quote.low) && (
             <div className="flex justify-between mt-1 text-xs">
-              <span className="text-red-400/70">高 {quote.high?.toFixed(2)}</span>
-              <span className="text-green-400/70">低 {quote.low?.toFixed(2)}</span>
+              <span className="text-market-up">高 {quote.high?.toFixed(2)}</span>
+              <span className="text-market-down">低 {quote.low?.toFixed(2)}</span>
             </div>
           )}
         </>
       ) : (
-        <div className="text-zinc-600 text-xs mt-3 flex items-center gap-1.5">
+        <div className="text-ink-faint text-xs mt-3 flex items-center gap-1.5">
           {marketStatus?.open
             ? <><Loader2 size={12} className="animate-spin" /> 等待推送...</>
             : <><Clock size={12} /> {marketStatus?.reason ?? '非交易时段'}</>
@@ -162,7 +164,7 @@ function StockCard({ symbol, name, quote, onRemove, marketStatus, onClick, stock
       {stockTags?.length > 0 && (
         <div className="flex gap-1 mt-2">
           {stockTags.map(t => (
-            <span key={t.id} className={`w-2 h-2 rounded-full ${COLOR_DOT[t.color] || 'bg-zinc-500'}`} title={t.name} />
+            <span key={t.id} className={`w-2 h-2 rounded-full ${COLOR_DOT[t.color] || 'bg-ink-faint'}`} title={t.name} />
           ))}
         </div>
       )}
@@ -176,10 +178,10 @@ function TagPopover({ symbol, tags, stockTags, onTag, onUntag, onClose }) {
   return (
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div className="fixed inset-0 bg-black/40" />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-800 border border-zinc-700 rounded-lg p-3 min-w-[200px] shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="text-xs text-zinc-400 mb-2">选择标签：{symbol}</div>
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bg-raised border border-line rounded-lg p-3 min-w-[200px] shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="text-xs text-ink-muted mb-2">选择标签：{symbol}</div>
         {tags.length === 0 ? (
-          <div className="text-xs text-zinc-600">暂无标签，请先创建</div>
+          <div className="text-xs text-ink-faint">暂无标签，请先创建</div>
         ) : (
           <div className="space-y-1">
             {tags.map(tag => {
@@ -189,18 +191,18 @@ function TagPopover({ symbol, tags, stockTags, onTag, onUntag, onClose }) {
                   key={tag.id}
                   onClick={() => active ? onUntag(symbol, tag.id) : onTag(symbol, tag.id)}
                   className={`w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded transition-colors ${
-                    active ? 'bg-amber-600/20 text-amber-400' : 'text-zinc-300 hover:bg-zinc-700'
+                    active ? 'bg-accent-soft text-accent' : 'text-ink hover:bg-bg-sunken'
                   }`}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full ${COLOR_DOT[tag.color] || 'bg-zinc-500'}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full ${COLOR_DOT[tag.color] || 'bg-ink-faint'}`} />
                   {tag.name}
-                  {active && <span className="ml-auto text-amber-500">✓</span>}
+                  {active && <span className="ml-auto text-accent">✓</span>}
                 </button>
               );
             })}
           </div>
         )}
-        <button onClick={onClose} className="mt-2 w-full text-center text-xs text-zinc-500 hover:text-zinc-300 py-1">
+        <button onClick={onClose} className="mt-2 w-full text-center text-xs text-ink-muted hover:text-ink py-1">
           关闭
         </button>
       </div>
@@ -332,51 +334,51 @@ export function StockPage({ onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-bg text-ink">
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-900/60 backdrop-blur-sm sticky top-0 z-40">
+      <header className="border-b border-line bg-bg-raised/60 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 text-sm bg-bg-sunken hover:bg-bg-raised text-ink-muted rounded-lg transition-colors flex items-center gap-1"
             >
               <ChevronLeft size={15} />
               返回
             </button>
-            <div className="h-4 w-px bg-zinc-700" />
-            <span className="text-white font-semibold text-sm">📈 实时行情</span>
+            <div className="h-4 w-px bg-line-strong" />
+            <span className="text-ink font-semibold text-sm">📈 实时行情</span>
           </div>
           <div className="flex items-center gap-2">
             {/* 功能入口 */}
             <button
               onClick={() => setScreenView('screener')}
-              className="px-2.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors flex items-center gap-1"
+              className="px-2.5 py-1.5 text-xs bg-bg-sunken hover:bg-bg-raised text-ink-muted hover:text-ink rounded-lg transition-colors flex items-center gap-1"
             >
               <Search size={12} />
               筛选
             </button>
             <button
               onClick={() => setScreenView('trading')}
-              className="px-2.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors flex items-center gap-1"
+              className="px-2.5 py-1.5 text-xs bg-bg-sunken hover:bg-bg-raised text-ink-muted hover:text-ink rounded-lg transition-colors flex items-center gap-1"
             >
               💰 模拟交易
             </button>
-            <div className="h-4 w-px bg-zinc-700" />
+            <div className="h-4 w-px bg-line-strong" />
             {marketStatus && (
               <span className={`text-xs flex items-center gap-1 ${
-                marketStatus.open ? 'text-green-400' : 'text-zinc-500'
+                marketStatus.open ? 'text-success' : 'text-ink-muted'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${
-                  marketStatus.open ? 'bg-green-500 animate-pulse' : 'bg-zinc-600'
+                  marketStatus.open ? 'bg-success animate-pulse' : 'bg-ink-faint'
                 }`} />
                 {marketStatus.open ? marketStatus.session : marketStatus.reason}
               </span>
             )}
             <StatusBadge status={status} />
             {status === 'connected'
-              ? <Wifi size={14} className="text-green-500" />
-              : <WifiOff size={14} className="text-zinc-500" />
+              ? <Wifi size={14} className="text-success" />
+              : <WifiOff size={14} className="text-ink-muted" />
             }
           </div>
         </div>
@@ -389,21 +391,21 @@ export function StockPage({ onBack }) {
           <div className="relative">
             <button
               onClick={() => setShowMarketMenu(v => !v)}
-              className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-sm text-zinc-200 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-bg-sunken hover:bg-bg-raised border border-line rounded-lg text-sm text-ink transition-colors"
             >
               {currentMarketLabel}
               <ChevronDown size={13} />
             </button>
             {showMarketMenu && (
-              <div className="absolute top-full left-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden z-20 min-w-[120px] shadow-xl">
+              <div className="absolute top-full left-0 mt-1 bg-bg-raised border border-line rounded-lg overflow-hidden z-20 min-w-[120px] shadow-xl">
                 {MARKETS.map(m => (
                   <button
                     key={m.value}
                     onClick={() => { setMarket(m.value); setShowMarketMenu(false); }}
                     className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                       market === m.value
-                        ? 'bg-amber-600/20 text-amber-400'
-                        : 'text-zinc-300 hover:bg-zinc-700'
+                        ? 'bg-accent-soft text-accent'
+                        : 'text-ink hover:bg-bg-sunken'
                     }`}
                   >
                     {m.label}
@@ -421,12 +423,12 @@ export function StockPage({ onBack }) {
               onChange={e => setSearchInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addSymbol()}
               placeholder={market === 'stock' ? '如 600519.SH 或 002594.SZ' : '输入代码'}
-              className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-600 transition-colors"
+              className="flex-1 px-3 py-2 bg-bg-sunken border border-line rounded-lg text-sm text-ink placeholder-ink-faint focus:outline-none focus:border-accent transition-colors"
             />
             <button
               onClick={addSymbol}
               disabled={!searchInput.trim()}
-              className="px-3 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg transition-colors flex items-center gap-1 text-sm"
+              className="px-3 py-2 bg-accent hover:bg-accent-hover disabled:bg-bg-sunken disabled:text-ink-faint text-white rounded-lg transition-colors flex items-center gap-1 text-sm"
             >
               <Plus size={14} />
               添加
@@ -436,7 +438,7 @@ export function StockPage({ onBack }) {
           {/* 批量添加 + 排序 */}
           <button
             onClick={() => setShowBatchAdd(true)}
-            className="px-2.5 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors flex items-center gap-1"
+            className="px-2.5 py-2 text-xs bg-bg-sunken hover:bg-bg-raised border border-line text-ink-muted hover:text-ink rounded-lg transition-colors flex items-center gap-1"
           >
             <ListPlus size={13} />
             批量
@@ -474,13 +476,13 @@ export function StockPage({ onBack }) {
 
         {/* 股票卡片网格 */}
         {displayList.length === 0 ? (
-          <div className="text-center py-24 text-zinc-600">
+          <div className="text-center py-24 text-ink-faint">
             <div className="text-5xl mb-4">📊</div>
             <div className="text-sm">
               {activeTag ? '该标签下暂无股票' : '暂无自选，输入股票代码添加'}
             </div>
             {!activeTag && (
-              <div className="text-xs mt-1 text-zinc-700">A股格式：600519.SH（沪）/ 002594.SZ（深）</div>
+              <div className="text-xs mt-1 text-ink-faint">A股格式：600519.SH（沪）/ 002594.SZ（深）</div>
             )}
           </div>
         ) : (
@@ -505,22 +507,22 @@ export function StockPage({ onBack }) {
         <div className="mt-10">
           <button
             onClick={() => setShowDebug(v => !v)}
-            className="text-xs text-zinc-700 hover:text-zinc-500 transition-colors flex items-center gap-1"
+            className="text-xs text-ink-faint hover:text-ink-muted transition-colors flex items-center gap-1"
           >
             <ChevronDown size={11} className={`transition-transform ${showDebug ? 'rotate-180' : ''}`} />
             调试信息（开发用）
           </button>
           {showDebug && (
-            <div className="mt-2 p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-1">
-              <div className="text-xs text-zinc-500">
-                WS 状态: <span className="text-amber-400">{status}</span>
-                {' · '}已订阅: <span className="text-zinc-400">{symbols.join(', ') || '—'}</span>
+            <div className="mt-2 p-3 bg-bg-raised border border-line rounded-lg space-y-1">
+              <div className="text-xs text-ink-muted">
+                WS 状态: <span className="text-accent">{status}</span>
+                {' · '}已订阅: <span className="text-ink-muted">{symbols.join(', ') || '—'}</span>
               </div>
-              <div className="text-xs text-zinc-600 mt-1">最近原始消息（最多 5 条）：</div>
+              <div className="text-xs text-ink-faint mt-1">最近原始消息（最多 5 条）：</div>
               {rawMessages.length === 0
-                ? <div className="text-zinc-700 text-xs">暂无</div>
+                ? <div className="text-ink-faint text-xs">暂无</div>
                 : rawMessages.map((msg, i) => (
-                    <pre key={i} className="text-xs text-zinc-400 bg-zinc-950 rounded p-2 overflow-auto max-h-28 leading-relaxed">
+                    <pre key={i} className="text-xs text-ink-muted bg-bg-sunken rounded p-2 overflow-auto max-h-28 leading-relaxed">
                       {msg}
                     </pre>
                   ))

@@ -118,6 +118,18 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
     const dpr = window.devicePixelRatio || 1;
     const { width: W, height: H } = dimensions;
 
+    // 从设计令牌读取颜色：canvas 无法用 Tailwind class，改读 CSS 变量。
+    // 在 canvas 自身计算样式上取值，使其随所在 [data-theme] 作用域（light/dark）正确解析。
+    const cs = getComputedStyle(canvas);
+    const tok = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
+    const COLOR_BG     = tok('--bg-raised', '#18181b');
+    const COLOR_GRID   = tok('--border', '#27272a');
+    const COLOR_AXIS   = tok('--ink-faint', '#71717a');
+    const COLOR_INK    = tok('--ink', '#e4e4e7');
+    const COLOR_STRONG = tok('--border-strong', '#3f3f46');
+    const COLOR_UP     = tok('--market-up', '#ef4444');   // A股红涨
+    const COLOR_DOWN   = tok('--market-down', '#22c55e'); // A股绿跌
+
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     canvas.style.width = W + 'px';
@@ -125,7 +137,7 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
     ctx.scale(dpr, dpr);
 
     // 清空
-    ctx.fillStyle = '#18181b'; // zinc-900
+    ctx.fillStyle = COLOR_BG;
     ctx.fillRect(0, 0, W, H);
 
     const { start, end } = viewRange;
@@ -158,9 +170,9 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
     const volumeToY = (v) => volumeTop + volumeHeight - (v / (maxVolume || 1)) * volumeHeight;
 
     // 网格线 + Y 轴价格标签
-    ctx.strokeStyle = '#27272a'; // zinc-800
+    ctx.strokeStyle = COLOR_GRID;
     ctx.lineWidth = 0.5;
-    ctx.fillStyle = '#71717a'; // zinc-500
+    ctx.fillStyle = COLOR_AXIS;
     ctx.font = '10px monospace';
     ctx.textAlign = 'right';
     const gridCount = 5;
@@ -187,7 +199,8 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
     for (let i = 0; i < visible.length; i++) {
       const c = visible[i];
       const isUp = c.close >= c.open;
-      const color = isUp ? '#ef4444' : '#22c55e'; // 红涨绿跌（A 股）
+      // 红涨绿跌（A 股）：上涨用 market-up，下跌用 market-down（取自设计令牌）
+      const color = isUp ? COLOR_UP : COLOR_DOWN;
 
       const x = PADDING.left + gap + i * candleWidth + candleWidth / 2;
       const bodyX = x - bodyWidth / 2;
@@ -204,7 +217,7 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
       const openY = priceToY(c.open);
       const closeY = priceToY(c.close);
       const bodyH = Math.max(1, Math.abs(closeY - openY));
-      ctx.fillStyle = isUp ? color : color;
+      ctx.fillStyle = color;
       if (isUp) {
         // 阳线：空心或实心
         ctx.fillRect(bodyX, closeY, bodyWidth, bodyH);
@@ -212,12 +225,13 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
         ctx.fillRect(bodyX, openY, bodyWidth, bodyH);
       }
 
-      // 成交量柱
-      const vColor = isUp ? 'rgba(239,68,68,0.5)' : 'rgba(34,197,94,0.5)';
-      ctx.fillStyle = vColor;
+      // 成交量柱（与蜡烛同色，半透明）
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = color;
       const vY = volumeToY(c.volume);
       const vH = volumeTop + volumeHeight - vY;
       ctx.fillRect(bodyX, vY, bodyWidth, Math.max(1, vH));
+      ctx.globalAlpha = 1;
     }
 
     // hover 十字光标
@@ -225,8 +239,9 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
       const hi = hoverIndex - start;
       const hx = PADDING.left + gap + hi * candleWidth + candleWidth / 2;
 
-      // 竖线
-      ctx.strokeStyle = 'rgba(161,161,170,0.4)';
+      // 竖线（中性十字线，用 axis 色半透明）
+      ctx.strokeStyle = COLOR_AXIS;
+      ctx.globalAlpha = 0.6;
       ctx.lineWidth = 0.5;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -240,13 +255,14 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
       ctx.lineTo(W - PADDING.right, mousePos.y);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
 
       // 价格标签（右侧）
       const hoverPrice = minPrice + (1 - (mousePos.y - PADDING.top) / priceHeight) * finalPriceRange;
       if (hoverPrice >= minPrice && hoverPrice <= maxPrice) {
-        ctx.fillStyle = '#3f3f46';
+        ctx.fillStyle = COLOR_STRONG;
         ctx.fillRect(W - PADDING.right, mousePos.y - 8, PADDING.right, 16);
-        ctx.fillStyle = '#e4e4e7';
+        ctx.fillStyle = COLOR_INK;
         ctx.font = '10px monospace';
         ctx.textAlign = 'right';
         ctx.fillText(formatPrice(hoverPrice), W - 4, mousePos.y + 4);
@@ -269,12 +285,12 @@ export function CandlestickChart({ candles, periodKey = 'DAY', height = 360 }) {
       {/* OHLCV Hover 信息 */}
       {hoverCandle && (
         <div className="absolute top-1 left-2 flex gap-3 text-[10px] font-mono pointer-events-none">
-          <span className="text-zinc-500">{formatTime(hoverCandle.time, periodKey)}</span>
-          <span className="text-zinc-400">开 <b className="text-zinc-200">{formatPrice(hoverCandle.open)}</b></span>
-          <span className="text-zinc-400">高 <b className="text-red-400">{formatPrice(hoverCandle.high)}</b></span>
-          <span className="text-zinc-400">低 <b className="text-green-400">{formatPrice(hoverCandle.low)}</b></span>
-          <span className="text-zinc-400">收 <b className="text-zinc-200">{formatPrice(hoverCandle.close)}</b></span>
-          <span className="text-zinc-400">量 <b className="text-zinc-200">{formatVolume(hoverCandle.volume)}</b></span>
+          <span className="text-ink-muted">{formatTime(hoverCandle.time, periodKey)}</span>
+          <span className="text-ink-muted">开 <b className="text-ink">{formatPrice(hoverCandle.open)}</b></span>
+          <span className="text-ink-muted">高 <b className="text-market-up">{formatPrice(hoverCandle.high)}</b></span>
+          <span className="text-ink-muted">低 <b className="text-market-down">{formatPrice(hoverCandle.low)}</b></span>
+          <span className="text-ink-muted">收 <b className="text-ink">{formatPrice(hoverCandle.close)}</b></span>
+          <span className="text-ink-muted">量 <b className="text-ink">{formatVolume(hoverCandle.volume)}</b></span>
         </div>
       )}
     </div>

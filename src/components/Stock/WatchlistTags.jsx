@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 
+// 用户自定义标签的「身份配色」调色板：每个键是用户可选的标签色标识（数据驱动，
+// 由 tag.color 决定），必须保持 8 种互相可区分的色相。设计令牌只有 2 个市场色 +
+// 少量语义色，没有 8 色调色板可映射，故此处刻意保留原始 Tailwind 调色板（非中性/
+// 非涨跌语义，属于装饰性身份色）。结构/中性 class 仍走 token。
 const COLOR_MAP = {
   red:    'bg-red-500/20 text-red-400 border-red-500/30',
   blue:   'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -39,8 +43,8 @@ export function WatchlistTags({ tags, activeTag, onSelect, onCreate, onDelete, T
         onClick={() => onSelect(null)}
         className={`shrink-0 px-3 py-1 text-xs rounded-full border transition-colors ${
           activeTag === null
-            ? 'bg-amber-600/20 text-amber-400 border-amber-500/30'
-            : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'
+            ? 'bg-accent-soft text-accent border-accent'
+            : 'bg-bg-sunken text-ink-muted border-line hover:border-line-strong'
         }`}
       >
         全部
@@ -54,15 +58,15 @@ export function WatchlistTags({ tags, activeTag, onSelect, onCreate, onDelete, T
             className={`px-3 py-1 text-xs rounded-full border transition-colors ${
               activeTag === tag.id
                 ? COLOR_MAP[tag.color] || COLOR_MAP.blue
-                : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'
+                : 'bg-bg-sunken text-ink-muted border-line hover:border-line-strong'
             }`}
           >
-            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${COLOR_DOT[tag.color] || 'bg-zinc-500'}`} />
+            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${COLOR_DOT[tag.color] || 'bg-ink-faint'}`} />
             {tag.name}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(tag.id); }}
-            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-zinc-700 text-zinc-400 hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-bg-sunken text-ink-muted hover:bg-danger hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <X size={8} />
           </button>
@@ -78,29 +82,30 @@ export function WatchlistTags({ tags, activeTag, onSelect, onCreate, onDelete, T
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleCreate()}
             placeholder="标签名"
-            className="w-20 px-2 py-1 text-xs bg-zinc-800 border border-zinc-600 rounded text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-600"
+            className="w-20 px-2 py-1 text-xs bg-bg-sunken border border-line rounded text-ink placeholder-ink-faint focus:outline-none focus:border-accent"
             autoFocus
           />
           <div className="flex gap-0.5">
             {TAG_COLORS.map(c => (
+              // 色块取自标签身份调色板 COLOR_DOT（数据驱动，保留原色）；选中态用中性描边
               <button
                 key={c}
                 onClick={() => setNewColor(c)}
-                className={`w-4 h-4 rounded-full ${COLOR_DOT[c]} ${newColor === c ? 'ring-2 ring-white/50' : 'opacity-50 hover:opacity-100'}`}
+                className={`w-4 h-4 rounded-full ${COLOR_DOT[c]} ${newColor === c ? 'ring-2 ring-accent' : 'opacity-50 hover:opacity-100'}`}
               />
             ))}
           </div>
-          <button onClick={handleCreate} className="px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-500">
+          <button onClick={handleCreate} className="px-2 py-1 text-xs bg-accent text-white rounded hover:bg-accent-hover">
             确定
           </button>
-          <button onClick={() => setShowCreate(false)} className="text-zinc-500 hover:text-zinc-300">
+          <button onClick={() => setShowCreate(false)} className="text-ink-muted hover:text-ink">
             <X size={12} />
           </button>
         </div>
       ) : (
         <button
           onClick={() => setShowCreate(true)}
-          className="shrink-0 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 hover:text-amber-400 hover:border-amber-600 flex items-center justify-center transition-colors"
+          className="shrink-0 w-6 h-6 rounded-full bg-bg-sunken border border-line text-ink-muted hover:text-accent hover:border-accent flex items-center justify-center transition-colors"
         >
           <Plus size={12} />
         </button>

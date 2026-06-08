@@ -33,13 +33,13 @@ export function TradePanel({ symbol, name, currentPrice, cash, position, canSell
   const maxSellQty = position?.quantity ?? 0;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-      {/* Tab */}
+    <div className="bg-bg-raised border border-line rounded-xl p-4">
+      {/* Tab — 买入=涨(market-up 红) / 卖出=跌(market-down 绿)；market 无 soft token，激活态用中性底 */}
       <div className="flex gap-1 mb-3">
         <button
           onClick={() => setTab('buy')}
           className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-            tab === 'buy' ? 'bg-red-600/20 text-red-400 border border-red-600/30' : 'text-zinc-500 hover:text-zinc-300'
+            tab === 'buy' ? 'bg-bg-sunken text-market-up border border-market-up' : 'text-ink-muted hover:text-ink'
           }`}
         >
           买入
@@ -47,7 +47,7 @@ export function TradePanel({ symbol, name, currentPrice, cash, position, canSell
         <button
           onClick={() => setTab('sell')}
           className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-            tab === 'sell' ? 'bg-green-600/20 text-green-400 border border-green-600/30' : 'text-zinc-500 hover:text-zinc-300'
+            tab === 'sell' ? 'bg-bg-sunken text-market-down border border-market-down' : 'text-ink-muted hover:text-ink'
           }`}
         >
           卖出
@@ -56,8 +56,8 @@ export function TradePanel({ symbol, name, currentPrice, cash, position, canSell
 
       {/* 价格 */}
       <div className="flex justify-between items-center mb-3 text-xs">
-        <span className="text-zinc-500">当前价格</span>
-        <span className="text-zinc-200 font-mono font-medium">
+        <span className="text-ink-muted">当前价格</span>
+        <span className="text-ink font-mono font-medium">
           {price > 0 ? `¥${price.toFixed(2)}` : '—'}
         </span>
       </div>
@@ -71,7 +71,7 @@ export function TradePanel({ symbol, name, currentPrice, cash, position, canSell
           placeholder="数量（股）"
           min="1"
           step="100"
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-600 transition-colors"
+          className="w-full px-3 py-2 bg-bg-sunken border border-line rounded-lg text-sm text-ink placeholder-ink-faint focus:outline-none focus:border-accent transition-colors"
         />
       </div>
 
@@ -81,14 +81,14 @@ export function TradePanel({ symbol, name, currentPrice, cash, position, canSell
           <button
             key={q}
             onClick={() => setQuantity(String(q))}
-            className="flex-1 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded transition-colors"
+            className="flex-1 py-1 text-xs bg-bg-sunken hover:bg-bg text-ink-muted rounded transition-colors"
           >
             {q}股
           </button>
         ))}
         <button
           onClick={() => setQuantity(String(tab === 'buy' ? maxBuyQty : maxSellQty))}
-          className="flex-1 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded transition-colors"
+          className="flex-1 py-1 text-xs bg-bg-sunken hover:bg-bg text-ink-muted rounded transition-colors"
         >
           {tab === 'buy' ? '全仓' : '全部'}
         </button>
@@ -97,20 +97,20 @@ export function TradePanel({ symbol, name, currentPrice, cash, position, canSell
       {/* 信息行 */}
       <div className="space-y-1 mb-3 text-xs">
         <div className="flex justify-between">
-          <span className="text-zinc-500">预估金额</span>
-          <span className="text-zinc-300 font-mono">¥{amount > 0 ? fmtMoney(amount) : '0.00'}</span>
+          <span className="text-ink-muted">预估金额</span>
+          <span className="text-ink font-mono">¥{amount > 0 ? fmtMoney(amount) : '0.00'}</span>
         </div>
         {tab === 'buy' ? (
           <div className="flex justify-between">
-            <span className="text-zinc-500">可用资金</span>
-            <span className="text-zinc-300 font-mono">¥{fmtMoney(cash)}</span>
+            <span className="text-ink-muted">可用资金</span>
+            <span className="text-ink font-mono">¥{fmtMoney(cash)}</span>
           </div>
         ) : (
           <div className="flex justify-between">
-            <span className="text-zinc-500">可卖数量</span>
-            <span className="text-zinc-300 font-mono">
+            <span className="text-ink-muted">可卖数量</span>
+            <span className="text-ink font-mono">
               {canSell ? `${maxSellQty}股` : (
-                <span className="flex items-center gap-1 text-amber-400">
+                <span className="flex items-center gap-1 text-warning">
                   <Lock size={10} /> T+1限制
                 </span>
               )}
@@ -119,31 +119,31 @@ export function TradePanel({ symbol, name, currentPrice, cash, position, canSell
         )}
       </div>
 
-      {/* T+1 提示 */}
+      {/* T+1 提示 — 语义警示(warning) */}
       {tab === 'sell' && !canSell && position && (
-        <div className="text-xs text-amber-400/80 bg-amber-600/10 rounded px-2 py-1.5 mb-3 flex items-center gap-1">
+        <div className="text-xs text-warning bg-warning-soft rounded px-2 py-1.5 mb-3 flex items-center gap-1">
           <Lock size={10} />
           当日买入股票次日才能卖出
         </div>
       )}
 
-      {/* 提交按钮 */}
+      {/* 提交按钮 — 买入=涨(market-up 红) / 卖出=跌(market-down 绿) */}
       <button
         onClick={handleSubmit}
         disabled={!qty || !price || (tab === 'buy' && amount > cash) || (tab === 'sell' && (!canSell || qty > maxSellQty))}
-        className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors ${
+        className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors disabled:bg-bg-sunken disabled:text-ink-faint text-white ${
           tab === 'buy'
-            ? 'bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white'
-            : 'bg-green-600 hover:bg-green-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white'
+            ? 'bg-market-up hover:bg-market-up'
+            : 'bg-market-down hover:bg-market-down'
         }`}
       >
         {tab === 'buy' ? '确认买入' : '确认卖出'}
       </button>
 
-      {/* 操作结果 */}
+      {/* 操作结果 — 语义 success/danger，market 无 soft token 用中性底 */}
       {message && (
-        <div className={`mt-2 text-xs text-center py-1 rounded ${
-          message.ok ? 'text-green-400 bg-green-600/10' : 'text-red-400 bg-red-600/10'
+        <div className={`mt-2 text-xs text-center py-1 rounded bg-bg-sunken ${
+          message.ok ? 'text-success' : 'text-danger'
         }`}>
           {message.msg}
         </div>
