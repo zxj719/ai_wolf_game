@@ -29,9 +29,9 @@
   --accent-soft:   #dbeafe;
 
   /* 语义色 */
-  --danger:  #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
+  --danger:  #ef4444;  --danger-soft:  rgb(239 68 68 / 0.12);
+  --success: #10b981;  --success-soft: rgb(16 185 129 / 0.12);
+  --warning: #f59e0b;  --warning-soft: rgb(245 158 11 / 0.12);
 
   /* 市场语义（A股：红涨绿跌）—— 与 UI 语义色解耦，仅股票模块使用 */
   --market-up:   #ef4444;
@@ -86,9 +86,9 @@
   --accent-hover:  #b45309;
   --accent-soft:   #78350f;
 
-  --danger:  #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
+  --danger:  #ef4444;  --danger-soft:  rgb(248 113 113 / 0.18);
+  --success: #10b981;  --success-soft: rgb(52 211 153 / 0.18);
+  --warning: #f59e0b;  --warning-soft: rgb(251 191 36 / 0.18);
 
   /* 市场语义（A股：红涨绿跌）—— 与 UI 语义色解耦，仅股票模块使用 */
   --market-up:   #f87171;

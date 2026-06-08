@@ -24,9 +24,9 @@ export default {
           hover:   'var(--accent-hover)',
           soft:    'var(--accent-soft)',
         },
-        danger:  'var(--danger)',
-        success: 'var(--success)',
-        warning: 'var(--warning)',
+        danger:  'var(--danger)',  'danger-soft':  'var(--danger-soft)',
+        success: 'var(--success)', 'success-soft': 'var(--success-soft)',
+        warning: 'var(--warning)', 'warning-soft': 'var(--warning-soft)',
         market: {
           up:   'var(--market-up)',
           down: 'var(--market-down)',
