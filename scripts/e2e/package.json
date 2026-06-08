@@ -1,0 +1,12 @@
+{
+  "name": "wolfgame-e2e",
+  "private": true,
+  "type": "commonjs",
+  "description": "Headless WebRTC regression test for the chat video call (drives real prod stack).",
+  "scripts": {
+    "verify": "node webrtc-verify.cjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}
