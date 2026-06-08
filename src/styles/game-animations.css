@@ -129,15 +129,6 @@
   border-left-color: inherit;
 }
 
-/* 圆形玩家布局响应式缩放 */
-@media (max-width: 768px) {
-  .circle-layout {
-    transform: scale(0.8);
-  }
-}
-
-@media (max-width: 640px) {
-  .circle-layout {
-    transform: scale(0.6);
-  }
-}
+/* 圆形玩家布局：手机端（<640px）改用卡片网格 + 底部行动抽屉（见 MobilePlayerGrid /
+   MobileActionDrawer），不再硬缩放圆桌。原 .circle-layout scale() hack 为死代码（该类
+   从未挂到任何元素上），已于 M1b 移除。桌面圆桌由 ResizeObserver 自适应尺寸。 */

@@ -2,6 +2,43 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-07] UI 重构 M1b：狼人杀手机端卡片网格 + 底部行动抽屉
+
+### 新功能
+
+- **手机端（<640px）重做布局**：用「玩家卡片网格 + 底部固定行动抽屉」取代原来对圆桌的硬缩放思路。手机上玩家排成 2~3 列紧凑卡片网格（`min-[360px]:grid-cols-3`），阶段信息走顶部 sticky pill，夜间行动/投票/确认/猎人开枪/游戏结束按钮固定在屏幕底部抽屉（拇指可达，触控目标 ≥44px，带 `env(safe-area-inset-bottom)`）。
+- **桌面/平板（≥640px）圆桌零回归**：圆桌渲染分支逐字保留，仅把内联卡片与动作 UI 抽成共享组件。
+- **组件拆分（去重，桌面与手机共用）**：
+  - `PlayerCard`：无定位纯卡片（编号/头像/名字/角色标签/行动徽章/存活态）。圆桌变体保留 CSS 变量尺寸与指针拖拽，网格变体填满单元、点击选中。
+  - `GameActionControls`：各阶段交互控件（发言/投票/夜间行动/骑士决斗/猎人开枪/游戏结束），桌面中心面板与手机抽屉同源，复用全部原有 onClick 处理器与禁用逻辑。
+  - `MobilePlayerGrid` / `MobileActionDrawer`：手机端容器；无可执行行动时抽屉不渲染。
+  - `useIsMobile`：`matchMedia('(max-width: 639px)')` 视口判定 hook（SSR 安全）。
+
+### 关键发现
+
+- 原 `game-animations.css` 的 `.circle-layout { transform: scale(0.6/0.8) }` 是**死代码**——该 class 从未挂到任何元素上（组件根为 `relative w-full aspect-square`）。手机端此前实际走的是 ResizeObserver 自适应圆桌，并非硬缩放。M1b 移除该死规则，零风险。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/hooks/useIsMobile.js` | 新建 | 手机视口判定 hook |
+| `src/hooks/__tests__/useIsMobile.test.jsx` | 新建 | 3 个单测（matchMedia mock） |
+| `src/components/PlayerCard.jsx` | 新建 | 共享玩家卡片 + `getRoleIcon` |
+| `src/components/GameActionControls.jsx` | 新建 | 共享阶段交互控件（从中心面板抽出） |
+| `src/components/MobilePlayerGrid.jsx` | 新建 | 手机端卡片网格 + 阶段 pill |
+| `src/components/MobileActionDrawer.jsx` | 新建 | 手机端底部行动抽屉 |
+| `src/components/CirclePlayerLayout.jsx` | 修改 | `useIsMobile` 渲染分流；圆桌改用 `PlayerCard`/`GameActionControls`；预览弹层共用 |
+| `src/styles/game-animations.css` | 修改 | 删除死代码 `.circle-layout` scale hack |
+| `src/components/__tests__/playerCard.test.jsx` | 新建 | 5 个单测（圆桌/网格变体、选中、死亡不可选） |
+| `src/components/__tests__/circlePlayerLayoutResponsive.test.jsx` | 新建 | 4 个渲染分流集成测试（桌面圆桌 / 手机网格 / 抽屉显隐） |
+
+### 技术细节
+
+- 渲染分流：`CirclePlayerLayout` 顶部 `const isMobile = useIsMobile()`，所有 hooks 在条件 return 之前调用（满足 Rules of Hooks）；手机分支早返回 `MobilePlayerGrid + MobileActionDrawer`，桌面分支原样。
+- 零回归保证：`PlayerCard` 圆桌变体与抽取的 `GameActionControls` 产出与重构前**完全相同的 utility class**（class 在 attribute 中的顺序不影响 Tailwind 渲染）。集成测试断言桌面仍渲染 `aspect-square` 圆桌、手机渲染 `grid-cols-2`。
+- 验收：`npm run build` 干净（check-build 0 泄漏），`npm test` 275 全绿（+12）。**注**：受 browse 工具限制（无法维持狼人杀对局会话），未做活体浏览器内对局截图，改以渲染分流集成测试 + 逐字抽取保证桌面零回归。
+
 ## [2026-06-07] 小说工作台所有权过滤（每用户只看自己的）
 
 ### 新功能

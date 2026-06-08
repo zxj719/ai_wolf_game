@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Send, Download, RotateCcw, AlertTriangle, Syringe, Crosshair, Vote, MinusCircle, Shuffle, PlayCircle } from 'lucide-react';
-import { getValidSwapTargets, validateMagicianSwap } from '../utils/magicianUtils';
-import { ROLE_DEFINITIONS } from '../config/roles';
+import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Syringe, Crosshair, Vote, MinusCircle } from 'lucide-react';
+import { PlayerCard } from './PlayerCard';
+import { GameActionControls } from './GameActionControls';
+import { MobilePlayerGrid } from './MobilePlayerGrid';
+import { MobileActionDrawer } from './MobileActionDrawer';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const clamp = (min, value, max) => Math.min(max, Math.max(min, value));
 
@@ -68,6 +71,7 @@ export function CirclePlayerLayout({
   restartGame,
   onReplay,
 }) {
+  const isMobile = useIsMobile();
   const [layout, setLayout] = useState({
     size: 0,
     radius: 0,
@@ -86,18 +90,6 @@ export function CirclePlayerLayout({
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const dragTargetRef = useRef(null);
   const dragFrameRef = useRef(null);
-
-  const getRoleIcon = (role, size = 16) => {
-    switch(role) {
-      case '狼人': return <Skull size={size} className="text-role-wolf"/>;
-      case '预言家': return <Eye size={size} className="text-role-seer"/>;
-      case '女巫': return <FlaskConical size={size} className="text-role-witch"/>;
-      case '猎人': return <Target size={size} className="text-role-hunter"/>;
-      case '守卫': return <Shield size={size} className="text-role-guard"/>;
-      case '魔术师': return <Shuffle size={size} className="text-role-magician"/>;
-      default: return <User size={size} className="text-ink-faint"/>;
-    }
-  };
 
   // 获取玩家的行动历史图标
   // 玩家模式下只显示：用户自己的行动 + 所有人的投票 + 猎人击杀
@@ -427,6 +419,119 @@ export function CirclePlayerLayout({
     };
   }, []);
 
+  // 头像预览弹层（桌面圆桌与手机网格共用）
+  const previewModal = previewPlayer && (
+    <div
+      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center"
+      onClick={() => setPreviewPlayer(null)}
+    >
+      <div
+        className="relative w-[min(90vw,420px)] aspect-square bg-bg-raised border border-line-strong rounded-3xl shadow-2xl overflow-hidden"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {previewPlayer.avatarUrl ? (
+          <img
+            src={previewPlayer.avatarUrl}
+            alt={previewPlayer.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center text-ink-muted"
+            style={{ backgroundColor: previewPlayer.avatarColor }}
+          >
+            <User size={48} className="text-white/60" />
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
+          <div className="text-sm font-bold text-ink">{previewPlayer.name}</div>
+          <div className="text-[10px] text-ink-muted">{previewPlayer.role || '身份未知'}</div>
+        </div>
+        <button
+          className="absolute top-3 right-3 text-ink-muted hover:text-ink text-xs bg-bg-raised px-2 py-1 rounded-full"
+          onClick={() => setPreviewPlayer(null)}
+        >
+          关闭
+        </button>
+      </div>
+    </div>
+  );
+
+  // 手机端状态副标题（替代圆桌中心面板的“行动中/正在发言”行）
+  let statusLine = null;
+  if (phase === 'night' && getCurrentNightRole) {
+    statusLine = `${getCurrentNightRole()} 行动中...`;
+  } else if (phase === 'day_discussion' && speakerIndex >= 0) {
+    statusLine = aliveList[speakerIndex]?.name ? `${aliveList[speakerIndex].name} 正在发言` : null;
+  }
+
+  // ===== 手机端（<640px）：卡片网格 + 底部行动抽屉 =====
+  if (isMobile) {
+    return (
+      <div className="w-full px-1 pb-44">
+        <MobilePlayerGrid
+          players={players}
+          userPlayer={userPlayer}
+          selectedTarget={selectedTarget}
+          speakerIndex={speakerIndex}
+          aliveList={aliveList}
+          gameMode={gameMode}
+          phase={phase}
+          modelUsage={modelUsage}
+          AI_MODELS={AI_MODELS}
+          getPlayerActionIcons={getPlayerActionIcons}
+          setSelectedTarget={setSelectedTarget}
+          setPreviewPlayer={setPreviewPlayer}
+          phaseInfo={phaseInfo}
+          statusLine={statusLine}
+          isThinking={isThinking}
+        />
+        <MobileActionDrawer
+          phase={phase}
+          gameMode={gameMode}
+          userPlayer={userPlayer}
+          selectedTarget={selectedTarget}
+          setSelectedTarget={setSelectedTarget}
+          isThinking={isThinking}
+          speakerIndex={speakerIndex}
+          aliveList={aliveList}
+          userInput={userInput}
+          setUserInput={setUserInput}
+          handleUserSpeak={handleUserSpeak}
+          handleVote={handleVote}
+          isUserTurn={isUserTurn}
+          nightDecisions={nightDecisions}
+          mergeNightDecisions={mergeNightDecisions}
+          proceedNight={proceedNight}
+          players={players}
+          setPlayers={setPlayers}
+          setUserPlayer={setUserPlayer}
+          witchHistory={witchHistory}
+          setWitchHistory={setWitchHistory}
+          magicianHistory={magicianHistory}
+          setMagicianHistory={setMagicianHistory}
+          magicianSwapSelection={magicianSwapSelection}
+          setMagicianSwapSelection={setMagicianSwapSelection}
+          dreamweaverHistory={dreamweaverHistory}
+          setDreamweaverHistory={setDreamweaverHistory}
+          getPlayer={getPlayer}
+          seerChecks={seerChecks}
+          setSeerChecks={setSeerChecks}
+          dayCount={dayCount}
+          addLog={addLog}
+          handleUserDuel={handleUserDuel}
+          hunterShooting={hunterShooting}
+          handleUserHunterShoot={handleUserHunterShoot}
+          gameOverWinner={gameOverWinner}
+          exportGameLog={exportGameLog}
+          restartGame={restartGame}
+          onReplay={onReplay}
+        />
+        {previewModal}
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} className="relative w-full aspect-square max-w-5xl mx-auto" style={layoutStyle}>
       {/* 中央状态区域 - 圆形面板 */}
@@ -462,374 +567,48 @@ export function CirclePlayerLayout({
               </div>
             )}
 
-            {/* ===== 各阶段交互UI ===== */}
-
-            {/* 白天讨论 - 用户发言输入 */}
-            {phase === 'day_discussion' && speakerIndex >= 0 && aliveList[speakerIndex]?.isUser && gameMode !== 'ai-only' && (
-              <div className="w-full mt-2 space-y-1 max-w-[14rem]">
-                <div className="flex items-center gap-1 text-[10px] text-state-speaking justify-center">
-                  <div className="h-1.5 w-1.5 rounded-full bg-state-speaking animate-pulse" />
-                  <span className="font-bold">轮到你发言</span>
-                </div>
-                <div className="flex gap-1">
-                  <input
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="输入你的分析..."
-                    className="flex-1 bg-bg-raised border border-line-strong rounded-lg px-2 py-1.5 text-xs outline-none focus:border-accent transition-colors"
-                    onKeyDown={(e) => e.key === 'Enter' && userInput?.trim() && handleUserSpeak()}
-                  />
-                  <button
-                    onClick={handleUserSpeak}
-                    disabled={!userInput?.trim()}
-                    className="px-2 bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 disabled:hover:bg-accent transition-all"
-                  >
-                    <Send size={14}/>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 白天投票 */}
-            {phase === 'day_voting' && (
-              <div className="w-full mt-2 text-center">
-                {userPlayer?.isAlive ? (
-                  <>
-                    <p className="text-[10px] text-ink-muted mb-2">请基于逻辑投出放逐票</p>
-                    <button
-                      disabled={selectedTarget === null || isThinking}
-                      onClick={handleVote}
-                      className="px-6 py-2 bg-accent disabled:bg-bg-raised disabled:text-ink-faint text-black rounded-lg font-bold text-xs uppercase hover:bg-accent-hover transition-all"
-                    >
-                      投票
-                    </button>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-ink-faint text-xs">
-                    <RefreshCw className="animate-spin" size={14}/>
-                    <span>AI正在投票...</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 夜间用户行动 */}
-            {phase === 'night' && isUserTurn && isUserTurn() && (
-              <div className="w-full mt-2 text-center space-y-2 max-w-[14rem]">
-                <p className="text-xs text-phase-night font-bold">{userPlayer?.role} 行动</p>
-                <p className="text-[10px] text-ink-faint">点击头像选择目标</p>
-
-                {userPlayer?.role === '守卫' && nightDecisions?.lastGuardTarget !== null && (
-                  <p className="text-[10px] text-phase-day flex items-center justify-center gap-1">
-                    <AlertTriangle size={10}/>
-                    上夜守护{nightDecisions.lastGuardTarget}号
-                  </p>
-                )}
-
-                {/* 狼人必须选择目标，不允许空刀 */}
-
-                {userPlayer?.role === '女巫' ? (
-                  <div className="text-left bg-bg-raised p-2 rounded-lg text-[10px] space-y-2">
-                    <p className="text-ink-muted text-center">
-                      被刀：{nightDecisions?.wolfTarget !== null ? `${nightDecisions.wolfTarget}号` : '无'}
-                    </p>
-                    <div className="flex gap-1 justify-center flex-wrap">
-                      {userPlayer.hasWitchSave && nightDecisions?.wolfTarget !== null && (
-                        <button
-                          onClick={() => {
-                            const newDecisions = { ...nightDecisions, witchSave: true };
-                            mergeNightDecisions({ witchSave: true });
-                            setPlayers(players.map(x => x.id === 0 ? { ...x, hasWitchSave: false } : x));
-                            setUserPlayer({ ...userPlayer, hasWitchSave: false });
-                            setWitchHistory({ ...witchHistory, savedIds: [...witchHistory.savedIds, nightDecisions.wolfTarget] });
-                            proceedNight(newDecisions);
-                          }}
-                          className="px-2 py-1 bg-success rounded text-white font-bold hover:opacity-90"
-                        >
-                          解药
-                        </button>
-                      )}
-                      <button
-                        onClick={() => proceedNight()}
-                        className="px-2 py-1 bg-bg-raised border border-line rounded font-bold hover:bg-bg-sunken"
-                      >
-                        不使用
-                      </button>
-                    </div>
-                    {userPlayer.hasWitchPoison && selectedTarget !== null && (
-                      <button
-                        onClick={() => {
-                          const newDecisions = { ...nightDecisions, witchPoison: selectedTarget };
-                          mergeNightDecisions({ witchPoison: selectedTarget });
-                          setPlayers(players.map(x => x.id === 0 ? { ...x, hasWitchPoison: false } : x));
-                          setUserPlayer({ ...userPlayer, hasWitchPoison: false });
-                          setWitchHistory({ ...witchHistory, poisonedIds: [...witchHistory.poisonedIds, selectedTarget] });
-                          proceedNight(newDecisions);
-                        }}
-                        className="w-full px-2 py-1 bg-danger rounded font-bold hover:opacity-90"
-                      >
-                        毒{selectedTarget}号
-                      </button>
-                    )}
-                  </div>
-                ) : userPlayer?.role === '魔术师' ? (
-                  <div className="text-left bg-bg-raised p-2 rounded-lg text-[10px] space-y-2">
-                    <p className="text-ink-muted text-center">选择两个玩家进行交换</p>
-                    {magicianHistory?.lastSwap && (
-                      <p className="text-phase-day text-[9px] text-center flex items-center justify-center gap-1">
-                        <AlertTriangle size={9}/>
-                        上次交换了{magicianHistory.lastSwap.player1Id}和{magicianHistory.lastSwap.player2Id}号
-                      </p>
-                    )}
-                    <div className="flex gap-2 justify-center items-center">
-                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player1 !== null ? 'bg-role-magician' : 'bg-bg-raised border border-line'}`}>
-                        {magicianSwapSelection.player1 !== null ? `${magicianSwapSelection.player1}号` : '?'}
-                      </div>
-                      <Shuffle size={12} className="text-role-magician"/>
-                      <div className={`px-2 py-1 rounded ${magicianSwapSelection.player2 !== null ? 'bg-role-magician' : 'bg-bg-raised border border-line'}`}>
-                        {magicianSwapSelection.player2 !== null ? `${magicianSwapSelection.player2}号` : '?'}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 flex-col">
-                      {selectedTarget !== null && (
-                        <button
-                          onClick={() => {
-                            if (magicianSwapSelection.player1 === null) {
-                              setMagicianSwapSelection({ ...magicianSwapSelection, player1: selectedTarget });
-                              setSelectedTarget(null);
-                            } else if (magicianSwapSelection.player2 === null && selectedTarget !== magicianSwapSelection.player1) {
-                              setMagicianSwapSelection({ ...magicianSwapSelection, player2: selectedTarget });
-                              setSelectedTarget(null);
-                            }
-                          }}
-                          disabled={magicianSwapSelection.player1 !== null && magicianSwapSelection.player2 !== null}
-                          className="px-2 py-1 bg-role-magician rounded font-bold hover:opacity-90 disabled:bg-bg-raised disabled:border disabled:border-line disabled:text-ink-faint"
-                        >
-                          {magicianSwapSelection.player1 === null ? `选择${selectedTarget}号为第一个` : `选择${selectedTarget}号为第二个`}
-                        </button>
-                      )}
-                      {magicianSwapSelection.player1 !== null && magicianSwapSelection.player2 !== null && (
-                        <button
-                          onClick={() => {
-                            const swap = { player1Id: magicianSwapSelection.player1, player2Id: magicianSwapSelection.player2 };
-                            const validation = validateMagicianSwap(swap, magicianHistory, players.filter(p => p.isAlive));
-                            if (validation.valid) {
-                              mergeNightDecisions({ magicianSwap: swap });
-                              const newHistory = {
-                                swappedPlayers: [...(magicianHistory?.swappedPlayers || []), swap.player1Id, swap.player2Id],
-                                lastSwap: swap
-                              };
-                              setMagicianHistory(newHistory);
-                              setMagicianSwapSelection({ player1: null, player2: null });
-                              addLog(`你交换了 ${swap.player1Id}号 和 ${swap.player2Id}号`, 'info');
-                              proceedNight({ ...nightDecisions, magicianSwap: swap });
-                            } else {
-                              addLog(`交换无效：${validation.reason}`, 'warning');
-                            }
-                          }}
-                          className="px-2 py-1 bg-accent rounded font-bold hover:bg-accent-hover"
-                        >
-                          确认交换
-                        </button>
-                      )}
-                      <div className="flex gap-1">
-                        {magicianSwapSelection.player1 !== null && (
-                          <button
-                            onClick={() => setMagicianSwapSelection({ ...magicianSwapSelection, player1: null })}
-                            className="flex-1 px-1 py-1 bg-bg-raised border border-line rounded text-[9px] hover:bg-bg-sunken"
-                          >
-                            清除第一个
-                          </button>
-                        )}
-                        {magicianSwapSelection.player2 !== null && (
-                          <button
-                            onClick={() => setMagicianSwapSelection({ ...magicianSwapSelection, player2: null })}
-                            className="flex-1 px-1 py-1 bg-bg-raised border border-line rounded text-[9px] hover:bg-bg-sunken"
-                          >
-                            清除第二个
-                          </button>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => {
-                          mergeNightDecisions({ magicianSwap: null });
-                          setMagicianHistory({ ...magicianHistory, lastSwap: null });
-                          setMagicianSwapSelection({ player1: null, player2: null });
-                          addLog(`你选择不交换`, 'info');
-                          proceedNight({ ...nightDecisions, magicianSwap: null });
-                        }}
-                        className="px-2 py-1 bg-bg-raised border border-line rounded font-bold hover:bg-bg-sunken"
-                      >
-                        不交换
-                      </button>
-                    </div>
-                  </div>
-                ) : userPlayer?.role === ROLE_DEFINITIONS.DREAMWEAVER ? (
-                  <div className="text-left bg-bg-raised p-2 rounded-lg text-[10px] space-y-2">
-                    <p className="text-ink-muted text-center">选择一名玩家入梦（每晚必须）</p>
-                    {dreamweaverHistory?.lastDreamTarget !== null && (
-                      <p className="text-phase-day text-[9px] text-center flex items-center justify-center gap-1">
-                        <AlertTriangle size={9}/>
-                        上晚入梦了{dreamweaverHistory.lastDreamTarget}号
-                        {selectedTarget === dreamweaverHistory.lastDreamTarget && (
-                          <span className="text-state-win-evil font-bold ml-1">连梦将击杀TA!</span>
-                        )}
-                      </p>
-                    )}
-                    <button
-                      disabled={selectedTarget === null || selectedTarget === userPlayer?.id}
-                      onClick={() => {
-                        const updatedDecisions = { ...nightDecisions, dreamTarget: selectedTarget };
-                        mergeNightDecisions({ dreamTarget: selectedTarget });
-                        const newHistory = {
-                          dreamedPlayers: [...(dreamweaverHistory?.dreamedPlayers || []),
-                            ...(dreamweaverHistory?.dreamedPlayers?.includes(selectedTarget) ? [] : [selectedTarget])],
-                          lastDreamTarget: selectedTarget,
-                          currentDreamTarget: selectedTarget
-                        };
-                        setDreamweaverHistory(newHistory);
-                        addLog(`你入梦了 ${selectedTarget}号`, 'info');
-                        proceedNight(updatedDecisions);
-                      }}
-                      className={`w-full px-2 py-1.5 rounded font-bold hover:opacity-90 transition-all ${
-                        selectedTarget !== null && selectedTarget === dreamweaverHistory?.lastDreamTarget
-                          ? 'bg-danger text-white'
-                          : 'bg-role-dreamweaver text-white'
-                      } disabled:bg-bg-raised disabled:border disabled:border-line disabled:text-ink-faint`}
-                    >
-                      {selectedTarget !== null
-                        ? (selectedTarget === dreamweaverHistory?.lastDreamTarget
-                          ? `连梦击杀 ${selectedTarget}号`
-                          : `入梦 ${selectedTarget}号`)
-                        : '请选择目标'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <button
-                      disabled={!selectedTarget || (userPlayer?.role === '守卫' && selectedTarget === nightDecisions?.lastGuardTarget)}
-                      onClick={() => {
-                        let updatedDecisions = { ...nightDecisions };
-                        if (userPlayer?.role === '守卫') {
-                          updatedDecisions.guardTarget = selectedTarget;
-                          mergeNightDecisions({ guardTarget: selectedTarget });
-                        }
-                        if (userPlayer?.role === '狼人') {
-                          updatedDecisions.wolfTarget = selectedTarget;
-                          updatedDecisions.wolfSkipKill = false;
-                          mergeNightDecisions({ wolfTarget: selectedTarget, wolfSkipKill: false });
-                        }
-                        if (userPlayer?.role === '预言家') {
-                          const target = getPlayer(selectedTarget);
-                          const isWolf = target?.role === '狼人';
-                          setSeerChecks([...seerChecks, { night: dayCount, targetId: selectedTarget, isWolf, seerId: 0 }]);
-                          addLog(`你查验了 [${selectedTarget}号]，结果是：${isWolf ? '🐺 狼人' : '👤 好人'}`, 'info');
-                        }
-                        proceedNight(updatedDecisions);
-                      }}
-                      className="px-6 py-1.5 bg-accent disabled:bg-bg-raised disabled:text-ink-faint rounded-lg font-bold text-xs hover:bg-accent-hover transition-all"
-                    >
-                      确认行动
-                    </button>
-
-                    {(userPlayer?.role === '守卫' || userPlayer?.role === '预言家') && (
-                      <button
-                        onClick={() => {
-                          if (userPlayer?.role === '守卫') {
-                            mergeNightDecisions({ guardTarget: null });
-                            addLog(`你选择了空守`, 'info');
-                          } else {
-                            addLog(`你选择了不查验`, 'info');
-                          }
-                          proceedNight();
-                        }}
-                        className="text-zinc-400 hover:text-white underline text-xs"
-                      >
-                        {userPlayer?.role === '守卫' ? '选择空守' : '选择不查验'}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 骑士决斗 */}
-            {phase === 'day_discussion' &&
-             userPlayer?.role === ROLE_DEFINITIONS.KNIGHT &&
-             !userPlayer?.hasUsedDuel && (
-              <div className="w-full mt-2 text-center space-y-2">
-                <p className="text-xs text-phase-day font-bold">⚔️ 骑士决斗</p>
-                <p className="text-[10px] text-ink-muted">
-                  选择一名玩家发动决斗（整局一次）
-                </p>
-                <p className="text-[9px] text-ink-faint">
-                  对方是狼人→狼出局；对方是好人→你自刎
-                </p>
-                <button
-                  onClick={() => handleUserDuel?.(selectedTarget)}
-                  disabled={selectedTarget === null}
-                  className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${
-                    selectedTarget !== null
-                      ? 'bg-accent hover:bg-accent-hover cursor-pointer'
-                      : 'bg-bg-raised cursor-not-allowed opacity-50'
-                  }`}
-                >
-                  {selectedTarget !== null ? `决斗 ${selectedTarget}号` : '请选择目标'}
-                </button>
-              </div>
-            )}
-
-            {/* 猎人开枪 */}
-            {phase === 'hunter_shoot' && hunterShooting && (
-              <div className="w-full mt-2 text-center space-y-2">
-                <p className="text-xs text-role-hunter font-bold">猎人开枪</p>
-                <p className="text-[10px] text-ink-muted">
-                  {hunterShooting.id}号 可带走一人
-                </p>
-                <button
-                  onClick={() => handleUserHunterShoot(
-                    hunterShooting?.source,
-                    hunterShooting?.nightDeads,
-                    hunterShooting?.flowSource,
-                    hunterShooting?.chainDepth
-                  )}
-                  className={`px-5 py-1.5 rounded-lg font-bold text-xs uppercase transition-all ${selectedTarget !== null ? 'bg-role-hunter hover:opacity-90' : 'bg-bg-raised border border-line hover:bg-bg-sunken'}`}
-                >
-                  {selectedTarget !== null ? `开枪${selectedTarget}号` : '不开枪'}
-                </button>
-              </div>
-            )}
-
-            {/* 游戏结束 */}
-            {phase === 'game_over' && (
-              <div className="w-full mt-2 text-center space-y-2">
-                <p className={`text-sm font-black tracking-wide ${gameOverWinner.color}`}>{gameOverWinner.text}</p>
-                <h2 className="text-lg font-black uppercase tracking-widest text-phase-day">Game Over</h2>
-                <p className="text-[10px] text-ink-muted">查看历史记录</p>
-                <div className="flex gap-2 justify-center flex-wrap">
-                  <button
-                    onClick={exportGameLog}
-                    className="px-4 py-1.5 bg-accent rounded-lg font-bold text-xs uppercase hover:bg-accent-hover transition-all flex items-center gap-1"
-                  >
-                    <Download size={12}/> 导出
-                  </button>
-                  {onReplay && (
-                  <button
-                    onClick={onReplay}
-                    className="px-4 py-1.5 bg-accent rounded-lg font-bold text-xs uppercase hover:bg-accent-hover transition-all flex items-center gap-1"
-                  >
-                    <PlayCircle size={12}/> 回放
-                  </button>
-                  )}
-                  <button
-                    onClick={restartGame}
-                    className="px-4 py-1.5 bg-success rounded-lg font-bold text-xs uppercase hover:opacity-90 transition-all flex items-center gap-1"
-                  >
-                    <RotateCcw size={12}/> 重开
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* ===== 各阶段交互UI（圆桌中心面板，复用 GameActionControls） ===== */}
+            <GameActionControls
+              phase={phase}
+              gameMode={gameMode}
+              userPlayer={userPlayer}
+              selectedTarget={selectedTarget}
+              setSelectedTarget={setSelectedTarget}
+              isThinking={isThinking}
+              speakerIndex={speakerIndex}
+              aliveList={aliveList}
+              userInput={userInput}
+              setUserInput={setUserInput}
+              handleUserSpeak={handleUserSpeak}
+              handleVote={handleVote}
+              isUserTurn={isUserTurn}
+              nightDecisions={nightDecisions}
+              mergeNightDecisions={mergeNightDecisions}
+              proceedNight={proceedNight}
+              players={players}
+              setPlayers={setPlayers}
+              setUserPlayer={setUserPlayer}
+              witchHistory={witchHistory}
+              setWitchHistory={setWitchHistory}
+              magicianHistory={magicianHistory}
+              setMagicianHistory={setMagicianHistory}
+              magicianSwapSelection={magicianSwapSelection}
+              setMagicianSwapSelection={setMagicianSwapSelection}
+              dreamweaverHistory={dreamweaverHistory}
+              setDreamweaverHistory={setDreamweaverHistory}
+              getPlayer={getPlayer}
+              seerChecks={seerChecks}
+              setSeerChecks={setSeerChecks}
+              dayCount={dayCount}
+              addLog={addLog}
+              handleUserDuel={handleUserDuel}
+              hunterShooting={hunterShooting}
+              handleUserHunterShoot={handleUserHunterShoot}
+              gameOverWinner={gameOverWinner}
+              exportGameLog={exportGameLog}
+              restartGame={restartGame}
+              onReplay={onReplay}
+            />
 
             {Object.keys(cardPositions).length > 0 && (
               <button
@@ -866,138 +645,31 @@ export function CirclePlayerLayout({
               transition: isDragging ? 'none' : 'left 0.2s ease, top 0.2s ease'
             }}
           >
-            {/* 玩家卡片 */}
-            <div
-              onPointerDown={(event) => handlePointerDown(event, p.id, index, p.isAlive)}
-              onPointerMove={handlePointerMove}
-              onPointerUp={(event) => handlePointerUp(event, p.id, p.isAlive)}
-              onPointerCancel={(event) => handlePointerUp(event, p.id, p.isAlive)}
-              className={`
-                relative p-2 sm:p-3 rounded-2xl border-2 transition-transform select-none touch-none
-                w-[var(--card-width)] min-h-[var(--card-height)] flex flex-col items-center
-                ${selectedTarget === p.id ? 'border-state-selected bg-state-selected-soft ring-4 ring-state-selected-soft scale-110' : 'bg-bg-raised border-line-strong'}
-                ${!p.isAlive ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-grab hover:border-line hover:scale-105'}
-                ${isSpeaking ? 'ring-2 ring-state-speaking animate-pulse' : ''}
-                ${isDragging ? 'shadow-2xl ring-2 ring-state-selected-soft scale-105 cursor-grabbing' : 'shadow-xl'}
-                backdrop-blur-sm
-              `}
-            >
-
-              {/* 玩家编号 */}
-              <span className="absolute -top-2 -left-1 text-[10px] sm:text-xs font-black text-ink bg-bg-raised px-2 py-0.5 rounded-full border border-line-strong leading-none shadow-lg">
-                {p.id}
-              </span>
-
-              {/* 头像 */}
-              <div
-                className="w-[var(--avatar-size)] h-[var(--avatar-size)] rounded-full border-2 border-white/20 overflow-hidden relative shadow-lg mt-2 cursor-zoom-in"
-                style={{backgroundColor: p.avatarColor}}
-                onPointerDown={(event) => event.stopPropagation()}
-                onPointerUp={(event) => {
-                  event.stopPropagation();
-                  setPreviewPlayer(p);
-                }}
-              >
-                {p.avatarUrl ? (
-                  <img
-                    src={p.avatarUrl}
-                    alt={p.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    {p.isUser ? <User size={18} className="text-white/40"/> : <span className="text-white/30 font-black text-sm">{p.id}</span>}
-                  </div>
-                )}
-                {!p.isAlive && (
-                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                    <Skull size={18} className="text-state-win-evil" />
-                  </div>
-                )}
-              </div>
-
-              {/* 名字 */}
-              <span className="text-[10px] sm:text-xs font-bold mt-1.5 truncate w-full text-center leading-tight">{p.name}</span>
-
-              {/* AI模型名称 */}
-              {!p.isUser && modelLabel && (
-                <div className="text-[8px] text-ink-faint mt-0.5 truncate w-full text-center leading-tight px-1">
-                  {String(modelLabel).slice(0, 18)}
-                </div>
-              )}
-
-              {/* 身份标签 */}
-              <div className="flex flex-wrap gap-0.5 justify-center mt-1">
-                {p.isUser && (
-                  <span className="text-[9px] bg-state-speaking text-white px-1.5 py-0.5 rounded font-black flex items-center gap-0.5 whitespace-nowrap">
-                    {getRoleIcon(p.role, 10)} {p.role}
-                  </span>
-                )}
-                {isTeammate && (
-                  <span className="text-[9px] bg-role-wolf text-white px-1.5 py-0.5 rounded font-black flex items-center gap-0.5 whitespace-nowrap">
-                    {getRoleIcon('狼人', 10)} 狼
-                  </span>
-                )}
-                {((gameMode === 'ai-only') || (phase === 'game_over')) && !p.isUser && !isTeammate && p.role && (
-                  <span className="text-[9px] bg-accent text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 whitespace-nowrap">
-                    {getRoleIcon(p.role, 10)} {p.role}
-                  </span>
-                )}
-              </div>
-
-              {/* 行动历史图标 - 始终显示（玩家模式下只有投票和用户自己的行动） */}
-              {actionIcons.length > 0 && (
-                <div className="flex flex-wrap gap-0.5 justify-center mt-1.5 max-w-full">
-                  {actionIcons.slice(0, 4)}
-                  {actionIcons.length > 4 && (
-                    <span className="text-[8px] text-ink-faint">+{actionIcons.length - 4}</span>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* 玩家卡片（圆桌变体，复用 PlayerCard） */}
+            <PlayerCard
+              player={p}
+              variant="circle"
+              selected={selectedTarget === p.id}
+              isSpeaking={isSpeaking}
+              isDragging={isDragging}
+              isTeammate={isTeammate}
+              actionIcons={actionIcons}
+              modelLabel={modelLabel}
+              gameMode={gameMode}
+              phase={phase}
+              pointerHandlers={{
+                onPointerDown: (event) => handlePointerDown(event, p.id, index, p.isAlive),
+                onPointerMove: handlePointerMove,
+                onPointerUp: (event) => handlePointerUp(event, p.id, p.isAlive),
+                onPointerCancel: (event) => handlePointerUp(event, p.id, p.isAlive),
+              }}
+              onAvatarActivate={setPreviewPlayer}
+            />
           </div>
         );
       })}
 
-      {previewPlayer && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center"
-          onClick={() => setPreviewPlayer(null)}
-        >
-          <div
-            className="relative w-[min(90vw,420px)] aspect-square bg-bg-raised border border-line-strong rounded-3xl shadow-2xl overflow-hidden"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {previewPlayer.avatarUrl ? (
-              <img
-                src={previewPlayer.avatarUrl}
-                alt={previewPlayer.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center text-ink-muted"
-                style={{ backgroundColor: previewPlayer.avatarColor }}
-              >
-                <User size={48} className="text-white/60" />
-              </div>
-            )}
-            <div className="absolute bottom-0 left-0 right-0 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
-              <div className="text-sm font-bold text-ink">{previewPlayer.name}</div>
-              <div className="text-[10px] text-ink-muted">{previewPlayer.role || '身份未知'}</div>
-            </div>
-            <button
-              className="absolute top-3 right-3 text-ink-muted hover:text-ink text-xs bg-bg-raised px-2 py-1 rounded-full"
-              onClick={() => setPreviewPlayer(null)}
-            >
-              关闭
-            </button>
-          </div>
-        </div>
-      )}
+      {previewModal}
     </div>
   );
 }
