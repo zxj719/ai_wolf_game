@@ -202,9 +202,9 @@ function deriveStemUrls(song) {
 }
 
 const ENERGY_BADGE = {
-  low: 'bg-sky-50 text-sky-600 ring-sky-200/60',
-  medium: 'bg-amber-50 text-amber-600 ring-amber-200/60',
-  high: 'bg-rose-50 text-rose-600 ring-rose-200/60',
+  low: 'bg-success-soft text-success',
+  medium: 'bg-warning-soft text-warning',
+  high: 'bg-danger-soft text-danger',
 };
 
 function TagList({ items }) {
@@ -221,17 +221,17 @@ function TagList({ items }) {
 
 function OptionToggle({ checked, onChange, title, description }) {
   return (
-    <label className="rounded-[18px] border border-slate-200/70 bg-white/72 p-4">
+    <label className="rounded-[18px] border border-line bg-bg-sunken p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-sm font-semibold text-slate-900">{title}</div>
-          <div className="mt-1 text-sm leading-6 text-slate-500">{description}</div>
+          <div className="text-sm font-semibold text-ink">{title}</div>
+          <div className="mt-1 text-sm leading-6 text-ink-muted">{description}</div>
         </div>
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+          className="mt-1 h-4 w-4 rounded border-line text-accent focus:ring-accent"
         />
       </div>
     </label>
@@ -242,14 +242,14 @@ function GalleryCard({ song, isActive, onSelect, canDelete, onDelete }) {
   const arr = song.arrangement || {};
   const st = song.analysis || {};
   return (
-    <div className={`mac-list-row w-full text-left transition-colors ${isActive ? 'bg-slate-100 ring-1 ring-slate-300' : 'hover:bg-white/90'}`}>
+    <div className={`mac-list-row w-full text-left transition-colors ${isActive ? 'bg-bg-sunken ring-1 ring-accent' : 'hover:bg-bg-sunken'}`}>
       <button type="button" onClick={() => onSelect(song)} className="flex flex-1 items-center gap-3">
         <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
           <Music4 size={17} />
         </span>
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-900">{song.sourceFilename || song.id}</div>
-          <div className="flex items-center gap-3 text-sm text-slate-500">
+          <div className="truncate text-sm font-semibold text-ink">{song.sourceFilename || song.id}</div>
+          <div className="flex items-center gap-3 text-sm text-ink-muted">
             {st?.bpm ? <span>{st.bpm} BPM</span> : null}
             {st?.key?.key ? <span>{st.key.key} {st.key.mode || ''}</span> : null}
             {arr.style_tags?.length ? <span>{arr.style_tags[0]}</span> : null}
@@ -260,7 +260,7 @@ function GalleryCard({ song, isActive, onSelect, canDelete, onDelete }) {
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(song); }}
-          className="ml-2 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
+          className="ml-2 rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-danger-soft hover:text-danger"
         >
           <Trash2 size={15} />
         </button>
@@ -271,9 +271,9 @@ function GalleryCard({ song, isActive, onSelect, canDelete, onDelete }) {
 
 function SectionCard({ section, onPlay, copy }) {
   const [open, setOpen] = useState(false);
-  const badge = ENERGY_BADGE[section.energy] || 'bg-slate-50 text-slate-500 ring-slate-200/60';
+  const badge = ENERGY_BADGE[section.energy] || 'bg-bg-sunken text-ink-muted';
   return (
-    <div className="rounded-[16px] border border-slate-200/70 bg-white/74 transition-colors hover:bg-white/90">
+    <div className="rounded-[16px] border border-line bg-bg-raised transition-colors hover:bg-bg-sunken">
       <div
         role="button"
         tabIndex={0}
@@ -283,30 +283,30 @@ function SectionCard({ section, onPlay, copy }) {
       >
         <button
           type="button"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-700"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover"
           onClick={(e) => { e.stopPropagation(); onPlay(section.time_start, section.time_end); }}
         >
           <Play size={10} className="ml-px" />
         </button>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">{section.name}</span>
-        <span className="text-[11px] tabular-nums text-slate-400">{formatSeconds(section.time_start)} – {formatSeconds(section.time_end)}</span>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${badge}`}>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{section.name}</span>
+        <span className="text-[11px] tabular-nums text-ink-faint">{formatSeconds(section.time_start)} – {formatSeconds(section.time_end)}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badge}`}>
           {section.energy || copy.energyOpen}
         </span>
-        <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
       {open ? (
-        <div className="space-y-2 border-t border-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+        <div className="space-y-2 border-t border-line px-3 py-3 text-sm leading-6 text-ink-muted">
           {section.function ? <p>{section.function}</p> : null}
           {section.arrangement_notes?.length ? (
             <div className="space-y-1">
               {section.arrangement_notes.map((n, i) => (
-                <div key={i} className="mac-list-row text-sm text-slate-600">{n}</div>
+                <div key={i} className="mac-list-row text-sm text-ink-muted">{n}</div>
               ))}
             </div>
           ) : null}
           {section.transition ? (
-            <p className="text-slate-500">→ {section.transition}</p>
+            <p className="text-ink-muted">→ {section.transition}</p>
           ) : null}
         </div>
       ) : null}
@@ -319,11 +319,11 @@ function FocusItem({ item, onPlay }) {
   const text = isObj ? item.text : String(item || '');
   const ts = isObj && typeof item.time === 'number' ? item.time : parseTimestamp(text);
   return (
-    <div className="flex items-start gap-2 rounded-[14px] border border-slate-200/70 bg-white/74 px-3 py-2.5">
+    <div className="flex items-start gap-2 rounded-[14px] border border-line bg-bg-sunken px-3 py-2.5">
       {ts !== null ? (
         <button
           type="button"
-          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-700 active:scale-95"
+          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover active:scale-95"
           onClick={() => onPlay(ts)}
           title={`${Math.floor(ts / 60)}:${String(Math.round(ts) % 60).padStart(2, '0')}`}
         >
@@ -333,9 +333,9 @@ function FocusItem({ item, onPlay }) {
         <span className="mt-0.5 h-6 w-6 shrink-0" />
       )}
       <div className="min-w-0 flex-1">
-        <span className="text-sm leading-6 text-slate-600">{text}</span>
+        <span className="text-sm leading-6 text-ink-muted">{text}</span>
         {ts !== null ? (
-          <span className="ml-1.5 inline-block rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] tabular-nums text-slate-400">
+          <span className="ml-1.5 inline-block rounded-md bg-bg-raised px-1.5 py-0.5 text-[10px] tabular-nums text-ink-faint">
             {Math.floor(ts / 60)}:{String(Math.round(ts) % 60).padStart(2, '0')}
           </span>
         ) : null}
@@ -478,7 +478,7 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
               </div>
               <div>
                 <div className="mac-eyebrow">炸小鸡工作室</div>
-                <h1 className="text-base font-semibold text-slate-900">{copy.title}</h1>
+                <h1 className="text-base font-semibold text-ink">{copy.title}</h1>
               </div>
             </div>
             <button type="button" onClick={onBack} className="mac-button mac-button-secondary">
@@ -492,10 +492,10 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
             <section className="space-y-5">
               <div className="space-y-4">
                 <div className="mac-eyebrow">{copy.subtitle}</div>
-                <h2 className="text-[clamp(2rem,4.5vw,3.2rem)] font-semibold tracking-tight text-slate-950">
+                <h2 className="text-[clamp(2rem,4.5vw,3.2rem)] font-semibold tracking-tight text-ink">
                   {copy.title}
                 </h2>
-                <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.description}</p>
+                <p className="max-w-2xl text-base leading-7 text-ink-muted">{copy.description}</p>
               </div>
 
               {/* Admin upload — dev only */}
@@ -505,28 +505,28 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                     <div className="mb-4 flex items-center gap-3">
                       <span className="mac-icon-tile"><Upload size={18} /></span>
                       <div>
-                        <h3 className="text-base font-semibold text-slate-900">{copy.pickFile}</h3>
-                        <p className="text-sm text-slate-500">{copy.fileHint}</p>
+                        <h3 className="text-base font-semibold text-ink">{copy.pickFile}</h3>
+                        <p className="text-sm text-ink-muted">{copy.fileHint}</p>
                       </div>
                     </div>
                     <div className="grid gap-4">
-                      <label className="flex cursor-pointer items-center justify-center rounded-[22px] border border-dashed border-slate-300 bg-white/72 px-5 py-8 text-center transition-colors hover:border-slate-400 hover:bg-white/84">
+                      <label className="flex cursor-pointer items-center justify-center rounded-[22px] border border-dashed border-line bg-bg-sunken px-5 py-8 text-center transition-colors hover:border-line-strong hover:bg-bg-sunken">
                         <input type="file" accept=".mp3,.wav,.m4a,audio/*" className="hidden" onChange={handleFileChange} />
                         <div className="space-y-3">
-                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-white">
                             <FileAudio size={22} />
                           </div>
-                          <div className="text-sm font-semibold text-slate-900">{selectedFile ? selectedFile.name : copy.browse}</div>
-                          <div className="text-sm text-slate-500">{copy.privacy}</div>
+                          <div className="text-sm font-semibold text-ink">{selectedFile ? selectedFile.name : copy.browse}</div>
+                          <div className="text-sm text-ink-muted">{copy.privacy}</div>
                         </div>
                       </label>
 
                       {selectedFile ? (
-                        <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
+                        <div className="rounded-[20px] border border-line bg-bg-sunken p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <div className="text-sm font-semibold text-slate-900">{selectedFile.name}</div>
-                              <div className="text-sm text-slate-500">{formatBytes(selectedFile.size)}</div>
+                              <div className="text-sm font-semibold text-ink">{selectedFile.name}</div>
+                              <div className="text-sm text-ink-muted">{formatBytes(selectedFile.size)}</div>
                             </div>
                             <button type="button" onClick={handleAnalyze} disabled={isBusy} className="mac-button mac-button-primary">
                               {isBusy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
@@ -536,14 +536,14 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                         </div>
                       ) : null}
 
-                      <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
+                      <div className="rounded-[20px] border border-line bg-bg-sunken p-4">
                         <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-semibold text-slate-900">{copy.songInfoLabel}</span>
+                          <span className="text-sm font-semibold text-ink">{copy.songInfoLabel}</span>
                           <button
                             type="button"
                             disabled={searching}
                             onClick={handleSearchSongInfo}
-                            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-ink-muted transition-colors hover:bg-bg-sunken disabled:opacity-50"
                           >
                             {searching ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
                             {copy.searchBtn}
@@ -554,13 +554,13 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                           value={songInfo}
                           onChange={(e) => setSongInfo(e.target.value)}
                           placeholder={copy.songInfoPlaceholder}
-                          className="w-full resize-none rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+                          className="w-full resize-none rounded-xl border border-line bg-bg-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-line-strong focus:outline-none"
                         />
                       </div>
 
                       {audioUrl ? (
-                        <div className="rounded-[20px] border border-slate-200/70 bg-white/70 p-4">
-                          <div className="mb-2 text-sm font-semibold text-slate-900">{copy.audioTitle}</div>
+                        <div className="rounded-[20px] border border-line bg-bg-sunken p-4">
+                          <div className="mb-2 text-sm font-semibold text-ink">{copy.audioTitle}</div>
                           <audio controls className="w-full" src={audioUrl}><track kind="captions" /></audio>
                         </div>
                       ) : null}
@@ -570,14 +570,14 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                   <div className="mac-panel p-5">
                     <div className="mb-4 flex items-center gap-3">
                       <span className="mac-icon-tile"><Music4 size={18} /></span>
-                      <h3 className="text-base font-semibold text-slate-900">{copy.optionsTitle}</h3>
+                      <h3 className="text-base font-semibold text-ink">{copy.optionsTitle}</h3>
                     </div>
                     <div className="grid gap-3">
                       <OptionToggle checked={options.fourStems} onChange={(v) => setOptions((c) => ({ ...c, fourStems: v }))} title={copy.fastMode} description={copy.fastModeHelp} />
                       <OptionToggle checked={options.noResynth} onChange={(v) => setOptions((c) => ({ ...c, noResynth: v }))} title={copy.resynth} description={copy.resynthHelp} />
-                      <label className="rounded-[18px] border border-slate-200/70 bg-white/72 p-4">
-                        <div className="text-sm font-semibold text-slate-900">{copy.splitVocals}</div>
-                        <div className="mt-1 text-sm leading-6 text-slate-500">{copy.splitVocalsHelp}</div>
+                      <label className="rounded-[18px] border border-line bg-bg-sunken p-4">
+                        <div className="text-sm font-semibold text-ink">{copy.splitVocals}</div>
+                        <div className="mt-1 text-sm leading-6 text-ink-muted">{copy.splitVocalsHelp}</div>
                         <select className="mac-select mt-3" value={options.splitVocals} onChange={(e) => setOptions((c) => ({ ...c, splitVocals: Number(e.target.value) }))}>
                           <option value={0}>0</option>
                           <option value={2}>2</option>
@@ -595,16 +595,16 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                 <div className="mb-4 flex items-center gap-3">
                   <span className="mac-icon-tile"><Library size={18} /></span>
                   <div>
-                    <h3 className="text-base font-semibold text-slate-900">{copy.galleryTitle}</h3>
-                    <p className="text-sm text-slate-500">{copy.gallerySubtitle}</p>
+                    <h3 className="text-base font-semibold text-ink">{copy.galleryTitle}</h3>
+                    <p className="text-sm text-ink-muted">{copy.gallerySubtitle}</p>
                   </div>
                 </div>
                 {loading ? (
-                  <div className="flex items-center gap-2 py-6 text-sm text-slate-400">
+                  <div className="flex items-center gap-2 py-6 text-sm text-ink-faint">
                     <Loader2 size={15} className="animate-spin" /> {copy.galleryLoading}
                   </div>
                 ) : songs.length === 0 ? (
-                  <div className="py-6 text-center text-sm text-slate-400">{copy.galleryEmpty}</div>
+                  <div className="py-6 text-center text-sm text-ink-faint">{copy.galleryEmpty}</div>
                 ) : (
                   <div className="grid gap-2">
                     {songs.map((s) => (
@@ -632,42 +632,42 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                       {isBusy ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
                     </span>
                     <div>
-                      <h3 className="text-base font-semibold text-slate-900">{copy.statusTitle}</h3>
-                      <p className="text-sm text-slate-500">
+                      <h3 className="text-base font-semibold text-ink">{copy.statusTitle}</h3>
+                      <p className="text-sm text-ink-muted">
                         {job.status === 'queued' ? copy.queueingCopy : job.status === 'processing' ? copy.processingCopy : job.step}
                       </p>
                     </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="mac-muted-card">
-                      <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.status}</div>
-                      <div className="mt-2 text-lg font-semibold capitalize text-slate-900">{job.status}</div>
+                      <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.status}</div>
+                      <div className="mt-2 text-lg font-semibold capitalize text-ink">{job.status}</div>
                     </div>
                     <div className="mac-muted-card">
-                      <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.jobId}</div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900">{job.id}</div>
+                      <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.jobId}</div>
+                      <div className="mt-2 text-sm font-semibold text-ink">{job.id}</div>
                     </div>
                     <div className="mac-muted-card">
-                      <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.progress}</div>
-                      <div className="mt-2 text-lg font-semibold text-slate-900">{Math.round(job.progress * 100)}%</div>
+                      <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.progress}</div>
+                      <div className="mt-2 text-lg font-semibold text-ink">{Math.round(job.progress * 100)}%</div>
                     </div>
                   </div>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400 transition-all duration-500" style={{ width: `${Math.max(6, Math.round(job.progress * 100))}%` }} />
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-bg-sunken">
+                    <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${Math.max(6, Math.round(job.progress * 100))}%` }} />
                   </div>
-                  <div className="mt-3 text-sm text-slate-500">{job.step}</div>
+                  <div className="mt-3 text-sm text-ink-muted">{job.step}</div>
                 </div>
               ) : null}
 
               {error ? (
-                <div className="rounded-[24px] border border-rose-200 bg-rose-50/90 p-5 text-sm leading-6 text-rose-700">{error}</div>
+                <div className="rounded-[24px] border border-danger bg-danger-soft p-5 text-sm leading-6 text-danger">{error}</div>
               ) : null}
 
               {/* Empty state */}
               {!activeJob && !job ? (
                 <div className="mac-panel p-6">
-                  <div className="text-base font-semibold text-slate-900">{copy.galleryTitle}</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{copy.selectPrompt}</p>
+                  <div className="text-base font-semibold text-ink">{copy.galleryTitle}</div>
+                  <p className="mt-2 text-sm leading-6 text-ink-muted">{copy.selectPrompt}</p>
                 </div>
               ) : null}
 
@@ -685,12 +685,12 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                   ) : null}
 
                   {/* Tab bar */}
-                  <div className="flex gap-1 rounded-[14px] bg-slate-100/80 p-1">
+                  <div className="flex gap-1 rounded-[14px] bg-bg-sunken p-1">
                     {TABS.map(t => (
                       <button
                         key={t}
                         type="button"
-                        className={`flex-1 rounded-[10px] px-3 py-1.5 text-sm font-medium transition-colors ${tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`flex-1 rounded-[10px] px-3 py-1.5 text-sm font-medium transition-colors ${tab === t ? 'bg-bg-raised text-ink shadow-sm' : 'text-ink-muted hover:text-ink'}`}
                         onClick={() => setTab(t)}
                       >
                         {copy[t]}
@@ -707,29 +707,29 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                           <div className="mb-4 flex items-center gap-3">
                             <span className="mac-icon-tile"><Sparkles size={18} /></span>
                             <div className="min-w-0 flex-1">
-                              <h3 className="text-base font-semibold text-slate-900">
+                              <h3 className="text-base font-semibold text-ink">
                                 {arrangement.artist
                                   ? `${activeJob.title || activeJob.sourceFilename || activeJob.id} — ${arrangement.artist}`
                                   : (activeJob.title || activeJob.sourceFilename || activeJob.id)}
                               </h3>
                               {arrangement.album && (
-                                <p className="text-xs text-slate-400">{arrangement.album}{arrangement.credits ? ` · ${arrangement.credits}` : ''}</p>
+                                <p className="text-xs text-ink-faint">{arrangement.album}{arrangement.credits ? ` · ${arrangement.credits}` : ''}</p>
                               )}
-                              <p className="mt-1 text-sm leading-6 text-slate-500">{arrangement.summary || copy.noSummary}</p>
+                              <p className="mt-1 text-sm leading-6 text-ink-muted">{arrangement.summary || copy.noSummary}</p>
                             </div>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-3">
                             <div className="mac-muted-card">
-                              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.duration}</div>
-                              <div className="mt-2 text-lg font-semibold text-slate-900">{formatSeconds(stats.duration)}</div>
+                              <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.duration}</div>
+                              <div className="mt-2 text-lg font-semibold text-ink">{formatSeconds(stats.duration)}</div>
                             </div>
                             <div className="mac-muted-card">
-                              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.bpm}</div>
-                              <div className="mt-2 text-lg font-semibold text-slate-900">{stats.bpm || '-'}</div>
+                              <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.bpm}</div>
+                              <div className="mt-2 text-lg font-semibold text-ink">{stats.bpm || '-'}</div>
                             </div>
                             <div className="mac-muted-card">
-                              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.key}</div>
-                              <div className="mt-2 text-lg font-semibold text-slate-900">
+                              <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.key}</div>
+                              <div className="mt-2 text-lg font-semibold text-ink">
                                 {stats.key?.key ? `${stats.key.key} ${stats.key.mode || ''}` : '-'}
                               </div>
                             </div>
@@ -741,12 +741,12 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                           ) : null}
                           <div className="mt-4 grid gap-3 md:grid-cols-2">
                             <div className="mac-muted-card">
-                              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.hook}</div>
-                              <div className="mt-2 text-sm leading-6 text-slate-700">{arrangement.hook_moment || copy.noCallout}</div>
+                              <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.hook}</div>
+                              <div className="mt-2 text-sm leading-6 text-ink">{arrangement.hook_moment || copy.noCallout}</div>
                             </div>
                             <div className="mac-muted-card">
-                              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.climax}</div>
-                              <div className="mt-2 text-sm leading-6 text-slate-700">{arrangement.climax_moment || copy.noCallout}</div>
+                              <div className="text-xs uppercase tracking-[0.22em] text-ink-faint">{copy.climax}</div>
+                              <div className="mt-2 text-sm leading-6 text-ink">{arrangement.climax_moment || copy.noCallout}</div>
                             </div>
                           </div>
                         </div>
@@ -755,15 +755,15 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                       {/* Stem roles */}
                       {arrangement.stem_roles && Object.keys(arrangement.stem_roles).length > 0 ? (
                         <div className="mac-panel p-5">
-                          <h3 className="mb-3 text-base font-semibold text-slate-900">{copy.stemRolesTitle}</h3>
+                          <h3 className="mb-3 text-base font-semibold text-ink">{copy.stemRolesTitle}</h3>
                           <div className="grid gap-2">
                             {Object.entries(arrangement.stem_roles).map(([name, info]) => (
-                              <div key={name} className="rounded-[14px] border border-slate-200/70 bg-white/74 px-3 py-2.5">
-                                <div className="text-sm font-semibold text-slate-900">{name}</div>
-                                <div className="mt-1 space-y-0.5 text-[12px] leading-5 text-slate-500">
-                                  <div><span className="font-medium text-slate-600">{copy.role}:</span> {info.role}</div>
-                                  <div><span className="font-medium text-slate-600">{copy.timbre}:</span> {info.timbre}</div>
-                                  <div><span className="font-medium text-slate-600">{copy.arrMethod}:</span> {info.arrangement}</div>
+                              <div key={name} className="rounded-[14px] border border-line bg-bg-sunken px-3 py-2.5">
+                                <div className="text-sm font-semibold text-ink">{name}</div>
+                                <div className="mt-1 space-y-0.5 text-[12px] leading-5 text-ink-muted">
+                                  <div><span className="font-medium text-ink">{copy.role}:</span> {info.role}</div>
+                                  <div><span className="font-medium text-ink">{copy.timbre}:</span> {info.timbre}</div>
+                                  <div><span className="font-medium text-ink">{copy.arrMethod}:</span> {info.arrangement}</div>
                                 </div>
                               </div>
                             ))}
@@ -786,7 +786,7 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                           />
                         ))
                       ) : (
-                        <div className="mac-panel p-5 text-sm text-slate-400">{copy.noSections}</div>
+                        <div className="mac-panel p-5 text-sm text-ink-faint">{copy.noSections}</div>
                       )}
                     </div>
                   ) : null}
@@ -795,7 +795,7 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                   {tab === 'tabListening' ? (
                     <div className="space-y-4">
                       <div className="mac-panel p-5">
-                        <h3 className="mb-3 text-base font-semibold text-slate-900">{copy.focusTitle}</h3>
+                        <h3 className="mb-3 text-base font-semibold text-ink">{copy.focusTitle}</h3>
                         {arrangement.listening_focus.length > 0 ? (
                           <div className="grid gap-2">
                             {arrangement.listening_focus.map((item, i) => (
@@ -803,20 +803,20 @@ export function ChordsPage({ onBack, locale = 'zh' }) {
                             ))}
                           </div>
                         ) : (
-                          <div className="text-sm text-slate-400">{copy.noListeningFocus}</div>
+                          <div className="text-sm text-ink-faint">{copy.noListeningFocus}</div>
                         )}
                       </div>
 
                       <div className="mac-panel p-5">
-                        <h3 className="mb-3 text-base font-semibold text-slate-900">{copy.mixTitle}</h3>
+                        <h3 className="mb-3 text-base font-semibold text-ink">{copy.mixTitle}</h3>
                         {arrangement.mix_highlights.length > 0 ? (
                           <div className="grid gap-2">
                             {arrangement.mix_highlights.map((text, i) => (
-                              <div key={i} className="mac-list-row text-sm text-slate-600">{text}</div>
+                              <div key={i} className="mac-list-row text-sm text-ink-muted">{text}</div>
                             ))}
                           </div>
                         ) : (
-                          <div className="text-sm text-slate-400">{copy.noMixNotes}</div>
+                          <div className="text-sm text-ink-faint">{copy.noMixNotes}</div>
                         )}
                       </div>
                     </div>
