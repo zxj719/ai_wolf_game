@@ -2,28 +2,28 @@ import { ArrowRight, ArrowUpRight } from 'lucide-react';
 
 const TONES = {
   forest: {
-    shell: 'border-emerald-900/20 bg-[#f9f4ec] shadow-[0_24px_50px_rgba(16,70,58,0.12)]',
-    badge: 'bg-emerald-950 text-emerald-50',
-    icon: 'bg-emerald-900 text-emerald-50',
-    accent: 'text-emerald-900',
-    primary: 'bg-emerald-900 text-emerald-50 hover:bg-emerald-800',
-    secondary: 'border-emerald-900/15 text-emerald-900 hover:bg-emerald-900/5',
+    shell: 'border-line bg-bg-raised shadow-card',
+    badge: 'bg-accent text-white',
+    icon: 'bg-accent text-white',
+    accent: 'text-ink',
+    primary: 'bg-accent text-white hover:bg-accent-hover',
+    secondary: 'border-line text-ink hover:bg-bg-sunken',
   },
   rust: {
-    shell: 'border-orange-900/20 bg-[#fff6ed] shadow-[0_24px_50px_rgba(154,52,18,0.12)]',
-    badge: 'bg-orange-900 text-orange-50',
-    icon: 'bg-orange-900 text-orange-50',
-    accent: 'text-orange-900',
-    primary: 'bg-orange-900 text-orange-50 hover:bg-orange-800',
-    secondary: 'border-orange-900/15 text-orange-900 hover:bg-orange-900/5',
+    shell: 'border-line bg-bg-raised shadow-card',
+    badge: 'bg-accent text-white',
+    icon: 'bg-accent text-white',
+    accent: 'text-ink',
+    primary: 'bg-accent text-white hover:bg-accent-hover',
+    secondary: 'border-line text-ink hover:bg-bg-sunken',
   },
   ink: {
-    shell: 'border-stone-900/15 bg-[#fffdf8] shadow-[0_24px_50px_rgba(28,25,23,0.1)]',
-    badge: 'bg-stone-900 text-stone-50',
-    icon: 'bg-stone-900 text-stone-50',
-    accent: 'text-stone-900',
-    primary: 'bg-stone-900 text-stone-50 hover:bg-stone-800',
-    secondary: 'border-stone-900/15 text-stone-900 hover:bg-stone-900/5',
+    shell: 'border-line bg-bg-raised shadow-card',
+    badge: 'bg-accent text-white',
+    icon: 'bg-accent text-white',
+    accent: 'text-ink',
+    primary: 'bg-accent text-white hover:bg-accent-hover',
+    secondary: 'border-line text-ink hover:bg-bg-sunken',
   },
 };
 
@@ -82,9 +82,9 @@ export function HomePortalCard({
       </div>
 
       <div className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.3em] text-stone-500">{eyebrow}</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-ink-muted">{eyebrow}</p>
         <h3 className={`font-display text-3xl leading-tight ${colors.accent}`}>{title}</h3>
-        <p className="text-sm leading-7 text-stone-600">{description}</p>
+        <p className="text-sm leading-7 text-ink-muted">{description}</p>
       </div>
 
       <div className="mt-7 flex flex-wrap gap-3">

@@ -85,20 +85,20 @@ export function IdeaMasonry({ items }) {
       {measuredItems.map((item) => (
         <article
           key={item.title}
-          className="rounded-[28px] border border-stone-900/10 bg-white/75 p-6 shadow-[0_20px_45px_rgba(28,25,23,0.08)] backdrop-blur"
+          className="rounded-[28px] border border-line bg-bg-raised p-6 shadow-card backdrop-blur"
           style={{ minHeight: `${item.minHeight}px` }}
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">{item.category}</p>
-              <h3 className="font-display mt-3 text-2xl leading-tight text-stone-900">{item.title}</h3>
+              <p className="text-xs uppercase tracking-[0.24em] text-ink-muted">{item.category}</p>
+              <h3 className="font-display mt-3 text-2xl leading-tight text-ink">{item.title}</h3>
             </div>
             {item.link ? (
               <a
                 href={item.link}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-900/10 text-stone-700 transition-colors hover:bg-stone-900 hover:text-stone-50"
+                className="mt-1 inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink-muted transition-colors hover:bg-accent hover:text-white"
                 aria-label={`打开 ${item.title}`}
               >
                 <ArrowUpRight size={16} />
@@ -106,8 +106,8 @@ export function IdeaMasonry({ items }) {
             ) : null}
           </div>
 
-          <p className="mt-4 text-sm leading-7 text-stone-600">{item.description}</p>
-          <p className="mt-6 text-xs uppercase tracking-[0.2em] text-stone-400">{item.meta}</p>
+          <p className="mt-4 text-sm leading-7 text-ink-muted">{item.description}</p>
+          <p className="mt-6 text-xs uppercase tracking-[0.2em] text-ink-faint">{item.meta}</p>
         </article>
       ))}
     </div>

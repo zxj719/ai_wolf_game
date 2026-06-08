@@ -57,7 +57,7 @@ export function SitesPage({ onBack, locale = 'zh' }) {
               </div>
               <div>
                 <div className="mac-eyebrow">Zhaxiaoji Studio</div>
-                <h1 className="text-base font-semibold text-slate-900">{copy.title}</h1>
+                <h1 className="text-base font-semibold text-ink">{copy.title}</h1>
               </div>
             </div>
 
@@ -70,17 +70,17 @@ export function SitesPage({ onBack, locale = 'zh' }) {
           <main className="grid gap-8 px-6 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
             <section className="space-y-4">
               <div className="mac-eyebrow">{copy.subtitle}</div>
-              <h2 className="text-[clamp(2.25rem,5vw,3.5rem)] font-semibold tracking-tight text-slate-950">
+              <h2 className="text-[clamp(2.25rem,5vw,3.5rem)] font-semibold tracking-tight text-ink">
                 {copy.title}
               </h2>
-              <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.description}</p>
+              <p className="max-w-2xl text-base leading-7 text-ink-muted">{copy.description}</p>
             </section>
 
             <section className="space-y-3">
               <button
                 type="button"
                 onClick={() => setView('stock')}
-                className="mac-list-row w-full text-left transition-colors hover:bg-white/90"
+                className="mac-list-row w-full text-left transition-colors hover:bg-bg-sunken"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -88,11 +88,11 @@ export function SitesPage({ onBack, locale = 'zh' }) {
                       <LineChart size={17} />
                     </span>
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">{copy.items[0].title}</div>
-                      <div className="text-sm text-slate-500">{copy.items[0].description}</div>
+                      <div className="text-sm font-semibold text-ink">{copy.items[0].title}</div>
+                      <div className="text-sm text-ink-muted">{copy.items[0].description}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                  <div className="flex items-center gap-2 text-sm font-medium text-ink-muted">
                     {copy.items[0].cta}
                     <ArrowUpRight size={15} />
                   </div>

@@ -29,18 +29,18 @@ function UtilityButton({ icon: Icon, title, description, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="mac-list-row w-full text-left transition-colors hover:bg-white/90"
+      className="mac-list-row w-full text-left transition-colors hover:bg-bg-sunken"
     >
       <div className="flex items-center gap-3">
         <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
           <Icon size={18} />
         </span>
         <div>
-          <div className="text-sm font-semibold text-slate-900">{title}</div>
-          <div className="text-sm text-slate-500">{description}</div>
+          <div className="text-sm font-semibold text-ink">{title}</div>
+          <div className="text-sm text-ink-muted">{description}</div>
         </div>
       </div>
-      <ChevronRight size={16} className="text-slate-400" />
+      <ChevronRight size={16} className="text-ink-faint" />
     </button>
   );
 }
@@ -129,7 +129,7 @@ export function Dashboard({
               </div>
               <div>
                 <div className="mac-eyebrow">Zhaxiaoji Studio</div>
-                <h1 className="text-base font-semibold text-slate-900">{headerTitle}</h1>
+                <h1 className="text-base font-semibold text-ink">{headerTitle}</h1>
               </div>
             </div>
 
@@ -163,7 +163,7 @@ export function Dashboard({
                     className="mac-button mac-button-secondary !h-10 !w-10 !rounded-[16px] !p-0"
                     title={copy.tokenTitle}
                   >
-                    <Key size={17} className={tokenStatus.hasToken ? 'text-slate-700' : 'text-slate-400'} />
+                    <Key size={17} className={tokenStatus.hasToken ? 'text-ink' : 'text-ink-faint'} />
                   </button>
                   )}
                   <button
@@ -194,10 +194,10 @@ export function Dashboard({
             <section className="space-y-8">
               <div className="space-y-4">
                 <div className="mac-eyebrow">{copy.workspaceDescription}</div>
-                <h2 className="text-[clamp(2.25rem,5vw,4rem)] font-semibold tracking-tight text-slate-950">
+                <h2 className="text-[clamp(2.25rem,5vw,4rem)] font-semibold tracking-tight text-ink">
                   {copy.workspace}
                 </h2>
-                <p className="max-w-2xl text-base leading-7 text-slate-500">{copy.windowSubtitle}</p>
+                <p className="max-w-2xl text-base leading-7 text-ink-muted">{copy.windowSubtitle}</p>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -236,8 +236,8 @@ export function Dashboard({
               <div className="grid gap-3 sm:grid-cols-3">
                 {copy.quickSteps.map((step) => (
                   <div key={step.title} className="mac-muted-card">
-                    <div className="text-sm font-semibold text-slate-900">{step.title}</div>
-                    <div className="mt-2 text-sm leading-6 text-slate-500">{step.description}</div>
+                    <div className="text-sm font-semibold text-ink">{step.title}</div>
+                    <div className="mt-2 text-sm leading-6 text-ink-muted">{step.description}</div>
                   </div>
                 ))}
               </div>
@@ -248,8 +248,8 @@ export function Dashboard({
                     <MessageSquare size={18} />
                   </span>
                   <div>
-                    <h3 className="text-base font-semibold text-slate-900">{copy.feedbackTitle}</h3>
-                    <p className="text-sm text-slate-500">{copy.feedbackDescription}</p>
+                    <h3 className="text-base font-semibold text-ink">{copy.feedbackTitle}</h3>
+                    <p className="text-sm text-ink-muted">{copy.feedbackDescription}</p>
                   </div>
                 </div>
 
@@ -262,7 +262,7 @@ export function Dashboard({
                       onChange={(event) => setFeedbackMessage(event.target.value)}
                       maxLength={FEEDBACK_MAX_LENGTH}
                     />
-                    <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                    <div className="mt-2 flex items-center justify-between text-xs text-ink-faint">
                       <span>{feedbackLength}/{FEEDBACK_MAX_LENGTH}</span>
                       <span>{copy.feedbackSafe}</span>
                     </div>
@@ -287,7 +287,7 @@ export function Dashboard({
                   </div>
 
                   {feedbackStatus && (
-                    <div className={`text-sm ${feedbackStatus.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    <div className={`text-sm ${feedbackStatus.type === 'success' ? 'text-success' : 'text-danger'}`}>
                       {feedbackStatus.text}
                     </div>
                   )}
@@ -305,21 +305,21 @@ export function Dashboard({
                         <Gamepad2 size={17} />
                       </span>
                       <div>
-                        <div className="text-sm font-semibold text-slate-900">{copy.gameCardTitle}</div>
-                        <div className="text-sm text-slate-500">{copy.gameCardDescription}</div>
+                        <div className="text-sm font-semibold text-ink">{copy.gameCardTitle}</div>
+                        <div className="text-sm text-ink-muted">{copy.gameCardDescription}</div>
                       </div>
                     </div>
-                    {!needsTokenConfig && <Check size={16} className="text-emerald-600" />}
+                    {!needsTokenConfig && <Check size={16} className="text-success" />}
                   </div>
 
                   {needsTokenConfig && (
-                    <div className="rounded-[18px] border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-800">
+                    <div className="rounded-[18px] border border-warning bg-warning-soft px-4 py-3 text-sm leading-6 text-warning">
                       {copy.tokenHint}
                     </div>
                   )}
 
-                  <div className="rounded-[18px] border border-slate-200/80 bg-white/68 px-4 py-3 text-sm leading-6 text-slate-500">
-                    {copy.feedbackIdentity}: <span className="font-medium text-slate-900">{displayName}</span>
+                  <div className="rounded-[18px] border border-line bg-bg-sunken px-4 py-3 text-sm leading-6 text-ink-muted">
+                    {copy.feedbackIdentity}: <span className="font-medium text-ink">{displayName}</span>
                   </div>
                 </div>
               </div>
@@ -350,8 +350,8 @@ export function Dashboard({
                             <User size={17} />
                           </span>
                           <div>
-                            <div className="text-sm font-semibold text-slate-900">{copy.guestCardTitle}</div>
-                            <div className="text-sm text-slate-500">{copy.guestCardDescription}</div>
+                            <div className="text-sm font-semibold text-ink">{copy.guestCardTitle}</div>
+                            <div className="text-sm text-ink-muted">{copy.guestCardDescription}</div>
                           </div>
                         </div>
                       </div>
@@ -369,10 +369,10 @@ export function Dashboard({
           </main>
         </div>
 
-        <footer className="mt-4 flex flex-wrap items-center gap-4 px-2 text-sm text-slate-500">
-          <a href="/about.html" className="transition-colors hover:text-slate-700">{copy.footerAbout}</a>
-          <a href="/privacy.html" className="transition-colors hover:text-slate-700">{copy.footerPrivacy}</a>
-          <a href="/terms.html" className="transition-colors hover:text-slate-700">{copy.footerTerms}</a>
+        <footer className="mt-4 flex flex-wrap items-center gap-4 px-2 text-sm text-ink-muted">
+          <a href="/about.html" className="transition-colors hover:text-ink">{copy.footerAbout}</a>
+          <a href="/privacy.html" className="transition-colors hover:text-ink">{copy.footerPrivacy}</a>
+          <a href="/terms.html" className="transition-colors hover:text-ink">{copy.footerTerms}</a>
           <span className="ml-auto">(c) {new Date().getFullYear()} Zhaxiaoji Studio</span>
         </footer>
       </div>
