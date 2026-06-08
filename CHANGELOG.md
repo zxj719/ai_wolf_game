@@ -2,6 +2,42 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-08] 全站 UI 统一：设计系统 token 化铺到所有模块（双档可读）
+
+### 新功能 / 修复
+
+- **把 taste-skill 设计系统贯彻到所有模块**：~700 处硬编码颜色 token 化，做到 light/dark 双档都可读、全局主题 toggle 全站可用。各模块保留各自默认主题（werewolf=dark，其余=light），但都在两档下正确。
+- **新增 soft 状态色 token**：`--danger-soft / --success-soft / --warning-soft`（双主题），供全站告警/错误/成功框复用，避免在 CSS 变量 token 上用 `/opacity`（会静默失效）。
+- **Stock 涨跌色接线 + 修反色**：涨/跌接 `--market-up`(红)/`--market-down`(绿)；修复 StockPage sparkline「涨显绿」反色 bug；candlestick/PriceLineChart 通过 `getComputedStyle` 读 CSS 变量（在模块 `[data-theme]` 作用域内解析），dark 档图表颜色正确。
+- **狼人杀收尾**：replay/history/log/sidepanels/userstats 等用 `role-*`/`phase-*`/`state-*` token（延伸 M1a）。
+
+### Playbook（本次统一映射规则）
+
+- 中性：`text-{slate,zinc,gray}-{900..700}`→`text-ink`、`{600,500}`→`text-ink-muted`、`{400,300}`→`text-ink-faint`；`bg-white(/NN)`/`bg-*-{50,100}`→`bg-bg-raised`(卡)/`bg-bg-sunken`(内嵌)；`border-*-{200,300}`→`border-line`；选中态→`bg-accent`。
+- 语义：错误→`danger(+soft)`、成功→`success(+soft)`、警告→`warning(+soft)`、涨跌→`market-up/down`、身份→`role-*`。整卡 surface+text+border 一起换。
+- 保留（allowlist）：数据驱动调色板（Stock 自选标签 8 色）、沉浸式视频上层 chrome。
+
+### 文件变更（按 phase）
+
+| Phase | 文件 | 说明 |
+|------|------|------|
+| infra | `src/styles/tokens.css`、`tailwind.config.js` | soft 状态色 token（双档） |
+| P1 Auth | `src/components/Auth/*.jsx`（7） | token 化；修 AuthShell 深底深字 |
+| P2 Werewolf 收尾 | `ReplayViewer/GameHistoryTable/SidePanels/UserStats/TokenManager/GameLog/SpeechPanel/QueueGate.jsx` | role/phase/state token 化 |
+| P3 Home | `Dashboard.jsx`、`home/*.jsx`、`SitesPage.jsx` | token 化 |
+| P4 Novel | `NovelWorkspace.jsx` | token 化 |
+| P5 Chat | `src/modules/chat/**/*.jsx` | token 化（视频控件保留深色） |
+| P6 Chords | `ChordsPage.jsx`、`StemPlayer.jsx` | token 化 |
+| P7 Stock | `src/components/Stock/*.jsx`（12） | token 化 + market 接线（修反色） |
+| 守门 | `src/styles/__tests__/tokenizationGuard.test.js` | 静态源码扫描，防中性色回归（34 用例） |
+
+### 验证
+
+- `npm run build` 干净；`npm test` 313 全绿（279 既有 + 34 守门）。
+- grep 审计：已 token 化文件零非语义硬编码中性色（仅 allowlist 命中）。
+- 浏览器实测：登录页 dark（浅字深底 + amber accent）/ light（深字白底 + blue accent）双档均可读、accent 随主题切换。
+- 实施方案：[docs/superpowers/specs/2026-06-08-ui-unify-design-system-rollout.md](docs/superpowers/specs/2026-06-08-ui-unify-design-system-rollout.md) / [plan](docs/superpowers/plans/2026-06-08-ui-unify-design-system-rollout.md)
+
 ## [2026-06-08] 修复 ThemeScope 跨主题前景色（狼人杀深色卡片深色字不可读）
 
 ### Bug 修复
