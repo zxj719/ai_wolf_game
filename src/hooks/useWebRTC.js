@@ -65,8 +65,10 @@ export function useWebRTC({ chat, isAdmin }) {
   // 按 transceiver.kind 识别：video[0]=camera, video[1]=screen；audio 独立。
   const remapRemote = useCallback(() => {
     const pc = pcRef.current; if (!pc) return;
-    const vtx = pc.getTransceivers().filter((t) => t.kind === 'video');
-    const atx = pc.getTransceivers().find((t) => t.kind === 'audio');
+    // 注意：RTCRtpTransceiver 没有 .kind 属性（Chrome 下为 undefined）。
+    // 协商后 receiver.track 一定存在（哪怕 muted），故用 receiver.track.kind 判别，按 m-line 顺序。
+    const vtx = pc.getTransceivers().filter((t) => t.receiver?.track?.kind === 'video');
+    const atx = pc.getTransceivers().find((t) => t.receiver?.track?.kind === 'audio');
     syncStream(remoteCamRef, setRemoteCameraStream, vtx[0]?.receiver?.track || null);
     syncStream(remoteScreenRef, setRemoteScreenStream, vtx[1]?.receiver?.track || null);
     syncStream(remoteAudioRef, setRemoteAudioStream, atx?.receiver?.track || null);
@@ -146,16 +148,16 @@ export function useWebRTC({ chat, isAdmin }) {
   }
   // answerer：按 kind 选发送槽（不靠 receiver.track），await replaceTrack 再 createAnswer
   async function setupAnswerer(pc, media) {
-    const videoTx = pc.getTransceivers().filter((t) => t.kind === 'video');
-    const audioTx = pc.getTransceivers().find((t) => t.kind === 'audio');
-    const cam = media.getVideoTracks()[0];
-    const mic = media.getAudioTracks()[0];
-    screenSenderRef.current = videoTx[1]?.sender || null;
+    // 关键：SRD(offer) 后镜像出来的 transceiver 默认 recvonly；replaceTrack 不改 direction，
+    // 会让被叫停留 recvonly → 不发自己的摄像头 → 双方远端黑屏。
+    // 用 addTrack：它复用第 1 条 recvonly 的同类 transceiver 并提升为 sendrecv（Phase 3 验证过的正道）。
+    media.getVideoTracks().forEach((t) => pc.addTrack(t, media));   // 复用 m-line0 = camera
+    media.getAudioTracks().forEach((t) => pc.addTrack(t, media));   // 复用 audio m-line
+    // 识别屏幕轨（第 2 条 video = m-line2）；用 receiver.track.kind（transceiver.kind 不存在）
+    const videoTx = pc.getTransceivers().filter((t) => t.receiver?.track?.kind === 'video');
+    const screenTx = videoTx[1];
+    if (screenTx) { try { screenTx.direction = 'sendrecv'; } catch { /* noop */ } screenSenderRef.current = screenTx.sender; }
     setScreenShareReady(!!screenSenderRef.current);
-    const ps = [];
-    if (videoTx[0] && cam) ps.push(videoTx[0].sender.replaceTrack(cam));
-    if (audioTx && mic) ps.push(audioTx.sender.replaceTrack(mic));
-    await Promise.all(ps);
   }
 
   const startCall = useCallback(async (peerId, peerName) => {
