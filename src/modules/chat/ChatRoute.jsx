@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShell } from '../../shell/ShellContext';
 import { ROUTES } from '../../shell/paths';
 import { friendService } from '../../services/friendService';
-import { useAuth } from '../../contexts/AuthContext';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { useWebRTC } from '../../hooks/useWebRTC';
 import { AddFriend } from './components/AddFriend';
@@ -21,10 +20,9 @@ import { VideoCallPanel } from './components/VideoCallPanel';
  */
 export default function ChatRoute() {
   const { user, navigate, api: shellApi } = useShell();
-  const { isAdmin } = useAuth();
   const api = useMemo(() => shellApi('cf-workers'), [shellApi]);
   const chat = useChatSocket(Boolean(user));
-  const webrtc = useWebRTC({ chat, isAdmin });
+  const webrtc = useWebRTC({ chat, api });
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);

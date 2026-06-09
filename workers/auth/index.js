@@ -62,6 +62,7 @@ import {
   handleFriendsList,
 } from './friends.js';
 import { handleChatHistory, handleInternalChatPersist } from './chat.js';
+import { handleTurnCredentials } from './turn.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -113,6 +114,11 @@ export default {
       }
       if (path === '/api/internal/chat/persist' && request.method === 'POST') {
         return handleInternalChatPersist(request, env);
+      }
+
+      // 视频通话 TURN 凭据（Cloudflare Realtime TURN）
+      if (path === '/api/turn-credentials' && request.method === 'GET') {
+        return handleTurnCredentials(request, env);
       }
 
       // 资源队列

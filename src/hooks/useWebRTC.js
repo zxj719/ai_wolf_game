@@ -1,21 +1,23 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { webrtcReducer, initialCallState } from '../modules/chat/webrtcReducer';
 
-const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];   // STUN 基线；TURN 凭据运行时并入
 const RING_TIMEOUT_MS = 45000;
 export const SHARE_RES = { '720p': { width: 1280, height: 720 }, '1080p': { width: 1920, height: 1080 } };
 
 /**
  * useWebRTC — 1对1 视频通话 + 屏幕共享（屏幕与摄像头同时，预协商第二条视频轨）。
  *
- * 设计要点（对抗评审修订）：
- *   - 远端轨按 transceiver.kind 识别（video[0]=camera, video[1]=screen），绝不用 receiver.track.kind
- *   - 远端流身份稳定（原地增删轨，不每次 new MediaStream），远端音频独立常驻
- *   - setupAnswerer await replaceTrack 再 createAnswer
+ * 设计要点：
+ *   - 远端轨按 receiver.track.kind 识别（RTCRtpTransceiver 无 .kind 属性），按 m-line 顺序 video[0]=camera, video[1]=screen
+ *   - 被叫用 addTrack 把镜像的 recvonly transceiver 提升为 sendrecv（replaceTrack 不改 direction → 黑屏）
+ *   - 远端流身份稳定（原地增删轨），远端音频独立常驻
+ *   - ICE：STUN 优先 + Cloudflare TURN 兜底（同网/防火墙 P2P 连不通时中继）
  *   - 屏幕共享 sharingRef 闩 + 捕获 sender 身份，防选择器期间跨通话泄漏
  */
-export function useWebRTC({ chat, isAdmin }) {
+export function useWebRTC({ chat, api }) {
   const { subscribe, sendSignal } = chat;
+  const iceServersRef = useRef(ICE_SERVERS);
   const [state, dispatch] = useReducer(webrtcReducer, initialCallState);
   const [localStream, setLocalStream] = useState(null);
   const [remoteCameraStream, setRemoteCameraStream] = useState(null);
@@ -103,8 +105,17 @@ export function useWebRTC({ chat, isAdmin }) {
     }
   }, []);
 
+  // 通话前拉取 Cloudflare TURN 短期凭据并入 ICE；失败/未配置则退回 STUN-only（不阻断通话）
+  const ensureIceServers = useCallback(async () => {
+    try {
+      const data = await api.get('/api/turn-credentials');
+      const turn = data?.iceServers;
+      iceServersRef.current = turn ? [...ICE_SERVERS, turn] : ICE_SERVERS;
+    } catch { iceServersRef.current = ICE_SERVERS; }
+  }, [api]);
+
   const newPc = useCallback((peerId) => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
     pc.onicecandidate = (e) => {
       if (!e.candidate) return;
       const c = e.candidate.toJSON
@@ -172,6 +183,8 @@ export function useWebRTC({ chat, isAdmin }) {
     try {
       const media = await getMedia();
       if (peerRef.current !== pid) return;
+      await ensureIceServers();
+      if (peerRef.current !== pid) return;
       const pc = newPc(pid);
       setupOfferer(pc, media);
       const offer = await pc.createOffer();
@@ -183,7 +196,7 @@ export function useWebRTC({ chat, isAdmin }) {
       sendSignal({ type: 'call:hangup', to: pid });
       cleanupRef.current(); dispatch({ type: 'ERROR', error: mediaError(e) });
     }
-  }, [sendSignal, newPc]);
+  }, [sendSignal, newPc, ensureIceServers]);
 
   const accept = useCallback(async () => {
     if (phaseRef.current !== 'ringing' || !peerRef.current || !pendingOffer.current) return;
@@ -192,6 +205,8 @@ export function useWebRTC({ chat, isAdmin }) {
     dispatch({ type: 'ACCEPT' });
     try {
       const media = await getMedia();
+      if (peerRef.current !== pid) return;
+      await ensureIceServers();
       if (peerRef.current !== pid) return;
       const pc = newPc(pid);
       await pc.setRemoteDescription(offer);
@@ -209,7 +224,7 @@ export function useWebRTC({ chat, isAdmin }) {
       sendSignal({ type: 'call:hangup', to: pid });
       cleanupRef.current(); dispatch({ type: 'ERROR', error: mediaError(e) });
     }
-  }, [sendSignal, newPc, drainIce, remapRemote]);
+  }, [sendSignal, newPc, drainIce, remapRemote, ensureIceServers]);
 
   const reject = useCallback(() => {
     if (peerRef.current) sendSignal({ type: 'call:hangup', to: peerRef.current });
