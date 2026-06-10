@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Skull, Eye, Shield, FlaskConical, Target, User, Moon, Sun, RefreshCw, Syringe, Crosshair, Vote, MinusCircle } from 'lucide-react';
 import { PlayerCard } from './PlayerCard';
 import { GameActionControls } from './GameActionControls';
@@ -93,7 +93,7 @@ export function CirclePlayerLayout({
 
   // 获取玩家的行动历史图标
   // 玩家模式下只显示：用户自己的行动 + 所有人的投票 + 猎人击杀
-  const getPlayerActionIcons = (playerId) => {
+  const buildPlayerActionIcons = (playerId) => {
     const icons = [];
     const isPlayerMode = gameMode !== 'ai-only' && phase !== 'game_over';
     const isUserAction = userPlayer?.id === playerId;
@@ -202,8 +202,29 @@ export function CirclePlayerLayout({
     return icons;
   };
 
+  // 一次性为全部玩家计算图标并缓存：历史不变时引用稳定，
+  // 配合 React.memo(PlayerCard) 避免任一玩家状态变化导致全桌卡片重渲染
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const actionIconsByPlayer = useMemo(
+    () => Object.fromEntries(players.map(p => [p.id, buildPlayerActionIcons(p.id)])),
+    [players, nightActionHistory, voteHistory, gameMode, phase, userPlayer?.id]
+  );
+  /* eslint-enable react-hooks/exhaustive-deps */
+  const getPlayerActionIcons = useCallback(
+    (playerId) => actionIconsByPlayer[playerId] || [],
+    [actionIconsByPlayer]
+  );
+
   const aliveList = players.filter(x => x.isAlive);
   const totalPlayers = players.length;
+
+  // 拖拽 handler 在 useCallback 中读取的易变值走 ref，保证 handler 引用稳定
+  const cardPositionsRef = useRef(cardPositions);
+  cardPositionsRef.current = cardPositions;
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  const totalPlayersRef = useRef(totalPlayers);
+  totalPlayersRef.current = totalPlayers;
 
   useEffect(() => {
     const element = containerRef.current;
@@ -255,18 +276,19 @@ export function CirclePlayerLayout({
     return () => window.removeEventListener('resize', updateLayout);
   }, []);
 
-  // 计算圆形布局的默认位置
-  const getDefaultPosition = (index, total) => {
+  // 计算圆形布局的默认位置（读 layoutRef 保证引用稳定，render 时 ref 已同步）
+  const getDefaultPosition = useCallback((index, total) => {
     const angle = (index / total) * 2 * Math.PI - Math.PI / 2;
-    const radiusPercent = layout.size
-      ? (layout.radius / layout.size) * 100
+    const { size, radius } = layoutRef.current;
+    const radiusPercent = size
+      ? (radius / size) * 100
       : LAYOUT.RADIUS_FALLBACK;
     const x = 50 + radiusPercent * Math.cos(angle);
     const y = 50 + radiusPercent * Math.sin(angle);
     return { x, y };
-  };
+  }, []);
 
-  const getPointerPercent = (clientX, clientY) => {
+  const getPointerPercent = useCallback((clientX, clientY) => {
     if (!containerRef.current) return null;
     const rect = containerRef.current.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
@@ -274,9 +296,9 @@ export function CirclePlayerLayout({
       x: ((clientX - rect.left) / rect.width) * 100,
       y: ((clientY - rect.top) / rect.height) * 100
     };
-  };
+  }, []);
 
-  const scheduleDragUpdate = (id, x, y) => {
+  const scheduleDragUpdate = useCallback((id, x, y) => {
     dragTargetRef.current = { id, x, y };
     if (dragFrameRef.current) return;
     dragFrameRef.current = requestAnimationFrame(() => {
@@ -288,14 +310,14 @@ export function CirclePlayerLayout({
         [target.id]: { x: target.x, y: target.y }
       }));
     });
-  };
+  }, []);
 
-  const handlePointerDown = (event, playerId, index, isAlive) => {
+  const handlePointerDown = useCallback((event, playerId, index, isAlive) => {
     if (!isAlive) return;
     event.preventDefault();
     const pointer = getPointerPercent(event.clientX, event.clientY);
     if (!pointer) return;
-    const currentPos = cardPositions[playerId] || getDefaultPosition(index, totalPlayers);
+    const currentPos = cardPositionsRef.current[playerId] || getDefaultPosition(index, totalPlayersRef.current);
     dragStateRef.current = {
       pointerId: event.pointerId,
       activeId: playerId,
@@ -310,9 +332,9 @@ export function CirclePlayerLayout({
     if (event.currentTarget.setPointerCapture) {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-  };
+  }, [getPointerPercent, getDefaultPosition]);
 
-  const handlePointerMove = (event) => {
+  const handlePointerMove = useCallback((event) => {
     const state = dragStateRef.current;
     if (state.pointerId !== event.pointerId || state.activeId === null) return;
     const pointer = getPointerPercent(event.clientX, event.clientY);
@@ -334,9 +356,9 @@ export function CirclePlayerLayout({
     const newX = clamp(5, pointer.x - dragOffsetRef.current.x, 95);
     const newY = clamp(5, pointer.y - dragOffsetRef.current.y, 95);
     scheduleDragUpdate(state.activeId, newX, newY);
-  };
+  }, [getPointerPercent, scheduleDragUpdate]);
 
-  const handlePointerUp = (event, playerId, isAlive) => {
+  const handlePointerUp = useCallback((event, playerId, isAlive) => {
     const state = dragStateRef.current;
     if (state.pointerId !== event.pointerId || state.activeId !== playerId) return;
     if (event.currentTarget.releasePointerCapture) {
@@ -358,7 +380,22 @@ export function CirclePlayerLayout({
 
     dragStateRef.current = { pointerId: null, activeId: null, moved: false, startX: 0, startY: 0 };
     dragTargetRef.current = null;
-  };
+  }, [setSelectedTarget]);
+
+  // 按玩家缓存 pointer handlers：players 引用不变（如仅 selectedTarget 变化）时
+  // handlers 引用稳定，memo 化的 PlayerCard 才能跳过重渲染
+  const pointerHandlersByPlayer = useMemo(() => {
+    const map = {};
+    players.forEach((p, index) => {
+      map[p.id] = {
+        onPointerDown: (event) => handlePointerDown(event, p.id, index, p.isAlive),
+        onPointerMove: handlePointerMove,
+        onPointerUp: (event) => handlePointerUp(event, p.id, p.isAlive),
+        onPointerCancel: (event) => handlePointerUp(event, p.id, p.isAlive),
+      };
+    });
+    return map;
+  }, [players, handlePointerDown, handlePointerMove, handlePointerUp]);
 
   const resetPositions = () => {
     setCardPositions({});
@@ -628,7 +665,7 @@ export function CirclePlayerLayout({
         const { x, y } = cardPositions[p.id] || getDefaultPosition(index, totalPlayers);
         const isTeammate = userPlayer?.role === '狼人' && p.role === '狼人' && p.id !== userPlayer.id;
         const isSpeaking = (aliveList[speakerIndex])?.id === p.id;
-        const actionIcons = getPlayerActionIcons(p.id);
+        const actionIcons = actionIconsByPlayer[p.id] || [];
         const isDragging = draggingId === p.id;
         const modelInfo = modelUsage?.playerModels?.[p.id];
         const modelLabel = modelInfo?.modelName
@@ -657,12 +694,7 @@ export function CirclePlayerLayout({
               modelLabel={modelLabel}
               gameMode={gameMode}
               phase={phase}
-              pointerHandlers={{
-                onPointerDown: (event) => handlePointerDown(event, p.id, index, p.isAlive),
-                onPointerMove: handlePointerMove,
-                onPointerUp: (event) => handlePointerUp(event, p.id, p.isAlive),
-                onPointerCancel: (event) => handlePointerUp(event, p.id, p.isAlive),
-              }}
+              pointerHandlers={pointerHandlersByPlayer[p.id]}
               onAvatarActivate={setPreviewPlayer}
             />
           </div>

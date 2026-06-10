@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Skull, Eye, Shield, FlaskConical, Target, User, Shuffle } from 'lucide-react';
 
 // 角色 → 图标（已 token 化）。圆桌与手机网格共用，保证视觉一致。
@@ -20,8 +21,11 @@ export function getRoleIcon(role, size = 16) {
  * variant='circle'：使用 CSS 变量尺寸（--card-width / --avatar-size），保留拖拽手感，
  *   渲染结果与重构前逐字一致。
  * variant='grid'：填满网格单元，固定头像尺寸，点击即选中，触控目标 ≥44px。
+ *
+ * React.memo：圆桌 8 张卡片中通常只有 1-2 张的 props 变化（发言人/选中目标切换），
+ * 父组件已保证 actionIcons / pointerHandlers 引用稳定，浅比较即可跳过其余卡片。
  */
-export function PlayerCard({
+export const PlayerCard = memo(function PlayerCard({
   player,
   variant = 'circle',
   selected = false,
@@ -152,4 +156,4 @@ export function PlayerCard({
       )}
     </div>
   );
-}
+});

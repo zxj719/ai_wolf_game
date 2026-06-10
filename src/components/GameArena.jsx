@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { CirclePlayerLayout } from './CirclePlayerLayout';
 import { GameHistoryTable } from './GameHistoryTable';
 import { PhaseActionContainer } from './PhaseActionContainer';
@@ -88,7 +88,8 @@ export function GameArena({
   const hasDualSeer = seerClaimants.size >= 2;
 
   // 获取所有历史发言/行动（累积显示，不再仅显示当前阶段）
-  const getAllSpeeches = () => {
+  // useMemo：去重是 O(n) 的 Set 扫描，长局发言数百条时每次渲染重算会拖慢主线程
+  const allSpeeches = useMemo(() => {
     // 合并 speechHistory（持久化）和 currentPhaseData.speeches（实时）
     const historicalSpeeches = speechHistory || [];
     const currentSpeeches = currentPhaseData?.speeches || [];
@@ -116,9 +117,9 @@ export function GameArena({
     });
 
     return allSpeeches;
-  };
+  }, [speechHistory, currentPhaseData?.speeches]);
 
-  const getAllActions = () => {
+  const allActions = useMemo(() => {
     // 合并 nightActionHistory（持久化）和 currentPhaseData.actions（实时）
     const historicalActions = nightActionHistory || [];
     const currentActions = currentPhaseData?.actions || [];
@@ -180,7 +181,7 @@ export function GameArena({
       if (aOrder !== bOrder) return aOrder - bOrder;
       return (a.timestamp || 0) - (b.timestamp || 0);
     });
-  };
+  }, [nightActionHistory, currentPhaseData?.actions, voteHistory]);
 
   // 获取游戏背景样式
   const getBackgroundStyle = () => {
@@ -319,8 +320,8 @@ export function GameArena({
         {currentPage === 0 && (
           <SidePanels
             players={players}
-            currentPhaseSpeeches={getAllSpeeches()}
-            currentPhaseActions={getAllActions()}
+            currentPhaseSpeeches={allSpeeches}
+            currentPhaseActions={allActions}
             phase={phase}
             gameMode={gameMode}
             userPlayer={userPlayer}

@@ -17,6 +17,12 @@ export function GameHistoryTable({
   phase = ''
 }) {
   const [expandedCells, setExpandedCells] = useState({});
+  // 回合级折叠：旧回合默认收起为单行，避免长局时 O(天数×玩家) 的富单元格全量挂在 DOM 上
+  const [expandedRounds, setExpandedRounds] = useState({});
+  const isRoundExpanded = (day) => expandedRounds[day] ?? (day >= dayCount - 1);
+  const toggleRound = (day) => {
+    setExpandedRounds(prev => ({ ...prev, [day]: !isRoundExpanded(day) }));
+  };
 
   // 判断是否应该显示某个玩家的角色信息
   const shouldShowRole = (player) => {
@@ -324,6 +330,7 @@ export function GameHistoryTable({
           </thead>
           <tbody>
             {rounds.map((round) => (
+              isRoundExpanded(round.day) ? (
               <tr key={`round-${round.day}`} className="border-b border-line">
                 {/* 回合标签列 */}
                 <td className="sticky left-0 z-10 bg-bg-raised p-2 border-r border-line align-top">
@@ -336,6 +343,14 @@ export function GameHistoryTable({
                       <Sun size={12} />
                       <span className="text-[10px] font-bold">{round.dayLabel}</span>
                     </div>
+                    {dayCount > 2 && (
+                      <button
+                        onClick={() => toggleRound(round.day)}
+                        className="flex items-center gap-0.5 text-[8px] text-ink-muted hover:text-ink"
+                      >
+                        <ChevronUp size={8} /> 收起回合
+                      </button>
+                    )}
                   </div>
                 </td>
                 {/* 每个玩家在该回合的行动和发言 */}
@@ -348,7 +363,7 @@ export function GameHistoryTable({
 
                   return (
                     <td key={`cell-${player.id}-${round.day}`} className={`p-2 border-r border-line align-top ${!player.isAlive ? 'opacity-50' : ''}`}>
-                      <div className="space-y-2">
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
                         {/* 夜间行动 */}
                         <div className="bg-phase-night-soft rounded-lg p-2 border border-line">
                           <div className="flex items-center gap-1 mb-1 text-phase-night">
@@ -374,6 +389,25 @@ export function GameHistoryTable({
                   );
                 })}
               </tr>
+              ) : (
+              <tr key={`round-${round.day}`} className="border-b border-line">
+                <td className="sticky left-0 z-10 bg-bg-raised p-2 border-r border-line">
+                  <div className="flex items-center gap-1 text-ink-muted">
+                    <Moon size={12} />
+                    <Sun size={12} />
+                    <span className="text-[10px] font-bold">第{round.day}回合</span>
+                  </div>
+                </td>
+                <td colSpan={players.length} className="p-2">
+                  <button
+                    onClick={() => toggleRound(round.day)}
+                    className="flex items-center gap-1 text-[10px] text-ink-muted hover:text-ink"
+                  >
+                    <ChevronDown size={10} /> 展开 {round.nightLabel} / {round.dayLabel} 的详细记录
+                  </button>
+                </td>
+              </tr>
+              )
             ))}
           </tbody>
         </table>
