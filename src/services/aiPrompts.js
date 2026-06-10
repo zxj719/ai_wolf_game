@@ -23,6 +23,7 @@ export const PROMPT_ACTIONS = {
     NIGHT_WITCH: 'NIGHT_WITCH',
     NIGHT_DREAMWEAVER: 'NIGHT_DREAMWEAVER',
     HUNTER_SHOOT: 'HUNTER_SHOOT',
+    LAST_WORDS: 'LAST_WORDS',
     SUMMARIZE_CONTENT: 'SUMMARIZE_CONTENT'
 };
 
@@ -1422,6 +1423,19 @@ ${hunterStrategies.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
 ⚠️ 带走好人 = 帮狼人。如果上面有【查杀】信息，必须优先带走被查杀的狼人。如果有【金水】信息，绝对不能带走那些人。
 输出JSON:{"shoot":true,"targetId":必须是数字(从存活可选中选择),"reason":"一句话理由","thought":"开枪决策思考过程"}`;
+
+        case PROMPT_ACTIONS.LAST_WORDS: {
+             const { cause } = params || {};
+             const lwRoleHint = playerRole === '狼人'
+                 ? '你是狼人：遗言要继续扮演好人，与你之前发言的人设保持一致。可以把怀疑引向真正威胁狼队的好人，为存活的同伴争取空间。'
+                 : playerRole === '预言家'
+                 ? '你是预言家：遗言必须公开你的全部查验结果（金水/查杀，按夜次顺序），并给出后续的怀疑排序——这是你留给好人最重要的信息遗产。'
+                 : '你是好人：把你掌握的信息和怀疑链清楚地留给场上好人——谁可信、谁可疑、建议的票型方向。';
+             return `你已死亡（${cause}），现在是你的遗言时间——这是你最后一次发言，之后不再参与游戏。
+${lwRoleHint}
+要求：80字以内，信息密度优先，不要煽情告别。
+输出JSON:{"speech":"遗言内容","thought":"你的真实想法"}`;
+        }
 
         case PROMPT_ACTIONS.SUMMARIZE_CONTENT:
              const { content, maxLength = 50 } = params;

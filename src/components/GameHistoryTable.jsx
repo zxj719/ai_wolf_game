@@ -137,13 +137,13 @@ export function GameHistoryTable({
     return actions.length > 0 ? actions : null;
   };
 
-  // 获取玩家在某一天的公开行动（如：猎人开枪）
+  // 获取玩家在某一天的公开行动（如：猎人开枪、遗言）
   const getDayActions = (playerId, day) => {
     return nightActionHistory?.filter(
       a => a.playerId === playerId
         && a.day === day
         && (a.night === undefined || a.night === null)
-        && a.type === '猎人开枪'
+        && (a.type === '猎人开枪' || a.type === '遗言')
     ) || [];
   };
 
@@ -241,7 +241,10 @@ export function GameHistoryTable({
         {dayActions.map((action, idx) => (
           <div key={`day-action-${idx}`} className="bg-role-hunter-soft rounded-lg p-1.5">
             <span className="text-[8px] text-role-hunter font-bold">{action.type}</span>
-            {action.target !== undefined && <span className="text-[8px] text-ink-muted"> → {action.target}号</span>}
+            {action.target !== undefined && action.target !== null && <span className="text-[8px] text-ink-muted"> → {action.target}号</span>}
+            {action.type === '遗言' && action.description && (
+              <p className={`text-[9px] text-ink mt-0.5 ${isExpanded ? '' : 'line-clamp-3'}`}>{action.description}</p>
+            )}
             {renderThought(action.thought, `${cellKey}-action-thought-${idx}`, isExpanded, playerId)}
           </div>
         ))}

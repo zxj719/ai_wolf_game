@@ -105,6 +105,48 @@ export function useDayFlow({
     addLog(`进入第 ${dayCount + 1} 夜...`, 'system');
   }, [addLog, dayCount, gameActiveRef, mergeNightDecisions, setDayCount, setNightStep, setPhase]);
 
+  // 遗言：死亡玩家的最后一次发言。规则采用标准简化版——
+  // 被公投出局者（任何一天）和首夜死者（第1天白天公布时）有遗言；
+  // 之后的夜死、被毒、被枪带走者无遗言。
+  const deliverLastWords = useCallback(async (deadPlayers, cause) => {
+    for (const dp of deadPlayers) {
+      if (gameActiveRef && !gameActiveRef.current) return;
+      if (!dp) continue;
+
+      // 人类玩家：用阻塞式 prompt 简单收集（人机模式为 admin 专属低频场景）
+      if (dp.isUser && gameMode !== 'ai-only') {
+        const text = (typeof window !== 'undefined' && window.prompt)
+          ? (window.prompt(`你已出局（${cause}）。请留下遗言（可留空）：`, '') || '')
+          : '';
+        if (text.trim()) {
+          addLog(`📜 [遗言] [${dp.id}号] ${dp.name}: ${text.trim()}`, 'chat');
+          recordNightAction({
+            playerId: dp.id, type: '遗言', target: null, day: dayCount,
+            description: text.trim(), timestamp: Date.now(), persist: true,
+          });
+        } else {
+          addLog(`[${dp.id}号] ${dp.name} 没有留下遗言。`, 'system');
+        }
+        continue;
+      }
+
+      const res = await askAI(dp, PROMPT_ACTIONS.LAST_WORDS, { cause });
+      if (gameActiveRef && !gameActiveRef.current) return;
+      if (res?.speech) {
+        addLog(`📜 [遗言] [${dp.id}号] ${dp.name}: ${res.speech}`, 'chat');
+        if (gameMode === 'ai-only' && res.thought) {
+          addLog(`💭 [${dp.id}号 遗言] ${res.thought}`, 'thought');
+        }
+        recordNightAction({
+          playerId: dp.id, type: '遗言', target: null, day: dayCount,
+          thought: res.thought, description: res.speech, timestamp: Date.now(), persist: true,
+        });
+      } else {
+        addLog(`[${dp.id}号] ${dp.name} 没有留下遗言。`, 'system');
+      }
+    }
+  }, [addLog, askAI, dayCount, gameActiveRef, gameMode, recordNightAction]);
+
   // justSpokenId: 刚完成发言的玩家 ID（可选）。由于 React 批处理，recordSpeech 的
   // dispatch 可能还没 flush 到 speechHistory，传入此 ID 避免 allSpoken 检查遗漏
   const moveToNextSpeaker = useCallback((justSpokenId = null) => {
@@ -156,12 +198,25 @@ export function useDayFlow({
     }
   }, [addLog, dayCount, gameActiveRef, players, speakingOrder, speechHistory, setPhase, setSpeakerIndex, setSpokenCount]);
 
-  const startDayDiscussion = useCallback((currentPlayers, nightDeads = [], TOTAL_PLAYERS, clearPhaseData) => {
+  const startDayDiscussion = useCallback(async (currentPlayers, nightDeads = [], TOTAL_PLAYERS, clearPhaseData) => {
     if (gameActiveRef && !gameActiveRef.current) return;
     // 清空夜晚的行动数据
     if (clearPhaseData) {
       clearPhaseData();
     }
+
+    // 遗言：首夜死者在第1天白天公布时有遗言（标准规则）
+    if (nightDeads.length > 0 && dayCount === 1) {
+      const pool = currentPlayers || players;
+      const deadPlayers = nightDeads.map(id => pool.find(p => p.id === id)).filter(Boolean);
+      if (deadPlayers.length > 0) {
+        setIsThinking(true);
+        await deliverLastWords(deadPlayers, '昨夜死亡');
+        setIsThinking(false);
+        if (gameActiveRef && !gameActiveRef.current) return;
+      }
+    }
+
     setPhase('day_discussion');
     const alivePlayers = (currentPlayers || players).filter(p => p.isAlive);
     const aliveIds = alivePlayers.map(p => p.id).sort((a,b)=>a-b);
@@ -186,7 +241,7 @@ export function useDayFlow({
       addLog(`平安夜，随机从${randomStartPlayer.id}号开始发言。`, 'system');
     }
     setSpokenCount(0);
-  }, [addLog, gameActiveRef, players, setPhase, setSpeakerIndex, setSpokenCount]);
+  }, [addLog, dayCount, deliverLastWords, gameActiveRef, players, setIsThinking, setPhase, setSpeakerIndex, setSpokenCount]);
 
   // 任务1：支持连锁开枪的猎人AI开枪函数
   // chainDepth: 连锁深度，防止无限循环（最大3层）
@@ -764,12 +819,18 @@ export function useDayFlow({
     handlePlayerElimination(pkOutPlayer);
   }, [addLog, askAI, dayCount, gameActiveRef, gameMode, players, proceedToNextNight, setIsThinking, setPhase, speechHistory, seerChecks, voteHistory]);
 
-  const handlePlayerElimination = useCallback((outPlayer) => {
+  const handlePlayerElimination = useCallback(async (outPlayer) => {
     if (gameActiveRef && !gameActiveRef.current) return;
     // 柱一：原子 kill（atomicity replaces separate setPlayers + setDeathHistory）
     killPlayer({ playerId: outPlayer.id, day: dayCount, phase: '投票', cause: '被公投出局' });
     const updatedPlayers = players.map(p => p.id === outPlayer.id ? { ...p, isAlive: false } : p);
     const isHunter = outPlayer.role === ROLE_DEFINITIONS.HUNTER && outPlayer.canHunterShoot;
+
+    // 遗言：被放逐者有遗言（任何一天，标准规则），在猎人开枪/进夜之前
+    setIsThinking(true);
+    await deliverLastWords([outPlayer], '被公投出局');
+    setIsThinking(false);
+    if (gameActiveRef && !gameActiveRef.current) return;
 
     setTimeout(() => {
       if (gameActiveRef && !gameActiveRef.current) return;
@@ -789,7 +850,7 @@ export function useDayFlow({
         (proceedToNextNightExternal || proceedToNextNight)();
       }
     }, TIMING.DAY_TRANSITION_DELAY);
-  }, [checkGameEnd, dayCount, gameActiveRef, gameMode, handleAIHunterShoot, killPlayer, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, setHunterShooting, setPhase]);
+  }, [checkGameEnd, dayCount, deliverLastWords, gameActiveRef, gameMode, handleAIHunterShoot, killPlayer, players, proceedToNextNightExternal, ROLE_DEFINITIONS.HUNTER, setHunterShooting, setIsThinking, setPhase]);
 
   const handleVote = useCallback(async () => {
     if (gameActiveRef && !gameActiveRef.current) return;
