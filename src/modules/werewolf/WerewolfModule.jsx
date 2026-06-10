@@ -119,6 +119,7 @@ export default function WerewolfModule() {
   const [gameStartTime, setGameStartTime] = useState(null);
   const [customRoleSelections, setCustomRoleSelections] = useState(DEFAULT_CUSTOM_SELECTIONS);
   const [victoryMode, setVictoryMode] = useState(DEFAULT_VICTORY_MODE);
+  const [enableSheriff, setEnableSheriff] = useState(true);
   const [pendingSnapshot, setPendingSnapshot] = useState(null);
 
   const nightDecisionsRef = useRef(null);
@@ -204,6 +205,7 @@ export default function WerewolfModule() {
         selectedSetup,
         customRoleSelections,
         victoryMode,
+        enableSheriff,
         gameStartTime,
         hunterShooting,
         selectedTarget,
@@ -220,6 +222,7 @@ export default function WerewolfModule() {
     return saved;
   }, [
     customRoleSelections,
+    enableSheriff,
     gameMode,
     gameResult,
     gameStartTime,
@@ -429,6 +432,7 @@ export default function WerewolfModule() {
     startDayDiscussion, handleAutoVote, handleVote,
     handleUserHunterShoot, handleAIHunterShoot,
     moveToNextSpeaker, proceedToNextNight,
+    handleSheriffBadgePass,
   } = useDayFlow({
     players, setPlayers, gameMode, addLog,
     ROLE_DEFINITIONS, setPhase, setNightStep, nightDecisions, mergeNightDecisions,
@@ -439,7 +443,22 @@ export default function WerewolfModule() {
     spokenCount, setSpokenCount, userPlayer, isThinking, setIsThinking,
     checkGameEnd, askAI, clearCurrentPhaseData, gameActiveRef,
     killPlayer, recordVoteRound, recordNightAction,
+    enableSheriff, nightActionHistory,
   });
+
+  // 警长死亡 → 移交警徽。监听 players 而不是分散挂在各死亡路径
+  // （投票/夜刀/毒/猎人枪/连锁枪），任何死法都会被这里兜住。
+  const badgePassInProgressRef = useRef(false);
+  useEffect(() => {
+    if (!enableSheriff || phase === 'setup' || phase === 'game_over') return;
+    const deadSheriff = players.find(p => !p.isAlive && p.isSheriff);
+    if (deadSheriff && !badgePassInProgressRef.current) {
+      badgePassInProgressRef.current = true;
+      Promise.resolve(handleSheriffBadgePass(deadSheriff)).finally(() => {
+        badgePassInProgressRef.current = false;
+      });
+    }
+  }, [players, phase, enableSheriff, handleSheriffBadgePass]);
 
   const { proceedNight } = useNightFlow({
     players, setPlayers, gameMode, addLog, updateActionResult,
@@ -527,6 +546,7 @@ export default function WerewolfModule() {
     if (moduleState.selectedSetup) setSelectedSetup(moduleState.selectedSetup);
     if (moduleState.customRoleSelections) setCustomRoleSelections(moduleState.customRoleSelections);
     if (moduleState.victoryMode) setVictoryMode(moduleState.victoryMode);
+    if (moduleState.enableSheriff !== undefined) setEnableSheriff(moduleState.enableSheriff);
     setGameStartTime(moduleState.gameStartTime || Date.now());
     setHunterShooting(moduleState.hunterShooting || null);
     setSelectedTarget(moduleState.selectedTarget ?? null);
@@ -690,6 +710,8 @@ export default function WerewolfModule() {
               onBuildCustomSetup={setSelectedSetup}
               victoryMode={victoryMode}
               setVictoryMode={setVictoryMode}
+              enableSheriff={enableSheriff}
+              setEnableSheriff={setEnableSheriff}
               speakingOrder={speakingOrder}
               setSpeakingOrder={setSpeakingOrder}
               pendingSnapshot={pendingSnapshot}

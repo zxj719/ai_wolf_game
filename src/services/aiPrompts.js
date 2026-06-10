@@ -24,6 +24,10 @@ export const PROMPT_ACTIONS = {
     NIGHT_DREAMWEAVER: 'NIGHT_DREAMWEAVER',
     HUNTER_SHOOT: 'HUNTER_SHOOT',
     LAST_WORDS: 'LAST_WORDS',
+    SHERIFF_RUN: 'SHERIFF_RUN',
+    SHERIFF_SPEECH: 'SHERIFF_SPEECH',
+    SHERIFF_VOTE: 'SHERIFF_VOTE',
+    SHERIFF_BADGE_PASS: 'SHERIFF_BADGE_PASS',
     SUMMARIZE_CONTENT: 'SUMMARIZE_CONTENT'
 };
 
@@ -1423,6 +1427,54 @@ ${hunterStrategies.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
 ⚠️ 带走好人 = 帮狼人。如果上面有【查杀】信息，必须优先带走被查杀的狼人。如果有【金水】信息，绝对不能带走那些人。
 输出JSON:{"shoot":true,"targetId":必须是数字(从存活可选中选择),"reason":"一句话理由","thought":"开枪决策思考过程"}`;
+
+        case PROMPT_ACTIONS.SHERIFF_RUN: {
+             const srHint = playerRole === '预言家'
+                 ? '你是预言家：标准打法是必上警——报出首验结果争取警徽，建立信息权威。除非你判断本局有特殊风险。'
+                 : playerRole === '狼人'
+                 ? '你是狼人：上警可以悍跳预言家搅乱信息、或冲票分薄好人警徽；不上警则更隐蔽。根据你的发言能力和队伍策略权衡。'
+                 : (playerRole === '女巫' || playerRole === '猎人' || playerRole === '守卫')
+                 ? `你是${playerRole}：标准打法是不上警隐藏身份（神职暴露会被狼优先刀），除非局势需要你站出来。`
+                 : '你是村民：可以上警为好人阵营争取空间（挡狼人冲票），也可以不上警安静听局。';
+             return `第1天警长竞选——是否上警？
+警长拥有1.5票投票权重，死亡时可移交警徽。上警者需发表竞选发言并接受警下投票。
+${srHint}
+输出JSON:{"run":true或false,"reason":"一句话理由","thought":"决策思考"}`;
+        }
+
+        case PROMPT_ACTIONS.SHERIFF_SPEECH: {
+             const { candidateIds } = params || {};
+             const ssHint = playerRole === '预言家'
+                 ? '你是预言家：报出你的首夜查验结果（金水或查杀），讲清你的警徽流（接下来准备验谁），这是争取警徽的核心。'
+                 : playerRole === '狼人'
+                 ? '你是狼人：保持与你队伍策略一致——若悍跳预言家则给出可信的"查验"和警徽流；若以好人身份竞选则给出听发言的逻辑计划。'
+                 : '你是好人：说明你上警的理由（为好人争取警徽、挡可疑的对跳者），给出你听完发言后的判断计划。';
+             return `警长竞选发言。本轮上警候选人：${(candidateIds || []).join(',')}号。
+${ssHint}
+要求：60字以内，目标是说服警下玩家把警徽票投给你。
+输出JSON:{"speech":"竞选发言","thought":"真实想法"}`;
+        }
+
+        case PROMPT_ACTIONS.SHERIFF_VOTE: {
+             const { validTargets: sheriffCandidates } = params || {};
+             return `警长选举投票。候选人：${(sheriffCandidates || []).join(',')}号，或-1弃票。
+判断依据（按权重）：
+1. 有候选人报查验（跳预言家）：单跳基本可信投他；双跳对比谁的查验逻辑和警徽流更扎实。
+2. 无人跳神：投发言逻辑最清晰、最像好人的候选人。
+3. 你自己知道的身份信息优先于发言印象${playerRole === '狼人' ? '（你知道哪个候选人是狼队友——把警徽送给队友是巨大优势，但注意投票痕迹）' : ''}。
+输出JSON:{"targetId":数字或-1,"reasoning":"一句话理由","thought":"投票思考"}`;
+        }
+
+        case PROMPT_ACTIONS.SHERIFF_BADGE_PASS: {
+             const { validTargets: badgeTargets } = params || {};
+             const bpHint = playerRole === '狼人'
+                 ? '你是狼人警长：把警徽传给狼队友能延续1.5票优势；若会暴露关系链，可传给一个好人混淆视听或撕掉。'
+                 : '你是好人警长：把警徽传给你最确信的好人（金水>真预言家>发言可信者）。完全无法判断时撕掉警徽（-1）也是合理选择——错传给狼等于送1.5票。';
+             return `你（警长）死亡，决定警徽去向。
+【可移交对象】${(badgeTargets || []).join(',')}号，或-1撕毁警徽。
+${bpHint}
+输出JSON:{"targetId":数字或-1,"reason":"一句话理由","thought":"决策思考"}`;
+        }
 
         case PROMPT_ACTIONS.LAST_WORDS: {
              const { cause } = params || {};

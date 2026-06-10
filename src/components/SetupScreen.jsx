@@ -62,6 +62,8 @@ export function SetupScreen({
   onBuildCustomSetup = null,
   victoryMode = DEFAULT_VICTORY_MODE,
   setVictoryMode = () => {},
+  enableSheriff = true,
+  setEnableSheriff = () => {},
   speakingOrder = 'left',
   setSpeakingOrder = () => {},
   onExit = null,
@@ -326,6 +328,34 @@ export function SetupScreen({
                     </div>
                   </button>
                 </div>
+              </div>
+
+              <div className="mac-panel p-4">
+                <div className="mac-eyebrow">警长机制</div>
+                <button
+                  type="button"
+                  onClick={() => setEnableSheriff(!enableSheriff)}
+                  aria-pressed={enableSheriff}
+                  className={`mt-3 w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
+                    enableSheriff
+                      ? 'border-accent bg-accent text-white'
+                      : 'border-line bg-bg-raised text-ink'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className={`mac-icon-tile h-9 w-9 rounded-[14px] ${enableSheriff ? '!bg-white/12 !text-white !border-white/10' : ''}`}>
+                      <Shield size={16} />
+                    </span>
+                    <div>
+                      <div className={`text-sm font-semibold ${enableSheriff ? 'text-white' : 'text-ink'}`}>
+                        警长竞选 {enableSheriff ? '已启用' : '已关闭'}
+                      </div>
+                      <div className={`mt-1 text-sm ${enableSheriff ? 'text-white/72' : 'text-ink-muted'}`}>
+                        第1天上警竞选，警长投票权重1.5票，死亡时可移交警徽
+                      </div>
+                    </div>
+                  </div>
+                </button>
               </div>
 
               <div className="mac-panel p-4">

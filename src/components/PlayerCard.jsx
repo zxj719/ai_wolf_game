@@ -91,6 +91,13 @@ export const PlayerCard = memo(function PlayerCard({
         {p.id}
       </span>
 
+      {/* 警长警徽 */}
+      {p.isSheriff && (
+        <span className="absolute -top-2 -right-1 text-[11px] leading-none" title="警长（1.5票）">
+          🎖️
+        </span>
+      )}
+
       {/* 头像 */}
       <div
         className={`${avatarClass} rounded-full border-2 border-white/20 overflow-hidden relative shadow-lg mt-2 cursor-zoom-in`}

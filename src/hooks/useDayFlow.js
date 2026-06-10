@@ -73,6 +73,9 @@ export function useDayFlow({
   killPlayer,
   recordVoteRound,
   recordNightAction,
+  // 警长机制
+  enableSheriff = false,
+  nightActionHistory = [],
 }) {
   // Guard against re-entrant handleAutoVote calls. Each askAI call inside
   // the sequential vote loop sets isThinking=false on completion, which
@@ -147,6 +150,147 @@ export function useDayFlow({
     }
   }, [addLog, askAI, dayCount, gameActiveRef, gameMode, recordNightAction]);
 
+  // ===== 警长机制 =====
+  // 计票权重：警长 1.5 票（标准规则）
+  const getVoteWeight = useCallback((voterId) => {
+    return players.find(p => p.id === voterId)?.isSheriff ? 1.5 : 1;
+  }, [players]);
+
+  // 第1天警长竞选：上警 → 竞选发言 → 警下投票 → 当选（平票则本局无警长，简化规则不做警上PK）
+  const runSheriffElection = useCallback(async (currentPlayers) => {
+    const pool = (currentPlayers || players).filter(p => p.isAlive);
+    addLog('--- 警长竞选开始（警长拥有1.5票投票权重）---', 'system');
+    // 幂等标记：快照恢复/重复进入第1天白天时不重复选举（reducer 按 day+playerId+type 去重）
+    recordNightAction({ playerId: 'system', type: '警长竞选', day: 1, description: '警长竞选已举行', timestamp: Date.now(), persist: true });
+
+    // 1. 上警决策（批量并发，每批3人防 ECS 过载）
+    const candidates = [];
+    const BATCH = 3;
+    for (let i = 0; i < pool.length; i += BATCH) {
+      if (gameActiveRef && !gameActiveRef.current) return;
+      const batch = pool.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(async (p) => {
+        if (p.isUser && gameMode !== 'ai-only') {
+          const run = (typeof window !== 'undefined' && window.confirm)
+            ? window.confirm('警长竞选：是否上警？（警长拥有1.5票投票权重）')
+            : false;
+          return { p, run, reason: '玩家选择' };
+        }
+        const res = await askAI(p, PROMPT_ACTIONS.SHERIFF_RUN, {});
+        return { p, run: res?.run === true || res?.run === 'true', reason: res?.reason || '' };
+      }));
+      for (const r of results) {
+        if (r.run) {
+          candidates.push(r.p);
+          addLog(`[${r.p.id}号] ${r.p.name} 上警竞选${r.reason ? `（${r.reason}）` : ''}`, 'info');
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      addLog('无人上警，本局没有警长。', 'system');
+      return;
+    }
+    const candidateIds = candidates.map(c => c.id);
+    const voters = pool.filter(p => !candidateIds.includes(p.id));
+    if (voters.length === 0) {
+      addLog('全员上警，无人在警下投票，本局没有警长。', 'warning');
+      return;
+    }
+
+    // 2. 竞选发言（顺序执行，保持发言先后语境）
+    for (const c of candidates) {
+      if (gameActiveRef && !gameActiveRef.current) return;
+      if (c.isUser && gameMode !== 'ai-only') {
+        const text = ((typeof window !== 'undefined' && window.prompt) ? (window.prompt('你的竞选发言：', '') || '') : '').trim();
+        if (text) addLog(`🎙️ [竞选] [${c.id}号] ${c.name}: ${text}`, 'chat');
+        continue;
+      }
+      const res = await askAI(c, PROMPT_ACTIONS.SHERIFF_SPEECH, { candidateIds });
+      if (res?.speech) {
+        addLog(`🎙️ [竞选] [${c.id}号] ${c.name}: ${res.speech}`, 'chat');
+        if (gameMode === 'ai-only' && res.thought) addLog(`💭 [${c.id}号 竞选] ${res.thought}`, 'thought');
+      }
+    }
+
+    // 3. 警下投票（候选人不投票）
+    const sheriffVotes = [];
+    for (let i = 0; i < voters.length; i += BATCH) {
+      if (gameActiveRef && !gameActiveRef.current) return;
+      const batch = voters.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(async (p) => {
+        if (p.isUser && gameMode !== 'ai-only') {
+          const input = (typeof window !== 'undefined' && window.prompt)
+            ? (window.prompt(`警长投票：候选人 ${candidateIds.join(',')}号（留空=弃票）`, '') || '')
+            : '';
+          const t = Number(input);
+          return { voterId: p.id, targetId: candidateIds.includes(t) ? t : -1, reasoning: '玩家选择' };
+        }
+        const res = await askAI(p, PROMPT_ACTIONS.SHERIFF_VOTE, { validTargets: candidateIds });
+        const t = Number(res?.targetId);
+        return { voterId: p.id, targetId: candidateIds.includes(t) ? t : -1, reasoning: res?.reasoning || '' };
+      }));
+      sheriffVotes.push(...results);
+    }
+    sheriffVotes.forEach(v => {
+      addLog(`[${v.voterId}号] 警徽票 -> ${v.targetId === -1 ? '弃票' : `[${v.targetId}号]`}${v.reasoning ? ` (${v.reasoning})` : ''}`, 'info');
+    });
+
+    // 4. 计票
+    const counts = sheriffVotes.filter(v => v.targetId !== -1).reduce((acc, v) => {
+      acc[v.targetId] = (acc[v.targetId] || 0) + 1;
+      return acc;
+    }, {});
+    if (Object.keys(counts).length === 0) {
+      addLog('警徽票全部弃票，本局没有警长。', 'warning');
+      return;
+    }
+    const max = Math.max(...Object.values(counts));
+    const top = Object.keys(counts).filter(id => counts[id] === max).map(Number);
+    if (top.length > 1) {
+      addLog(`警徽票平票（${top.join('号/')}号各${max}票），本局没有警长。`, 'warning');
+      return;
+    }
+    const sheriffId = top[0];
+    setPlayers(prev => prev.map(p => ({ ...p, isSheriff: p.id === sheriffId })));
+    addLog(`🎖️ [${sheriffId}号] 当选警长！（投票权重1.5票，死亡时可移交警徽）`, 'success');
+    recordNightAction({ playerId: sheriffId, type: '警长当选', day: 1, description: `${max}票当选警长`, timestamp: Date.now(), persist: true });
+  }, [addLog, askAI, gameActiveRef, gameMode, players, recordNightAction, setPlayers]);
+
+  // 警长死亡移交警徽（由 WerewolfModule 监听 players 的 effect 触发，覆盖所有死法）
+  const handleSheriffBadgePass = useCallback(async (deadSheriff) => {
+    // 先摘掉死者的警徽，避免 effect 重复触发
+    setPlayers(prev => prev.map(p => p.id === deadSheriff.id ? { ...p, isSheriff: false } : p));
+    const aliveTargets = players.filter(p => p.isAlive && p.id !== deadSheriff.id).map(p => p.id);
+    if (aliveTargets.length === 0) return;
+
+    let targetId = -1;
+    let reason = '';
+    if (deadSheriff.isUser && gameMode !== 'ai-only') {
+      const input = (typeof window !== 'undefined' && window.prompt)
+        ? (window.prompt(`移交警徽：可选 ${aliveTargets.join(',')}号（留空=撕毁警徽）`, '') || '')
+        : '';
+      const t = Number(input);
+      targetId = input.trim() !== '' && aliveTargets.includes(t) ? t : -1;
+    } else {
+      const res = await askAI(deadSheriff, PROMPT_ACTIONS.SHERIFF_BADGE_PASS, { validTargets: aliveTargets });
+      const t = Number(res?.targetId);
+      targetId = aliveTargets.includes(t) ? t : -1;
+      reason = res?.reason || '';
+      if (gameMode === 'ai-only' && res?.thought) addLog(`💭 [${deadSheriff.id}号 警徽] ${res.thought}`, 'thought');
+    }
+    if (gameActiveRef && !gameActiveRef.current) return;
+
+    if (targetId === -1) {
+      addLog(`🎖️ [${deadSheriff.id}号] 警长撕毁警徽，本局不再有警长。${reason ? `（${reason}）` : ''}`, 'warning');
+      recordNightAction({ playerId: deadSheriff.id, type: '警徽去向', target: null, day: dayCount, description: `撕毁警徽${reason ? `（${reason}）` : ''}`, timestamp: Date.now(), persist: true });
+    } else {
+      setPlayers(prev => prev.map(p => ({ ...p, isSheriff: p.id === targetId })));
+      addLog(`🎖️ [${deadSheriff.id}号] 警长将警徽移交给 [${targetId}号]。${reason ? `（${reason}）` : ''}`, 'success');
+      recordNightAction({ playerId: deadSheriff.id, type: '警徽去向', target: targetId, day: dayCount, description: `警徽移交给 ${targetId}号${reason ? `（${reason}）` : ''}`, timestamp: Date.now(), persist: true });
+    }
+  }, [addLog, askAI, dayCount, gameActiveRef, gameMode, players, recordNightAction, setPlayers]);
+
   // justSpokenId: 刚完成发言的玩家 ID（可选）。由于 React 批处理，recordSpeech 的
   // dispatch 可能还没 flush 到 speechHistory，传入此 ID 避免 allSpoken 检查遗漏
   const moveToNextSpeaker = useCallback((justSpokenId = null) => {
@@ -217,6 +361,14 @@ export function useDayFlow({
       }
     }
 
+    // 警长竞选：第1天白天、已启用、且本局尚未举行（标记幂等，快照恢复安全）
+    if (enableSheriff && dayCount === 1 && !nightActionHistory.some(a => a.type === '警长竞选')) {
+      setIsThinking(true);
+      await runSheriffElection(currentPlayers);
+      setIsThinking(false);
+      if (gameActiveRef && !gameActiveRef.current) return;
+    }
+
     setPhase('day_discussion');
     const alivePlayers = (currentPlayers || players).filter(p => p.isAlive);
     const aliveIds = alivePlayers.map(p => p.id).sort((a,b)=>a-b);
@@ -241,7 +393,7 @@ export function useDayFlow({
       addLog(`平安夜，随机从${randomStartPlayer.id}号开始发言。`, 'system');
     }
     setSpokenCount(0);
-  }, [addLog, dayCount, deliverLastWords, gameActiveRef, players, setIsThinking, setPhase, setSpeakerIndex, setSpokenCount]);
+  }, [addLog, dayCount, deliverLastWords, enableSheriff, gameActiveRef, nightActionHistory, players, runSheriffElection, setIsThinking, setPhase, setSpeakerIndex, setSpokenCount]);
 
   // 任务1：支持连锁开枪的猎人AI开枪函数
   // chainDepth: 连锁深度，防止无限循环（最大3层）
@@ -606,8 +758,9 @@ export function useDayFlow({
   const processVoteResults = useCallback((votes, aliveIds) => {
     if (gameActiveRef && !gameActiveRef.current) return;
     const countedVotes = votes.filter((v) => aliveIds.includes(v.targetId));
+    // 警长 1.5 票权重（注意：计数可能是小数，后面比较不能用 parseInt）
     const counts = countedVotes.reduce((acc, v) => {
-      acc[v.targetId] = (acc[v.targetId] || 0) + 1;
+      acc[v.targetId] = (acc[v.targetId] || 0) + getVoteWeight(v.voterId);
       return acc;
     }, {});
 
@@ -615,7 +768,8 @@ export function useDayFlow({
     votes.forEach(v => {
       const reasonText = v.reasoning ? ` (${v.reasoning})` : '';
       const targetText = v.targetId === ABSTAIN_TARGET ? '弃票' : `[${v.targetId}号]`;
-      addLog(`[${v.voterId}号] 投给 -> ${targetText}${reasonText}`, 'info');
+      const sheriffTag = getVoteWeight(v.voterId) > 1 ? '🎖️(1.5票) ' : '';
+      addLog(`${sheriffTag}[${v.voterId}号] 投给 -> ${targetText}${reasonText}`, 'info');
       if (gameMode === 'ai-only' && v.thought) {
         addLog(`💭 [${v.voterId}号] 投票思考: ${v.thought}`, 'thought');
       }
@@ -637,7 +791,7 @@ export function useDayFlow({
     }
 
     const maxVotes = Math.max(...Object.values(counts));
-    const topCandidates = Object.keys(counts).filter(id => parseInt(counts[id]) === maxVotes);
+    const topCandidates = Object.keys(counts).filter(id => counts[id] === maxVotes);
     let outPlayer;
     if (topCandidates.length > 1) {
       addLog(`平票！[${topCandidates.join('号]和[')}号] 各获得 ${maxVotes} 票，进入 PK 环节。`, 'warning');
@@ -698,7 +852,7 @@ export function useDayFlow({
     setIsThinking(false);
     setSelectedTarget(null);
   // handlePKRound 声明在后面，不能放进 deps（TDZ），走闭包引用
-  }, [addLog, checkGameEnd, dayCount, gameActiveRef, gameMode, players, recordVoteRound, setIsThinking, setPhase, setSelectedTarget]);
+  }, [addLog, checkGameEnd, dayCount, gameActiveRef, gameMode, getVoteWeight, players, recordVoteRound, setIsThinking, setPhase, setSelectedTarget]);
 
   // PK 平票处理：被 tie 的候选人各发一段 PK 发言 → 全员重投 → 再平票进夜
   const handlePKRound = useCallback(async (pkCandidateIds, aliveIds) => {
@@ -783,8 +937,9 @@ export function useDayFlow({
     });
 
     const pkCounted = pkVotes.filter(v => pkCandidateIds.includes(v.targetId));
+    // PK 同样应用警长 1.5 票权重
     const pkCounts = pkCounted.reduce((acc, v) => {
-      acc[v.targetId] = (acc[v.targetId] || 0) + 1;
+      acc[v.targetId] = (acc[v.targetId] || 0) + getVoteWeight(v.voterId);
       return acc;
     }, {});
 
@@ -817,7 +972,7 @@ export function useDayFlow({
     setIsThinking(false);
     setPhase('day_processing');
     handlePlayerElimination(pkOutPlayer);
-  }, [addLog, askAI, dayCount, gameActiveRef, gameMode, players, proceedToNextNight, setIsThinking, setPhase, speechHistory, seerChecks, voteHistory]);
+  }, [addLog, askAI, dayCount, gameActiveRef, gameMode, getVoteWeight, players, proceedToNextNight, setIsThinking, setPhase, speechHistory, seerChecks, voteHistory]);
 
   const handlePlayerElimination = useCallback(async (outPlayer) => {
     if (gameActiveRef && !gameActiveRef.current) return;
@@ -942,6 +1097,7 @@ export function useDayFlow({
     handlePlayerElimination,
     proceedToNextNight,
     handleAIHunterShoot,
-    handleUserHunterShoot
+    handleUserHunterShoot,
+    handleSheriffBadgePass,
   };
 }

@@ -2,6 +2,43 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-10] 狼人杀升级第二/三批：警长机制 + 遗言系统 + 渲染性能
+
+### 新功能
+
+- **警长机制**（SetupScreen 可开关，默认启用）：
+  - 第1天白天进入讨论前举行警长竞选：上警决策（批量3人并发）→ 候选人竞选发言（顺序）→ 警下投票（候选人不投）→ 当选。平票则本局无警长（简化规则，不做警上PK）。
+  - 警长投票权重 **1.5 票**（普通投票与 PK 投票均生效，计票日志带 🎖️ 标记）。
+  - 警长死亡（任何死法：放逐/夜刀/毒/猎人枪/连锁枪）触发**警徽移交**：AI 决策传给最信任的目标或撕毁；由 WerewolfModule 监听 players 的 effect 统一兜住，无需在各死亡路径分别挂钩。
+  - 选举幂等：`type='警长竞选'` 标记动作（reducer 按 day+playerId+type 去重），快照恢复后不重复选举。
+  - 提示词按角色差异化：预言家必上警报查验、神职隐身、狼人可悍跳/冲票；狼人警长可传徽给队友。
+- **遗言系统**：被公投出局者（任何一天）与首夜死者（第1天公布时）发表遗言，AI 按角色生成（预言家报全部查验、好人留怀疑链、狼人保持伪装），人类玩家用浏览器 prompt 输入。写入行动历史并在历史表格展示。
+
+### 性能优化
+
+- `GameArena` 的 `getAllSpeeches/getAllActions` 改为 `useMemo`（长局每渲染 O(n) 去重不再重算）。
+- `PlayerCard` 加 `React.memo`；`CirclePlayerLayout` 将 actionIcons 与拖拽 pointerHandlers 按玩家 memo 化（易变值走 ref），单卡状态变化不再全桌重渲染。
+- `GameHistoryTable` 旧回合默认折叠为单行、单元格限高滚动，长局 DOM 由 O(天数×玩家) 降至 O(2×玩家)。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/services/aiPrompts.js` | 修改 | 新增 LAST_WORDS + SHERIFF_RUN/SPEECH/VOTE/BADGE_PASS 五个动作提示词 |
+| `src/hooks/useDayFlow.js` | 修改 | deliverLastWords、runSheriffElection、handleSheriffBadgePass、1.5票计票 |
+| `src/modules/werewolf/WerewolfModule.jsx` | 修改 | enableSheriff 状态/快照、警徽移交 effect |
+| `src/components/SetupScreen.jsx` | 修改 | 警长机制开关面板 |
+| `src/components/PlayerCard.jsx` | 修改 | React.memo + 警徽 🎖️ 标识 |
+| `src/components/GameArena.jsx` | 修改 | useMemo 化发言/行动聚合 |
+| `src/components/CirclePlayerLayout.jsx` | 修改 | 图标/handler 按玩家缓存 |
+| `src/components/GameHistoryTable.jsx` | 修改 | 回合折叠 + 限高 + 遗言展示 |
+
+### 技术细节
+
+- 新 actionType 无需改 ECS：服务端 `isSupportedAction()` 不识别的动作自动落到 legacy 宽提示词路径。
+- 计票权重引入小数后，原 `parseInt(counts[id]) === maxVotes` 会截断 1.5 票，已改为直接数值比较。
+- 验证：vitest 313/313 通过；`npm run build` + check-build 守门通过。
+
 ## [2026-06-10] 狼人杀高危缺陷修复批次（全栈体检第一批）
 
 ### Bug 修复
