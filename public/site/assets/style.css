@@ -1,13 +1,19 @@
+/* 思考图书馆 — 与主站设计系统（src/styles/tokens.css）同源的双主题调色板。
+   布局/排版（serif 阅读体验）保留；颜色全部走 custom properties，
+   [data-theme="dark"] 由各页内联脚本按 localStorage('wolfgame-theme') 设置。 */
 :root {
-  --bg: #f3f1ec;
-  --paper: #fffdfa;
-  --paper-soft: rgba(255, 253, 250, 0.82);
-  --ink: #161616;
-  --muted: #6d665f;
-  --line: rgba(31, 29, 26, 0.14);
-  --hairline: rgba(31, 29, 26, 0.08);
-  --accent: #9f3d27;
-  --accent-2: #1e5f68;
+  color-scheme: light;
+  --bg: #f3f4f6;
+  --paper: #ffffff;
+  --paper-soft: rgba(255, 255, 255, 0.82);
+  --ink: #18181b;
+  --muted: #52525b;
+  --faint: #a1a1aa;
+  --line: rgba(24, 24, 27, 0.14);
+  --hairline: rgba(24, 24, 27, 0.08);
+  --accent: #0a84ff;
+  --accent-strong: #0070e0;
+  --accent-soft: rgba(10, 132, 255, 0.11);
   --blue: #275d9f;
   --green: #2f7c53;
   --violet: #7556a7;
@@ -16,10 +22,90 @@
   --teal: #237f88;
   --graphite: #4b5563;
   --radius: 18px;
-  --shadow: 0 28px 90px rgba(34, 30, 24, 0.16);
-  --shadow-soft: 0 16px 42px rgba(34, 30, 24, 0.10);
+  --shadow: 0 28px 90px rgba(15, 23, 42, 0.16);
+  --shadow-soft: 0 16px 42px rgba(15, 23, 42, 0.10);
+  --card-hover-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+  --grid-line-v: rgba(24, 24, 27, 0.035);
+  --grid-line-h: rgba(24, 24, 27, 0.028);
+  --bg-gradient-top: #f7f7f8;
+  --window-border: rgba(255, 255, 255, 0.84);
+  --surface-window: rgba(255, 255, 255, 0.78);
+  --surface-bar: rgba(255, 255, 255, 0.72);
+  --surface-sidebar: rgba(243, 244, 246, 0.72);
+  --title-ink: #18181b;
+  --btn-bg: rgba(255, 255, 255, 0.76);
+  --btn-ink: #27272a;
+  --btn-shadow: 0 6px 18px rgba(10, 36, 64, 0.06);
+  --btn-hover-bg: #ffffff;
+  --btn-hover-border: rgba(10, 132, 255, 0.28);
+  --solid-bg: #18181b;
+  --solid-fg: #fafafa;
+  --sidebar-ink: #3f3f46;
+  --dek-ink: #3f3f46;
+  --body-strong: #27272a;
+  --body-ink: #27272a;
+  --quote-ink: #3f3f46;
+  --rule-strong: #18181b;
+  --code-border: rgba(24, 24, 27, 0.10);
+  --code-bg: rgba(24, 24, 27, 0.06);
+  --pre-bg: #151515;
+  --pre-fg: #f8fafc;
+  --chip-ink-base: #111827;
+  --chip-bg-base: #ffffff;
   --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --serif: Georgia, "Times New Roman", "Songti SC", "SimSun", serif;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #09090b;
+  --paper: #18181b;
+  --paper-soft: rgba(24, 24, 27, 0.82);
+  --ink: #fafafa;
+  --muted: #a1a1aa;
+  --faint: #71717a;
+  --line: rgba(255, 255, 255, 0.10);
+  --hairline: rgba(255, 255, 255, 0.07);
+  --accent: #d97706;
+  --accent-strong: #fbbf24;
+  --accent-soft: rgba(217, 119, 6, 0.16);
+  --blue: #60a5fa;
+  --green: #34d399;
+  --violet: #a78bfa;
+  --orange: #fb923c;
+  --pink: #f472b6;
+  --teal: #2dd4bf;
+  --graphite: #94a3b8;
+  --shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
+  --shadow-soft: 0 16px 42px rgba(0, 0, 0, 0.45);
+  --card-hover-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  --grid-line-v: rgba(255, 255, 255, 0.03);
+  --grid-line-h: rgba(255, 255, 255, 0.025);
+  --bg-gradient-top: #0c0c0e;
+  --window-border: rgba(255, 255, 255, 0.08);
+  --surface-window: rgba(24, 24, 27, 0.78);
+  --surface-bar: rgba(24, 24, 27, 0.72);
+  --surface-sidebar: rgba(9, 9, 11, 0.55);
+  --title-ink: #fafafa;
+  --btn-bg: rgba(24, 24, 27, 0.76);
+  --btn-ink: #d4d4d8;
+  --btn-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --btn-hover-bg: #27272a;
+  --btn-hover-border: rgba(217, 119, 6, 0.40);
+  --solid-bg: rgba(250, 250, 250, 0.92);
+  --solid-fg: #18181b;
+  --sidebar-ink: #d4d4d8;
+  --dek-ink: #d4d4d8;
+  --body-strong: #e4e4e7;
+  --body-ink: #d4d4d8;
+  --quote-ink: #e4e4e7;
+  --rule-strong: #fafafa;
+  --code-border: rgba(255, 255, 255, 0.12);
+  --code-bg: rgba(255, 255, 255, 0.08);
+  --pre-bg: #050506;
+  --pre-fg: #e4e4e7;
+  --chip-ink-base: #fafafa;
+  --chip-bg-base: #18181b;
 }
 
 * {
@@ -42,9 +128,9 @@ body {
   line-height: 1.65;
   letter-spacing: 0;
   background:
-    linear-gradient(90deg, rgba(31, 29, 26, 0.035) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(31, 29, 26, 0.028) 1px, transparent 1px),
-    linear-gradient(180deg, #faf8f3 0%, var(--bg) 100%);
+    linear-gradient(90deg, var(--grid-line-v) 1px, transparent 1px),
+    linear-gradient(180deg, var(--grid-line-h) 1px, transparent 1px),
+    linear-gradient(180deg, var(--bg-gradient-top) 0%, var(--bg) 100%);
   background-size: 42px 42px, 42px 42px, auto;
 }
 
@@ -69,9 +155,9 @@ button {
   width: min(1220px, 100%);
   min-height: min(800px, calc(100vh - 68px));
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.84);
+  border: 1px solid var(--window-border);
   border-radius: 24px;
-  background: rgba(250, 248, 243, 0.78);
+  background: var(--surface-window);
   box-shadow: var(--shadow);
   backdrop-filter: blur(28px);
 }
@@ -84,7 +170,7 @@ button {
   gap: 14px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 253, 250, 0.72);
+  background: var(--surface-bar);
 }
 
 .traffic-lights {
@@ -116,7 +202,7 @@ button {
 .topbar-title,
 .reader-title {
   min-width: 0;
-  color: #37322d;
+  color: var(--title-ink);
   font-size: 13px;
   font-weight: 750;
   overflow: hidden;
@@ -147,12 +233,12 @@ button {
 .language-switch button {
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 253, 250, 0.76);
-  color: #312c27;
+  background: var(--btn-bg);
+  color: var(--btn-ink);
   font-size: 13px;
   font-weight: 700;
   padding: 7px 12px;
-  box-shadow: 0 6px 18px rgba(34, 30, 24, 0.06);
+  box-shadow: var(--btn-shadow);
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 
@@ -171,14 +257,14 @@ button {
 .nav a:hover,
 .primary-pill:hover,
 .language-switch button:hover {
-  background: #fffefa;
-  border-color: rgba(159, 61, 39, 0.28);
+  background: var(--btn-hover-bg);
+  border-color: var(--btn-hover-border);
 }
 
 .language-switch button.is-active {
-  background: #171512;
-  color: #fffdfa;
-  border-color: #171512;
+  background: var(--solid-bg);
+  color: var(--solid-fg);
+  border-color: var(--solid-bg);
 }
 
 .window-body {
@@ -190,7 +276,7 @@ button {
 .finder-sidebar {
   padding: 22px 14px;
   border-right: 1px solid var(--line);
-  background: rgba(244, 241, 236, 0.72);
+  background: var(--surface-sidebar);
 }
 
 .sidebar-section + .sidebar-section {
@@ -199,7 +285,7 @@ button {
 
 .sidebar-label {
   margin: 0 8px 9px;
-  color: #92897f;
+  color: var(--faint);
   font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.08em;
@@ -211,15 +297,15 @@ button {
   margin: 3px 0;
   padding: 8px 10px;
   border-radius: 10px;
-  color: #3c3833;
+  color: var(--sidebar-ink);
   font-size: 14px;
   font-weight: 650;
 }
 
 .sidebar-item:hover,
 .sidebar-item.active {
-  background: rgba(159, 61, 39, 0.11);
-  color: #8b301f;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .library-main {
@@ -260,7 +346,7 @@ button {
 .site-subtitle {
   max-width: 780px;
   margin: 0;
-  color: #504941;
+  color: var(--dek-ink);
   font-family: var(--serif);
   font-size: clamp(20px, 2.4vw, 29px);
   line-height: 1.34;
@@ -286,14 +372,14 @@ button {
 }
 
 .primary-pill.primary {
-  background: #171512;
-  color: #fffdfa;
-  border-color: #171512;
+  background: var(--solid-bg);
+  color: var(--solid-fg);
+  border-color: var(--solid-bg);
 }
 
 .issue-label {
   align-self: start;
-  border-top: 4px solid #171512;
+  border-top: 4px solid var(--rule-strong);
   border-bottom: 1px solid var(--line);
   padding: 16px 0;
   color: var(--muted);
@@ -393,7 +479,7 @@ button {
   gap: 10px;
   padding: 8px 18px;
   border-bottom: 1px solid var(--line);
-  background: rgba(250, 248, 243, 0.84);
+  background: var(--surface-bar);
   backdrop-filter: blur(22px);
 }
 
@@ -421,7 +507,7 @@ button {
   position: sticky;
   top: 86px;
   height: fit-content;
-  border-top: 4px solid #171512;
+  border-top: 4px solid var(--rule-strong);
   padding-top: 13px;
 }
 
@@ -441,7 +527,7 @@ button {
   display: block;
   border-bottom: 1px solid var(--hairline);
   padding: 9px 0;
-  color: #3e3933;
+  color: var(--sidebar-ink);
   font-size: 13px;
   font-weight: 700;
 }
@@ -449,7 +535,7 @@ button {
 .essay-toc a:hover,
 .reader-nav a:hover,
 .reader-nav a.active {
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .magazine-article,
@@ -480,7 +566,7 @@ button {
 
 .article-subtitle {
   margin: 0 0 16px;
-  color: #514a43;
+  color: var(--dek-ink);
   font-family: var(--serif);
   font-size: clamp(21px, 3vw, 32px);
   line-height: 1.25;
@@ -493,7 +579,7 @@ button {
 
 .standfirst {
   margin: 0 0 24px;
-  color: #2b2723;
+  color: var(--body-strong);
   font-family: var(--serif);
   font-size: clamp(22px, 3vw, 31px);
   line-height: 1.42;
@@ -501,7 +587,7 @@ button {
 
 .pull-quote {
   margin: 32px 0;
-  border-top: 4px solid #171512;
+  border-top: 4px solid var(--rule-strong);
   border-bottom: 1px solid var(--line);
   padding: 18px 0;
   color: var(--accent);
@@ -532,7 +618,7 @@ button {
 .article-section p,
 .markdown-reader p,
 .markdown-reader li {
-  color: #292622;
+  color: var(--body-ink);
   font-family: var(--serif);
   font-size: 19px;
   line-height: 1.78;
@@ -556,7 +642,7 @@ button {
   margin: 26px 0;
   border-left: 4px solid var(--accent);
   padding: 4px 0 4px 18px;
-  color: #4a342d;
+  color: var(--quote-ink);
   font-family: var(--serif);
   font-size: 23px;
   line-height: 1.42;
@@ -571,7 +657,7 @@ button {
 .site-header {
   padding: 48px 0 24px;
   border-bottom: 1px solid var(--line);
-  background: rgba(250, 248, 243, 0.78);
+  background: var(--surface-bar);
   backdrop-filter: blur(18px);
 }
 
@@ -642,9 +728,9 @@ main.wrap {
 }
 
 .markdown-reader code {
-  border: 1px solid rgba(23, 24, 28, 0.10);
+  border: 1px solid var(--code-border);
   border-radius: 7px;
-  background: rgba(15, 23, 42, 0.06);
+  background: var(--code-bg);
   padding: 1px 5px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.86em;
@@ -654,8 +740,8 @@ main.wrap {
   overflow: auto;
   padding: 14px;
   border-radius: 14px;
-  background: #151515;
-  color: #f8fafc;
+  background: var(--pre-bg);
+  color: var(--pre-fg);
 }
 
 .doc-grid {
@@ -685,7 +771,7 @@ main.wrap {
 
 .doc-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 50px rgba(34, 30, 24, 0.15);
+  box-shadow: var(--card-hover-shadow);
 }
 
 .doc-card h2 {
@@ -705,8 +791,8 @@ main.wrap {
   width: fit-content;
   border-radius: 999px;
   padding: 5px 9px;
-  color: color-mix(in srgb, var(--doc-accent, var(--accent)) 78%, #111827);
-  background: color-mix(in srgb, var(--doc-accent, var(--accent)) 12%, #ffffff);
+  color: color-mix(in srgb, var(--doc-accent, var(--accent)) 78%, var(--chip-ink-base));
+  background: color-mix(in srgb, var(--doc-accent, var(--accent)) 12%, var(--chip-bg-base));
   font-size: 12px;
   font-weight: 850;
 }

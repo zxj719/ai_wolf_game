@@ -6,6 +6,18 @@
     <title>观点索引 | Thinking Library</title>
     <meta name="description" content="A bilingual index of the essay's central arguments." />
     <link rel="stylesheet" href="assets/style.css" />
+    <script>
+      // 与主站 src/shell/theme.js THEME_STORAGE_KEY='wolfgame-theme' 同步：
+      // 显式 light/dark 写 data-theme；system/缺省保持模块默认（light）。
+      (function () {
+        try {
+          var p = localStorage.getItem('wolfgame-theme');
+          if (p === 'light' || p === 'dark') {
+            document.documentElement.setAttribute('data-theme', p);
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="views-page" data-page="views">
     <header class="site-header">

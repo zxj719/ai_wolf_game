@@ -2,6 +2,27 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-09] 思考图书馆并入设计系统（静态站双主题）
+
+### 新功能 / 修复
+
+- **思考图书馆（`public/site/`，独立静态站）调色板移植到主站设计系统**：原奶油纸色 + 编辑红的杂志风调色板，整体替换为与 `src/styles/tokens.css` 同源的 zinc/accent 双主题 token（light=白纸蓝 accent，dark=zinc 黑 amber accent）。serif 阅读排版与 mac-window 结构（阅读室身份）保留。
+- **双主题支持**：`style.css` 新增 `[data-theme="dark"]` 全套覆盖；4 个页面（index/essay/views/reader）注入与主站 FOUC 脚本同语义的主题同步脚本（读同一 `wolfgame-theme` localStorage key；显式 light/dark 生效，system/缺省保持模块默认 light）。在主站切主题后打开图书馆即同步。
+- **~30 处散落硬编码色提升为 custom properties**（窗口/工具栏/侧栏面、按钮、标题/正文/引文墨色、code/pre、强分隔线等），`color-mix` 芯片底色随主题翻转（`--chip-bg-base`/`--chip-ink-base`），分类色（blue/green/violet/…）在 dark 档换亮色变体保证可读。
+
+### 排查结论（本次巡检其余模块）
+
+- Chords（音乐实验室）hub + 歌曲详情、Sites、Auth：双档实测一致，无需改动。
+- about/privacy/terms 静态页：已是 zinc 深色面，与家族一致，不动。
+- Novel：P4 已 token 化 + 守门测试在跑；游客无入口（需登录），未做活体截图，靠静态守门兜底。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `public/site/assets/style.css` | 重写调色板 | :root → 设计系统 light 值 + `[data-theme=dark]` 块；布局规则零改动 |
+| `public/site/{index,essay,views,reader}.html` | 修改 | 注入 `wolfgame-theme` 主题同步脚本 |
+
 ## [2026-06-08] 全站 UI 统一：设计系统 token 化铺到所有模块（双档可读）
 
 ### 新功能 / 修复
