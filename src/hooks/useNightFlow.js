@@ -83,7 +83,16 @@ export function useNightFlow({
   const resolveNight = useCallback((decisionsOverride = null) => {
     if (!gameActiveRef.current) return;
     const decisionsData = decisionsOverride || nightDecisionsRef.current || nightDecisions;
-    const { wolfTarget, wolfSkipKill, witchSave, witchPoison, guardTarget, magicianSwap, dreamTarget } = decisionsData;
+    const { wolfTarget, wolfSkipKill, witchSave, guardTarget, magicianSwap, dreamTarget } = decisionsData;
+    let { witchPoison } = decisionsData;
+
+    // 规则硬校验：女巫一晚只能用一瓶药。AI 路径已互斥，这里兜住人类玩家
+    // 快速连点等竞态把救+毒同时 merge 进决策的情况：救优先，毒作废（且不消耗毒药）。
+    if (witchSave && witchPoison !== null) {
+      addLog('女巫同一晚只能使用一瓶药：解药生效，毒药作废。', 'warning');
+      logger.warn(`[resolveNight] 检测到同晚救+毒（毒目标=${witchPoison}号），毒药已作废`);
+      witchPoison = null;
+    }
 
     // 应用魔术师交换重定向所有目标
     const finalWolfTarget = applyMagicianSwap(wolfTarget, magicianSwap);

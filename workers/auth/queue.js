@@ -9,7 +9,7 @@ import { jsonResponse, errorResponse, authMiddleware } from './middleware.js';
 
 const LEASE_DURATION_MS = 5 * 60 * 1000; // 5 min default lease
 
-async function isAdmin(email, env) {
+export async function isAdmin(email, env) {
   if (!email) return false;
   const row = await env.DB.prepare('SELECT email FROM admins WHERE email = ?').bind(email).first();
   return !!row;
@@ -47,7 +47,9 @@ export async function handleQueueAcquire(request, env) {
   if (!resource) return errorResponse('Missing resource', 400);
 
   const { user } = await authMiddleware(request, env);
-  const holderId = user ? String(user.id) : `guest-${request.headers.get('cf-connecting-ip') || 'unknown'}`;
+  // JWT 载荷里用户 id 字段是 sub（不是 id）。user.id 恒为 undefined，
+  // 会让所有登录用户的 holderId 都变成 "undefined" 并被当作同一持有者。
+  const holderId = user?.sub ? String(user.sub) : `guest-${request.headers.get('cf-connecting-ip') || 'unknown'}`;
   const holderEmail = user?.email || null;
   const holderRole = await isAdmin(holderEmail, env) ? 'admin' : 'guest';
 

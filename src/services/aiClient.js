@@ -200,10 +200,10 @@ export const fetchLLM = async (
     console.log(`[API Call] Player: ${player ? player.id : 'System'}, Model: ${modelConfig.id}, Duration: ${duration}ms, Forced: ${forcedModelIndex !== null}`);
 
     if (!response.ok) {
-      if (response.status === 429 || response.status === 426) {
-        throw new Error(`RunningModel: ${modelConfig.id} failed with ${response.status} ${response.status === 429 ? 'Too Many Requests' : 'Upgrade Required'}`);
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const bodyText = await response.text().catch(() => '');
+      const err = new Error(`HTTP ${response.status} [${modelConfig.id}]: ${bodyText.slice(0, 200)}`);
+      err.status = response.status;
+      throw err;
     }
     const result = await response.json();
 
@@ -213,7 +213,9 @@ export const fetchLLM = async (
     const parsed = safeParseJSON(content);
 
     if (!parsed) {
-      throw new Error('RunningModel: Invalid JSON response');
+      const err = new Error(`Invalid JSON response [${modelConfig.id}]`);
+      err.kind = 'parse';
+      throw err;
     }
 
     // 返回解析结果 + 模型信息（用于统计）
@@ -234,50 +236,57 @@ export const fetchLLM = async (
 
     console.error(`LLM Fetch Error [Model: ${modelConfig.id}]:`, error);
 
-    // 检测各种错误类型
-    const isRateLimit = error.message.includes('429') || error.message.includes('Too Many Requests');
-    const isUpgradeRequired = error.message.includes('426') || error.message.includes('Upgrade Required');
-    const isNetworkError = error.message.includes('fetch') || error.message.includes('network');
-    const isHTTPError = error.message.includes('HTTP error');
+    // 错误分类：不同错误需要不同的处理策略，盲目切模型重试会浪费配额和时间
+    const status = error.status || 0;
+    const kind = error.kind
+      || (status === 429 || status === 426 ? 'rate_limit'
+        : status === 401 || status === 403 ? 'auth'
+        : status >= 500 ? 'server'
+        : status >= 400 ? 'bad_request'
+        : 'network');
 
-    // 任何错误都需要切换模型，包括网络错误、解析错误、超时等
-    const shouldFallback = true;
+    // 鉴权失败对所有模型都成立，重试/切换没有意义，快速失败
+    if (kind === 'auth') {
+      console.error(`[鉴权失败] HTTP ${status}，API Key 无效或无权限，停止重试。`);
+      return null;
+    }
 
     if (retries > 0) {
-      let nextModelIndex = modelIndex;
-      let nextBackoff = backoff;
-      let delay = 500;
+      // 各类错误的策略：
+      // rate_limit  - 该模型配额耗尽：拉黑 + 切模型
+      // bad_request - 同一 payload 在该模型上大概率再次失败（参数不支持/超限）：拉黑 + 切模型
+      // parse       - 输出格式坏，可能是采样噪声：切模型但不拉黑
+      // server      - 网关/上游瞬时故障：切模型但不拉黑，指数退避
+      // network     - 端点不可达，切模型无济于事：同模型指数退避重试
+      const shouldBlacklist = kind === 'rate_limit' || kind === 'bad_request';
+      const shouldSwitch = kind !== 'network';
+      const delay = (kind === 'server' || kind === 'network') ? backoff : 500;
+      const nextBackoff = Math.min(backoff * 2, 16000);
 
-      // 任何错误都立即切换模型并重试
-      const errorType = isRateLimit ? '429限流' 
-        : isUpgradeRequired ? '426不可用' 
-        : isNetworkError ? '网络错误'
-        : isHTTPError ? 'HTTP错误'
-        : '未知错误';
-      
-      console.warn(`[${errorType}] 模型 ${modelConfig.id} 遇到问题，加入黑名单。`);
-      disabledModelsRef.current.add(modelIndex);
-      
-      // 切换到下一个可用模型
-      nextModelIndex = (modelIndex + 1) % AI_MODELS.length;
-      let switchAttempts = 0;
-      while (disabledModelsRef.current.has(nextModelIndex) && switchAttempts < AI_MODELS.length) {
-        nextModelIndex = (nextModelIndex + 1) % AI_MODELS.length;
-        switchAttempts++;
-      }
-      
-      // 如果所有模型都被禁用，清空黑名单重新开始
-      if (switchAttempts >= AI_MODELS.length) {
-        console.warn('[API] 所有模型均已失败，清空黑名单重新尝试。');
-        disabledModelsRef.current.clear();
+      const errorType = { rate_limit: '429限流', bad_request: '请求被拒', parse: 'JSON解析失败', server: '上游5xx', network: '网络错误' }[kind];
+      console.warn(`[${errorType}] 模型 ${modelConfig.id}，策略：拉黑=${shouldBlacklist}，切换=${shouldSwitch}，退避=${delay}ms`);
+
+      if (shouldBlacklist) disabledModelsRef.current.add(modelIndex);
+
+      let nextModelIndex = modelIndex;
+      if (shouldSwitch) {
         nextModelIndex = (modelIndex + 1) % AI_MODELS.length;
+        let switchAttempts = 0;
+        while (disabledModelsRef.current.has(nextModelIndex) && switchAttempts < AI_MODELS.length) {
+          nextModelIndex = (nextModelIndex + 1) % AI_MODELS.length;
+          switchAttempts++;
+        }
+        // 如果所有模型都被禁用，清空黑名单重新开始
+        if (switchAttempts >= AI_MODELS.length) {
+          console.warn('[API] 所有模型均已失败，清空黑名单重新尝试。');
+          disabledModelsRef.current.clear();
+          nextModelIndex = (modelIndex + 1) % AI_MODELS.length;
+        }
+        console.warn(`[自动切换] 切换到模型索引 ${nextModelIndex}: ${AI_MODELS[nextModelIndex]?.name || 'unknown'}`);
       }
-      
-      console.warn(`[自动切换] 切换到模型索引 ${nextModelIndex}: ${AI_MODELS[nextModelIndex]?.name || 'unknown'}`);
-      console.log(`[上下文保持] Player: ${player?.id}, 角色: ${player?.role}, 提示词和历史信息已自动传递到新模型`);
-      
+
       await new Promise((res) => setTimeout(res, delay));
-      
+
       // 重要：传递所有原始参数（player, prompt, systemInstruction）确保上下文完整
       return fetchLLM(
         {

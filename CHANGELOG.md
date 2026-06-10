@@ -2,6 +2,35 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-10] 狼人杀高危缺陷修复批次（全栈体检第一批）
+
+### Bug 修复
+
+- **队列锁 holderId 恒为 "undefined"**：`handleQueueAcquire` 用 JWT 载荷不存在的 `user.id`（应为 `user.sub`），导致所有登录用户被当作同一持有者、队列互斥失效。同文件第 36 行早已记录过同一教训但此处漏改。
+- **女巫同晚救+毒无硬校验**：规则上一晚只能用一瓶药，旧实现只靠提示词软约束（AI 路径已互斥，人类玩家快速连点可绕过）。`resolveNight` 入口新增最终防线：救优先、毒作废且不消耗毒药。
+- **AI 调用盲目 fallback**：`fetchLLM` 对所有错误一律拉黑模型+切换重试。新增错误分类器：429/400 拉黑+切换；JSON 解析失败/5xx 切换不拉黑；网络错误同模型指数退避；401/403 鉴权错误快速失败不重试。
+- **D1 统计写入竞态与不一致**：`ai_model_stats` 由 SELECT→UPDATE（并发丢失更新）改为 `ON CONFLICT DO UPDATE` 原子累加 + batch 隐式事务；`game_history` + `user_stats` 两条 SQL 改为 `env.DB.batch()` 同生共死；`game_model_usage` 部分失败不再静默报 success。
+- **werewolf session 代理可绕过队列**：`/api/werewolf/session/*` 原先无任何租约校验，可绕开排队系统直接消耗 ECS。现在非 admin 调用必须携带有效 `X-Lease-Id`（查 `resource_locks` 未过期），admin 凭 JWT 放行。前端新增 `queueLease.js` 共享租约存储，QueueGate 写入、session 客户端等待就绪后随请求携带（消除 acquire 与首批 AI/资产调用的竞态）。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `workers/auth/queue.js` | 修改 | holderId 改用 `user.sub`；导出 `isAdmin` |
+| `workers/auth/werewolf.js` | 修改 | 代理层强制队列租约校验（admin 例外） |
+| `workers/auth/middleware.js` | 修改 | CORS 允许 `X-Lease-Id` 头 |
+| `workers/auth/handlers.js` | 修改 | 游戏记录 batch 事务；模型统计 UPSERT 原子累加 + 部分失败上报 |
+| `src/hooks/useNightFlow.js` | 修改 | 女巫救毒互斥硬校验 |
+| `src/services/aiClient.js` | 修改 | 错误分类器（拉黑/切换/退避按错误类型区分） |
+| `src/services/queueLease.js` | 新建 | 模块级共享租约存储 + waitForQueueLease |
+| `src/components/QueueGate.jsx` | 修改 | 租约写入/清除共享存储；admin 标记 bypass |
+| `src/services/werewolfSessionClient.js` | 修改 | 请求携带 `X-Lease-Id`，发送前等待租约就绪 |
+
+### 技术细节
+
+- D1 `batch()` 是隐式事务（全部成功或全部回滚）；`ON CONFLICT DO UPDATE` 右侧裸列名引用旧行值、`excluded.*` 引用新插入值，累加在 SQLite 内原子完成。
+- 验证：vitest 313/313 通过（`--max-workers=2`，默认并发在本机 Windows 资源耗尽属环境问题）；`npm run build` + check-build 静态守门通过。
+
 ## [2026-06-09] 思考图书馆并入设计系统（静态站双主题）
 
 ### 新功能 / 修复

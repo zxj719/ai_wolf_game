@@ -1,5 +1,6 @@
 import { buildApiUrl } from './apiBase';
 import { getToken } from '../utils/authToken';
+import { getQueueLease, waitForQueueLease } from './queueLease';
 
 const REQUEST_TIMEOUT = 45000;
 const DEFAULT_CONTRACT_VERSION = 'werewolf-agent-contract-v1';
@@ -22,6 +23,12 @@ function resolveSessionUrl(path) {
 }
 
 async function postSession(path, body) {
+  // 经 Worker 代理时需携带队列租约（admin 例外，靠 JWT）；
+  // QueueGate 的 acquire 与首批 AI/资产调用并发，这里等待租约就绪以消除竞态。
+  if (!DIRECT_SESSION_BASE) {
+    await waitForQueueLease();
+  }
+  const leaseId = getQueueLease();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
   const token = getToken();
@@ -31,6 +38,7 @@ async function postSession(path, body) {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(leaseId ? { 'X-Lease-Id': leaseId } : {}),
       },
       body: JSON.stringify(body),
       signal: controller.signal,

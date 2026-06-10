@@ -415,22 +415,22 @@ export async function handleSaveGameRecord(request, env) {
       return errorResponse('result must be "win" or "lose"', 400, env, request);
     }
 
-    // 插入游戏记录
-    await env.DB.prepare(
-      `INSERT INTO game_history (user_id, role, result, game_mode, duration_seconds)
-       VALUES (?, ?, ?, ?, ?)`
-    ).bind(user.sub, role, result, gameMode, durationSeconds || null).run();
-
-    // 更新用户统计
+    // 游戏记录 + 用户统计必须同生共死：D1 batch 是隐式事务，要么全部落库要么全部回滚
     const isWin = result === 'win';
-    await env.DB.prepare(
-      `UPDATE user_stats SET
-        total_games = total_games + 1,
-        wins = wins + ?,
-        losses = losses + ?,
-        win_rate = ROUND(CAST(wins + ? AS REAL) / (total_games + 1) * 100, 2)
-       WHERE user_id = ?`
-    ).bind(isWin ? 1 : 0, isWin ? 0 : 1, isWin ? 1 : 0, user.sub).run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO game_history (user_id, role, result, game_mode, duration_seconds)
+         VALUES (?, ?, ?, ?, ?)`
+      ).bind(user.sub, role, result, gameMode, durationSeconds || null),
+      env.DB.prepare(
+        `UPDATE user_stats SET
+          total_games = total_games + 1,
+          wins = wins + ?,
+          losses = losses + ?,
+          win_rate = ROUND(CAST(wins + ? AS REAL) / (total_games + 1) * 100, 2)
+         WHERE user_id = ?`
+      ).bind(isWin ? 1 : 0, isWin ? 0 : 1, isWin ? 1 : 0, user.sub),
+    ]);
 
     return jsonResponse({
       success: true,
@@ -1261,6 +1261,7 @@ export async function handleSubmitModelStats(request, env) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    const failedPlayers = [];
     for (const player of players) {
       try {
         await insertStmt.bind(
@@ -1276,61 +1277,51 @@ export async function handleSubmitModelStats(request, env) {
         ).run();
       } catch (err) {
         console.error('Failed to insert game_model_usage:', err);
+        failedPlayers.push({ playerId: player.playerId, error: err.message });
         // 继续处理其他玩家
       }
     }
 
-    // 2. 更新或插入 ai_model_stats 聚合表
-    for (const player of players) {
-      try {
-        // 检查是否存在记录
-        const existing = await db.prepare(`
-          SELECT id, total_games, wins, losses FROM ai_model_stats
-          WHERE model_id = ? AND role = ?
-        `).bind(player.modelId, player.role).first();
+    // 2. 聚合表用 UPSERT 原子累加。
+    // 旧实现是 SELECT 再 UPDATE，两局游戏并发提交时基于过时读数计算会互相覆盖（lost update）。
+    // ON CONFLICT DO UPDATE 右侧的裸列名引用旧行值，excluded.* 引用本次插入值，累加在 SQLite 内原子完成。
+    const upsertStmt = db.prepare(`
+      INSERT INTO ai_model_stats
+      (model_id, model_name, role, total_games, wins, losses, win_rate, created_at, updated_at)
+      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
+      ON CONFLICT(model_id, role) DO UPDATE SET
+        total_games = total_games + 1,
+        wins = wins + excluded.wins,
+        losses = losses + excluded.losses,
+        win_rate = CAST(wins + excluded.wins AS REAL) / (total_games + 1),
+        updated_at = excluded.updated_at
+    `);
 
-        if (existing) {
-          // 更新现有记录
-          const newTotalGames = existing.total_games + 1;
-          const newWins = existing.wins + (player.result === 'win' ? 1 : 0);
-          const newLosses = existing.losses + (player.result === 'lose' ? 1 : 0);
-          const newWinRate = newWins / newTotalGames;
+    const upserts = players.map((player) => {
+      const wins = player.result === 'win' ? 1 : 0;
+      const losses = player.result === 'lose' ? 1 : 0;
+      return upsertStmt.bind(
+        player.modelId,
+        player.modelName,
+        player.role,
+        wins,
+        losses,
+        wins, // 新行的 win_rate = wins / 1
+        currentTime,
+        currentTime
+      );
+    });
+    // batch 是隐式事务：聚合统计要么全部更新要么全不更新
+    await db.batch(upserts);
 
-          await db.prepare(`
-            UPDATE ai_model_stats
-            SET total_games = ?, wins = ?, losses = ?, win_rate = ?, updated_at = ?
-            WHERE id = ?
-          `).bind(newTotalGames, newWins, newLosses, newWinRate, currentTime, existing.id).run();
-        } else {
-          // 插入新记录
-          const totalGames = 1;
-          const wins = player.result === 'win' ? 1 : 0;
-          const losses = player.result === 'lose' ? 1 : 0;
-          const winRate = wins / totalGames;
-
-          await db.prepare(`
-            INSERT INTO ai_model_stats
-            (model_id, model_name, role, total_games, wins, losses, win_rate, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).bind(
-            player.modelId,
-            player.modelName,
-            player.role,
-            totalGames,
-            wins,
-            losses,
-            winRate,
-            currentTime,
-            currentTime
-          ).run();
-        }
-      } catch (err) {
-        console.error('Failed to update ai_model_stats:', err);
-        // 继续处理其他玩家
-      }
-    }
-
-    return jsonResponse({ success: true, message: 'Model stats submitted successfully' });
+    return jsonResponse({
+      success: failedPlayers.length === 0,
+      failedCount: failedPlayers.length,
+      failed: failedPlayers.length > 0 ? failedPlayers : undefined,
+      message: failedPlayers.length === 0
+        ? 'Model stats submitted successfully'
+        : `Partial failure: ${failedPlayers.length} usage record(s) not saved`,
+    });
   } catch (error) {
     console.error('Error in handleSubmitModelStats:', error);
     return errorResponse('Failed to submit model stats', 500, env, request);

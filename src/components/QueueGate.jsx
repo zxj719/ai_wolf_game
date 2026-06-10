@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useShell } from '../shell/ShellContext';
 import { buildApiUrl } from '../services/apiBase';
 import { getToken } from '../utils/authToken';
+import { markQueueAcquiring, setQueueLease, clearQueueLease, setQueueBypass } from '../services/queueLease';
 
 const HEARTBEAT_INTERVAL = 30_000;
 const POLL_INTERVAL = 15_000;
@@ -21,6 +22,14 @@ const POLL_INTERVAL = 15_000;
 export function QueueGate({ resource, onPreempted, readOnly = false, children }) {
   const { isAdmin } = useAuth();
   const { isGuestMode } = useShell();
+
+  // Admin 不走队列：标记 bypass，让 session 客户端不等待租约（代理端凭 JWT 放行）
+  useEffect(() => {
+    if (isAdmin) {
+      setQueueBypass(true);
+      return () => setQueueBypass(false);
+    }
+  }, [isAdmin]);
 
   // Admin bypasses queue entirely
   if (isAdmin) return children;
@@ -65,6 +74,7 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
 
       if (data.acquired) {
         leaseRef.current = data.leaseId;
+        setQueueLease(data.leaseId);
         setStatus('active');
         return true;
       }
@@ -88,6 +98,7 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
       });
     } catch {}
     leaseRef.current = null;
+    clearQueueLease();
   }, [headers]);
 
   const heartbeat = useCallback(async () => {
@@ -100,6 +111,7 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
       });
       const data = await resp.json();
       if (!data.renewed) {
+        clearQueueLease();
         setStatus('preempted');
         onPreempted?.();
       }
@@ -114,6 +126,7 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
         });
         const data = await resp.json();
         if (data.occupied && data.lock && !data.lock.lease_id?.startsWith(leaseRef.current?.slice(0, 10))) {
+          clearQueueLease();
           setStatus('preempted');
           onPreempted?.();
         }
@@ -125,6 +138,7 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
   }, [status, resource, headers, acquire, onPreempted]);
 
   useEffect(() => {
+    markQueueAcquiring();
     acquire();
     return () => {
       release();
