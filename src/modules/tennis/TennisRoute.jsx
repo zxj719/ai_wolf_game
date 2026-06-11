@@ -11,7 +11,10 @@ import { ReactTest } from './components/ReactTest';
 import { PrepScreen } from './components/PrepScreen';
 import { ResultScreen } from './components/ResultScreen';
 import { BattleScreen } from './battle/BattleScreen';
-import { CHAR_BUILDS } from './battle/moves';
+import { CHAR_BUILDS, ULTIMATES } from './battle/moves';
+import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from './meta/equipment';
+import { loadProgress, persistProgress, EMPTY_PROGRESS } from './meta/progressStore';
+import { LadderScreen } from './modes/LadderScreen';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -40,6 +43,19 @@ export default function TennisRoute() {
 
   const [globalBoard, setGlobalBoard] = useState(undefined);
   const [localRecords, setLocalRecords] = useState(loadLocalRecords);
+
+  // 永久养成层（装备/金币/图鉴/成就），登录走 D1 双写、游客 localStorage
+  const [progress, setProgress] = useState(EMPTY_PROGRESS);
+  const updateProgress = useCallback((next) => {
+    setProgress(next);
+    persistProgress(next);
+  }, []);
+  useEffect(() => {
+    loadProgress().then(setProgress);
+  }, [user?.id]);
+
+  // 出战绝技（备战阶段可换装图鉴里的绝技）
+  const [equippedUltimate, setEquippedUltimate] = useState(null);
 
   const refreshBoards = useCallback(() => {
     setLocalRecords(loadLocalRecords());
@@ -94,6 +110,43 @@ export default function TennisRoute() {
     onRetry: refreshBoards,
   };
 
+  // 绝技选项：本命 + 图鉴已解锁
+  const ownUltimate = state.player
+    ? Object.entries(ULTIMATES).find(([, u]) => u.owner === state.player.name)?.[0]
+    : null;
+  const activeUltimate = equippedUltimate ?? ownUltimate;
+  const ultimateOptions = state.player
+    ? [...new Set([ownUltimate, ...progress.unlockedMoves])].filter(Boolean)
+        .map((name) => ({ name, ...ULTIMATES[name] }))
+    : [];
+
+  const equipBonus = applyEquipment(progress.equipment);
+
+  // 单局快打结束：盘分回填 + 掉落/金币入永久层
+  const onSingleMatchOver = useCallback(({ score, matchStats }) => {
+    const win = score.winner === 0;
+    const drop = rollDrop(win ? 'win' : 'loss', Math.random);
+    const coins = win ? 25 : 10;
+    const { equipped, soldFor } = mergeDrop(progress.equipment, drop);
+    const achievements = new Set(progress.achievements);
+    if (win) achievements.add('firstWin');
+    if (drop.rarity === 'legendary') achievements.add('firstLegendary');
+    if (matchStats.aces >= 3) achievements.add('aceMaster');
+    updateProgress({
+      ...progress,
+      coins: progress.coins + coins + soldFor,
+      equipment: equipped,
+      achievements: [...achievements],
+    });
+    toast(`🎁 掉落：${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰`);
+    dispatch({
+      type: 'MATCH_OVER',
+      setsP: score.sets[0],
+      setsO: score.sets[1],
+      setHistory: score.setHistory,
+    });
+  }, [progress, updateProgress, toast, dispatch]);
+
   return (
     <div className="tennis-scope">
       <div className="wrap">
@@ -112,23 +165,59 @@ export default function TennisRoute() {
         {state.screen === 'select' && (
           <SelectScreen onStart={onStart} toast={toast} boardProps={boardProps} />
         )}
+        {state.screen === 'mode' && (
+          <section className="screen">
+            <div className="card">
+              <h2>② 赛事报名 · 今天打哪种比赛？</h2>
+              <p className="hint">
+                💰 {progress.coins} 金币 · 👑 球王 ×{progress.championships} · 📖 绝技图鉴 {ultimateOptions.length}/7
+              </p>
+              <div className="opts">
+                <button type="button" className="opt" onClick={() => dispatch({ type: 'SET_MODE', mode: 'single' })}>
+                  <span className="key">🎾</span>
+                  <span>单局快打<span className="fx"><em>对阵 {state.opp?.face} {state.opp?.name}</em><em>三盘两胜 · 战绩上榜</em></span></span>
+                </button>
+                <button type="button" className="opt" onClick={() => dispatch({ type: 'SET_MODE', mode: 'ladder' })}>
+                  <span className="key">🏆</span>
+                  <span>家族挑战<span className="fx"><em>6 站梯度连战 · 输一场即止步</em><em>击败家人解锁绝技 · 6 连胜加冕球王</em></span></span>
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
         {state.screen === 'react' && <ReactTest dispatch={dispatch} toast={toast} />}
-        {state.screen === 'prep' && <PrepScreen state={state} dispatch={dispatch} toast={toast} />}
-        {state.screen === 'match' && (
+        {state.screen === 'prep' && (
+          <PrepScreen
+            state={state}
+            dispatch={dispatch}
+            toast={toast}
+            ultimateOptions={ultimateOptions}
+            equippedUltimate={activeUltimate}
+            onUltimateChange={setEquippedUltimate}
+          />
+        )}
+        {state.screen === 'match' && state.mode === 'single' && (
           <section className="screen">
             <BattleScreen
               player={state.player}
               opponent={state.opp}
               playerMoves={CHAR_BUILDS[state.player.name].moves}
               deckInstances={STARTER_DECK}
-              onMatchOver={({ score }) => dispatch({
-                type: 'MATCH_OVER',
-                setsP: score.sets[0],
-                setsO: score.sets[1],
-                setHistory: score.setHistory,
-              })}
+              ultimate={activeUltimate}
+              equip={equipBonus}
+              onMatchOver={onSingleMatchOver}
             />
           </section>
+        )}
+        {state.screen === 'match' && state.mode === 'ladder' && (
+          <LadderScreen
+            basePlayer={state.player}
+            progress={progress}
+            onUpdateProgress={updateProgress}
+            equippedUltimate={activeUltimate}
+            onExit={() => { dispatch({ type: 'REPLAY' }); refreshBoards(); }}
+            toast={toast}
+          />
         )}
         {state.screen === 'result' && (
           <ResultScreen

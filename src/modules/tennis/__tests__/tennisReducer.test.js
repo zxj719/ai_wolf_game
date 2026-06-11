@@ -12,6 +12,7 @@ const start = () =>
 /** 快速推进到比赛阶段：S 级天赋 + 4 轮全选第一项 */
 function toMatch() {
   let s = start();
+  s = tennisReducer(s, { type: 'SET_MODE', mode: 'single' });
   s = tennisReducer(s, { type: 'SET_REACTION', ms: 200 });
   s = tennisReducer(s, { type: 'TO_PREP' });
   for (let i = 0; i < 4; i++) {
@@ -34,11 +35,17 @@ describe('gradeFromMs（与原版阈值 1:1）', () => {
 });
 
 describe('tennisReducer（外层流程：选角/反应/备战/结算）', () => {
-  it('START 装载玩家与对手并进入反应测试', () => {
+  it('START 装载玩家与对手并进入模式选择', () => {
     const s = start();
-    expect(s.screen).toBe('react');
+    expect(s.screen).toBe('mode');
     expect(s.player).toMatchObject({ name: '诚', face: '🐯', sta: 0, skill: 0, mind: 0, ms: null });
     expect(s.opp).toMatchObject({ name: 'Elza', face: '🦊', sta: 60, skill: 60, mind: 60 });
+  });
+
+  it('SET_MODE 选模式后进入反应测试', () => {
+    const s = tennisReducer(start(), { type: 'SET_MODE', mode: 'ladder' });
+    expect(s.mode).toBe('ladder');
+    expect(s.screen).toBe('react');
   });
 
   it('SET_REACTION 定级；TO_PREP 进入备战', () => {

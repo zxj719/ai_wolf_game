@@ -24,8 +24,8 @@ export function StatsPanel({ player }) {
   );
 }
 
-/** ③ 备战垃圾话环节（4 回合加点） */
-export function PrepScreen({ state, dispatch, toast }) {
+/** ③ 备战垃圾话环节（4 回合加点 + 绝技换装） */
+export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equippedUltimate, onUltimateChange }) {
   const round = PREP[state.prepRound];
   const [locked, setLocked] = useState(false);
   const lockTimer = useRef(null);
@@ -59,6 +59,20 @@ export function PrepScreen({ state, dispatch, toast }) {
       <div className="card flat">
         <h2 style={{ fontSize: '1.1rem' }}>📋 当前状态面板</h2>
         <StatsPanel player={state.player} />
+        {ultimateOptions.length > 1 && (
+          <div className="ult-pick">
+            <span className="ult-pick-label">⚡ 出战绝技</span>
+            <select
+              className="player-select"
+              value={equippedUltimate}
+              onChange={(e) => onUltimateChange(e.target.value)}
+            >
+              {ultimateOptions.map((u) => (
+                <option key={u.name} value={u.name}>{u.face} {u.name} — {u.desc}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </section>
   );

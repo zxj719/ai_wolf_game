@@ -399,3 +399,49 @@
 .tennis-scope .bt-vs .pill.win { background: rgba(217,255,61,.55); font-weight: 700; }
 .tennis-scope .bt-vs .pill.lose { background: rgba(226,129,79,.3); }
 .tennis-scope .bt-rallylog p { text-align: center; font-size: .92rem; margin: 0; }
+
+/* ============ v2 商店 / 家族挑战 / 绝技换装 ============ */
+.tennis-scope .shop-overlay {
+  position: fixed; inset: 0; z-index: 50; background: rgba(7,39,30,.8);
+  display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 30px 14px;
+}
+.tennis-scope .shop { max-width: 720px; width: 100%; }
+.tennis-scope .shop-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.tennis-scope .shop-head h2 { margin: 0; flex: 1; }
+.tennis-scope .shop-coins { font-family: var(--mono); font-weight: 700; font-size: 1.05rem; color: #9a6a13; }
+.tennis-scope .shop-section { margin-top: 16px; border-top: 2px dashed rgba(13,59,46,.18); padding-top: 12px; }
+.tennis-scope .shop-section h3 { font-family: var(--display); font-weight: 400; font-size: 1rem; margin: 0 0 10px; color: var(--card-ink); }
+.tennis-scope .shop-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.tennis-scope .shop-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 120px; max-width: 160px;
+  background: #fff; border: 2px solid rgba(13,59,46,.2); border-radius: 13px; padding: 12px; cursor: pointer;
+  font-family: var(--body-font); color: var(--card-ink); font-size: .85rem; text-align: center;
+  transition: transform .12s, border-color .12s;
+}
+.tennis-scope .shop-item:hover { transform: translateY(-3px); border-color: var(--optic-deep); }
+.tennis-scope .shop-item.static { cursor: default; transform: none; }
+.tennis-scope .shop-item small { color: var(--muted); font-size: .72rem; }
+.tennis-scope .shop-icon { font-size: 1.6rem; }
+.tennis-scope .shop-empty { color: var(--muted); font-size: .85rem; padding: 8px; }
+.tennis-scope .shop-mini-actions { display: flex; gap: 6px; }
+.tennis-scope .btn.mini { padding: 5px 12px; font-size: .8rem; box-shadow: none; }
+.tennis-scope .ladder-bar {
+  display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap;
+}
+.tennis-scope .ladder-pip {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 1.4rem;
+  background: rgba(242,238,224,.1); border: 2px solid rgba(242,238,224,.35); filter: grayscale(.8); opacity: .6;
+}
+.tennis-scope .ladder-pip.done { filter: none; opacity: 1; border-color: var(--optic); background: rgba(217,255,61,.25); }
+.tennis-scope .ladder-pip.now {
+  filter: none; opacity: 1; border-color: var(--clay); transform: scale(1.15);
+  box-shadow: 0 0 12px rgba(226,129,79,.6);
+}
+.tennis-scope .ladder-stage { font-family: var(--mono); font-size: .75rem; color: rgba(242,238,224,.8); margin-left: 6px; }
+.tennis-scope .ladder-loot {
+  display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 16px;
+  font-family: var(--mono); font-size: .9rem; color: var(--card-ink);
+}
+.tennis-scope .ult-pick { margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tennis-scope .ult-pick-label { font-family: var(--display); color: var(--card-ink); }
+.tennis-scope .ult-pick .player-select { flex: 1; min-width: 200px; }

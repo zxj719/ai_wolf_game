@@ -199,9 +199,9 @@ export function BattleScreen({
   useEffect(() => {
     if (state.phase === 'over' && !overReported.current) {
       overReported.current = true;
-      onMatchOver({ score: state.score, matchStats: state.matchStats });
+      onMatchOver({ score: state.score, matchStats: state.matchStats, pEnergy: state.pEnergy });
     }
-  }, [state.phase, state.score, state.matchStats, onMatchOver]);
+  }, [state.phase, state.score, state.matchStats, state.pEnergy, onMatchOver]);
 
   const Minigame = state.pMove ? MINIGAME_COMPONENTS[MOVES[state.pMove].minigame] : null;
   const showOppMove = state.pendingEffects.reveal && state.oppMove;

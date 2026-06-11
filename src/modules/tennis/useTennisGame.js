@@ -22,7 +22,8 @@ export function gradeFromMs(ms) {
 }
 
 export const initialState = {
-  screen: 'select', // select | react | prep | match | result
+  screen: 'select', // select | mode | react | prep | match | result
+  mode: 'single',   // single | ladder | adventure(C 段)
   player: null,     // { name, face, talent, sta, skill, mind, ms, grade }
   opp: null,        // { name, face, sta, skill, mind }
   prepRound: 0,
@@ -43,11 +44,14 @@ export function tennisReducer(state, action) {
       const foe = CHARS.find((c) => c.n === action.oppName);
       return {
         ...initialState,
-        screen: 'react',
+        screen: 'mode',
         player: { name: me.n, face: me.f, talent: 0, sta: 0, skill: 0, mind: 0, ms: null, grade: '' },
         opp: { name: foe.n, face: foe.f, ...action.oppStats },
       };
     }
+
+    case 'SET_MODE':
+      return { ...state, mode: action.mode, screen: 'react' };
 
     case 'SET_REACTION': {
       const { grade, talent } = gradeFromMs(action.ms);
