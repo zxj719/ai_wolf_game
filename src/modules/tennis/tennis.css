@@ -324,3 +324,78 @@
   background: rgba(242,238,224,.12); border: 2px solid rgba(242,238,224,.4);
 }
 .tennis-scope .mg-dir-btn:active { background: rgba(217,255,61,.4); }
+
+/* ============ v2 对战界面 ============ */
+.tennis-scope .bt-scorepanel {
+  background: #10221b; border: 2px solid rgba(242,238,224,.25); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 16px; margin-bottom: 12px;
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center;
+}
+.tennis-scope .bt-side { display: flex; align-items: center; gap: 8px; }
+.tennis-scope .bt-side.right { flex-direction: row-reverse; }
+.tennis-scope .bt-face { font-size: 1.8rem; filter: drop-shadow(0 2px 3px rgba(0,0,0,.4)); }
+.tennis-scope .bt-name { font-family: var(--display); color: var(--line); font-size: 1.05rem; }
+.tennis-scope .bt-mid { text-align: center; font-family: var(--mono); }
+.tennis-scope .bt-sets { font-size: 1.5rem; font-weight: 700; color: var(--optic); }
+.tennis-scope .bt-sets small { font-size: .6rem; letter-spacing: .2em; color: rgba(242,238,224,.5); margin: 0 4px; }
+.tennis-scope .bt-games { font-size: .75rem; color: rgba(242,238,224,.7); }
+.tennis-scope .bt-points { font-size: 1.1rem; color: var(--line); font-weight: 700; }
+.tennis-scope .bt-golden { color: #ffb27a; font-size: .7rem; margin-left: 6px; animation: tennis-bounce 1s infinite; display: inline-block; }
+.tennis-scope .bt-deuce { color: var(--optic); font-size: .7rem; margin-left: 6px; }
+.tennis-scope .bt-energies { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.tennis-scope .bt-energy { display: flex; align-items: center; gap: 8px; font-family: var(--mono); }
+.tennis-scope .bt-energy-label { font-size: 1.2rem; }
+.tennis-scope .bt-energy-bar { flex: 1; height: 10px; border-radius: 999px; background: rgba(242,238,224,.15); overflow: hidden; }
+.tennis-scope .bt-energy-bar i { display: block; height: 100%; border-radius: 999px; transition: width .4s ease; }
+.tennis-scope .bt-energy.fresh .bt-energy-bar i { background: linear-gradient(90deg, var(--court-light), var(--optic)); }
+.tennis-scope .bt-energy.tired .bt-energy-bar i { background: linear-gradient(90deg, #b08a3e, #e2c14f); }
+.tennis-scope .bt-energy.spent .bt-energy-bar i { background: linear-gradient(90deg, #8a3e3e, var(--clay)); }
+.tennis-scope .bt-energy-num { font-size: .8rem; color: rgba(242,238,224,.85); min-width: 28px; text-align: right; }
+.tennis-scope .bt-arena-card { min-height: 320px; }
+.tennis-scope .bt-tell {
+  font-size: .9rem; color: var(--card-ink); background: rgba(217,255,61,.25);
+  border-radius: 12px; padding: 9px 14px; margin-bottom: 12px; font-style: italic;
+}
+.tennis-scope .bt-tell b { color: #9a4513; }
+.tennis-scope .bt-hand { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.tennis-scope .bt-tp {
+  font-family: var(--mono); font-weight: 700; color: var(--optic); background: var(--court);
+  border-radius: 999px; padding: 6px 12px; font-size: .9rem;
+}
+.tennis-scope .bt-hand-empty { font-size: .8rem; color: var(--muted); }
+.tennis-scope .bt-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: #fff; border: 2px solid rgba(13,59,46,.25); border-radius: 12px;
+  padding: 10px 10px 7px; cursor: pointer; min-width: 74px;
+  transition: transform .12s, border-color .12s, box-shadow .12s;
+}
+.tennis-scope .bt-card:hover { transform: translateY(-4px); border-color: var(--optic-deep); box-shadow: var(--shadow-soft); }
+.tennis-scope .bt-card.off { opacity: .45; cursor: not-allowed; transform: none; }
+.tennis-scope .bt-card-cost {
+  position: absolute; top: -8px; left: -8px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--court); color: var(--optic); font-family: var(--mono); font-weight: 700;
+  font-size: .75rem; display: grid; place-items: center;
+}
+.tennis-scope .bt-card-icon { font-size: 1.4rem; }
+.tennis-scope .bt-card-name { font-size: .72rem; color: var(--card-ink); font-family: var(--display); }
+.tennis-scope .bt-moves { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.tennis-scope .bt-move {
+  display: flex; align-items: center; gap: 8px; background: #fff;
+  border: 2px solid rgba(13,59,46,.2); border-radius: 13px; padding: 12px 13px; cursor: pointer;
+  transition: transform .12s, border-color .12s, box-shadow .12s; text-align: left;
+}
+.tennis-scope .bt-move:hover { transform: translateX(4px); border-color: var(--optic-deep); box-shadow: var(--shadow-soft); }
+.tennis-scope .bt-move.off { opacity: .4; cursor: not-allowed; transform: none; }
+.tennis-scope .bt-move.ultimate { border-color: var(--clay); background: linear-gradient(135deg, #fff6ee, #ffe8d6); }
+.tennis-scope .bt-move-sys { font-size: 1.3rem; }
+.tennis-scope .bt-move-name { font-family: var(--display); color: var(--card-ink); flex: 1; font-size: .95rem; }
+.tennis-scope .bt-move-cost { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+.tennis-scope .bt-rallylog { padding: 8px 0; }
+.tennis-scope .bt-vs {
+  display: flex; gap: 8px; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: .88rem; flex-wrap: wrap; margin-bottom: 8px;
+}
+.tennis-scope .bt-vs .pill { background: rgba(13,59,46,.08); border-radius: 999px; padding: 5px 12px; color: var(--card-ink); }
+.tennis-scope .bt-vs .pill.win { background: rgba(217,255,61,.55); font-weight: 700; }
+.tennis-scope .bt-vs .pill.lose { background: rgba(226,129,79,.3); }
+.tennis-scope .bt-rallylog p { text-align: center; font-size: .92rem; margin: 0; }
