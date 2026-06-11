@@ -4,8 +4,14 @@
 
 import { ServeTiming, PrecisionStop, RhythmBar, DualTiming, ShrinkSmash } from './timingGames';
 import { RhythmMash, WhackVolley, DirectionReact, GaugeDrop } from './actionGames';
+import { FlappyBall, DodgeRain } from './survivalGames';
+import { GoldMiner, JumpJump } from './scoreGames';
 
-export { ServeTiming };
+export { ServeTiming, FlappyBall, DodgeRain, GoldMiner, JumpJump };
+
+/** 坚持类（关键分挑战/开盒）与刷分类（开盒/事件）注册表 */
+export const SURVIVAL_GAMES = { flappy: FlappyBall, dodge: DodgeRain };
+export const SCORE_GAMES = { goldMiner: GoldMiner, jumpJump: JumpJump };
 
 export const MINIGAME_COMPONENTS = {
   rhythmMash: RhythmMash,        // 重炮平击

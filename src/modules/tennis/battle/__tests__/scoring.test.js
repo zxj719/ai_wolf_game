@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createScore, addPoint, pointLabel } from '../scoring';
+import { createScore, addPoint, pointLabel, isKeyPoint } from '../scoring';
 
 /** 连得 n 分 */
 const win = (s, who, n) => {
@@ -74,6 +74,25 @@ describe('scoring 真实记分 lite（spec §1.4）', () => {
     expect(s.sets).toEqual([2, 0]);
     const frozen = addPoint(s, 1);
     expect(frozen).toEqual(s);
+  });
+
+  it('isKeyPoint：盘点/金球是关键分，普通局点不是', () => {
+    let s = createScore();
+    expect(isKeyPoint(s)).toBe(false);
+    s = win(s, 0, 3);                              // 40-0 但 games 0 → 普通局点
+    expect(isKeyPoint(s)).toBe(false);
+    s = { ...s, games: [2, 0] };                   // 拿下此局即拿盘 → 盘点
+    expect(isKeyPoint(s)).toBe(true);
+    // 金球必为关键分
+    let g = win(win(createScore(), 0, 3), 1, 3);
+    g = addPoint(g, 0); g = addPoint(g, 1);
+    g = addPoint(g, 1); g = addPoint(g, 0);        // deuceCount 2 → 金球
+    expect(g.goldenPoint).toBe(true);
+    expect(isKeyPoint(g)).toBe(true);
+    // Deuce 占先 + games 2 → 盘点
+    let d = win(win(createScore(), 0, 3), 1, 3);
+    d = { ...addPoint(d, 0), games: [2, 1] };
+    expect(isKeyPoint(d)).toBe(true);
   });
 
   it('盘数 1:1 后第三盘正常推进', () => {

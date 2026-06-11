@@ -10,8 +10,8 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import { MOVES, ULTIMATES, COUNTER_QUIPS } from './moves';
 import { CARDS } from './cards';
 import { createBattle, battleReducer } from './battleReducer';
-import { pointLabel } from './scoring';
-import { MINIGAME_COMPONENTS, ServeTiming } from './minigames';
+import { pointLabel, isKeyPoint } from './scoring';
+import { MINIGAME_COMPONENTS, ServeTiming, SURVIVAL_GAMES } from './minigames';
 
 const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 
@@ -119,6 +119,43 @@ function MovePicker({ state, onPick, onUltimate }) {
   );
 }
 
+/** 特效层（D 段）：ACE 金闪 / 效果拔群 / CLUTCH / 被克。reduced-motion 自动隐藏（CSS） */
+function FxOverlay({ state }) {
+  const [fx, setFx] = useState(null);
+  const prevRally = useRef(null);
+  const prevAces = useRef(0);
+
+  useEffect(() => {
+    if (state.matchStats.aces > prevAces.current) {
+      prevAces.current = state.matchStats.aces;
+      setFx({ key: Date.now(), type: 'ace', text: 'ACE！🎾', gold: true });
+      return;
+    }
+    const r = state.lastRally;
+    if (r && r !== prevRally.current) {
+      prevRally.current = r;
+      if (r.clutch) setFx({ key: Date.now(), type: 'clutch', text: '⚡ CLUTCH！⚡', gold: true });
+      else if (r.hawkeyeSaved) setFx({ key: Date.now(), type: 'super', text: '🦅 鹰眼改判！' });
+      else if (r.counterMul > 1 && r.win) setFx({ key: Date.now(), type: 'super', text: '效果拔群！' });
+      else if (r.counterMul < 1 && !r.win) setFx({ key: Date.now(), type: 'bad', text: '被克制……' });
+    }
+  }, [state.lastRally, state.matchStats.aces]);
+
+  useEffect(() => {
+    if (!fx) return undefined;
+    const t = setTimeout(() => setFx(null), 1200);
+    return () => clearTimeout(t);
+  }, [fx]);
+
+  if (!fx) return null;
+  return (
+    <>
+      {fx.gold && <div className="fx-goldflash" />}
+      <div className={`fx-burst ${fx.type}`}>{fx.text}</div>
+    </>
+  );
+}
+
 function RallyLog({ state }) {
   const r = state.lastRally;
   if (!r) return null;
@@ -203,6 +240,11 @@ export function BattleScreen({
     }
   }, [state.phase, state.score, state.matchStats, state.pEnergy, onMatchOver]);
 
+  // 关键分（盘点/金球）：招式小游戏替换为坚持类挑战——过关顶格 1.5×，失败 0.6×
+  const keyPoint = isKeyPoint(state.score);
+  const SurvivalGame = keyPoint
+    ? SURVIVAL_GAMES[state.rallyCount % 2 === 0 ? 'flappy' : 'dodge']
+    : null;
   const Minigame = state.pMove ? MINIGAME_COMPONENTS[MOVES[state.pMove].minigame] : null;
   const showOppMove = state.pendingEffects.reveal && state.oppMove;
 
@@ -242,7 +284,18 @@ export function BattleScreen({
           </>
         )}
 
-        {state.phase === 'minigame' && Minigame && (
+        {state.phase === 'minigame' && SurvivalGame && (
+          <>
+            <div className="set-banner">⚡ 关键分 · 坚持住就是你的！⚡</div>
+            <SurvivalGame
+              onDone={(m, extra) => dispatch({
+                type: 'MINIGAME_DONE',
+                multiplier: extra?.passed ? 1.5 : 0.6,
+              })}
+            />
+          </>
+        )}
+        {state.phase === 'minigame' && !SurvivalGame && Minigame && (
           <Minigame
             onDone={(multiplier) => dispatch({ type: 'MINIGAME_DONE', multiplier })}
             timeScale={timeScale}
@@ -254,6 +307,7 @@ export function BattleScreen({
           <RallyLog state={state} />
         )}
       </div>
+      <FxOverlay state={state} />
     </div>
   );
 }

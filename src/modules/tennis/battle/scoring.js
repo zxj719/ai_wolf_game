@@ -28,6 +28,25 @@ export function createScore() {
 
 const LABELS = ['0', '15', '30', '40'];
 
+/**
+ * 关键分判定（D 段）：金球，或任一方拿下此分即赢盘/赢赛。
+ * 普通局点不算关键分（太频繁会拖节奏）。
+ */
+export function isKeyPoint(score) {
+  if (score.matchOver) return false;
+  if (score.goldenPoint) return true;
+  const gamePointFor = (who) => {
+    if (score.isDeuce) return score.advantage === who;
+    return score.points[who] === 3 && score.points[1 - who] < 3;
+  };
+  for (const who of [0, 1]) {
+    if (!gamePointFor(who)) continue;
+    const setPoint = score.games[who] === GAMES_PER_SET - 1;
+    if (setPoint) return true;                      // 盘点（含赛点：赢盘即可能赢赛）
+  }
+  return false;
+}
+
 export function pointLabel(score, side) {
   if (score.isDeuce) {
     if (score.advantage === side) return 'Adv';

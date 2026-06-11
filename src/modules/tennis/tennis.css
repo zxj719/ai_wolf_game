@@ -471,3 +471,71 @@
   font-size: 1.15rem; background: rgba(242,238,224,.1); border: 2px solid rgba(242,238,224,.35);
 }
 .tennis-scope .bt-tell small { display: block; font-style: normal; color: var(--muted); margin-top: 3px; }
+
+/* ============ D 段：坚持/刷分小游戏 ============ */
+.tennis-scope .mg-sky { min-height: 260px; overflow: hidden; cursor: pointer; touch-action: none; }
+.tennis-scope .mg-flap-ball { position: absolute; left: 16%; font-size: 1.6rem; transform: translateY(-50%); z-index: 3; filter: drop-shadow(0 2px 6px rgba(217,255,61,.6)); }
+.tennis-scope .mg-pipe { position: absolute; width: 9%; background: linear-gradient(90deg, #8a5a2b, #b07a3e); border: 2px solid rgba(242,238,224,.5); border-radius: 6px; }
+.tennis-scope .mg-pipe.top { top: 0; }
+.tennis-scope .mg-pipe.bottom { bottom: 0; }
+.tennis-scope .mg-survive-timer {
+  position: absolute; top: 8px; right: 12px; font-family: var(--mono); font-weight: 700;
+  color: var(--optic); font-size: 1rem; z-index: 4; text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+.tennis-scope .mg-rain-ball { position: absolute; font-size: 1.3rem; transform: translate(-50%,-50%); }
+.tennis-scope .mg-paddle { position: absolute; bottom: 4px; font-size: 1.8rem; transform: translateX(-50%); z-index: 3; }
+.tennis-scope .mg-mine { min-height: 280px; overflow: hidden; }
+.tennis-scope .mg-score-badge {
+  position: absolute; top: 8px; left: 12px; font-family: var(--display); color: var(--optic);
+  font-size: 1.2rem; z-index: 4; text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+.tennis-scope .mg-mine-item { position: absolute; font-size: 1.5rem; transform: translate(-50%,-50%); }
+.tennis-scope .mg-claw-line {
+  position: absolute; left: 50%; top: 8%; width: 3px; height: 85%;
+  background: rgba(242,238,224,.8); transform-origin: top center; z-index: 2;
+}
+.tennis-scope .mg-claw-head { position: absolute; font-size: 1.3rem; transform: translate(-50%,-50%); z-index: 3; }
+.tennis-scope .mg-jump { min-height: 260px; overflow: hidden; touch-action: none; }
+.tennis-scope .mg-platform {
+  position: absolute; bottom: 10%; width: 16%; height: 14px; transform: translateX(-50%);
+  background: linear-gradient(180deg, var(--optic), var(--optic-deep)); border-radius: 7px;
+  box-shadow: 0 4px 0 rgba(0,0,0,.3);
+}
+.tennis-scope .mg-platform.start { background: rgba(242,238,224,.45); }
+.tennis-scope .mg-jumper { position: absolute; font-size: 1.6rem; transform: translateX(-50%); z-index: 3; transition: none; }
+.tennis-scope .mg-jump-power { position: absolute; bottom: 4px; left: 10%; width: 80%; }
+
+/* ============ D 段：特效（奖励感） ============ */
+@keyframes tennis-burst {
+  0% { transform: translate(-50%,-50%) scale(.3); opacity: 0; }
+  30% { transform: translate(-50%,-50%) scale(1.25); opacity: 1; }
+  70% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1.05); opacity: 0; }
+}
+@keyframes tennis-goldflash {
+  0% { opacity: .85; } 100% { opacity: 0; }
+}
+@keyframes tennis-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); } 40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); } 80% { transform: translateX(3px); }
+}
+.tennis-scope .fx-burst {
+  position: fixed; left: 50%; top: 38%; z-index: 80; pointer-events: none;
+  font-family: var(--display); font-size: clamp(2rem, 7vw, 3.4rem); white-space: nowrap;
+  animation: tennis-burst 1.1s ease forwards; text-shadow: 0 4px 18px rgba(0,0,0,.55);
+}
+.tennis-scope .fx-burst.super { color: var(--optic); }
+.tennis-scope .fx-burst.ace { color: #ffd84f; }
+.tennis-scope .fx-burst.clutch { color: #ffb27a; letter-spacing: .12em; }
+.tennis-scope .fx-burst.bad { color: #e2814f; font-size: clamp(1.4rem, 5vw, 2.2rem); }
+.tennis-scope .fx-goldflash {
+  position: fixed; inset: 0; z-index: 79; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255,216,79,.5), transparent 65%);
+  animation: tennis-goldflash .9s ease forwards;
+}
+.tennis-scope .fx-shake { animation: tennis-shake .45s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .tennis-scope .fx-burst, .tennis-scope .fx-goldflash { animation: none; opacity: 0; }
+  .tennis-scope .fx-shake { animation: none; }
+}

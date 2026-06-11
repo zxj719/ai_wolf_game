@@ -9,7 +9,7 @@
  */
 
 import { MOVES, counterMultiplier, ULTIMATES } from './moves';
-import { createScore, addPoint } from './scoring';
+import { createScore, addPoint, isKeyPoint } from './scoring';
 import { createDeckState, startRally, playCard } from './cards';
 import { pickOpponentMove, makeTell } from './opponentAI';
 
@@ -77,7 +77,7 @@ export function createBattle({ player, opponent, deckInstances, rng, ultimate, t
     activeUltimate: null,
     lastRally: null,
     rallyLog: [],
-    matchStats: { aces: 0, countersWon: 0 },
+    matchStats: { aces: 0, countersWon: 0, clutchWins: 0 },
   };
 }
 
@@ -298,15 +298,19 @@ export function battleReducer(state, action) {
         };
       }
 
+      // CLUTCH：关键分上以顶格小游戏表现赢分（坚持类挑战过关）
+      const keyPoint = isKeyPoint(state.score);
+      const clutch = keyPoint && win && state.pMultiplier >= 1.5;
       const lastRally = {
         pMove, oppMove, pPower, oPower, counterMul: pCounter,
         pMultiplier: state.pMultiplier, oMultiplier, win, hawkeyeSaved: false,
         tie: Math.abs(pPower - oPower) < 1e-9,
-        reflected, mindDuel,
+        reflected, mindDuel, keyPoint, clutch,
       };
       const matchStats = {
         ...state.matchStats,
         countersWon: state.matchStats.countersWon + (win && pCounter > 1 ? 1 : 0),
+        clutchWins: state.matchStats.clutchWins + (clutch ? 1 : 0),
       };
       const settled = {
         ...state,
