@@ -2,6 +2,34 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-11] 家庭网球公开赛模块上线（/tennis + 全网排行榜）
+
+### 新功能
+
+- **家庭网球公开赛**：单文件小游戏《家庭网球公开赛 · 相爱相杀前传》移植为 React 模块，与狼人杀、音乐实验室平级（首页 Dashboard 新增「🎾 家庭网球」入口，路由 `/tennis`，无需登录即可游玩）。
+  - 五阶段流程 1:1 移植：报名选角 → 动态反应测试（偷跑判罚/空格键）→ 4 轮备战加点 → 三局两胜对决（d20 vs d12 主场加成、平分鹰眼判主队、决胜盘总战力）→ 结局战报。
+  - 原版「夜场网球」视觉整体保留，CSS 以 `.tennis-scope` 前缀作用域隔离，不污染主站设计 token。
+- **全网排行榜（用户系统接入）**：登录用户赛后自动上传战绩到 D1，全网榜显示「用户名（角色）」聚合排名（胜场 → 胜率 → 最快反应）+ 最近 20 场战报；游客可完整游玩，成绩仅存本机 localStorage（沿用原版 key，老玩家本地数据无损），榜单区提供登录引导。
+- **服务端校验**：比分形态（恰一方 2 盘）、7 角色白名单、反应时间 80–60000ms、grade 枚举、face 白名单回退；非法提交一律 400。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/tennis/` | 新建 | 模块目录：descriptor、TennisRoute、五屏组件、reducer 状态机、本地榜、作用域 CSS |
+| `src/services/tennisService.js` | 新建 | 战绩上传 + 排行榜拉取（仿 gameService 模式） |
+| `src/shell/paths.js` / `ModuleRegistry.js` | 修改 | 注册 `/tennis` 路由与模块 |
+| `src/modules/home/HomeRoute.jsx` / `src/components/Dashboard.jsx` | 修改 | 首页「家庭网球」入口按钮 |
+| `workers/auth/tennis.js` / `tennisLib.js` | 新建 | `/api/tennis/record`（JWT）+ `/api/tennis/leaderboard`（公开）；校验纯逻辑独立成 lib |
+| `workers/auth/index.js` | 修改 | 挂载 2 条 tennis 路由 |
+| `migrations/006_tennis.sql` / `schema.sql` | 新建/修改 | `tennis_matches` 表 + 索引（已应用到远程 D1） |
+
+### 技术细节
+
+- reducer 纯函数化：随机数（对手属性、双方骰子）全部由 action payload 注入，13 个 vitest 用例覆盖定级阈值、加点 clamp、盘分推进、1:1 跳决胜盘、平分判主队等关键路径。
+- StrictMode 双挂载下用 ref 去重，确保一局只记一条战绩。
+- 已通过 puppeteer-core 无头 E2E 完整一局冒烟 + 生产 fingerprint 校验（prod = local，localhost 泄漏 0）。
+
 ## [2026-06-10] 狼人杀升级第二/三批：警长机制 + 遗言系统 + 渲染性能
 
 ### 新功能
