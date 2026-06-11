@@ -58,6 +58,48 @@ export const EVENTS = [
     ],
   },
 
+  // ===== 坚持/刷分类事件（D 段新增 4） =====
+  {
+    id: 'marketTreasure', chapter: 1, type: 'minigame', minigame: 'goldMiner', icon: '⛏️',
+    title: '市场寻宝',
+    text: '废弃摊位下埋着前任摊主的"小金库"。借来钩爪开挖——手眼协调是网球手的天赋技能。',
+    rewards: [
+      { kind: 'coins', amount: 10, flavor: '只挖到几个钢镚……' },
+      { kind: 'coins', amount: 50, flavor: '小赚一笔！' },
+      { kind: 'coins', amount: 100, flavor: '挖到金库主矿脉！' },
+    ],
+  },
+  {
+    id: 'swordFlight', chapter: 2, type: 'minigame', minigame: 'flappy', icon: '🗡️',
+    title: '御剑穿峰',
+    text: '仙人借你一把飞剑过山：撞上山岩就摔下去。10 秒的御剑，练的是临场反应——和接发球一个道理。',
+    rewards: [
+      { kind: 'nothing', flavor: '摔进云海，仙人捞了你三次。' },
+      { kind: 'stat', stat: 'random', amount: 6, flavor: '御剑成功，身法大进！' },
+      { kind: 'stat', stat: 'random', amount: 6, flavor: '御剑成功，身法大进！' },
+    ],
+  },
+  {
+    id: 'cloudLadder', chapter: 2, type: 'minigame', minigame: 'jumpJump', icon: '☁️',
+    title: '踏云梯',
+    text: '一截一截的云阶通向山顶，蓄力跳——力道拿捏正是放小球的精髓。15 秒能跳多高？',
+    rewards: [
+      { kind: 'coins', amount: 15, flavor: '跳了几阶就脚滑……' },
+      { kind: 'stat', stat: 'mind', amount: 5, flavor: '步步生莲，心境提升。' },
+      { kind: 'stat', stat: 'mind', amount: 10, flavor: '直上云顶！心如磐石。' },
+    ],
+  },
+  {
+    id: 'meteorRain', chapter: 3, type: 'minigame', minigame: 'dodge', icon: '☄️',
+    title: '陨石雨警报',
+    text: '舱外维修时遭遇微陨石雨！左右机动撑过 10 秒等待气闸开启——步伐就是网球手的命。',
+    rewards: [
+      { kind: 'nothing', flavor: '被擦伤了，幸好宇航服结实。' },
+      { kind: 'gear', flavor: '全身而退，还顺手抓到一块" 装备级"陨石！' },
+      { kind: 'gear', flavor: '全身而退，还顺手抓到一块"装备级"陨石！' },
+    ],
+  },
+
   // ===== 剧情二选一（8） =====
   {
     id: 'fishStall', chapter: 1, type: 'story', icon: '🐟',

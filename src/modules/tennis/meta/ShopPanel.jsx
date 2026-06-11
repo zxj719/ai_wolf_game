@@ -7,9 +7,11 @@
 
 import { useState } from 'react';
 import { CARDS } from '../battle/cards';
+import { FlappyBall, DodgeRain, GoldMiner } from '../battle/minigames';
+import { getLevel } from '../battle/minigames/levels';
 import {
   rollDrop, mergeDrop, upgradeCost, nextRarity, sellValue,
-  SLOT_META, RARITY_META, EQUIPMENT_SLOTS,
+  SLOT_META, RARITY_META, EQUIPMENT_SLOTS, RARITIES,
 } from './equipment';
 
 const CARD_PRICE = 40;
@@ -20,6 +22,24 @@ const GEAR_PRICE = { common: 30, fine: 60, epic: 140, legendary: 320 };
 const cardIds = Object.keys(CARDS);
 const randomCardId = () => cardIds[Math.floor(Math.random() * cardIds.length)];
 
+/** 盲盒定义（spec §7b）：坚持类过关开好货，刷分类分数直接变金币 */
+const BOXES = [
+  { id: 'wood', icon: '📦', name: '木盒', price: 50, kind: 'survival', levelBonus: 0,
+    desc: '坚持 10s：开出精良+装备和 1 张卡；失败保底普通装备' },
+  { id: 'gold', icon: '🎁', name: '金盒', price: 120, kind: 'survival', levelBonus: 2,
+    desc: '高难起步！过关开史诗+装备和强化卡；失败保底精良' },
+  { id: 'miner', icon: '⛏️', name: '矿工盒', price: 80, kind: 'score',
+    desc: '15s 黄金球工：分数 1:1 变金币，60 分加送装备——技术好能回本' },
+];
+
+/** 把掉落品质抬到至少 minRarity */
+function rollGearAtLeast(minRarity) {
+  const drop = rollDrop('win', Math.random);
+  const min = RARITIES.indexOf(minRarity);
+  if (RARITIES.indexOf(drop.rarity) < min) drop.rarity = RARITIES[min];
+  return drop;
+}
+
 function gearLabel(item, slot) {
   return `${RARITY_META[item.rarity].name}${SLOT_META[slot].name}`;
 }
@@ -29,7 +49,54 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
   const [gearOffers, setGearOffers] = useState(() => [
     rollDrop('event', Math.random), rollDrop('event', Math.random), rollDrop('event', Math.random),
   ]);
+  const [openingBox, setOpeningBox] = useState(null);   // {box, Game}
   const coins = progress.coins;
+
+  const buyBox = (box) => {
+    if (coins < box.price) { toast('金币不够！'); return; }
+    const Game = box.kind === 'score'
+      ? GoldMiner
+      : (Math.random() < 0.5 ? FlappyBall : DodgeRain);
+    onUpdateProgress({ ...progress, coins: coins - box.price });
+    setOpeningBox({ box, Game });
+  };
+
+  const settleBox = (box) => (m, extra) => {
+    setOpeningBox(null);
+    // buyBox 时已扣盒价，此处闭包拿到的是扣价后的最新 progress
+    let next = { ...progress };
+    const achievements = new Set(next.achievements);
+    achievements.add('boxOpener');
+    if (getLevel('flappy') >= 5) achievements.add('aviator');
+
+    if (box.kind === 'score') {
+      const score = extra?.score ?? 0;
+      next.coins += score;
+      let msg = `⛏️ 挖到 ${score} 金币！`;
+      if (score >= 60) {
+        achievements.add('goldRush');
+        const gear = rollGearAtLeast('fine');
+        const { equipped, soldFor } = mergeDrop(next.equipment, gear);
+        next = { ...next, equipment: equipped, coins: next.coins + soldFor };
+        msg += ` 满载而归，加送${RARITY_META[gear.rarity].name}${SLOT_META[gear.slot].name}！`;
+      }
+      toast(msg);
+    } else {
+      const passed = !!extra?.passed;
+      const gear = rollGearAtLeast(passed
+        ? (box.id === 'gold' ? 'epic' : 'fine')
+        : (box.id === 'gold' ? 'fine' : 'common'));
+      const { equipped, soldFor } = mergeDrop(next.equipment, gear);
+      next = { ...next, equipment: equipped, coins: next.coins + soldFor };
+      if (passed) {
+        onDeckChange([...deck, { cardId: randomCardId(), upgraded: box.id === 'gold' }]);
+      }
+      toast(passed
+        ? `🎉 盒开了！${RARITY_META[gear.rarity].name}${SLOT_META[gear.slot].name} + 1 张${box.id === 'gold' ? '强化' : ''}卡`
+        : `📦 没撑住……保底${RARITY_META[gear.rarity].name}${SLOT_META[gear.slot].name}`);
+    }
+    onUpdateProgress({ ...next, achievements: [...achievements] });
+  };
 
   const spend = (amount) => {
     onUpdateProgress({ ...progress, coins: coins - amount });
@@ -81,6 +148,21 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
     toast(`${SLOT_META[slot].name}升级为${RARITY_META[upgraded.rarity].name}！`);
   };
 
+  if (openingBox) {
+    const { box, Game } = openingBox;
+    return (
+      <div className="shop-overlay">
+        <div className="shop card">
+          <div className="shop-head">
+            <h2>{box.icon} 开{box.name}！</h2>
+            <span className="shop-coins">💰 {coins}</span>
+          </div>
+          <Game onDone={settleBox(box)} levelBonus={box.levelBonus ?? 0} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="shop-overlay">
       <div className="shop card">
@@ -88,6 +170,19 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
           <h2>🛒 网球用品店</h2>
           <span className="shop-coins">💰 {coins}</span>
           <button type="button" className="btn ghost" onClick={onClose}>离开商店</button>
+        </div>
+
+        <div className="shop-section">
+          <h3>🎁 盲盒（玩小游戏开盒，手越好开越好）</h3>
+          <div className="shop-row">
+            {BOXES.map((box) => (
+              <button key={box.id} type="button" className="shop-item" onClick={() => buyBox(box)}>
+                <span className="shop-icon">{box.icon}</span>
+                <span>{box.name}</span>
+                <small>{box.price}💰 · {box.desc}</small>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="shop-section">

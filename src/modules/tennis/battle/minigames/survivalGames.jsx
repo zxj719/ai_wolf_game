@@ -14,20 +14,22 @@ import { getLevel, bumpLevel, flappyParams, dodgeParams } from './levels';
 
 export const SURVIVAL_MS = 10000;
 
-function useSurvival(gameKey, onDone) {
+function useSurvival(gameKey, onDone, levelBonus = 0) {
   const levelRef = useRef(null);
   if (levelRef.current === null) {
-    levelRef.current = getLevel(gameKey);
+    levelRef.current = getLevel(gameKey) + levelBonus;
     bumpLevel(gameKey);
   }
   const [result, rawFinish] = useFinish(onDone);
-  const finish = (passed) => rawFinish(passed ? 1.5 : 0.5, passed ? '撑住了！CLUTCH！' : '差一点……');
-  return { level: levelRef.current, result, finish };
+  const level = levelRef.current;
+  const finish = (passed) =>
+    rawFinish(passed ? 1.5 : 0.5, passed ? '撑住了！CLUTCH！' : '差一点……', { passed, level });
+  return { level, result, finish };
 }
 
 /** 🐦 飞翔的网球（Flappy） */
-export function FlappyBall({ onDone }) {
-  const { level, result, finish } = useSurvival('flappy', onDone);
+export function FlappyBall({ onDone, levelBonus = 0 }) {
+  const { level, result, finish } = useSurvival('flappy', onDone, levelBonus);
   const p = flappyParams(level);
   const t0 = useRef(performance.now());
   const phys = useRef({ y: 0.5, vy: 0, lastT: performance.now(), pipes: [], nextSpawn: 600 });
@@ -83,8 +85,8 @@ export function FlappyBall({ onDone }) {
 }
 
 /** 🛸 躲避发球机（弹幕） */
-export function DodgeRain({ onDone }) {
-  const { level, result, finish } = useSurvival('dodge', onDone);
+export function DodgeRain({ onDone, levelBonus = 0 }) {
+  const { level, result, finish } = useSurvival('dodge', onDone, levelBonus);
   const p = dodgeParams(level);
   const t0 = useRef(performance.now());
   const phys = useRef({ px: 0.5, balls: [], nextWave: 500 });

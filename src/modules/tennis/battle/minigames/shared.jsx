@@ -36,10 +36,10 @@ export function useFinish(onDone) {
   const [result, setResult] = useState(null);
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const finish = (multiplier, label) => {
+  const finish = (multiplier, label, extra) => {
     if (result) return;
     setResult({ multiplier, label: label ?? verdictText(multiplier) });
-    timer.current = setTimeout(() => onDone(multiplier), 600);
+    timer.current = setTimeout(() => onDone(multiplier, extra), 600);
   };
   return [result, finish];
 }

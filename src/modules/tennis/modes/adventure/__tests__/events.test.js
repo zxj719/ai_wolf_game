@@ -2,17 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { EVENTS, pickEvent, rewardTier, REWARD_KINDS } from '../events';
 import { MOVES } from '../../../battle/moves';
 
-describe('事件表（spec §4.4）', () => {
-  it('4 个小游戏事件 + 8 个剧情事件，三章都有内容', () => {
-    expect(EVENTS.filter((e) => e.type === 'minigame')).toHaveLength(4);
+describe('事件表（spec §4.4 + §7b）', () => {
+  it('8 个小游戏事件（4 微操 + 4 坚持/刷分）+ 8 个剧情事件，三章都有内容', () => {
+    expect(EVENTS.filter((e) => e.type === 'minigame')).toHaveLength(8);
     expect(EVENTS.filter((e) => e.type === 'story')).toHaveLength(8);
     for (const ch of [1, 2, 3]) {
       expect(EVENTS.some((e) => e.chapter === ch)).toBe(true);
     }
   });
 
-  it('小游戏事件引用的 minigame key 均存在于招式小游戏池', () => {
-    const validKeys = new Set(Object.values(MOVES).map((m) => m.minigame));
+  it('小游戏事件引用的 minigame key 均在注册表内（含坚持/刷分类）', () => {
+    const validKeys = new Set([
+      ...Object.values(MOVES).map((m) => m.minigame),
+      'flappy', 'dodge', 'goldMiner', 'jumpJump',
+    ]);
     for (const e of EVENTS.filter((x) => x.type === 'minigame')) {
       expect(validKeys.has(e.minigame)).toBe(true);
       expect(e.rewards).toHaveLength(3);

@@ -142,6 +142,7 @@ export default function TennisRoute() {
     if (win) achievements.add('firstWin');
     if (drop.rarity === 'legendary') achievements.add('firstLegendary');
     if (matchStats.aces >= 3) achievements.add('aceMaster');
+    if (matchStats.clutchWins > 0) achievements.add('clutchMaster');
     updateProgress({
       ...progress,
       coins: progress.coins + coins + soldFor,

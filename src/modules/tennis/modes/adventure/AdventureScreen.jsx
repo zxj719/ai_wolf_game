@@ -9,7 +9,9 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { BattleScreen } from '../../battle/BattleScreen';
 import { CHAR_BUILDS, MOVES } from '../../battle/moves';
 import { CARDS } from '../../battle/cards';
-import { MINIGAME_COMPONENTS } from '../../battle/minigames';
+import { MINIGAME_COMPONENTS, SURVIVAL_GAMES, SCORE_GAMES } from '../../battle/minigames';
+
+const ALL_EVENT_GAMES = { ...MINIGAME_COMPONENTS, ...SURVIVAL_GAMES, ...SCORE_GAMES };
 import { createAdventure, adventureReducer } from './adventureReducer';
 import { ODD_OPPONENTS, FAMILY_CAMEO_TAUNT } from './oddOpponents';
 import { pickEvent, rewardTier } from './events';
@@ -107,6 +109,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
     if (win) achievements.add('firstWin');
     if (drop.rarity === 'legendary') achievements.add('firstLegendary');
     if (matchStats.aces >= 3) achievements.add('aceMaster');
+    if (matchStats.clutchWins > 0) achievements.add('clutchMaster');
     onUpdateProgress({
       ...progress,
       coins: progress.coins + coins + soldFor,
@@ -217,7 +220,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
           </section>
         );
       }
-      const Minigame = MINIGAME_COMPONENTS[event.minigame];
+      const Minigame = ALL_EVENT_GAMES[event.minigame];
       return (
         <section className="screen">
           <div className="card">
