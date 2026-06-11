@@ -273,3 +273,54 @@
 
 .tennis-scope footer.note { text-align: center; margin-top: 30px; color: rgba(242,238,224,.45); font-size: .78rem; }
 .tennis-scope footer.note b { color: var(--optic); }
+
+/* ============ v2 小游戏 ============ */
+.tennis-scope .mg-shell { margin: 10px 0; }
+.tennis-scope .mg-title { font-family: var(--display); font-size: 1.15rem; color: var(--card-ink); margin-bottom: 8px; text-align: center; }
+.tennis-scope .mg-hint { font-size: .8rem; color: var(--muted); text-align: center; margin-top: 8px; font-family: var(--mono); }
+.tennis-scope .mg-stage { position: relative; }
+.tennis-scope .mg-tap-area {
+  display: block; width: 100%; min-height: 150px; border: none; cursor: pointer; padding: 18px;
+  background: linear-gradient(180deg, #0f4636, #0b3528); border-radius: 14px;
+  border: 2px solid var(--line); position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  touch-action: manipulation; user-select: none;
+}
+.tennis-scope .mg-result {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(16,34,27,.82); z-index: 5; border-radius: 12px; gap: 4px;
+}
+.tennis-scope .mg-verdict { font-family: var(--display); font-size: 1.8rem; color: var(--optic); }
+.tennis-scope .mg-mult { font-family: var(--mono); color: var(--line); font-size: 1rem; }
+.tennis-scope .mg-bar {
+  position: relative; width: 92%; height: 26px; background: rgba(242,238,224,.12);
+  border-radius: 999px; overflow: hidden;
+}
+.tennis-scope .mg-zone { position: absolute; top: 0; bottom: 0; background: rgba(217,255,61,.45); border-radius: 6px; }
+.tennis-scope .mg-cursor {
+  position: absolute; top: -2px; bottom: -2px; width: 6px; margin-left: -3px;
+  background: #fffdf4; border-radius: 3px; box-shadow: 0 0 10px rgba(255,255,255,.8);
+}
+.tennis-scope .mg-fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--court-light), var(--optic)); border-radius: 999px; }
+.tennis-scope .mg-pips { display: flex; gap: 8px; }
+.tennis-scope .mg-pips i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(242,238,224,.5); }
+.tennis-scope .mg-pips i.on { background: var(--optic); border-color: var(--optic); }
+.tennis-scope .mg-smash { min-height: 220px; }
+.tennis-scope .mg-ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; aspect-ratio: 1; }
+.tennis-scope .mg-ring.target { border: 3px solid var(--optic); box-shadow: 0 0 14px rgba(217,255,61,.5); }
+.tennis-scope .mg-ring.live { border: 3px solid #fffdf4; }
+.tennis-scope .mg-mash-count { font-family: var(--display); font-size: 2.6rem; color: var(--optic); }
+.tennis-scope .mg-mash-count small { font-size: 1.1rem; color: rgba(242,238,224,.6); }
+.tennis-scope .mg-court { min-height: 220px; cursor: crosshair; }
+.tennis-scope .mg-flyball {
+  position: absolute; font-size: 2.2rem; background: none; border: none; cursor: pointer;
+  animation: tennis-pop .15s cubic-bezier(.2,1.4,.4,1) both; filter: drop-shadow(0 4px 10px rgba(217,255,61,.5));
+}
+.tennis-scope .mg-direction { gap: 18px; }
+.tennis-scope .mg-dir-target { font-size: 3rem; min-height: 64px; }
+.tennis-scope .mg-dir-buttons { display: flex; gap: 14px; }
+.tennis-scope .mg-dir-btn {
+  font-size: 1.8rem; width: 64px; height: 64px; border-radius: 16px; cursor: pointer;
+  background: rgba(242,238,224,.12); border: 2px solid rgba(242,238,224,.4);
+}
+.tennis-scope .mg-dir-btn:active { background: rgba(217,255,61,.4); }
