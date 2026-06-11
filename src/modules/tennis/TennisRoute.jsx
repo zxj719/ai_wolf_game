@@ -9,9 +9,18 @@ import { loadLocalRecords, clearLocalRecords } from './localBoard';
 import { SelectScreen } from './components/SelectScreen';
 import { ReactTest } from './components/ReactTest';
 import { PrepScreen } from './components/PrepScreen';
-import { MatchScreen } from './components/MatchScreen';
 import { ResultScreen } from './components/ResultScreen';
+import { BattleScreen } from './battle/BattleScreen';
+import { CHAR_BUILDS } from './battle/moves';
 import './tennis.css';
+
+// 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
+const STARTER_DECK = [
+  { cardId: 'towelTime', upgraded: false },
+  { cardId: 'newBalls', upgraded: false },
+  { cardId: 'coachSign', upgraded: false },
+  { cardId: 'deepBreath', upgraded: false },
+];
 
 const FONT_LINK_ID = 'tennis-fonts';
 const FONT_HREF = 'https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=JetBrains+Mono:wght@500;700&display=swap';
@@ -105,7 +114,22 @@ export default function TennisRoute() {
         )}
         {state.screen === 'react' && <ReactTest dispatch={dispatch} toast={toast} />}
         {state.screen === 'prep' && <PrepScreen state={state} dispatch={dispatch} toast={toast} />}
-        {state.screen === 'match' && <MatchScreen state={state} dispatch={dispatch} toast={toast} />}
+        {state.screen === 'match' && (
+          <section className="screen">
+            <BattleScreen
+              player={state.player}
+              opponent={state.opp}
+              playerMoves={CHAR_BUILDS[state.player.name].moves}
+              deckInstances={STARTER_DECK}
+              onMatchOver={({ score }) => dispatch({
+                type: 'MATCH_OVER',
+                setsP: score.sets[0],
+                setsO: score.sets[1],
+                setHistory: score.setHistory,
+              })}
+            />
+          </section>
+        )}
         {state.screen === 'result' && (
           <ResultScreen
             state={state}

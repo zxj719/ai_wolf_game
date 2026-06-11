@@ -12,7 +12,7 @@
  */
 
 import { useReducer } from 'react';
-import { CHARS, PREP, SETS } from './gameData';
+import { CHARS, PREP } from './gameData';
 
 export function gradeFromMs(ms) {
   if (ms < 250) return { grade: 'S', talent: 90, quip: '这反应，职业球探已经在场边记笔记了！' };
@@ -76,49 +76,16 @@ export function tennisReducer(state, action) {
       };
     }
 
-    case 'PLAY_SCENE': {
-      const set = SETS[state.setIdx];
-      const p = state.player;
-      const o = state.opp;
-      let pBase, oBase, label;
-      if (set.decider) {
-        pBase = p.sta + p.skill + p.mind + p.talent;
-        oBase = o.sta + o.skill + o.mind;
-        label = '总战力';
-      } else {
-        const attr = set.scenes[state.sceneIdx].opts[action.optIdx].a;
-        pBase = p[attr] + Math.round(p.talent * 0.4);
-        oBase = o[attr];
-        label = { sta: '体力', skill: '技巧', mind: '心态' }[attr];
-      }
-      const pTot = pBase + action.pRoll;
-      const oTot = oBase + action.oRoll;
-      const win = pTot >= oTot; // 平分时，鹰眼回放判定主队得分
+    case 'MATCH_OVER':
+      // v2：BattleScreen 打完整场后回填盘分，进入结算屏
       return {
         ...state,
-        sceneP: state.sceneP + (win ? 1 : 0),
-        sceneO: state.sceneO + (win ? 0 : 1),
-        lastRally: { pBase, pRoll: action.pRoll, pTot, oBase, oRoll: action.oRoll, oTot, win, label },
+        screen: 'result',
+        setsP: action.setsP,
+        setsO: action.setsO,
+        setHistory: action.setHistory,
+        lastRally: null,
       };
-    }
-
-    case 'NEXT_SCENE': {
-      if (state.sceneP === 2 || state.sceneO === 2) {
-        const pWon = state.sceneP === 2;
-        const setsP = state.setsP + (pWon ? 1 : 0);
-        const setsO = state.setsO + (pWon ? 0 : 1);
-        const setHistory = [...state.setHistory, pWon ? 'W' : 'L'];
-        if (setsP === 2 || setsO === 2) {
-          return { ...state, setsP, setsO, setHistory, screen: 'result', lastRally: null };
-        }
-        const setIdx = setsP === 1 && setsO === 1 ? 2 : state.setIdx + 1;
-        return {
-          ...state, setsP, setsO, setHistory, setIdx,
-          sceneIdx: 0, sceneP: 0, sceneO: 0, lastRally: null,
-        };
-      }
-      return { ...state, sceneIdx: state.sceneIdx + 1, lastRally: null };
-    }
 
     case 'REPLAY':
       return initialState;
