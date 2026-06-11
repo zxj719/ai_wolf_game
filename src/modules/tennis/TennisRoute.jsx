@@ -14,6 +14,7 @@ import { BattleScreen } from './battle/BattleScreen';
 import { CHAR_BUILDS, ULTIMATES } from './battle/moves';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from './meta/equipment';
 import { loadProgress, persistProgress, EMPTY_PROGRESS } from './meta/progressStore';
+import { ACHIEVEMENTS } from './meta/achievements';
 import { LadderScreen } from './modes/LadderScreen';
 import './tennis.css';
 
@@ -56,6 +57,14 @@ export default function TennisRoute() {
 
   // 出战绝技（备战阶段可换装图鉴里的绝技）
   const [equippedUltimate, setEquippedUltimate] = useState(null);
+
+  // S 级天赋成就
+  useEffect(() => {
+    if (state.player?.grade === 'S' && !progress.achievements.includes('sGrade')) {
+      updateProgress({ ...progress, achievements: [...progress.achievements, 'sGrade'] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.player?.grade]);
 
   const refreshBoards = useCallback(() => {
     setLocalRecords(loadLocalRecords());
@@ -172,6 +181,13 @@ export default function TennisRoute() {
               <p className="hint">
                 💰 {progress.coins} 金币 · 👑 球王 ×{progress.championships} · 📖 绝技图鉴 {ultimateOptions.length}/7
               </p>
+              {progress.achievements.length > 0 && (
+                <div className="rule-strip" style={{ marginTop: 0, marginBottom: 14 }}>
+                  {ACHIEVEMENTS.filter((a) => progress.achievements.includes(a.id)).map((a) => (
+                    <span key={a.id} title={a.desc}>{a.icon} {a.name}</span>
+                  ))}
+                </div>
+              )}
               <div className="opts">
                 <button type="button" className="opt" onClick={() => dispatch({ type: 'SET_MODE', mode: 'single' })}>
                   <span className="key">🎾</span>

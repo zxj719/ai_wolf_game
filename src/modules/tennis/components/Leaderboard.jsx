@@ -57,7 +57,7 @@ function GlobalBoard({ global, isLoggedIn, onLogin, onRetry }) {
       ) : (
         <table className="lb-table">
           <thead>
-            <tr><th>#</th><th>选手</th><th>胜 / 场</th><th>胜率</th><th>最快反应</th></tr>
+            <tr><th>#</th><th>选手</th><th>胜 / 场</th><th>胜率</th><th>最快反应</th><th>荣誉</th></tr>
           </thead>
           <tbody>
             {players.map((p, i) => (
@@ -67,6 +67,11 @@ function GlobalBoard({ global, isLoggedIn, onLogin, onRetry }) {
                 <td className="mono">{p.wins} / {p.games}</td>
                 <td className="mono">{p.winRate}%</td>
                 <td className="mono">{p.bestMs != null ? `${p.bestMs}ms` : '—'}</td>
+                <td className="mono">
+                  {p.championships > 0 && `👑×${p.championships} `}
+                  {p.adventureClears > 0 && `🗺️×${p.adventureClears}`}
+                  {!p.championships && !p.adventureClears && '—'}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -123,9 +123,12 @@ export async function handleTennisLeaderboard(request, env) {
          (SELECT character_face FROM tennis_matches
             WHERE user_id = t.user_id ORDER BY id DESC LIMIT 1) AS last_face,
          (SELECT character FROM tennis_matches
-            WHERE user_id = t.user_id ORDER BY id DESC LIMIT 1) AS last_character
+            WHERE user_id = t.user_id ORDER BY id DESC LIMIT 1) AS last_character,
+         COALESCE(p.championships, 0) AS championships,
+         COALESCE(p.adventure_clears, 0) AS adventure_clears
        FROM tennis_matches t
        JOIN users u ON u.id = t.user_id
+       LEFT JOIN tennis_progress p ON p.user_id = t.user_id
        GROUP BY t.user_id
        ORDER BY wins DESC,
                 CAST(SUM(CASE WHEN t.sets_won > t.sets_lost THEN 1 ELSE 0 END) AS REAL) / COUNT(*) DESC,
@@ -152,6 +155,8 @@ export async function handleTennisLeaderboard(request, env) {
       bestMs: p.best_ms,
       lastFace: p.last_face,
       lastCharacter: p.last_character,
+      championships: p.championships,
+      adventureClears: p.adventure_clears,
     }));
 
     const recent = (recentRes.results || []).map((m) => ({
