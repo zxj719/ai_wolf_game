@@ -101,3 +101,22 @@ CREATE TABLE IF NOT EXISTS ai_model_stats (
 CREATE INDEX IF NOT EXISTS idx_ai_model_stats_model ON ai_model_stats(model_id);
 CREATE INDEX IF NOT EXISTS idx_ai_model_stats_role ON ai_model_stats(role);
 CREATE INDEX IF NOT EXISTS idx_ai_model_stats_win_rate ON ai_model_stats(win_rate DESC);
+
+-- 家庭网球公开赛战绩表（migrations/006_tennis.sql）
+CREATE TABLE IF NOT EXISTS tennis_matches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  character TEXT NOT NULL,
+  character_face TEXT,
+  opponent TEXT NOT NULL,
+  opponent_face TEXT,
+  sets_won INTEGER NOT NULL,
+  sets_lost INTEGER NOT NULL,
+  reaction_ms INTEGER,
+  grade TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tennis_matches_user ON tennis_matches(user_id);
+CREATE INDEX IF NOT EXISTS idx_tennis_matches_created ON tennis_matches(created_at DESC);
