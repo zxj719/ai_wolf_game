@@ -34,6 +34,7 @@ export default function HomeRoute() {
 
   const onEnterSites = useCallback(() => navigate(ROUTES.SITES), [navigate]);
   const onEnterChords = useCallback(() => navigate(ROUTES.CHORDS), [navigate]);
+  const onEnterTennis = useCallback(() => navigate(ROUTES.TENNIS), [navigate]);
   const onEnterNovel = useCallback(() => navigate(ROUTES.NOVEL), [navigate]);
   const onEnterChat = useCallback(() => navigate(ROUTES.CHAT), [navigate]);
   const onEnterThinkingLibrary = useCallback(() => {
@@ -60,6 +61,7 @@ export default function HomeRoute() {
           onEnterWolfgame={onEnterWolfgame}
           onEnterSites={onEnterSites}
           onEnterChords={onEnterChords}
+          onEnterTennis={onEnterTennis}
           onEnterNovel={onEnterNovel}
           onEnterChat={onEnterChat}
           onEnterThinkingLibrary={onEnterThinkingLibrary}

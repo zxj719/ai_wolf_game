@@ -31,8 +31,9 @@ import chords from '../modules/chords';
 import sites from '../modules/sites';
 import novel from '../modules/novel';
 import chat from '../modules/chat';
+import tennis from '../modules/tennis';
 
-const modules = [home, auth, werewolf, novel, chat, chords, sites];
+const modules = [home, auth, werewolf, novel, chat, tennis, chords, sites];
 
 export default modules;
 

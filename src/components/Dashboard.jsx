@@ -13,6 +13,7 @@ import {
   Key,
   LogIn,
   LogOut,
+  Medal,
   MessageSquare,
   Music4,
   PenLine,
@@ -49,6 +50,7 @@ export function Dashboard({
   onEnterWolfgame,
   onEnterSites,
   onEnterChords,
+  onEnterTennis,
   onEnterNovel,
   onEnterChat,
   onEnterThinkingLibrary,
@@ -212,6 +214,10 @@ export function Dashboard({
                 <button type="button" onClick={onEnterChords} className="mac-button mac-button-secondary">
                   <Music4 size={16} />
                   {copy.musicLab}
+                </button>
+                <button type="button" onClick={onEnterTennis} className="mac-button mac-button-secondary">
+                  <Medal size={16} />
+                  家庭网球
                 </button>
                 <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
                   <PenLine size={16} />

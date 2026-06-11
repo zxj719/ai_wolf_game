@@ -20,6 +20,7 @@ export const ROUTES = {
   WEREWOLF_REPLAY: '/werewolf/replay',
 
   // 其它并列模块
+  TENNIS: '/tennis',
   CHORDS: '/chords',
   STOCK:  '/stock',
   BLOG:   '/blog',
