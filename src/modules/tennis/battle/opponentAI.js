@@ -22,8 +22,7 @@ export const TEMPERAMENTS = {
 const EXHAUSTED_BELOW = 20;
 const HEAVY_COST = 16;
 
-function availableMoves(charName, energy) {
-  const moves = CHAR_BUILDS[charName].moves;
+function availableMovesFrom(moves, energy) {
   if (energy >= EXHAUSTED_BELOW) return moves;
   const ok = moves.filter((id) => MOVES[id].energyCost < HEAVY_COST);
   if (ok.length > 0) return ok;
@@ -32,12 +31,13 @@ function availableMoves(charName, energy) {
 }
 
 /**
- * @param {{charName: string, energy: number, rngRoll: number}} p rngRoll ∈ [0,1)
+ * @param {{charName?: string, build?: {moves, weights}, energy: number, rngRoll: number}} p
+ *   家人传 charName 查表；离谱对手（C 段）传 build 自定义配招与权重。
  */
-export function pickOpponentMove({ charName, energy, rngRoll }) {
-  const moves = CHAR_BUILDS[charName].moves;
-  const weights = TEMPERAMENTS[charName];
-  const avail = availableMoves(charName, energy);
+export function pickOpponentMove({ charName, build, energy, rngRoll }) {
+  const moves = build?.moves ?? CHAR_BUILDS[charName].moves;
+  const weights = build?.weights ?? TEMPERAMENTS[charName];
+  const avail = availableMovesFrom(moves, energy);
 
   const pairs = moves
     .map((id, i) => [id, weights[i]])
@@ -65,14 +65,15 @@ export const TELLS = {
 };
 
 /**
- * @param {{charName, actualMove, truthRoll, fakeRoll}} p
+ * @param {{charName?, build?, actualMove, truthRoll, fakeRoll}} p
  *   truthRoll < 0.75 → 真提示；否则从配招的其它招里按 fakeRoll 取假提示
  */
-export function makeTell({ charName, actualMove, truthRoll, fakeRoll }) {
+export function makeTell({ charName, build, actualMove, truthRoll, fakeRoll }) {
   if (truthRoll < 0.75) {
     return { text: TELLS[actualMove], isTrue: true };
   }
-  const others = CHAR_BUILDS[charName].moves.filter((id) => id !== actualMove);
+  const moves = build?.moves ?? CHAR_BUILDS[charName].moves;
+  const others = moves.filter((id) => id !== actualMove);
   const fake = others[Math.floor(fakeRoll * others.length)] ?? others[0];
   return { text: TELLS[fake], isTrue: false };
 }

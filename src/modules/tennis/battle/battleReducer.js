@@ -64,6 +64,7 @@ export function createBattle({ player, opponent, deckInstances, rng, ultimate, t
     pMindBonus: 0,
     deck: createDeckState(deckInstances, rng),
     score: createScore(),
+    rallyCount: 0,
     needServe: true,
     serveBonus: 0,
     oppMove: null,
@@ -99,19 +100,28 @@ export function battleReducer(state, action) {
     case 'BEGIN_RALLY': {
       if (state.phase !== 'idle' || state.score.matchOver) return state;
       const deck = startRally(state.deck, action.rng);
+      // 配招来源：BOSS 相位轮换 builds → 自定义 build → 家人查表
+      const setsPlayed = state.score.sets[0] + state.score.sets[1];
+      const build = state.opponent.builds
+        ? state.opponent.builds[setsPlayed % state.opponent.builds.length]
+        : state.opponent.build;
       const oppMove = pickOpponentMove({
         charName: state.opponent.name,
+        build,
         energy: state.oEnergy,
         rngRoll: action.moveRoll,
       });
       const tell = makeTell({
         charName: state.opponent.name,
+        build,
         actualMove: oppMove,
-        truthRoll: action.truthRoll,
+        // predictable 扭曲（BOT-3000）：提示永真
+        truthRoll: state.twists.predictable ? 0 : action.truthRoll,
         fakeRoll: action.fakeRoll,
       });
       return {
         ...state,
+        rallyCount: state.rallyCount + 1,
         deck,
         oppMove,
         tell,
@@ -241,19 +251,30 @@ export function battleReducer(state, action) {
         pCounter = 1.0; oCounter = 1.0;
       }
 
-      // 玩家威力
-      const stat = MOVES[pMove].stat;
-      const pBase = state.player[stat] + (state.equip[stat] ?? 0)
+      // 玩家威力（twists：渡劫强制比拼心态 / 心理免疫减半）
+      const twists = state.twists;
+      const mindDuel = twists.forcedMindDuel && state.rallyCount % twists.forcedMindDuel === 0;
+      const stat = mindDuel ? 'mind' : MOVES[pMove].stat;
+      let pBase = state.player[stat] + (state.equip[stat] ?? 0)
         + Math.round(state.player.talent * 0.4)
         + (stat === 'mind' ? state.pMindBonus : 0);
+      if ((twists.mindImmune || twists.mindless) && MOVES[pMove].stat === 'mind' && !mindDuel) {
+        pBase *= 0.5;
+      }
       // 虎啸正手的 1.5× 即克制倍率本身，不再额外乘
       const ultBonus = ult?.rollBonus ?? 0;
       const aceBonus = state.aceBoostArmed ? (state.special?.aceBoost ?? 0) : 0;
-      const pPower = pBase * energyPenalty(state.pEnergy) * pCounter * state.pMultiplier
+      let pPower = pBase * energyPenalty(state.pEnergy) * pCounter * state.pMultiplier
         * (1 + fx.powerMul + state.serveBonus + aceBonus) + action.noiseP + ultBonus;
 
+      // 借力打力（太极宗师）：力量系招式按概率被反弹
+      const reflected = twists.powerReflect
+        && MOVES[pMove].system === 'power'
+        && (action.reflectRoll ?? 1) < twists.powerReflect;
+      if (reflected) pPower *= 0.25;
+
       // 对手威力（d20 → 0.5–1.5）
-      const oStat = MOVES[oppMove].stat;
+      const oStat = mindDuel ? 'mind' : MOVES[oppMove].stat;
       const oMultiplier = 0.5 + (action.oppPerformRoll - 1) / 19;
       const oPower = state.opponent[oStat] * energyPenalty(oEnergy) * oCounter * oMultiplier + action.noiseO;
 
@@ -281,6 +302,7 @@ export function battleReducer(state, action) {
         pMove, oppMove, pPower, oPower, counterMul: pCounter,
         pMultiplier: state.pMultiplier, oMultiplier, win, hawkeyeSaved: false,
         tie: Math.abs(pPower - oPower) < 1e-9,
+        reflected, mindDuel,
       };
       const matchStats = {
         ...state.matchStats,
