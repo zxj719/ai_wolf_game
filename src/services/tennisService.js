@@ -45,6 +45,45 @@ export async function saveTennisRecord(record) {
 }
 
 /**
+ * 拉取永久进度（登录用户）。游客或失败返回 null，由 progressStore 降级本地。
+ */
+export async function getTennisProgress() {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const response = await fetch(buildApiUrl('/api/tennis/progress'), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.progress ?? null;
+  } catch (error) {
+    console.error('[Tennis] Get progress error:', error);
+    return null;
+  }
+}
+
+/**
+ * 上传永久进度（登录用户）。
+ */
+export async function putTennisProgress(progress) {
+  const token = getToken();
+  if (!token) return { success: false, error: 'Not logged in' };
+  try {
+    const response = await fetch(buildApiUrl('/api/tennis/progress'), {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(progress),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('[Tennis] Put progress error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * 拉取全网排行榜（公开接口）
  * @returns {{players: Array, recent: Array}|null} 失败返回 null，由调用方降级
  */
