@@ -16,6 +16,7 @@ import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from './m
 import { loadProgress, persistProgress, EMPTY_PROGRESS } from './meta/progressStore';
 import { ACHIEVEMENTS } from './meta/achievements';
 import { LadderScreen } from './modes/LadderScreen';
+import { AdventureScreen } from './modes/adventure/AdventureScreen';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -197,6 +198,10 @@ export default function TennisRoute() {
                   <span className="key">🏆</span>
                   <span>家族挑战<span className="fx"><em>6 站梯度连战 · 输一场即止步</em><em>击败家人解锁绝技 · 6 连胜加冕球王</em></span></span>
                 </button>
+                <button type="button" className="opt" onClick={() => dispatch({ type: 'SET_MODE', mode: 'adventure' })}>
+                  <span className="key">🗺️</span>
+                  <span>奇幻闯关<span className="fx"><em>家族奖杯被偷了！穿越菜市场/修仙界/太空站夺回</em><em>离谱对手 · 奇遇小游戏 · 装备金币失败也保留</em></span></span>
+                </button>
               </div>
             </div>
           </section>
@@ -227,6 +232,16 @@ export default function TennisRoute() {
         )}
         {state.screen === 'match' && state.mode === 'ladder' && (
           <LadderScreen
+            basePlayer={state.player}
+            progress={progress}
+            onUpdateProgress={updateProgress}
+            equippedUltimate={activeUltimate}
+            onExit={() => { dispatch({ type: 'REPLAY' }); refreshBoards(); }}
+            toast={toast}
+          />
+        )}
+        {state.screen === 'match' && state.mode === 'adventure' && (
+          <AdventureScreen
             basePlayer={state.player}
             progress={progress}
             onUpdateProgress={updateProgress}

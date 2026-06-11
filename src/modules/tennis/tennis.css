@@ -445,3 +445,29 @@
 .tennis-scope .ult-pick { margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tennis-scope .ult-pick-label { font-family: var(--display); color: var(--card-ink); }
 .tennis-scope .ult-pick .player-select { flex: 1; min-width: 200px; }
+
+/* ============ v2 奇幻闯关 ============ */
+.tennis-scope .adv-banner {
+  font-family: var(--display); text-align: center; color: var(--optic);
+  font-size: 1.2rem; margin: 4px 0 12px; letter-spacing: .08em;
+}
+.tennis-scope .adv-banner small { display: block; font-size: .7rem; color: rgba(242,238,224,.6); }
+.tennis-scope .adv-map {
+  display: flex; gap: 14px; align-items: center; justify-content: center;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.tennis-scope .adv-step {
+  display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 12px;
+  opacity: .5; filter: grayscale(.6);
+}
+.tennis-scope .adv-step.done { opacity: .85; filter: none; }
+.tennis-scope .adv-step.done .adv-node { border-color: var(--optic); background: rgba(217,255,61,.2); }
+.tennis-scope .adv-step.now {
+  opacity: 1; filter: none; transform: scale(1.12);
+  outline: 2px solid var(--clay); outline-offset: 2px;
+}
+.tennis-scope .adv-node {
+  width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+  font-size: 1.15rem; background: rgba(242,238,224,.1); border: 2px solid rgba(242,238,224,.35);
+}
+.tennis-scope .bt-tell small { display: block; font-style: normal; color: var(--muted); margin-top: 3px; }
