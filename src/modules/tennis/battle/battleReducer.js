@@ -1,0 +1,293 @@
+/**
+ * battleReducer.js — 球级对决状态机（纯函数，spec §1.4）
+ *
+ * 相位：idle → (BEGIN_RALLY) → serve|cards → pick(隐含在 cards) → minigame → resolve → idle/over
+ * 所有随机量（洗牌 rng、对手出招/提示 roll、对手发挥 roll、噪声）经 action 注入。
+ * 威力公式：(属性+装备+talent×0.4) × 体力档 × 克制 × 小游戏倍率 × (1+卡牌/发球加成) + 噪声 + 绝技修正
+ *
+ * twists（C 段离谱对手规则扭曲）在此预留入参，A 段为空对象直通。
+ */
+
+import { MOVES, counterMultiplier, ULTIMATES } from './moves';
+import { createScore, addPoint } from './scoring';
+import { createDeckState, startRally, playCard } from './cards';
+import { pickOpponentMove, makeTell } from './opponentAI';
+
+export function energyPenalty(energy) {
+  if (energy >= 60) return 1.0;
+  if (energy >= 20) return 0.8;
+  return 0.6;
+}
+
+const EXHAUSTED_BELOW = 20;
+const HEAVY_COST = 16;
+
+const freshPendingEffects = () => ({
+  powerMul: 0,
+  windowBonus: 0,
+  reveal: false,
+  counterNullify: false,
+  counterInvert: false,
+  minigameFloor: 0,
+  hawkeyeCharges: 0,
+  counterShieldCharges: 0,
+  halfCostRallies: 0,
+});
+
+/** 每球重置的瞬态字段（持久充能类保留） */
+function resetRallyEffects(fx) {
+  return {
+    ...fx,
+    powerMul: 0,
+    windowBonus: 0,
+    reveal: false,
+    counterNullify: false,
+    counterInvert: false,
+    minigameFloor: 0,
+  };
+}
+
+export function createBattle({ player, opponent, deckInstances, rng, ultimate, twists = {}, equip = null }) {
+  const ownUltimate = Object.entries(ULTIMATES).find(([, u]) => u.owner === player.name)?.[0] ?? null;
+  return {
+    phase: 'idle',
+    player,
+    opponent,
+    equip: equip ?? { sta: 0, skill: 0, mind: 0 },
+    twists,
+    pEnergyMax: 100 + (equip?.energyMax ?? 0),
+    pEnergy: 100 + (equip?.energyMax ?? 0),
+    oEnergy: 100,
+    pMindBonus: 0,
+    deck: createDeckState(deckInstances, rng),
+    score: createScore(),
+    needServe: true,
+    serveBonus: 0,
+    oppMove: null,
+    tell: null,
+    pMove: null,
+    pMultiplier: 1,
+    pendingEffects: freshPendingEffects(),
+    ultimateName: ultimate ?? ownUltimate,
+    ultimateUsed: false,
+    activeUltimate: null,
+    lastRally: null,
+    rallyLog: [],
+    matchStats: { aces: 0, countersWon: 0 },
+  };
+}
+
+function afterPoint(state, who) {
+  const score = addPoint(state.score, who);
+  const next = { ...state, score };
+  if (score.restEnergy > 0) {
+    next.pEnergy = Math.min(state.pEnergyMax, state.pEnergy + score.restEnergy);
+    next.oEnergy = Math.min(100, state.oEnergy + score.restEnergy);
+    next.needServe = true;     // 新局重新发球
+  }
+  next.phase = score.matchOver ? 'over' : 'idle';
+  return next;
+}
+
+export function battleReducer(state, action) {
+  switch (action.type) {
+    case 'BEGIN_RALLY': {
+      if (state.phase !== 'idle' || state.score.matchOver) return state;
+      const deck = startRally(state.deck, action.rng);
+      const oppMove = pickOpponentMove({
+        charName: state.opponent.name,
+        energy: state.oEnergy,
+        rngRoll: action.moveRoll,
+      });
+      const tell = makeTell({
+        charName: state.opponent.name,
+        actualMove: oppMove,
+        truthRoll: action.truthRoll,
+        fakeRoll: action.fakeRoll,
+      });
+      return {
+        ...state,
+        deck,
+        oppMove,
+        tell,
+        pMove: null,
+        pMultiplier: 1,
+        serveBonus: 0,
+        activeUltimate: null,
+        pendingEffects: resetRallyEffects(state.pendingEffects),
+        phase: state.needServe ? 'serve' : 'cards',
+      };
+    }
+
+    case 'SERVE_DONE': {
+      if (state.phase !== 'serve') return state;
+      const base = { ...state, needServe: false };
+      if (action.result === 'ace') {
+        return afterPoint(
+          { ...base, matchStats: { ...state.matchStats, aces: state.matchStats.aces + 1 } },
+          0
+        );
+      }
+      const serveBonus = action.result === 'good' ? 0.15 : action.result === 'fault' ? -0.10 : 0;
+      return { ...base, serveBonus, phase: 'cards' };
+    }
+
+    case 'PLAY_CARD': {
+      if (state.phase !== 'cards') return state;
+      const r = playCard(state.deck, action.idx);
+      if (r.error) return state;
+      const fx = { ...state.pendingEffects };
+      let { pEnergy, pMindBonus } = state;
+      const e = r.effect;
+      switch (e.type) {
+        case 'energy': pEnergy = Math.min(state.pEnergyMax, pEnergy + e.amount); break;
+        case 'windowBonus': fx.windowBonus += e.amount; break;
+        case 'powerMul': fx.powerMul += e.amount; break;
+        case 'reveal': fx.reveal = true; fx.windowBonus += e.windowBonus ?? 0; break;
+        case 'hawkeye': fx.hawkeyeCharges += e.charges; break;
+        case 'counterNullify': fx.counterNullify = true; break;
+        case 'counterInvert': fx.counterInvert = true; break;
+        case 'counterShield': fx.counterShieldCharges += e.charges; break;
+        case 'halfCost': fx.halfCostRallies = Math.max(fx.halfCostRallies, e.rallies); break;
+        case 'minigameFloor': fx.minigameFloor = Math.max(fx.minigameFloor, e.floor); break;
+        default: break;
+      }
+      return { ...state, deck: r.deck, pendingEffects: fx, pEnergy, pMindBonus };
+    }
+
+    case 'USE_ULTIMATE': {
+      if (state.ultimateUsed || action.name !== state.ultimateName) return state;
+      const ult = ULTIMATES[action.name];
+      if (!ult) return state;
+      const next = { ...state, ultimateUsed: true };
+      const e = ult.effect;
+      switch (e.type) {
+        case 'drainEnergy':
+          next.oEnergy = Math.max(0, state.oEnergy - e.amount);
+          break;
+        case 'stealEnergy':
+          next.oEnergy = Math.max(0, state.oEnergy - e.amount);
+          next.pEnergy = Math.min(state.pEnergyMax, state.pEnergy + e.amount);
+          break;
+        case 'fullRestore':
+          next.pEnergy = state.pEnergyMax;
+          next.pMindBonus = state.pMindBonus + (e.mindBonus ?? 0);
+          break;
+        case 'reveal':
+          next.activeUltimate = e;
+          next.pendingEffects = { ...state.pendingEffects, reveal: true };
+          break;
+        default:
+          next.activeUltimate = e;   // autoCounter / freePower / counterImmune
+          break;
+      }
+      return next;
+    }
+
+    case 'PICK_MOVE': {
+      if (state.phase !== 'cards') return state;
+      const move = MOVES[action.moveId];
+      if (!move) return state;
+      let cost = move.energyCost;
+      if (state.activeUltimate?.type === 'freePower' && action.moveId === 'flatDrive') cost = 0;
+      if (state.pendingEffects.halfCostRallies > 0 && cost > 0) cost = Math.ceil(cost / 2);
+      // 力竭禁重招
+      if (state.pEnergy < EXHAUSTED_BELOW && move.energyCost >= HEAVY_COST && cost > 0) return state;
+      const pEnergy = Math.max(0, Math.min(state.pEnergyMax, state.pEnergy - cost));
+      const fx = state.pendingEffects.halfCostRallies > 0
+        ? { ...state.pendingEffects, halfCostRallies: state.pendingEffects.halfCostRallies - 1 }
+        : state.pendingEffects;
+      return { ...state, pMove: action.moveId, pEnergy, pendingEffects: fx, phase: 'minigame' };
+    }
+
+    case 'MINIGAME_DONE': {
+      if (state.phase !== 'minigame') return state;
+      let m = Math.max(0.5, Math.min(1.5, action.multiplier));
+      if (state.pendingEffects.minigameFloor > 0) {
+        m = Math.max(m, state.pendingEffects.minigameFloor);
+      }
+      return { ...state, pMultiplier: m, phase: 'resolve' };
+    }
+
+    case 'RESOLVE': {
+      if (state.phase !== 'resolve') return state;
+      const { pMove, oppMove } = state;
+      const fx = state.pendingEffects;
+      const ult = state.activeUltimate;
+
+      // 对手付出招代价
+      const oEnergy = Math.max(0, Math.min(100, state.oEnergy - MOVES[oppMove].energyCost));
+
+      // 克制
+      let pCounter = counterMultiplier(pMove, oppMove);
+      let oCounter = counterMultiplier(oppMove, pMove);
+      if (ult?.type === 'autoCounter') { pCounter = 1.5; oCounter = 0.7; }
+      if (fx.counterNullify) { pCounter = 1.0; oCounter = 1.0; }
+      if (fx.counterInvert) { [pCounter, oCounter] = [oCounter, pCounter]; }
+      let shieldCharges = fx.counterShieldCharges;
+      if ((ult?.type === 'counterImmune' || shieldCharges > 0) && pCounter === 0.7) {
+        if (ult?.type !== 'counterImmune') shieldCharges -= 1;
+        pCounter = 1.0; oCounter = 1.0;
+      }
+
+      // 玩家威力
+      const stat = MOVES[pMove].stat;
+      const pBase = state.player[stat] + (state.equip[stat] ?? 0)
+        + Math.round(state.player.talent * 0.4)
+        + (stat === 'mind' ? state.pMindBonus : 0);
+      // 虎啸正手的 1.5× 即克制倍率本身，不再额外乘
+      const ultBonus = ult?.rollBonus ?? 0;
+      const pPower = pBase * energyPenalty(state.pEnergy) * pCounter * state.pMultiplier
+        * (1 + fx.powerMul + state.serveBonus) + action.noiseP + ultBonus;
+
+      // 对手威力（d20 → 0.5–1.5）
+      const oStat = MOVES[oppMove].stat;
+      const oMultiplier = 0.5 + (action.oppPerformRoll - 1) / 19;
+      const oPower = state.opponent[oStat] * energyPenalty(oEnergy) * oCounter * oMultiplier + action.noiseO;
+
+      const win = pPower >= oPower;
+
+      // 鹰眼：失分翻判重打
+      if (!win && fx.hawkeyeCharges > 0) {
+        const lastRally = {
+          pMove, oppMove, pPower, oPower, counterMul: pCounter, win: false,
+          hawkeyeSaved: true,
+        };
+        return {
+          ...state,
+          oEnergy,
+          pendingEffects: { ...resetRallyEffects(fx), hawkeyeCharges: fx.hawkeyeCharges - 1, counterShieldCharges: shieldCharges },
+          activeUltimate: null,
+          serveBonus: 0,
+          lastRally,
+          rallyLog: [...state.rallyLog.slice(-9), lastRally],
+          phase: 'idle',
+        };
+      }
+
+      const lastRally = {
+        pMove, oppMove, pPower, oPower, counterMul: pCounter,
+        pMultiplier: state.pMultiplier, oMultiplier, win, hawkeyeSaved: false,
+        tie: Math.abs(pPower - oPower) < 1e-9,
+      };
+      const matchStats = {
+        ...state.matchStats,
+        countersWon: state.matchStats.countersWon + (win && pCounter > 1 ? 1 : 0),
+      };
+      const settled = {
+        ...state,
+        oEnergy,
+        pendingEffects: { ...resetRallyEffects(fx), counterShieldCharges: shieldCharges },
+        activeUltimate: null,
+        serveBonus: 0,
+        lastRally,
+        rallyLog: [...state.rallyLog.slice(-9), lastRally],
+        matchStats,
+      };
+      return afterPoint(settled, win ? 0 : 1);
+    }
+
+    default:
+      return state;
+  }
+}
