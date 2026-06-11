@@ -8,6 +8,7 @@
 
 import { jsonResponse, errorResponse, authMiddleware } from './middleware.js';
 import { validateTennisRecord } from './tennisLib.js';
+import { validateProgressUpdate, DEFAULT_PROGRESS } from './tennisProgressLib.js';
 
 /** POST /api/tennis/record */
 export async function handleTennisRecord(request, env) {
@@ -38,6 +39,75 @@ export async function handleTennisRecord(request, env) {
   } catch (err) {
     console.error('Tennis record error:', err);
     return errorResponse('Failed to save tennis record: ' + err.message, 500, env, request);
+  }
+}
+
+function rowToProgress(row) {
+  if (!row) return { ...DEFAULT_PROGRESS };
+  return {
+    coins: row.coins,
+    equipment: JSON.parse(row.equipment || '{}'),
+    unlockedMoves: JSON.parse(row.unlocked_moves || '[]'),
+    achievements: JSON.parse(row.achievements || '[]'),
+    championships: row.championships,
+    adventureClears: row.adventure_clears,
+  };
+}
+
+/** GET /api/tennis/progress（auth） */
+export async function handleGetTennisProgress(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+    if (error) return errorResponse(error, 401, env, request);
+
+    const row = await env.DB.prepare(
+      'SELECT * FROM tennis_progress WHERE user_id = ?'
+    ).bind(user.sub).first();
+
+    return jsonResponse({ progress: rowToProgress(row) }, 200, env, request);
+  } catch (err) {
+    console.error('Tennis progress get error:', err);
+    return errorResponse('Failed to load progress: ' + err.message, 500, env, request);
+  }
+}
+
+/** PUT /api/tennis/progress（auth，服务端白名单校验） */
+export async function handlePutTennisProgress(request, env) {
+  try {
+    const { user, error } = await authMiddleware(request, env);
+    if (error) return errorResponse(error, 401, env, request);
+
+    const body = await request.json().catch(() => null);
+    const row = await env.DB.prepare(
+      'SELECT * FROM tennis_progress WHERE user_id = ?'
+    ).bind(user.sub).first();
+    const existing = rowToProgress(row);
+
+    const result = validateProgressUpdate(body, existing);
+    if (!result.ok) return errorResponse(result.error, 400, env, request);
+
+    const p = result.progress;
+    await env.DB.prepare(
+      `INSERT INTO tennis_progress
+         (user_id, coins, equipment, unlocked_moves, achievements, championships, adventure_clears, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id) DO UPDATE SET
+         coins = excluded.coins,
+         equipment = excluded.equipment,
+         unlocked_moves = excluded.unlocked_moves,
+         achievements = excluded.achievements,
+         championships = excluded.championships,
+         adventure_clears = excluded.adventure_clears,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(
+      user.sub, p.coins, JSON.stringify(p.equipment), JSON.stringify(p.unlockedMoves),
+      JSON.stringify(p.achievements), p.championships, p.adventureClears
+    ).run();
+
+    return jsonResponse({ success: true, progress: p }, 200, env, request);
+  } catch (err) {
+    console.error('Tennis progress put error:', err);
+    return errorResponse('Failed to save progress: ' + err.message, 500, env, request);
   }
 }
 

@@ -63,7 +63,12 @@ import {
 } from './friends.js';
 import { handleChatHistory, handleInternalChatPersist } from './chat.js';
 import { handleTurnCredentials } from './turn.js';
-import { handleTennisRecord, handleTennisLeaderboard } from './tennis.js';
+import {
+  handleTennisRecord,
+  handleTennisLeaderboard,
+  handleGetTennisProgress,
+  handlePutTennisProgress,
+} from './tennis.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -221,6 +226,12 @@ export default {
       }
       if (path === '/api/tennis/leaderboard' && request.method === 'GET') {
         return handleTennisLeaderboard(request, env);
+      }
+      if (path === '/api/tennis/progress' && request.method === 'GET') {
+        return handleGetTennisProgress(request, env);
+      }
+      if (path === '/api/tennis/progress' && request.method === 'PUT') {
+        return handlePutTennisProgress(request, env);
       }
 
       // 排行榜（公开接口）
