@@ -157,6 +157,24 @@ describe('battleReducer 球级流程', () => {
     expect(s.pEnergy).toBe(Math.min(100, before + 10));               // 局间回体
   });
 
+  it('挂件特效：counterBoost 克中 +0.1、restBonus 局间多回体、初始体力注入', () => {
+    let s = createBattle({
+      player: PLAYER, opponent: OPP, rng: rngId,
+      deckInstances: [{ cardId: 'deepBreath', upgraded: false }],
+      equip: { sta: 0, skill: 0, mind: 0, energyMax: 0, special: { counterBoost: 0.1, restBonus: 5 } },
+      initialEnergy: 60,
+    });
+    expect(s.pEnergy).toBe(60);
+    s = { ...s, score: { ...s.score, points: [3, 0] } };   // 局点
+    s = toPick(s);
+    s = battleReducer(s, { type: 'PICK_MOVE', moveId: 'flatDrive' });  // 克 slice
+    s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier: 1.0 });
+    const beforeRest = s.pEnergy;
+    s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 1, noiseP: 0, noiseO: 0 });
+    expect(s.lastRally.counterMul).toBeCloseTo(1.6);
+    expect(s.pEnergy).toBe(Math.min(100, beforeRest + 10 + 5));        // restBonus
+  });
+
   it('比赛结束 phase=over', () => {
     let s = freshBattle();
     s = { ...s, score: { ...s.score, points: [3, 0], games: [2, 0], sets: [1, 0] } };

@@ -47,16 +47,19 @@ function resetRallyEffects(fx) {
   };
 }
 
-export function createBattle({ player, opponent, deckInstances, rng, ultimate, twists = {}, equip = null }) {
+export function createBattle({ player, opponent, deckInstances, rng, ultimate, twists = {}, equip = null, initialEnergy = null }) {
   const ownUltimate = Object.entries(ULTIMATES).find(([, u]) => u.owner === player.name)?.[0] ?? null;
+  const energyMax = 100 + (equip?.energyMax ?? 0);
   return {
     phase: 'idle',
     player,
     opponent,
     equip: equip ?? { sta: 0, skill: 0, mind: 0 },
+    special: equip?.special ?? {},     // 挂件特效（counterBoost/restBonus/aceBoost/...）
+    aceBoostArmed: false,
     twists,
-    pEnergyMax: 100 + (equip?.energyMax ?? 0),
-    pEnergy: 100 + (equip?.energyMax ?? 0),
+    pEnergyMax: energyMax,
+    pEnergy: initialEnergy != null ? Math.min(energyMax, initialEnergy) : energyMax,
     oEnergy: 100,
     pMindBonus: 0,
     deck: createDeckState(deckInstances, rng),
@@ -81,7 +84,9 @@ function afterPoint(state, who) {
   const score = addPoint(state.score, who);
   const next = { ...state, score };
   if (score.restEnergy > 0) {
-    next.pEnergy = Math.min(state.pEnergyMax, state.pEnergy + score.restEnergy);
+    // restBonus 挂件：玩家局间额外回体
+    const pRest = score.restEnergy + (state.special?.restBonus ?? 0);
+    next.pEnergy = Math.min(state.pEnergyMax, state.pEnergy + pRest);
     next.oEnergy = Math.min(100, state.oEnergy + score.restEnergy);
     next.needServe = true;     // 新局重新发球
   }
@@ -124,7 +129,11 @@ export function battleReducer(state, action) {
       const base = { ...state, needServe: false };
       if (action.result === 'ace') {
         return afterPoint(
-          { ...base, matchStats: { ...state.matchStats, aces: state.matchStats.aces + 1 } },
+          {
+            ...base,
+            matchStats: { ...state.matchStats, aces: state.matchStats.aces + 1 },
+            aceBoostArmed: !!state.special?.aceBoost,   // aceBoost 挂件：下球威力加成
+          },
           0
         );
       }
@@ -222,6 +231,8 @@ export function battleReducer(state, action) {
       let pCounter = counterMultiplier(pMove, oppMove);
       let oCounter = counterMultiplier(oppMove, pMove);
       if (ult?.type === 'autoCounter') { pCounter = 1.5; oCounter = 0.7; }
+      // counterBoost 挂件：克中时倍率再 +0.1
+      if (pCounter > 1 && state.special?.counterBoost) pCounter += state.special.counterBoost;
       if (fx.counterNullify) { pCounter = 1.0; oCounter = 1.0; }
       if (fx.counterInvert) { [pCounter, oCounter] = [oCounter, pCounter]; }
       let shieldCharges = fx.counterShieldCharges;
@@ -237,8 +248,9 @@ export function battleReducer(state, action) {
         + (stat === 'mind' ? state.pMindBonus : 0);
       // 虎啸正手的 1.5× 即克制倍率本身，不再额外乘
       const ultBonus = ult?.rollBonus ?? 0;
+      const aceBonus = state.aceBoostArmed ? (state.special?.aceBoost ?? 0) : 0;
       const pPower = pBase * energyPenalty(state.pEnergy) * pCounter * state.pMultiplier
-        * (1 + fx.powerMul + state.serveBonus) + action.noiseP + ultBonus;
+        * (1 + fx.powerMul + state.serveBonus + aceBonus) + action.noiseP + ultBonus;
 
       // 对手威力（d20 → 0.5–1.5）
       const oStat = MOVES[oppMove].stat;
@@ -280,6 +292,7 @@ export function battleReducer(state, action) {
         pendingEffects: { ...resetRallyEffects(fx), counterShieldCharges: shieldCharges },
         activeUltimate: null,
         serveBonus: 0,
+        aceBoostArmed: false,
         lastRally,
         rallyLog: [...state.rallyLog.slice(-9), lastRally],
         matchStats,
