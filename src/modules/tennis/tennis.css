@@ -1,0 +1,275 @@
+/* ================================================================
+   家庭网球公开赛 — 原版「夜场网球」主题整体移植
+   所有选择器以 .tennis-scope 作用域隔离，不污染主站设计 token。
+   ================================================================ */
+.tennis-scope {
+  --court: #0d3b2e;
+  --court-deep: #07271e;
+  --court-light: #155743;
+  --line: #f2eee0;
+  --optic: #d9ff3d;
+  --optic-deep: #aacc12;
+  --clay: #e2814f;
+  --card: #fffdf4;
+  --card-ink: #16261f;
+  --muted: #5d6f66;
+  --shadow: 0 10px 30px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.25);
+  --shadow-soft: 0 6px 18px rgba(7,39,30,.18);
+  --radius: 18px;
+  --display: 'ZCOOL KuaiLe','PingFang SC','Microsoft YaHei',sans-serif;
+  --body-font: 'PingFang SC','Hiragino Sans GB','Microsoft YaHei',system-ui,sans-serif;
+  --mono: 'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+
+  font-family: var(--body-font);
+  color: var(--line);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(217,255,61,.10), transparent 60%),
+    linear-gradient(180deg, var(--court-deep) 0%, var(--court) 38%, var(--court) 70%, var(--court-deep) 100%);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+.tennis-scope *, .tennis-scope *::before, .tennis-scope *::after { box-sizing: border-box; }
+
+/* 球场白线背景：内联 SVG 画半个球场 */
+.tennis-scope::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .10;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900"><g fill="none" stroke="%23f2eee0" stroke-width="6"><rect x="100" y="60" width="700" height="780"/><line x1="100" y1="450" x2="800" y2="450"/><line x1="180" y1="60" x2="180" y2="840"/><line x1="720" y1="60" x2="720" y2="840"/><line x1="450" y1="230" x2="450" y2="670"/><line x1="180" y1="230" x2="720" y2="230"/><line x1="180" y1="670" x2="720" y2="670"/></g></svg>');
+  background-position: center -120px; background-repeat: no-repeat; background-size: min(120vw, 1100px);
+}
+.tennis-scope .wrap { position: relative; max-width: 880px; margin: 0 auto; padding: 28px 18px 80px; }
+
+/* ============ 顶部题字 ============ */
+.tennis-scope header.masthead { text-align: center; margin-bottom: 26px; }
+.tennis-scope .masthead .eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .28em;
+  color: var(--optic); text-transform: uppercase;
+  border: 1px solid rgba(217,255,61,.4); border-radius: 999px; padding: 6px 14px;
+}
+.tennis-scope .masthead h1 {
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.15; margin: 14px 0 0;
+  color: var(--line); text-shadow: 0 3px 0 rgba(0,0,0,.25);
+}
+.tennis-scope .masthead h1 .hl { color: var(--optic); }
+.tennis-scope .masthead .sub { margin-top: 8px; color: rgba(242,238,224,.7); font-size: .95rem; }
+.tennis-scope .back-row { text-align: left; margin-bottom: 10px; }
+.tennis-scope .back-link {
+  font-family: var(--mono); font-size: .8rem; color: rgba(242,238,224,.7);
+  background: none; border: 1px solid rgba(242,238,224,.3); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer;
+}
+.tennis-scope .back-link:hover { color: var(--optic); border-color: var(--optic); }
+
+/* ============ 屏幕切换 ============ */
+.tennis-scope .screen { animation: tennis-rise .45s cubic-bezier(.22,.9,.3,1.2) both; }
+@keyframes tennis-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .tennis-scope .screen, .tennis-scope .ball-btn, .tennis-scope .opt,
+  .tennis-scope .toast, .tennis-scope .flash { animation: none !important; transition: none !important; }
+}
+
+/* ============ 卡片 ============ */
+.tennis-scope .card {
+  background: var(--card); color: var(--card-ink);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 26px 24px; margin-bottom: 22px;
+  border-top: 5px solid var(--optic);
+}
+.tennis-scope .card h2 { font-family: var(--display); font-weight: 400; font-size: 1.5rem; margin: 0 0 6px; }
+.tennis-scope .card .hint { color: var(--muted); font-size: .9rem; margin: 0 0 18px; }
+.tennis-scope .card.flat { border-top: none; }
+
+/* ============ 按钮 ============ */
+.tennis-scope .btn {
+  font-family: var(--display); font-size: 1.1rem; letter-spacing: .06em;
+  background: var(--optic); color: #1c2a10; border: none; cursor: pointer;
+  padding: 13px 30px; border-radius: 999px; box-shadow: 0 5px 0 var(--optic-deep), var(--shadow-soft);
+  transition: transform .12s ease, box-shadow .12s ease, filter .2s;
+}
+.tennis-scope .btn:hover { filter: brightness(1.05); transform: translateY(-2px); box-shadow: 0 7px 0 var(--optic-deep), var(--shadow-soft); }
+.tennis-scope .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--optic-deep); }
+.tennis-scope .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.tennis-scope .btn.ghost { background: transparent; color: var(--card-ink); box-shadow: none; border: 2px solid var(--court); }
+.tennis-scope .btn.ghost:hover { background: rgba(13,59,46,.07); }
+.tennis-scope .btn[disabled] { opacity: .45; pointer-events: none; }
+.tennis-scope .center { text-align: center; }
+
+/* ============ 选人界面 ============ */
+.tennis-scope .select-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin: 16px 0 4px; }
+.tennis-scope select.player-select {
+  flex: 1; min-width: 220px; font-family: var(--body-font); font-size: 1.05rem;
+  padding: 13px 16px; border-radius: 12px; border: 2px solid var(--court);
+  background: #fff; color: var(--card-ink); cursor: pointer;
+}
+.tennis-scope select.player-select:focus-visible { outline: 3px solid var(--optic); }
+.tennis-scope .roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-top: 18px; }
+.tennis-scope .roster .chip {
+  background: rgba(13,59,46,.06); border: 1.5px dashed rgba(13,59,46,.35);
+  border-radius: 14px; padding: 12px 6px; text-align: center; transition: transform .15s, background .15s;
+}
+.tennis-scope .roster .chip:hover { transform: translateY(-3px); background: rgba(217,255,61,.25); }
+.tennis-scope .roster .chip .face { font-size: 1.7rem; display: block; }
+.tennis-scope .roster .chip .nm { font-family: var(--display); font-size: .95rem; }
+.tennis-scope .rule-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.tennis-scope .rule-strip span {
+  font-size: .8rem; background: var(--court); color: var(--line);
+  border-radius: 999px; padding: 6px 12px;
+}
+
+/* ============ 反应测试 ============ */
+.tennis-scope .arena {
+  position: relative; height: 340px; border-radius: var(--radius);
+  background: linear-gradient(180deg, #0f4636, #0b3528);
+  border: 3px solid var(--line); box-shadow: inset 0 0 60px rgba(0,0,0,.45), var(--shadow);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  user-select: none; cursor: pointer;
+}
+.tennis-scope .arena::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; background: var(--line); opacity: .5;
+}
+.tennis-scope .arena .net-mesh {
+  position: absolute; left: 0; right: 0; top: calc(50% - 22px); height: 44px; opacity: .18; pointer-events: none;
+  background-image: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 10px),
+                    repeating-linear-gradient(0deg, var(--line) 0 1px, transparent 1px 10px);
+}
+.tennis-scope .arena .state-msg {
+  position: relative; z-index: 2; text-align: center; font-family: var(--display);
+  font-size: clamp(1.2rem, 4vw, 1.8rem); color: var(--line); padding: 0 20px;
+}
+.tennis-scope .arena .state-msg small { display: block; font-family: var(--body-font); font-size: .85rem; opacity: .75; margin-top: 10px; }
+.tennis-scope .arena .state-msg .count { font-size: 3rem; }
+.tennis-scope .ball-btn {
+  position: absolute; z-index: 3; width: 96px; height: 96px; border: none; background: transparent; padding: 0;
+  cursor: crosshair; animation: tennis-pop .18s cubic-bezier(.2,1.4,.4,1) both; filter: drop-shadow(0 6px 14px rgba(217,255,61,.45));
+}
+@keyframes tennis-pop { from { transform: scale(.2) rotate(-90deg); } to { transform: scale(1) rotate(0); } }
+.tennis-scope .flash { animation: tennis-flashbg .5s ease; }
+@keyframes tennis-flashbg {
+  0% { box-shadow: inset 0 0 120px rgba(217,255,61,.55); }
+  100% { box-shadow: inset 0 0 60px rgba(0,0,0,.45); }
+}
+.tennis-scope .grade-show { display: flex; gap: 18px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+.tennis-scope .grade-badge {
+  font-family: var(--display); font-size: 3rem; line-height: 1; color: #1c2a10;
+  background: var(--optic); border-radius: 20px; padding: 18px 26px; box-shadow: 0 6px 0 var(--optic-deep);
+}
+.tennis-scope .grade-meta { font-family: var(--mono); color: var(--card-ink); }
+.tennis-scope .grade-meta b { font-size: 1.4rem; }
+
+/* ============ 属性面板 ============ */
+.tennis-scope .stats-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 6px; }
+.tennis-scope .stat .lab { display: flex; justify-content: space-between; font-size: .85rem; margin-bottom: 5px; }
+.tennis-scope .stat .lab b { font-family: var(--mono); }
+.tennis-scope .bar { height: 12px; border-radius: 999px; background: rgba(13,59,46,.12); overflow: hidden; }
+.tennis-scope .bar i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--court-light), var(--optic));
+  width: 0; transition: width .6s cubic-bezier(.2,.8,.3,1);
+}
+.tennis-scope .stat.talent .bar i { background: linear-gradient(90deg, var(--clay), #ffb27a); }
+
+/* ============ 备战选项 ============ */
+.tennis-scope .round-tag {
+  display: inline-block; font-family: var(--mono); font-size: .72rem; letter-spacing: .2em;
+  color: var(--court); background: rgba(217,255,61,.5); border-radius: 6px; padding: 4px 10px; margin-bottom: 8px;
+}
+.tennis-scope .opts { display: grid; gap: 12px; margin-top: 14px; }
+.tennis-scope .opt {
+  text-align: left; background: #fff; border: 2px solid rgba(13,59,46,.18); border-radius: 14px;
+  padding: 14px 16px; cursor: pointer; font-family: var(--body-font); font-size: 1rem; color: var(--card-ink);
+  display: flex; gap: 12px; align-items: flex-start;
+  transition: transform .14s ease, border-color .14s, box-shadow .14s;
+}
+.tennis-scope .opt:hover { transform: translateX(6px); border-color: var(--optic-deep); box-shadow: var(--shadow-soft); }
+.tennis-scope .opt:focus-visible { outline: 3px solid var(--optic); }
+.tennis-scope .opt .key {
+  flex: none; font-family: var(--display); width: 34px; height: 34px; border-radius: 10px;
+  background: var(--court); color: var(--optic); display: grid; place-items: center;
+}
+.tennis-scope .opt .fx { display: block; margin-top: 5px; font-size: .78rem; color: var(--muted); font-family: var(--mono); }
+.tennis-scope .fx em { font-style: normal; padding: 1px 6px; border-radius: 5px; margin-right: 5px; background: rgba(217,255,61,.4); color: #3a4a12; }
+.tennis-scope .fx em.neg { background: rgba(226,129,79,.25); color: #9a4513; }
+
+/* ============ 比赛记分牌 ============ */
+.tennis-scope .scoreboard {
+  background: #10221b; border: 2px solid rgba(242,238,224,.25); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 14px 18px; margin-bottom: 18px;
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center;
+}
+.tennis-scope .sb-side { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tennis-scope .sb-side.right { flex-direction: row-reverse; text-align: right; }
+.tennis-scope .sb-face { font-size: 1.9rem; flex: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.4)); }
+.tennis-scope .sb-name { font-family: var(--display); font-size: 1.1rem; color: var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tennis-scope .sb-dots { display: flex; gap: 5px; margin-top: 4px; }
+.tennis-scope .sb-side.right .sb-dots { justify-content: flex-end; }
+.tennis-scope .sb-dots i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid rgba(242,238,224,.5); }
+.tennis-scope .sb-dots i.won { background: var(--optic); border-color: var(--optic); box-shadow: 0 0 8px rgba(217,255,61,.7); }
+.tennis-scope .sb-mid { text-align: center; font-family: var(--mono); }
+.tennis-scope .sb-mid .big { font-size: 1.9rem; font-weight: 700; color: var(--optic); letter-spacing: .1em; }
+.tennis-scope .sb-mid .lbl { font-size: .66rem; letter-spacing: .25em; color: rgba(242,238,224,.6); }
+.tennis-scope .set-banner {
+  font-family: var(--display); text-align: center; color: var(--optic);
+  font-size: 1.25rem; margin: 4px 0 14px; letter-spacing: .1em;
+}
+.tennis-scope .vsline { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 10px 0; font-family: var(--mono); font-size: .85rem; flex-wrap: wrap; }
+.tennis-scope .vsline .pill { background: rgba(13,59,46,.08); border-radius: 999px; padding: 5px 12px; color: var(--card-ink); }
+.tennis-scope .vsline .pill.win { background: rgba(217,255,61,.55); font-weight: 700; }
+.tennis-scope .vsline .pill.lose { background: rgba(226,129,79,.3); }
+.tennis-scope .battle-log { margin-top: 14px; border-top: 2px dashed rgba(13,59,46,.2); padding-top: 12px; }
+.tennis-scope .battle-log p { font-size: .92rem; margin: 0 0 6px; }
+.tennis-scope .battle-log .res-win { color: #2e7a1f; font-weight: 700; }
+.tennis-scope .battle-log .res-lose { color: #bb4a17; font-weight: 700; }
+
+/* ============ 结局 ============ */
+.tennis-scope .ending-hero { text-align: center; padding-top: 34px; }
+.tennis-scope .ending-hero .trophy { font-size: 4rem; display: block; animation: tennis-bounce 1.4s ease infinite; }
+@keyframes tennis-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+.tennis-scope .ending-hero h2 { font-family: var(--display); font-size: clamp(1.5rem, 5vw, 2.3rem); margin: 10px 0 6px; }
+.tennis-scope .ending-hero .score-line { font-family: var(--mono); font-size: 1.2rem; color: var(--clay); font-weight: 700; }
+.tennis-scope .ending-hero .comment { max-width: 520px; margin: 14px auto 0; color: var(--muted); line-height: 1.7; }
+
+/* 战报面板 */
+.tennis-scope .report { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 2px solid var(--court); border-radius: 14px; overflow: hidden; margin-top: 18px; }
+.tennis-scope .report .col { padding: 16px; }
+.tennis-scope .report .col + .col { border-left: 2px solid var(--court); }
+.tennis-scope .report .who { display: flex; gap: 8px; align-items: center; font-family: var(--display); font-size: 1.1rem; margin-bottom: 10px; }
+.tennis-scope .report .who .face { font-size: 1.6rem; }
+.tennis-scope .report dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .9rem; margin: 0; }
+.tennis-scope .report dt { color: var(--muted); }
+.tennis-scope .report dd { font-family: var(--mono); font-weight: 700; margin: 0; }
+@media (max-width: 560px) {
+  .tennis-scope .report { grid-template-columns: 1fr; }
+  .tennis-scope .report .col + .col { border-left: none; border-top: 2px solid var(--court); }
+}
+
+/* ============ 排行榜 ============ */
+.tennis-scope .lb-table { width: 100%; border-collapse: collapse; font-size: .88rem; margin-top: 10px; }
+.tennis-scope .lb-table th {
+  font-family: var(--mono); font-size: .7rem; letter-spacing: .15em; text-align: left;
+  color: var(--muted); border-bottom: 2px solid var(--court); padding: 8px 6px;
+}
+.tennis-scope .lb-table td { padding: 9px 6px; border-bottom: 1px dashed rgba(13,59,46,.18); }
+.tennis-scope .lb-table tr.top td { background: rgba(217,255,61,.22); }
+.tennis-scope .lb-table .mono { font-family: var(--mono); }
+.tennis-scope .lb-empty { color: var(--muted); font-size: .9rem; padding: 14px 4px; }
+.tennis-scope .lb-actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+.tennis-scope .lb-tabs { display: flex; gap: 8px; margin-bottom: 4px; }
+.tennis-scope .lb-tab {
+  font-family: var(--mono); font-size: .78rem; padding: 6px 14px; border-radius: 999px;
+  border: 1.5px solid rgba(13,59,46,.3); background: transparent; color: var(--card-ink); cursor: pointer;
+}
+.tennis-scope .lb-tab.active { background: var(--court); color: var(--optic); border-color: var(--court); }
+
+/* toast */
+.tennis-scope .toast {
+  position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 99;
+  background: #10221b; color: var(--optic); border: 1.5px solid var(--optic);
+  border-radius: 999px; padding: 10px 22px; font-family: var(--display);
+  box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
+}
+.tennis-scope .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+.tennis-scope footer.note { text-align: center; margin-top: 30px; color: rgba(242,238,224,.45); font-size: .78rem; }
+.tennis-scope footer.note b { color: var(--optic); }
