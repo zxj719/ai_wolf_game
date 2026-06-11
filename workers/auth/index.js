@@ -63,6 +63,7 @@ import {
 } from './friends.js';
 import { handleChatHistory, handleInternalChatPersist } from './chat.js';
 import { handleTurnCredentials } from './turn.js';
+import { handleTennisRecord, handleTennisLeaderboard } from './tennis.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -212,6 +213,14 @@ export default {
       // 游戏日志复盘（公开接口 — 无需认证）
       if (path === '/api/game-end' && request.method === 'POST') {
         return handleGameEnd(request, env);
+      }
+
+      // 家庭网球公开赛
+      if (path === '/api/tennis/record' && request.method === 'POST') {
+        return handleTennisRecord(request, env);
+      }
+      if (path === '/api/tennis/leaderboard' && request.method === 'GET') {
+        return handleTennisLeaderboard(request, env);
       }
 
       // 排行榜（公开接口）
