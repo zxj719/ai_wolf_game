@@ -18,6 +18,7 @@ import { ACHIEVEMENTS } from './meta/achievements';
 import { ShopPanel } from './meta/ShopPanel';
 import { LadderScreen } from './modes/LadderScreen';
 import { AdventureScreen } from './modes/adventure/AdventureScreen';
+import { OnboardingModal, checkOnboardingSeen } from './components/OnboardingModal';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -36,6 +37,7 @@ export default function TennisRoute() {
   const { user } = useAuth();
   const [state, dispatch] = useTennisGame();
 
+  const [showOnboarding, setShowOnboarding] = useState(() => !checkOnboardingSeen());
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimer = useRef(null);
   const toast = useCallback((msg) => {
@@ -171,6 +173,7 @@ export default function TennisRoute() {
 
   return (
     <div className="tennis-scope">
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
       <div className="wrap">
         <div className="back-row">
           <button type="button" className="back-link" onClick={() => navigate(ROUTES.HOME)}>
@@ -185,7 +188,7 @@ export default function TennisRoute() {
         </header>
 
         {state.screen === 'select' && (
-          <SelectScreen onStart={onStart} toast={toast} boardProps={boardProps} />
+          <SelectScreen onStart={onStart} toast={toast} boardProps={boardProps} onHelp={() => setShowOnboarding(true)} />
         )}
         {state.screen === 'mode' && (
           <section className="screen">

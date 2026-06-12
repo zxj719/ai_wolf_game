@@ -3,7 +3,7 @@ import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 
 /** ① 报名处：选身份 + 双榜 */
-export function SelectScreen({ onStart, toast, boardProps }) {
+export function SelectScreen({ onStart, toast, boardProps, onHelp }) {
   const [picked, setPicked] = useState('');
 
   const handleStart = () => {
@@ -16,7 +16,10 @@ export function SelectScreen({ onStart, toast, boardProps }) {
 
   return (
     <section className="screen">
-      <div className="card">
+      <div className="card card-relative">
+        {onHelp && (
+          <button type="button" className="help-btn" onClick={onHelp} title="游戏指南">?</button>
+        )}
         <h2>① 报名处 · 你是哪位选手？</h2>
         <p className="hint">选好身份后，系统会从剩下 6 位家人里随机抽出你的「宿敌」，并偷偷给 ta 摇好属性（40–90）。</p>
         <div className="select-row">
