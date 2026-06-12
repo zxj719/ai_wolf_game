@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ROUTES } from '../../shell/paths';
 import { CHARS, rand } from './gameData';
 import { useTennisGame } from './useTennisGame';
-import { getTennisLeaderboard } from '../../services/tennisService';
+import { getTennisLeaderboard, sendMatchTelemetry } from '../../services/tennisService';
 import { loadLocalRecords, clearLocalRecords } from './localBoard';
 import { SelectScreen } from './components/SelectScreen';
 import { ReactTest } from './components/ReactTest';
@@ -15,6 +15,7 @@ import { CHAR_BUILDS, ULTIMATES } from './battle/moves';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from './meta/equipment';
 import { loadProgress, persistProgress, EMPTY_PROGRESS } from './meta/progressStore';
 import { ACHIEVEMENTS } from './meta/achievements';
+import { ShopPanel } from './meta/ShopPanel';
 import { LadderScreen } from './modes/LadderScreen';
 import { AdventureScreen } from './modes/adventure/AdventureScreen';
 import './tennis.css';
@@ -132,8 +133,12 @@ export default function TennisRoute() {
 
   const equipBonus = applyEquipment(progress.equipment);
 
-  // 单局快打结束：盘分回填 + 掉落/金币入永久层
-  const onSingleMatchOver = useCallback(({ score, matchStats }) => {
+  // 单局快打结束：盘分回填 + 掉落/金币入永久层 + 遥测上报
+  const onSingleMatchOver = useCallback(({ score, matchStats, durationS }) => {
+    sendMatchTelemetry({
+      mode: 'single', character: state.player.name, opponent: state.opp.name,
+      score, matchStats, durationS,
+    });
     const win = score.winner === 0;
     const drop = rollDrop(win ? 'win' : 'loss', Math.random);
     const coins = win ? 25 : 10;
@@ -156,7 +161,13 @@ export default function TennisRoute() {
       setsO: score.sets[1],
       setHistory: score.setHistory,
     });
-  }, [progress, updateProgress, toast, dispatch]);
+  }, [progress, updateProgress, toast, dispatch, state.player, state.opp]);
+
+  // 模式页商店（永久收藏购卡/购装/开盒，金币消费出口）
+  const [showMetaShop, setShowMetaShop] = useState(false);
+
+  // 出战牌库 = 基础牌 + 永久收藏（用户反馈：买的卡要能长期用）
+  const fightingDeck = [...STARTER_DECK, ...(progress.ownedCards ?? [])];
 
   return (
     <div className="tennis-scope">
@@ -203,8 +214,24 @@ export default function TennisRoute() {
                   <span className="key">🗺️</span>
                   <span>奇幻闯关<span className="fx"><em>家族奖杯被偷了！穿越菜市场/修仙界/太空站夺回</em><em>离谱对手 · 奇遇小游戏 · 装备金币失败也保留</em></span></span>
                 </button>
+                <button type="button" className="opt" onClick={() => setShowMetaShop(true)}>
+                  <span className="key">🛒</span>
+                  <span>网球用品店<span className="fx"><em>花掉比赛赚的金币：购卡入永久收藏（组进每局牌库）· 购装 · 升装 · 开盲盒</em></span></span>
+                </button>
               </div>
             </div>
+            {showMetaShop && (
+              <ShopPanel
+                progress={progress}
+                onUpdateProgress={updateProgress}
+                deck={progress.ownedCards ?? []}
+                onDeckChange={(cards) => updateProgress({ ...progress, ownedCards: cards.slice(0, 10) })}
+                deckCap={10}
+                deckLabel="永久收藏"
+                onClose={() => setShowMetaShop(false)}
+                toast={toast}
+              />
+            )}
           </section>
         )}
         {state.screen === 'react' && <ReactTest dispatch={dispatch} toast={toast} />}
@@ -224,7 +251,7 @@ export default function TennisRoute() {
               player={state.player}
               opponent={state.opp}
               playerMoves={CHAR_BUILDS[state.player.name].moves}
-              deckInstances={STARTER_DECK}
+              deckInstances={fightingDeck}
               ultimate={activeUltimate}
               equip={equipBonus}
               onMatchOver={onSingleMatchOver}

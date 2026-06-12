@@ -17,6 +17,7 @@ export const EMPTY_PROGRESS = {
   equipment: {},
   unlockedMoves: [],
   achievements: [],
+  ownedCards: [],          // 永久卡牌收藏（上限 10，组进每次出战牌库）
   championships: 0,
   adventureClears: 0,
 };
@@ -33,11 +34,14 @@ export function mergeProgress(a, b) {
       equipment[slot] = item;
     }
   }
+  const aCards = a.ownedCards ?? [];
+  const bCards = b.ownedCards ?? [];
   return {
     coins: Math.max(a.coins ?? 0, b.coins ?? 0),
     equipment,
     unlockedMoves: [...new Set([...(a.unlockedMoves ?? []), ...(b.unlockedMoves ?? [])])],
     achievements: [...new Set([...(a.achievements ?? []), ...(b.achievements ?? [])])],
+    ownedCards: aCards.length >= bCards.length ? aCards : bCards,   // 收藏取多的一份
     championships: Math.max(a.championships ?? 0, b.championships ?? 0),
     adventureClears: Math.max(a.adventureClears ?? 0, b.adventureClears ?? 0),
   };

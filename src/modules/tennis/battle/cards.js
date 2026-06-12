@@ -67,6 +67,31 @@ export const CARDS = {
     upgradedEffect: { type: 'minigameFloor', floor: 1.2 },
     desc: (u) => `本球小游戏倍率下限提至 ${u ? 1.2 : 1.0}`,
   },
+  // ===== D2 用户反馈新增：抽卡/回点类（卡池丰富度）=====
+  tacticalPause: {
+    id: 'tacticalPause', name: '战术暂停', cost: 1, icon: '⏸️',
+    effect: { type: 'draw', count: 2 },
+    upgradedEffect: { type: 'draw', count: 3 },
+    desc: (u) => `立刻抽 ${u ? 3 : 2} 张牌`,
+  },
+  adrenaline: {
+    id: 'adrenaline', name: '肾上腺素', cost: 0, icon: '💉',
+    effect: { type: 'tp', amount: 2 },
+    upgradedEffect: { type: 'tp', amount: 3 },
+    desc: (u) => `战术点 +${u ? 3 : 2}（上限 3）`,
+  },
+  secondWind: {
+    id: 'secondWind', name: '第二口气', cost: 2, icon: '🌬️',
+    effect: { type: 'energyDraw', energy: 20, count: 1 },
+    upgradedEffect: { type: 'energyDraw', energy: 30, count: 1 },
+    desc: (u) => `回 ${u ? 30 : 20} 体力并抽 1 张牌`,
+  },
+  fullFocus: {
+    id: 'fullFocus', name: '全神贯注', cost: 1, icon: '🎯',
+    effect: { type: 'focus', windowBonus: 0.5, powerMul: 0.1 },
+    upgradedEffect: { type: 'focus', windowBonus: 0.75, powerMul: 0.15 },
+    desc: (u) => `本球判定窗口 +${u ? 75 : 50}% 且威力 +${u ? 15 : 10}%`,
+  },
 };
 
 export const TP_MAX = 3;
@@ -114,6 +139,13 @@ function drawOne(state, rng) {
 export function startRally(state, rng) {
   const drawn = drawOne(state, rng);
   return { ...drawn, tacticalPoints: Math.min(TP_MAX, state.tacticalPoints + 1) };
+}
+
+/** 抽 n 张（战术暂停/第二口气卡用） */
+export function drawCards(state, n, rng) {
+  let s = state;
+  for (let i = 0; i < n; i++) s = drawOne(s, rng);
+  return s;
 }
 
 /** 打出手牌第 idx 张。返回 { deck, effect } 或 { error }。 */

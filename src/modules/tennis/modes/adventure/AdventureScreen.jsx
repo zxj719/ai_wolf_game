@@ -17,6 +17,7 @@ import { ODD_OPPONENTS, FAMILY_CAMEO_TAUNT } from './oddOpponents';
 import { pickEvent, rewardTier } from './events';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../../meta/equipment';
 import { ShopPanel } from '../../meta/ShopPanel';
+import { sendMatchTelemetry } from '../../../../services/tennisService';
 import { CHARS, rand } from '../../gameData';
 
 const SNAPSHOT_KEY = 'tennis_v2_adventure_snapshot';
@@ -69,7 +70,9 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
     null,
     () => snapshot?.run ?? createAdventure({ rng: Math.random })
   );
-  const [deck, setDeck] = useState(() => snapshot?.deck ?? ADVENTURE_STARTER_DECK);
+  const [deck, setDeck] = useState(
+    () => snapshot?.deck ?? [...ADVENTURE_STARTER_DECK, ...(progress.ownedCards ?? [])]
+  );
   const [battleOpponent, setBattleOpponent] = useState(null);
   const settledRef = useRef(false);
 
@@ -100,8 +103,12 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
   };
   const adventureEquip = { ...equipBonus, energyMax: equipBonus.energyMax + run.tempEnergyMax };
 
-  const handleBattleOver = useCallback(({ score, matchStats, pEnergy }) => {
+  const handleBattleOver = useCallback(({ score, matchStats, pEnergy, durationS }) => {
     const win = score.winner === 0;
+    sendMatchTelemetry({
+      mode: 'adventure', character: basePlayer.name, opponent: battleOpponent?.name ?? 'unknown',
+      score, matchStats, durationS,
+    });
     const drop = rollDrop(win ? 'win' : 'loss', Math.random);
     const coins = win ? 40 + run.chapterIdx * 20 + (run.currentNode?.boss ? 100 : 0) : 15;
     const { equipped, soldFor } = mergeDrop(progress.equipment, drop);
@@ -119,7 +126,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
     toast(`🎁 ${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰`);
     setBattleOpponent(null);
     dispatchRun({ type: 'BATTLE_RESULT', win, remainingEnergy: pEnergy, drop, coins });
-  }, [run.chapterIdx, run.currentNode, progress, onUpdateProgress, toast]);
+  }, [run.chapterIdx, run.currentNode, progress, onUpdateProgress, toast, basePlayer.name, battleOpponent]);
 
   /** 事件奖励：永久部分入 progress，run 部分交 reducer */
   const settleEventReward = useCallback((reward, flavor) => {

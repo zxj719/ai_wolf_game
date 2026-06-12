@@ -84,6 +84,35 @@ export async function putTennisProgress(progress) {
 }
 
 /**
+ * 上报对局遥测（公开，游客也上报；fire-and-forget，不阻塞 UI）。
+ * 用于后台平衡性/可玩性监控（/api/tennis/telemetry/summary 聚合）。
+ */
+export function sendMatchTelemetry({ mode, character, opponent, score, matchStats, durationS }) {
+  try {
+    const payload = {
+      mode,
+      character,
+      opponent: String(opponent).slice(0, 20),
+      result: score.winner === 0 ? 'win' : 'loss',
+      rallies: Math.max(1, matchStats.mgCount),
+      aces: matchStats.aces,
+      clutchWins: matchStats.clutchWins,
+      countersWon: matchStats.countersWon,
+      avgMultiplier: matchStats.mgCount
+        ? Math.max(0.5, Math.min(1.5, matchStats.mgSum / matchStats.mgCount))
+        : 1.0,
+      durationS: durationS ?? 0,
+      moveUsage: matchStats.moveUsage ?? {},
+    };
+    fetch(buildApiUrl('/api/tennis/telemetry'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => { /* 遥测静默失败 */ });
+  } catch { /* noop */ }
+}
+
+/**
  * 拉取全网排行榜（公开接口）
  * @returns {{players: Array, recent: Array}|null} 失败返回 null，由调用方降级
  */

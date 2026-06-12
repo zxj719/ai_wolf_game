@@ -13,6 +13,7 @@ import { CARDS } from '../battle/cards';
 import { createLadder, ladderReducer, STAGE_COUNT } from './ladderReducer';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
 import { ShopPanel } from '../meta/ShopPanel';
+import { sendMatchTelemetry } from '../../../services/tennisService';
 
 const SNAPSHOT_KEY = 'tennis_v2_ladder_snapshot';
 
@@ -47,7 +48,9 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
     null,
     () => snapshot?.ladder ?? createLadder({ playerName: basePlayer.name, rng: Math.random })
   );
-  const [deck, setDeck] = useState(() => snapshot?.deck ?? LADDER_STARTER_DECK);
+  const [deck, setDeck] = useState(
+    () => snapshot?.deck ?? [...LADDER_STARTER_DECK, ...(progress.ownedCards ?? [])]
+  );
   const settledRef = useRef(false);
 
   // 快照：战斗中/赛间持续保存；终局清除
@@ -70,8 +73,12 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
     mind: basePlayer.mind + ladder.bonusStats.mind,
   };
 
-  const handleMatchOver = useCallback(({ score, matchStats, pEnergy }) => {
+  const handleMatchOver = useCallback(({ score, matchStats, pEnergy, durationS }) => {
     const win = score.winner === 0;
+    sendMatchTelemetry({
+      mode: 'ladder', character: basePlayer.name, opponent: opponent.name,
+      score, matchStats, durationS,
+    });
     const drop = rollDrop(win ? 'win' : 'loss', Math.random);
     const coins = win ? 50 + ladder.stage * 10 : 15;
     const { equipped, soldFor } = mergeDrop(progress.equipment, drop);
@@ -100,7 +107,7 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
     dispatchLadder(win
       ? { type: 'MATCH_WON', remainingEnergy: pEnergy, drop, coins }
       : { type: 'MATCH_LOST', drop, coins });
-  }, [ladder.stage, opponent, progress, onUpdateProgress, toast]);
+  }, [ladder.stage, opponent, progress, onUpdateProgress, toast, basePlayer.name]);
 
   // 球王加冕：championships+1 + 成就（一次性）
   useEffect(() => {

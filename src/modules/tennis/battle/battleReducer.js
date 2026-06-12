@@ -10,7 +10,7 @@
 
 import { MOVES, counterMultiplier, ULTIMATES } from './moves';
 import { createScore, addPoint, isKeyPoint } from './scoring';
-import { createDeckState, startRally, playCard } from './cards';
+import { createDeckState, startRally, playCard, drawCards, TP_MAX } from './cards';
 import { pickOpponentMove, makeTell } from './opponentAI';
 
 export function energyPenalty(energy) {
@@ -77,7 +77,7 @@ export function createBattle({ player, opponent, deckInstances, rng, ultimate, t
     activeUltimate: null,
     lastRally: null,
     rallyLog: [],
-    matchStats: { aces: 0, countersWon: 0, clutchWins: 0 },
+    matchStats: { aces: 0, countersWon: 0, clutchWins: 0, moveUsage: {}, mgSum: 0, mgCount: 0 },
   };
 }
 
@@ -157,9 +157,21 @@ export function battleReducer(state, action) {
       if (r.error) return state;
       const fx = { ...state.pendingEffects };
       let { pEnergy, pMindBonus } = state;
+      let deck = r.deck;
       const e = r.effect;
+      const rng = action.rng ?? Math.random;
       switch (e.type) {
         case 'energy': pEnergy = Math.min(state.pEnergyMax, pEnergy + e.amount); break;
+        case 'draw': deck = drawCards(deck, e.count, rng); break;
+        case 'tp': deck = { ...deck, tacticalPoints: Math.min(TP_MAX, deck.tacticalPoints + e.amount) }; break;
+        case 'energyDraw':
+          pEnergy = Math.min(state.pEnergyMax, pEnergy + e.energy);
+          deck = drawCards(deck, e.count, rng);
+          break;
+        case 'focus':
+          fx.windowBonus += e.windowBonus;
+          fx.powerMul += e.powerMul;
+          break;
         case 'windowBonus': fx.windowBonus += e.amount; break;
         case 'powerMul': fx.powerMul += e.amount; break;
         case 'reveal': fx.reveal = true; fx.windowBonus += e.windowBonus ?? 0; break;
@@ -171,7 +183,7 @@ export function battleReducer(state, action) {
         case 'minigameFloor': fx.minigameFloor = Math.max(fx.minigameFloor, e.floor); break;
         default: break;
       }
-      return { ...state, deck: r.deck, pendingEffects: fx, pEnergy, pMindBonus };
+      return { ...state, deck, pendingEffects: fx, pEnergy, pMindBonus };
     }
 
     case 'USE_ULTIMATE': {
@@ -216,7 +228,15 @@ export function battleReducer(state, action) {
       const fx = state.pendingEffects.halfCostRallies > 0
         ? { ...state.pendingEffects, halfCostRallies: state.pendingEffects.halfCostRallies - 1 }
         : state.pendingEffects;
-      return { ...state, pMove: action.moveId, pEnergy, pendingEffects: fx, phase: 'minigame' };
+      // 遥测：招式使用分布
+      const moveUsage = {
+        ...state.matchStats.moveUsage,
+        [action.moveId]: (state.matchStats.moveUsage[action.moveId] ?? 0) + 1,
+      };
+      return {
+        ...state, pMove: action.moveId, pEnergy, pendingEffects: fx, phase: 'minigame',
+        matchStats: { ...state.matchStats, moveUsage },
+      };
     }
 
     case 'MINIGAME_DONE': {
@@ -225,7 +245,14 @@ export function battleReducer(state, action) {
       if (state.pendingEffects.minigameFloor > 0) {
         m = Math.max(m, state.pendingEffects.minigameFloor);
       }
-      return { ...state, pMultiplier: m, phase: 'resolve' };
+      return {
+        ...state, pMultiplier: m, phase: 'resolve',
+        matchStats: {
+          ...state.matchStats,
+          mgSum: state.matchStats.mgSum + m,
+          mgCount: state.matchStats.mgCount + 1,
+        },
+      };
     }
 
     case 'RESOLVE': {

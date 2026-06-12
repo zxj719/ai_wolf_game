@@ -44,7 +44,11 @@ function gearLabel(item, slot) {
   return `${RARITY_META[item.rarity].name}${SLOT_META[slot].name}`;
 }
 
-export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onClose, toast }) {
+/**
+ * @param deckCap 收藏模式（模式页商店）传 10：购卡进永久收藏，满了拒买/折现
+ * @param deckLabel 牌区标题（'本局牌库' / '永久收藏'）
+ */
+export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onClose, toast, deckCap = null, deckLabel = '本局牌库' }) {
   const [cardOffers, setCardOffers] = useState(() => [randomCardId(), randomCardId(), randomCardId()]);
   const [gearOffers, setGearOffers] = useState(() => [
     rollDrop('event', Math.random), rollDrop('event', Math.random), rollDrop('event', Math.random),
@@ -89,7 +93,11 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
       const { equipped, soldFor } = mergeDrop(next.equipment, gear);
       next = { ...next, equipment: equipped, coins: next.coins + soldFor };
       if (passed) {
-        onDeckChange([...deck, { cardId: randomCardId(), upgraded: box.id === 'gold' }]);
+        if (deckCap && deck.length >= deckCap) {
+          next.coins += 20;    // 收藏满：卡牌折现
+        } else {
+          onDeckChange([...deck, { cardId: randomCardId(), upgraded: box.id === 'gold' }]);
+        }
       }
       toast(passed
         ? `🎉 盒开了！${RARITY_META[gear.rarity].name}${SLOT_META[gear.slot].name} + 1 张${box.id === 'gold' ? '强化' : ''}卡`
@@ -104,6 +112,7 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
 
   const buyCard = (i) => {
     if (coins < CARD_PRICE) { toast('金币不够！'); return; }
+    if (deckCap && deck.length >= deckCap) { toast(`收藏已满（${deckCap} 张），先移除几张吧`); return; }
     onDeckChange([...deck, { cardId: cardOffers[i], upgraded: false }]);
     setCardOffers(cardOffers.map((c, j) => (j === i ? null : c)));
     spend(CARD_PRICE);
@@ -200,7 +209,7 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
         </div>
 
         <div className="shop-section">
-          <h3>卡牌强化（{CARD_UPGRADE_PRICE}💰）/ 移除（{CARD_REMOVE_PRICE}💰）</h3>
+          <h3>{deckLabel}强化（{CARD_UPGRADE_PRICE}💰）/ 移除（{CARD_REMOVE_PRICE}💰）{deckCap ? ` · ${deck.length}/${deckCap}` : ''}</h3>
           <div className="shop-row">
             {deck.map((c, i) => (
               <div key={`${c.cardId}-${i}`} className="shop-item static">

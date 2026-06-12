@@ -68,6 +68,8 @@ import {
   handleTennisLeaderboard,
   handleGetTennisProgress,
   handlePutTennisProgress,
+  handleTennisTelemetry,
+  handleTennisTelemetrySummary,
 } from './tennis.js';
 
 export default {
@@ -232,6 +234,12 @@ export default {
       }
       if (path === '/api/tennis/progress' && request.method === 'PUT') {
         return handlePutTennisProgress(request, env);
+      }
+      if (path === '/api/tennis/telemetry' && request.method === 'POST') {
+        return handleTennisTelemetry(request, env);
+      }
+      if (path === '/api/tennis/telemetry/summary' && request.method === 'GET') {
+        return handleTennisTelemetrySummary(request, env);
       }
 
       // 排行榜（公开接口）

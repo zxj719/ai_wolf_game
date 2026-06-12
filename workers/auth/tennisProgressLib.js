@@ -16,15 +16,28 @@ const ACHIEVEMENT_IDS = [
   'clutchMaster', 'boxOpener', 'goldRush', 'aviator',
 ];
 const COIN_GAIN_CAP = 500;
+const CARD_IDS = [
+  'deepBreath', 'crowdCheer', 'towelTime', 'newBalls', 'coachSign',
+  'hawkeye', 'stringTune', 'mindMassage', 'energyGel', 'goldenMoment',
+  'tacticalPause', 'adrenaline', 'secondWind', 'fullFocus',
+];
+const OWNED_CARDS_CAP = 10;
 
 export const DEFAULT_PROGRESS = {
   coins: 0,
   equipment: {},
   unlockedMoves: [],
   achievements: [],
+  ownedCards: [],
   championships: 0,
   adventureClears: 0,
 };
+
+function validOwnedCards(cards) {
+  if (!Array.isArray(cards) || cards.length > OWNED_CARDS_CAP) return false;
+  return cards.every((c) =>
+    c && typeof c === 'object' && CARD_IDS.includes(c.cardId) && typeof c.upgraded === 'boolean');
+}
 
 function validEquipment(equipment) {
   if (typeof equipment !== 'object' || equipment === null || Array.isArray(equipment)) return false;
@@ -56,6 +69,7 @@ export function validateProgressUpdate(body, existing) {
   if (coins - prev.coins > COIN_GAIN_CAP) return { ok: false, error: 'Coin gain exceeds cap' };
 
   if (!validEquipment(body.equipment ?? {})) return { ok: false, error: 'Invalid equipment' };
+  if (!validOwnedCards(body.ownedCards ?? [])) return { ok: false, error: 'Invalid ownedCards' };
   if (!isSubset(body.unlockedMoves ?? [], ULTIMATE_NAMES)) return { ok: false, error: 'Invalid unlockedMoves' };
   if (!isSubset(body.achievements ?? [], ACHIEVEMENT_IDS)) return { ok: false, error: 'Invalid achievements' };
 
@@ -77,6 +91,7 @@ export function validateProgressUpdate(body, existing) {
       equipment: body.equipment ?? {},
       unlockedMoves,
       achievements,
+      ownedCards: body.ownedCards ?? prev.ownedCards ?? [],
       championships: body.championships ?? prev.championships,
       adventureClears: body.adventureClears ?? prev.adventureClears,
     },

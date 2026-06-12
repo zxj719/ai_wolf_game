@@ -49,6 +49,7 @@ function rowToProgress(row) {
     equipment: JSON.parse(row.equipment || '{}'),
     unlockedMoves: JSON.parse(row.unlocked_moves || '[]'),
     achievements: JSON.parse(row.achievements || '[]'),
+    ownedCards: JSON.parse(row.owned_cards || '[]'),
     championships: row.championships,
     adventureClears: row.adventure_clears,
   };
@@ -89,25 +90,105 @@ export async function handlePutTennisProgress(request, env) {
     const p = result.progress;
     await env.DB.prepare(
       `INSERT INTO tennis_progress
-         (user_id, coins, equipment, unlocked_moves, achievements, championships, adventure_clears, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         (user_id, coins, equipment, unlocked_moves, achievements, owned_cards, championships, adventure_clears, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(user_id) DO UPDATE SET
          coins = excluded.coins,
          equipment = excluded.equipment,
          unlocked_moves = excluded.unlocked_moves,
          achievements = excluded.achievements,
+         owned_cards = excluded.owned_cards,
          championships = excluded.championships,
          adventure_clears = excluded.adventure_clears,
          updated_at = CURRENT_TIMESTAMP`
     ).bind(
       user.sub, p.coins, JSON.stringify(p.equipment), JSON.stringify(p.unlockedMoves),
-      JSON.stringify(p.achievements), p.championships, p.adventureClears
+      JSON.stringify(p.achievements), JSON.stringify(p.ownedCards), p.championships, p.adventureClears
     ).run();
 
     return jsonResponse({ success: true, progress: p }, 200, env, request);
   } catch (err) {
     console.error('Tennis progress put error:', err);
     return errorResponse('Failed to save progress: ' + err.message, 500, env, request);
+  }
+}
+
+// ===== 遥测（平衡性/可玩性数据收集，spec 评估体系）=====
+
+const TELEMETRY_MODES = ['single', 'ladder', 'adventure'];
+const TELEMETRY_CHARS = ['诚', 'Elza', '菲比', 'Ross', '铁蛋', '丫', '莹'];
+
+/** POST /api/tennis/telemetry（公开，含游客；严格上限防脏数据） */
+export async function handleTennisTelemetry(request, env) {
+  try {
+    const b = await request.json().catch(() => null);
+    if (!b || typeof b !== 'object') return errorResponse('Invalid body', 400, env, request);
+    const ok = TELEMETRY_MODES.includes(b.mode)
+      && TELEMETRY_CHARS.includes(b.character)
+      && typeof b.opponent === 'string' && b.opponent.length <= 20
+      && ['win', 'loss'].includes(b.result)
+      && Number.isInteger(b.rallies) && b.rallies > 0 && b.rallies <= 500
+      && Number.isInteger(b.aces) && b.aces >= 0 && b.aces <= 50
+      && Number.isInteger(b.clutchWins) && b.clutchWins >= 0 && b.clutchWins <= 50
+      && Number.isInteger(b.countersWon) && b.countersWon >= 0 && b.countersWon <= 500
+      && typeof b.avgMultiplier === 'number' && b.avgMultiplier >= 0.5 && b.avgMultiplier <= 1.5
+      && Number.isInteger(b.durationS) && b.durationS >= 0 && b.durationS <= 7200;
+    if (!ok) return errorResponse('Invalid telemetry payload', 400, env, request);
+
+    const moveUsage = typeof b.moveUsage === 'object' && b.moveUsage !== null
+      ? JSON.stringify(b.moveUsage).slice(0, 500) : '{}';
+
+    await env.DB.prepare(
+      `INSERT INTO tennis_telemetry
+        (mode, character, opponent, result, rallies, aces, clutch_wins, counters_won, avg_multiplier, duration_s, move_usage)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      b.mode, b.character, b.opponent, b.result, b.rallies, b.aces,
+      b.clutchWins, b.countersWon, b.avgMultiplier, b.durationS, moveUsage
+    ).run();
+    return jsonResponse({ success: true }, 201, env, request);
+  } catch (err) {
+    console.error('Tennis telemetry error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
+  }
+}
+
+/** GET /api/tennis/telemetry/summary（公开只读聚合：平衡性监控面板数据源） */
+export async function handleTennisTelemetrySummary(request, env) {
+  try {
+    const [byMode, byChar, byOpp, recent] = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT mode, COUNT(*) AS games,
+                ROUND(AVG(CASE WHEN result='win' THEN 100.0 ELSE 0 END), 1) AS win_rate,
+                ROUND(AVG(rallies), 1) AS avg_rallies,
+                ROUND(AVG(avg_multiplier), 3) AS avg_mult,
+                ROUND(AVG(duration_s), 0) AS avg_duration
+         FROM tennis_telemetry GROUP BY mode`
+      ),
+      env.DB.prepare(
+        `SELECT character, COUNT(*) AS games,
+                ROUND(AVG(CASE WHEN result='win' THEN 100.0 ELSE 0 END), 1) AS win_rate
+         FROM tennis_telemetry GROUP BY character ORDER BY games DESC`
+      ),
+      env.DB.prepare(
+        `SELECT opponent, COUNT(*) AS games,
+                ROUND(AVG(CASE WHEN result='win' THEN 100.0 ELSE 0 END), 1) AS player_win_rate
+         FROM tennis_telemetry GROUP BY opponent ORDER BY games DESC LIMIT 20`
+      ),
+      env.DB.prepare(
+        `SELECT COUNT(*) AS games_7d FROM tennis_telemetry
+         WHERE created_at > datetime('now', '-7 days')`
+      ),
+    ]);
+    return jsonResponse({
+      byMode: byMode.results ?? [],
+      byCharacter: byChar.results ?? [],
+      byOpponent: byOpp.results ?? [],
+      last7Days: recent.results?.[0]?.games_7d ?? 0,
+    }, 200, env, request);
+  } catch (err) {
+    console.error('Tennis telemetry summary error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
   }
 }
 

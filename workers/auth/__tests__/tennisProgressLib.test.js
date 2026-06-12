@@ -65,8 +65,19 @@ describe('validateProgressUpdate', () => {
 
   it('DEFAULT_PROGRESS 形状', () => {
     expect(DEFAULT_PROGRESS).toEqual({
-      coins: 0, equipment: {}, unlockedMoves: [], achievements: [],
+      coins: 0, equipment: {}, unlockedMoves: [], achievements: [], ownedCards: [],
       championships: 0, adventureClears: 0,
     });
+  });
+
+  it('ownedCards：枚举外/超上限/形状错误拒绝，合法通过', () => {
+    const ok = validateProgressUpdate(
+      { ...valid(), ownedCards: [{ cardId: 'towelTime', upgraded: false }] }, existing());
+    expect(ok.ok).toBe(true);
+    expect(ok.progress.ownedCards).toHaveLength(1);
+    expect(validateProgressUpdate(
+      { ...valid(), ownedCards: [{ cardId: 'hax', upgraded: false }] }, existing()).ok).toBe(false);
+    expect(validateProgressUpdate(
+      { ...valid(), ownedCards: Array(11).fill({ cardId: 'towelTime', upgraded: false }) }, existing()).ok).toBe(false);
   });
 });

@@ -6,9 +6,13 @@ const rng0 = () => 0.999999;
 
 const mk = (ids) => createDeckState(ids.map((cardId) => ({ cardId, upgraded: false })), rng0);
 
-describe('CARDS 卡池（spec §1.5 表）', () => {
-  it('共 10 张，费用与表一致', () => {
-    expect(Object.keys(CARDS)).toHaveLength(10);
+describe('CARDS 卡池（spec §1.5 + D2 新增）', () => {
+  it('共 14 张，费用与表一致', () => {
+    expect(Object.keys(CARDS)).toHaveLength(14);
+    expect(CARDS.tacticalPause.cost).toBe(1);
+    expect(CARDS.adrenaline.cost).toBe(0);
+    expect(CARDS.secondWind.cost).toBe(2);
+    expect(CARDS.fullFocus.cost).toBe(1);
     expect(CARDS.deepBreath.cost).toBe(0);
     expect(CARDS.crowdCheer.cost).toBe(0);
     expect(CARDS.towelTime.cost).toBe(1);
@@ -70,6 +74,14 @@ describe('牌库状态机', () => {
     for (let i = 0; i < 6; i++) d = startRally(d, rng0);
     expect(d.hand).toHaveLength(5);
     expect(d.discard).toHaveLength(1);  // 第 6 张爆牌弃置
+  });
+
+  it('新卡效果：抽卡/回点/回体抽卡/专注', () => {
+    expect(cardEffect({ cardId: 'tacticalPause', upgraded: false })).toEqual({ type: 'draw', count: 2 });
+    expect(cardEffect({ cardId: 'tacticalPause', upgraded: true })).toEqual({ type: 'draw', count: 3 });
+    expect(cardEffect({ cardId: 'adrenaline', upgraded: false })).toEqual({ type: 'tp', amount: 2 });
+    expect(cardEffect({ cardId: 'secondWind', upgraded: false })).toEqual({ type: 'energyDraw', energy: 20, count: 1 });
+    expect(cardEffect({ cardId: 'fullFocus', upgraded: true })).toEqual({ type: 'focus', windowBonus: 0.75, powerMul: 0.15 });
   });
 
   it('playCard：费用校验与扣点', () => {

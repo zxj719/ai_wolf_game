@@ -54,28 +54,55 @@ function EnergyBar({ label, value, max = 100 }) {
   );
 }
 
+/**
+ * 手牌：两步交互（移动端友好）——第一次点选中并展示卡牌说明，
+ * 确认「打出」才消耗。title 悬浮提示在触屏上不可见，这是修复。
+ */
 function HandCards({ deck, onPlay, disabled }) {
+  const [selected, setSelected] = useState(null);
+  const sel = selected != null ? deck.hand[selected] : null;
+  const selDef = sel ? CARDS[sel.cardId] : null;
+  const selAffordable = selDef ? selDef.cost <= deck.tacticalPoints : false;
+
   return (
-    <div className="bt-hand">
-      <span className="bt-tp" title="战术点">⚡{deck.tacticalPoints}</span>
-      {deck.hand.length === 0 && <span className="bt-hand-empty">（手牌空）</span>}
-      {deck.hand.map((c, i) => {
-        const def = CARDS[c.cardId];
-        const affordable = def.cost <= deck.tacticalPoints;
-        return (
+    <div>
+      <div className="bt-hand">
+        <span className="bt-tp" title="战术点">⚡{deck.tacticalPoints}</span>
+        {deck.hand.length === 0 && <span className="bt-hand-empty">（手牌空）</span>}
+        {deck.hand.map((c, i) => {
+          const def = CARDS[c.cardId];
+          const affordable = def.cost <= deck.tacticalPoints;
+          return (
+            <button
+              key={`${c.cardId}-${i}`}
+              type="button"
+              className={`bt-card ${affordable && !disabled ? '' : 'dim'} ${selected === i ? 'selected' : ''}`}
+              onClick={() => setSelected(selected === i ? null : i)}
+            >
+              <span className="bt-card-cost">{def.cost}</span>
+              <span className="bt-card-icon">{def.icon}</span>
+              <span className="bt-card-name">{def.name}{c.upgraded ? '+' : ''}</span>
+            </button>
+          );
+        })}
+      </div>
+      {sel && (
+        <div className="bt-card-detail">
+          <span className="bt-card-detail-text">
+            {selDef.icon} <b>{selDef.name}{sel.upgraded ? '+' : ''}</b>（{selDef.cost}⚡）— {selDef.desc(sel.upgraded)}
+          </span>
           <button
-            key={`${c.cardId}-${i}`}
             type="button"
-            className={`bt-card ${affordable && !disabled ? '' : 'off'}`}
-            onClick={() => affordable && !disabled && onPlay(i)}
-            title={def.desc(c.upgraded)}
+            className={`btn mini ${selAffordable && !disabled ? '' : 'ghost'}`}
+            onClick={() => {
+              if (selAffordable && !disabled) { onPlay(selected); setSelected(null); }
+            }}
           >
-            <span className="bt-card-cost">{def.cost}</span>
-            <span className="bt-card-icon">{def.icon}</span>
-            <span className="bt-card-name">{def.name}{c.upgraded ? '+' : ''}</span>
+            {selAffordable ? '打出' : '战术点不足'}
           </button>
-        );
-      })}
+          <button type="button" className="btn ghost mini" onClick={() => setSelected(null)}>收回</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -108,10 +135,12 @@ function MovePicker({ state, onPick, onUltimate }) {
           type="button"
           className={`bt-move ultimate ${state.ultimateUsed ? 'off' : ''}`}
           onClick={() => !state.ultimateUsed && onUltimate(state.ultimateName)}
-          title={ult.desc}
         >
           <span className="bt-move-sys">{ult.face}</span>
-          <span className="bt-move-name">{state.ultimateName}</span>
+          <span className="bt-move-name">
+            {state.ultimateName}
+            <small className="bt-ult-desc">{state.ultimateUsed ? '本场已用（一场限一次）' : ult.desc}</small>
+          </span>
           <span className="bt-move-cost">绝技</span>
         </button>
       )}
@@ -125,10 +154,17 @@ function FxOverlay({ state }) {
   const prevRally = useRef(null);
   const prevAces = useRef(0);
 
+  const prevUlt = useRef(false);
   useEffect(() => {
     if (state.matchStats.aces > prevAces.current) {
       prevAces.current = state.matchStats.aces;
       setFx({ key: Date.now(), type: 'ace', text: 'ACE！🎾', gold: true });
+      return;
+    }
+    // 绝技发动反馈（修复「点了没反应」）
+    if (state.ultimateUsed && !prevUlt.current) {
+      prevUlt.current = true;
+      setFx({ key: Date.now(), type: 'clutch', text: `⚡《${state.ultimateName}》发动！`, gold: true });
       return;
     }
     const r = state.lastRally;
@@ -139,7 +175,7 @@ function FxOverlay({ state }) {
       else if (r.counterMul > 1 && r.win) setFx({ key: Date.now(), type: 'super', text: '效果拔群！' });
       else if (r.counterMul < 1 && !r.win) setFx({ key: Date.now(), type: 'bad', text: '被克制……' });
     }
-  }, [state.lastRally, state.matchStats.aces]);
+  }, [state.lastRally, state.matchStats.aces, state.ultimateUsed, state.ultimateName]);
 
   useEffect(() => {
     if (!fx) return undefined;
@@ -196,6 +232,7 @@ export function BattleScreen({
   );
   const fullState = { ...state, playerMoves };
   const overReported = useRef(false);
+  const startedAt = useRef(Date.now());
   const [reducedMotion] = useState(
     () => typeof window !== 'undefined'
       && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -236,7 +273,12 @@ export function BattleScreen({
   useEffect(() => {
     if (state.phase === 'over' && !overReported.current) {
       overReported.current = true;
-      onMatchOver({ score: state.score, matchStats: state.matchStats, pEnergy: state.pEnergy });
+      onMatchOver({
+        score: state.score,
+        matchStats: state.matchStats,
+        pEnergy: state.pEnergy,
+        durationS: Math.round((Date.now() - startedAt.current) / 1000),
+      });
     }
   }, [state.phase, state.score, state.matchStats, state.pEnergy, onMatchOver]);
 
@@ -275,6 +317,9 @@ export function BattleScreen({
 
         {state.phase === 'cards' && (
           <>
+            {state.activeUltimate && (
+              <div className="bt-ult-armed">⚡ 绝技已就绪 —— 本球生效！</div>
+            )}
             <HandCards deck={state.deck} onPlay={(idx) => dispatch({ type: 'PLAY_CARD', idx })} />
             <MovePicker
               state={fullState}
