@@ -19,6 +19,7 @@ import { ShopPanel } from './meta/ShopPanel';
 import { LadderScreen } from './modes/LadderScreen';
 import { AdventureScreen } from './modes/adventure/AdventureScreen';
 import { OnboardingModal, checkOnboardingSeen } from './components/OnboardingModal';
+import { isNovice, incrementNoviceGames, NOVICE_STAT_PENALTY } from './meta/noviceTracker';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -95,13 +96,20 @@ export default function TennisRoute() {
   const onStart = useCallback((playerName) => {
     const pool = CHARS.filter((c) => c.n !== playerName);
     const foe = pool[rand(0, pool.length - 1)];
+    const novice = isNovice();
+    const penalty = novice ? NOVICE_STAT_PENALTY : 0;
     dispatch({
       type: 'START',
       playerName,
       oppName: foe.n,
-      oppStats: { sta: rand(40, 90), skill: rand(40, 90), mind: rand(40, 90) },
+      oppStats: {
+        sta: Math.max(25, rand(40, 90) - penalty),
+        skill: Math.max(25, rand(40, 90) - penalty),
+        mind: Math.max(25, rand(40, 90) - penalty),
+      },
     });
-    toast(`宿敌已抽出：${foe.f} ${foe.n}！`);
+    if (novice) toast(`🌱 新手保护中 · 对手手下留情！`);
+    else toast(`宿敌已抽出：${foe.f} ${foe.n}！`);
   }, [dispatch, toast]);
 
   const onLogin = useCallback(() => navigate(ROUTES.LOGIN), [navigate]);
@@ -137,6 +145,7 @@ export default function TennisRoute() {
 
   // 单局快打结束：盘分回填 + 掉落/金币入永久层 + 遥测上报
   const onSingleMatchOver = useCallback(({ score, matchStats, durationS }) => {
+    incrementNoviceGames();
     sendMatchTelemetry({
       mode: 'single', character: state.player.name, opponent: state.opp.name,
       score, matchStats, durationS,

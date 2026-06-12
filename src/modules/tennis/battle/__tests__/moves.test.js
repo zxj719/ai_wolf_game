@@ -21,9 +21,9 @@ describe('MOVES 招式池（spec §1.2）', () => {
     }
   });
 
-  it('数值与 spec 一致：重炮耗体 20，切削回体 10', () => {
+  it('数值与 spec 一致：重炮耗体 20，切削微回体 3', () => {
     expect(MOVES.flatDrive.energyCost).toBe(20);
-    expect(MOVES.slice.energyCost).toBe(-10);
+    expect(MOVES.slice.energyCost).toBe(-3);
     expect(MOVES.smash.energyCost).toBe(16);
     expect(MOVES.flatDrive.stat).toBe('sta');
     expect(MOVES.dropShot.stat).toBe('mind');
@@ -33,7 +33,7 @@ describe('MOVES 招式池（spec §1.2）', () => {
   it('powerFactor：成本买威力，耗体越高系数越高（平衡补丁）', () => {
     expect(MOVES.flatDrive.powerFactor).toBe(1.30);
     expect(MOVES.slice.powerFactor).toBe(0.85);
-    expect(MOVES.lob.powerFactor).toBe(0.90);
+    expect(MOVES.lob.powerFactor).toBe(0.86);
     // 单调性：按耗体排序 powerFactor 不降
     const sorted = Object.values(MOVES).sort((a, b) => a.energyCost - b.energyCost);
     for (let i = 1; i < sorted.length; i++) {
