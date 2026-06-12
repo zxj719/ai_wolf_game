@@ -14,9 +14,9 @@ import { createDeckState, startRally, playCard } from './cards';
 import { pickOpponentMove, makeTell } from './opponentAI';
 
 export function energyPenalty(energy) {
-  if (energy >= 60) return 1.0;
-  if (energy >= 20) return 0.8;
-  return 0.6;
+  if (energy >= 50) return 1.0;     // 平衡补丁：充沛线 60→50
+  if (energy >= 20) return 0.85;    // 疲惫 0.8→0.85
+  return 0.7;                       // 力竭 0.6→0.7
 }
 
 const EXHAUSTED_BELOW = 20;
@@ -251,13 +251,13 @@ export function battleReducer(state, action) {
         pCounter = 1.0; oCounter = 1.0;
       }
 
-      // 玩家威力（twists：渡劫强制比拼心态 / 心理免疫减半）
+      // 玩家威力（twists：渡劫强制比拼心态 / 心理免疫减半；powerFactor：成本买威力）
       const twists = state.twists;
       const mindDuel = twists.forcedMindDuel && state.rallyCount % twists.forcedMindDuel === 0;
       const stat = mindDuel ? 'mind' : MOVES[pMove].stat;
-      let pBase = state.player[stat] + (state.equip[stat] ?? 0)
+      let pBase = (state.player[stat] + (state.equip[stat] ?? 0)
         + Math.round(state.player.talent * 0.4)
-        + (stat === 'mind' ? state.pMindBonus : 0);
+        + (stat === 'mind' ? state.pMindBonus : 0)) * MOVES[pMove].powerFactor;
       if ((twists.mindImmune || twists.mindless) && MOVES[pMove].stat === 'mind' && !mindDuel) {
         pBase *= 0.5;
       }
@@ -273,10 +273,11 @@ export function battleReducer(state, action) {
         && (action.reflectRoll ?? 1) < twists.powerReflect;
       if (reflected) pPower *= 0.25;
 
-      // 对手威力（d20 → 0.5–1.5）
+      // 对手威力（d20 → 0.5–1.35：上限低于玩家满分 1.5，给人类操作留出回报空间）
       const oStat = mindDuel ? 'mind' : MOVES[oppMove].stat;
-      const oMultiplier = 0.5 + (action.oppPerformRoll - 1) / 19;
-      const oPower = state.opponent[oStat] * energyPenalty(oEnergy) * oCounter * oMultiplier + action.noiseO;
+      const oMultiplier = 0.5 + (action.oppPerformRoll - 1) / 19 * 0.85;
+      const oPower = state.opponent[oStat] * MOVES[oppMove].powerFactor
+        * energyPenalty(oEnergy) * oCounter * oMultiplier + action.noiseO;
 
       const win = pPower >= oPower;
 

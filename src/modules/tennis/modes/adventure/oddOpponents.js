@@ -8,7 +8,9 @@
 export const ODD_OPPONENTS = {
   '广场舞大妈': {
     name: '广场舞大妈', face: '💃', chapter: 1,
-    sta: 55, skill: 45, mind: 99,
+    // 平衡补丁：mind 99→58。「心理战免疫」由 twist 实现（防御性），
+    // 99 心态曾让她的廉价挑高球变成进攻核弹（用户实测打不过）。
+    sta: 55, skill: 45, mind: 58,
     build: { moves: ['flatDrive', 'lob', 'slice', 'dropShot'], weights: [0.45, 0.25, 0.2, 0.1] },
     twists: { mindImmune: true },
     taunt: '小伙子，蒲扇都比你的拍子快！',

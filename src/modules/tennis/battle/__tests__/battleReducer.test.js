@@ -30,8 +30,8 @@ function toPick(s, { serve = 'normal' } = {}) {
   return s;
 }
 
-describe('energyPenalty 体力三档（spec §1.1）', () => {
-  it.each([[100, 1.0], [60, 1.0], [59, 0.8], [20, 0.8], [19, 0.6], [0, 0.6]])(
+describe('energyPenalty 体力三档（平衡补丁后）', () => {
+  it.each([[100, 1.0], [50, 1.0], [49, 0.85], [20, 0.85], [19, 0.7], [0, 0.7]])(
     '体力 %i → ×%d', (e, p) => expect(energyPenalty(e)).toBe(p));
 });
 
@@ -63,8 +63,8 @@ describe('battleReducer 球级流程', () => {
     s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier: 1.0 });
     expect(s.phase).toBe('resolve');
     s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 10, noiseP: 0, noiseO: 0 });
-    // pBase = 80(sta) + 28(talent*0.4) = 108; ×1.0 体力 ×1.5 克制 ×1.0 小游戏 = 162
-    expect(s.lastRally.pPower).toBeCloseTo(162, 5);
+    // pBase = (80+28)×1.30 powerFactor = 140.4; ×1.0 体力 ×1.5 克制 ×1.0 小游戏 = 210.6
+    expect(s.lastRally.pPower).toBeCloseTo(210.6, 5);
     expect(s.lastRally.counterMul).toBe(1.5);
     expect(s.lastRally.win).toBe(true);
     expect(s.score.points[0]).toBe(1);
@@ -96,9 +96,9 @@ describe('battleReducer 球级流程', () => {
     expect(s.pEnergy).toBe(0);
     s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier: 1.0 });
     s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 10, noiseP: 0, noiseO: 0 });
-    // pBase = 60(skill)+28 = 88 ×0.6 力竭 ×1.0(topspin vs slice 被克 0.7!) —— topspin 被 slice 克
+    // pBase = (60+28)×1.10 = 96.8 ×0.7 力竭 ×0.7 被克（topspin 被 slice 克）
     expect(s.lastRally.counterMul).toBe(0.7);
-    expect(s.lastRally.pPower).toBeCloseTo(88 * 0.6 * 0.7, 5);
+    expect(s.lastRally.pPower).toBeCloseTo(96.8 * 0.7 * 0.7, 5);
   });
 
   it('绝技：虎啸正手 autoCounter 强制 1.5×，一场限一次', () => {
@@ -154,7 +154,7 @@ describe('battleReducer 球级流程', () => {
     s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 1, noiseP: 0, noiseO: 0 });
     expect(s.score.games[0]).toBe(1);
     expect(s.needServe).toBe(true);
-    expect(s.pEnergy).toBe(Math.min(100, before + 10));               // 局间回体
+    expect(s.pEnergy).toBe(Math.min(100, before + 20));               // 局间回体（补丁后 20）
   });
 
   it('挂件特效：counterBoost 克中 +0.1、restBonus 局间多回体、初始体力注入', () => {
@@ -172,7 +172,7 @@ describe('battleReducer 球级流程', () => {
     const beforeRest = s.pEnergy;
     s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 1, noiseP: 0, noiseO: 0 });
     expect(s.lastRally.counterMul).toBeCloseTo(1.6);
-    expect(s.pEnergy).toBe(Math.min(100, beforeRest + 10 + 5));        // restBonus
+    expect(s.pEnergy).toBe(Math.min(100, beforeRest + 20 + 5));        // restBonus（局间 20）
   });
 
   it('比赛结束 phase=over', () => {

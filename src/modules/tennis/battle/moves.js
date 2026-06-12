@@ -5,45 +5,49 @@
  * 穿越球惩罚网前、高压终结挑高。数值改动必须同步 spec。
  */
 
+/**
+ * powerFactor（2026-06-12 平衡补丁）：体力成本买威力。
+ * 修复「满分重炮打不过低耗挑高球」——耗体越高的招，每点属性输出越高。
+ */
 export const MOVES = {
   flatDrive: {
     id: 'flatDrive', name: '重炮平击', system: 'power', stat: 'sta',
-    energyCost: 20, minigame: 'rhythmMash',
+    energyCost: 20, powerFactor: 1.30, minigame: 'rhythmMash',
     desc: '底线大力平击，势大力沉',
   },
   smash: {
     id: 'smash', name: '高压扣杀', system: 'power', stat: 'sta',
-    energyCost: 16, minigame: 'shrinkSmash',
+    energyCost: 16, powerFactor: 1.22, minigame: 'shrinkSmash',
     desc: '高点暴力终结',
   },
   topspin: {
     id: 'topspin', name: '上旋抽击', system: 'spin', stat: 'skill',
-    energyCost: 12, minigame: 'rhythmBar',
+    energyCost: 12, powerFactor: 1.10, minigame: 'rhythmBar',
     desc: '强烈上旋压制对手反手',
   },
   slice: {
     id: 'slice', name: '切削放缓', system: 'spin', stat: 'skill',
-    energyCost: -6, minigame: 'precisionStop',
+    energyCost: -10, powerFactor: 0.85, minigame: 'precisionStop',
     desc: '低平切削改变节奏，顺势喘口气',
   },
   volley: {
     id: 'volley', name: '网前截击', system: 'net', stat: 'skill',
-    energyCost: 10, minigame: 'whackVolley',
+    energyCost: 10, powerFactor: 1.05, minigame: 'whackVolley',
     desc: '上网拦截，不给反应时间',
   },
   dropShot: {
     id: 'dropShot', name: '放小球', system: 'control', stat: 'mind',
-    energyCost: 8, minigame: 'gaugeDrop',
+    energyCost: 8, powerFactor: 0.95, minigame: 'gaugeDrop',
     desc: '网前轻吊，调动对手',
   },
   lob: {
     id: 'lob', name: '挑高球', system: 'control', stat: 'mind',
-    energyCost: 6, minigame: 'directionReact',
+    energyCost: 6, powerFactor: 0.90, minigame: 'directionReact',
     desc: '过顶高球送对手回老家',
   },
   passingShot: {
     id: 'passingShot', name: '穿越球', system: 'control', stat: 'mind',
-    energyCost: 14, minigame: 'dualTiming',
+    energyCost: 14, powerFactor: 1.15, minigame: 'dualTiming',
     desc: '直线/斜线穿越上网者',
   },
 };

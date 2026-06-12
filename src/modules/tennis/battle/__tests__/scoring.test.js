@@ -9,7 +9,7 @@ const win = (s, who, n) => {
 };
 
 describe('scoring 真实记分 lite（spec §1.4）', () => {
-  it('0→15→30→40→局，局间回体 10，分数清零', () => {
+  it('0→15→30→40→局，局间回体 20，分数清零', () => {
     let s = createScore();
     s = addPoint(s, 0);
     expect(pointLabel(s, 0)).toBe('15');
@@ -19,7 +19,7 @@ describe('scoring 真实记分 lite（spec §1.4）', () => {
     expect(pointLabel(s, 0)).toBe('40');
     s = addPoint(s, 0);
     expect(s.games).toEqual([1, 0]);
-    expect(s.restEnergy).toBe(10);
+    expect(s.restEnergy).toBe(20);
     expect(pointLabel(s, 0)).toBe('0');
   });
 
@@ -58,12 +58,12 @@ describe('scoring 真实记分 lite（spec §1.4）', () => {
     expect(s.games).toEqual([0, 1]);
   });
 
-  it('先胜 3 局成盘，盘间回体 30', () => {
+  it('先胜 3 局成盘，盘间回体 50', () => {
     let s = createScore();
     for (let g = 0; g < 3; g++) s = win(s, 0, 4);
     expect(s.sets).toEqual([1, 0]);
     expect(s.games).toEqual([0, 0]);
-    expect(s.restEnergy).toBe(30);
+    expect(s.restEnergy).toBe(50);
   });
 
   it('两盘先取者获胜，matchOver 后 addPoint 冻结', () => {

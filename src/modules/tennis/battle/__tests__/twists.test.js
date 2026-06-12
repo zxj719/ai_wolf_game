@@ -26,8 +26,8 @@ function playRally(s, moveId, { moveRoll = 0, reflectRoll = 1, multiplier = 1.0,
 describe('离谱对手规则扭曲（spec §4.3）', () => {
   it('广场舞大妈：心理战系招式威力减半', () => {
     const s = playRally(mk('广场舞大妈'), 'dropShot');
-    // dropShot 吃心态：(50+28)×0.5=39 为底 × 克制 1.5（小球克重炮）= 58.5
-    expect(s.lastRally.pPower).toBeCloseTo(58.5, 5);
+    // dropShot 吃心态：(50+28)×0.95 powerFactor ×0.5 免疫 × 1.5 克制（小球克重炮）= 55.575
+    expect(s.lastRally.pPower).toBeCloseTo((50 + 28) * 0.95 * 0.5 * 1.5, 5);
   });
 
   it('外卖小哥：timeScale 进入 twists（UI 用），出招照常', () => {

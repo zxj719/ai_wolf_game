@@ -67,7 +67,7 @@ function winGame(score, who) {
     deuceCount: 0,
     goldenPoint: false,
     games,
-    restEnergy: 10,
+    restEnergy: 20,    // 平衡补丁：局间回体 10→20
   };
 
   if (games[who] >= GAMES_PER_SET) {
@@ -75,7 +75,7 @@ function winGame(score, who) {
     sets[who] += 1;
     next.sets = sets;
     next.games = [0, 0];
-    next.restEnergy = 30;
+    next.restEnergy = 50;    // 平衡补丁：盘间回体 30→50
     next.setHistory = [...score.setHistory, who === 0 ? 'W' : 'L'];
     if (sets[who] >= SETS_TO_WIN) {
       next.matchOver = true;
