@@ -192,6 +192,34 @@ export async function handleTennisTelemetrySummary(request, env) {
   }
 }
 
+/** POST /api/tennis/feedback（公开，含游客；1-5 星 + 可选一句话；白名单校验防脏数据） */
+export async function handleTennisFeedback(request, env) {
+  try {
+    const b = await request.json().catch(() => null);
+    if (!b || typeof b !== 'object') return errorResponse('Invalid body', 400, env, request);
+
+    const ok = Number.isInteger(b.rating) && b.rating >= 1 && b.rating <= 5
+      && (b.mode == null || TELEMETRY_MODES.includes(b.mode))
+      && (b.character == null || TELEMETRY_CHARS.includes(b.character))
+      && (b.result == null || ['win', 'loss'].includes(b.result))
+      && (b.comment == null || (typeof b.comment === 'string' && b.comment.length <= 200));
+
+    if (!ok) return errorResponse('Invalid feedback payload', 400, env, request);
+
+    const comment = (typeof b.comment === 'string' && b.comment.trim()) ? b.comment.trim().slice(0, 200) : null;
+
+    await env.DB.prepare(
+      `INSERT INTO tennis_feedback (rating, comment, mode, character, result)
+       VALUES (?, ?, ?, ?, ?)`
+    ).bind(b.rating, comment, b.mode ?? null, b.character ?? null, b.result ?? null).run();
+
+    return jsonResponse({ success: true }, 201, env, request);
+  } catch (err) {
+    console.error('Tennis feedback error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
+  }
+}
+
 /** GET /api/tennis/leaderboard（公开） */
 export async function handleTennisLeaderboard(request, env) {
   try {

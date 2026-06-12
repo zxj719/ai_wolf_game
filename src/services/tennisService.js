@@ -113,6 +113,26 @@ export function sendMatchTelemetry({ mode, character, opponent, score, matchStat
 }
 
 /**
+ * 上报赛后用户评价（公开，含游客；fire-and-forget，不阻塞 UI）。
+ * 评价数据并入下轮循环报告，用于监控游戏趣味性与改进方向。
+ */
+export function sendMatchFeedback({ rating, comment, mode, character, result }) {
+  try {
+    fetch(buildApiUrl('/api/tennis/feedback'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rating,
+        comment: comment || null,
+        mode: mode ?? null,
+        character: character ?? null,
+        result: result ?? null,
+      }),
+    }).catch(() => { /* 评价静默失败 */ });
+  } catch { /* noop */ }
+}
+
+/**
  * 拉取全网排行榜（公开接口）
  * @returns {{players: Array, recent: Array}|null} 失败返回 null，由调用方降级
  */

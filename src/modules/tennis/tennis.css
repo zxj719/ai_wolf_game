@@ -706,3 +706,33 @@
 }
 .tennis-scope .help-btn:hover { transform: scale(1.1); background: #1a6050; }
 .tennis-scope .card-relative { position: relative; }
+
+/* ============ 赛后评价区 (ResultScreen .fb-*) ============ */
+.tennis-scope .fb-card { margin-top: 16px; }
+.tennis-scope .fb-thanks {
+  text-align: center; font-size: 1rem; color: var(--court);
+  padding: 12px 0; margin: 0;
+}
+.tennis-scope .fb-stars {
+  display: flex; align-items: center; gap: 4px; margin-bottom: 14px;
+}
+.tennis-scope .fb-star {
+  background: none; border: none; cursor: pointer;
+  font-size: 1.8rem; line-height: 1; padding: 2px 4px;
+  color: #bbb; transition: color .12s, transform .1s;
+}
+.tennis-scope .fb-star--on { color: var(--optic-deep); }
+.tennis-scope .fb-star:hover { transform: scale(1.15); }
+.tennis-scope .fb-rating-label {
+  font-family: var(--mono); font-size: .85rem;
+  color: var(--court); margin-left: 6px;
+}
+.tennis-scope .fb-input {
+  width: 100%; box-sizing: border-box;
+  border: 1.5px solid rgba(13,59,46,.2); border-radius: 10px;
+  padding: 10px 12px; font-size: .9rem; resize: vertical;
+  background: rgba(13,59,46,.03); color: var(--card-ink);
+  font-family: inherit; margin-bottom: 14px;
+}
+.tennis-scope .fb-input:focus { outline: none; border-color: var(--court); }
+.tennis-scope .fb-actions { display: flex; gap: 10px; flex-wrap: wrap; }
