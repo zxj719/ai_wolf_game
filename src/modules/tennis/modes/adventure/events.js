@@ -100,6 +100,48 @@ export const EVENTS = [
     ],
   },
 
+  // ===== 新增小游戏事件（4） =====
+  {
+    id: 'drumBeat', chapter: 1, type: 'minigame', minigame: 'rhythmMash', icon: '🥁',
+    title: '鼓楼晨练',
+    text: '社区鼓楼旁，老大爷正打腰鼓。"来！一起！节奏稳的人球也稳！"跟上节拍连续击打——这正是底线重炮的爆发感。',
+    rewards: [
+      { kind: 'nothing', flavor: '拍子全乱了，大爷扶额叹气。' },
+      { kind: 'stat', stat: 'sta', amount: 4, flavor: '鼓声铿锵，臂力见长！' },
+      { kind: 'stat', stat: 'sta', amount: 8, flavor: '擂鼓如雷！大爷收你为徒。' },
+    ],
+  },
+  {
+    id: 'marketPingPong', chapter: 1, type: 'minigame', minigame: 'dualTiming', icon: '🏓',
+    title: '摊位乒乓',
+    text: '两个摊主用案板当球拍对打，球飞来了："来接一下！"双向时机——穿越球难在同时判断对手位置和球的轨迹。',
+    rewards: [
+      { kind: 'nothing', flavor: '接空了，球砸进了豆腐堆。' },
+      { kind: 'stat', stat: 'skill', amount: 5, flavor: '接住了！手眼协调显著提升。' },
+      { kind: 'stat', stat: 'skill', amount: 9, flavor: '打了个来回！摊主们鼓掌叫好。' },
+    ],
+  },
+  {
+    id: 'stonePalm', chapter: 2, type: 'minigame', minigame: 'shrinkSmash', icon: '🪨',
+    title: '掌心碎石',
+    text: '修仙界武道考核：窗口收拢时果断落掌，石块应声而碎。"窗口即天道——最好的时机只有一瞬。"高压扣杀的精髓。',
+    rewards: [
+      { kind: 'nothing', flavor: '窗口没踩上，石头完好无损，手还麻了。' },
+      { kind: 'stat', stat: 'skill', amount: 4, flavor: '碎了大半！时机感大进。' },
+      { kind: 'stat', stat: 'skill', amount: 8, flavor: '一击粉碎！考官拍案叫绝。' },
+    ],
+  },
+  {
+    id: 'asteroidReact', chapter: 3, type: 'minigame', minigame: 'directionReact', icon: '🌌',
+    title: '星际急刹',
+    text: '飞船穿越小行星带！预判来袭方向、急速变向规避——和判断挑高球落点一个道理。左还是右？只有一秒。',
+    rewards: [
+      { kind: 'nothing', flavor: '被蹭了一下，宇航服轻微受损。' },
+      { kind: 'stat', stat: 'mind', amount: 4, flavor: '全部规避！判断力显著提升。' },
+      { kind: 'energyMax', amount: 8, flavor: '完美穿越！极限机动把体能逼出了新极限。' },
+    ],
+  },
+
   // ===== 剧情二选一（8） =====
   {
     id: 'fishStall', chapter: 1, type: 'story', icon: '🐟',
@@ -171,6 +213,44 @@ export const EVENTS = [
     options: [
       { label: '握紧碎片', reward: { kind: 'stat', stat: 'mind', amount: 10, flavor: '为了家人，心意已决！' } },
       { label: '收进口袋换钱', reward: { kind: 'coins', amount: 80, flavor: '......你的良心不会痛吗？反正金币到手。' } },
+    ],
+  },
+
+  // ===== 新增剧情事件（4） =====
+  {
+    id: 'cobbler', chapter: 1, type: 'story', icon: '👟',
+    title: '修鞋匠的跑鞋',
+    text: '菜市场角落的修鞋老匠拿出一双磨损的旧跑鞋："我儿子是运动员留下的，放着浪费。给你穿比锁在柜子里强。"',
+    options: [
+      { label: '接过穿上', reward: { kind: 'gear', flavor: '鞋底弹性超好！这双鞋有故事。' } },
+      { label: '婉拒，买双新球袜', reward: { kind: 'heal', amount: 20, flavor: '新袜子舒适，步伐轻盈了许多。' } },
+    ],
+  },
+  {
+    id: 'templeOracle', chapter: 2, type: 'story', icon: '🔮',
+    title: '道观问签',
+    text: '古庙香火缭绕，道长缓缓递出签文："上上签——顺势借力；下下签——硬碰逆势。网球亦是此理，施主作何选择？"',
+    options: [
+      { label: '顺势（抽一张战术卡）', reward: { kind: 'card', flavor: '签文化成一张卡——运势加持。' } },
+      { label: '硬碰（技巧+7，体力-10）', reward: { kind: 'stat', stat: 'skill', amount: 7, healDelta: -10, flavor: '逆流而上！技艺大进，但耗神不少。' } },
+    ],
+  },
+  {
+    id: 'spaceCook', chapter: 3, type: 'story', icon: '🍜',
+    title: '太空厨师的烦恼',
+    text: '太空站食堂厨师愁眉苦脸："零重力煮面，面条全飘走了！帮我捞回来换你一顿好的。"',
+    options: [
+      { label: '帮忙捞面', reward: { kind: 'coins', amount: 50, flavor: '捞面技术一流！厨师红包塞过来。' } },
+      { label: '点现成的快餐', reward: { kind: 'heal', amount: 30, flavor: '快餐热乎，体力回复不少。' } },
+    ],
+  },
+  {
+    id: 'familyPhoto', chapter: 3, type: 'story', icon: '📸',
+    title: '走廊里的合影',
+    text: '走廊墙上贴着一张旧照片——全家人举着奖杯合影，每个人都笑得合不拢嘴。背面写着："冠军不重要，一起打球最好。"',
+    options: [
+      { label: '放下包袱，记住这笑脸', reward: { kind: 'stat', stat: 'mind', amount: 10, flavor: '心里暖了，脚步也轻了。' } },
+      { label: '拍张照发给家人', reward: { kind: 'coins', amount: 30, flavor: '家人回了一堆红包表情包。意外收入！' } },
     ],
   },
 ];
