@@ -216,7 +216,49 @@ export const EVENTS = [
     ],
   },
 
-  // ===== 新增剧情事件（4） =====
+  // ===== 新增小游戏事件（8）=====
+  {
+    id: 'deliveryDodge', chapter: 1, type: 'minigame', minigame: 'dodge', icon: '🛵',
+    title: '外卖骑手大冲关',
+    text: '外卖小哥被堵在市场门口急得团团转："帮我把这单送出去！"菜摊、水桶、横穿的大妈——一路全是障碍。闪躲就是步伐练习。',
+    rewards: [
+      { kind: 'nothing', flavor: '单送丢了一半，小哥哭笑不得。' },
+      { kind: 'coins', amount: 30, flavor: '准时送达！小费落袋。' },
+      { kind: 'coins', amount: 70, flavor: '极速通关！顺路收了三个邻居的外卖费。' },
+    ],
+  },
+  {
+    id: 'coachDrill', chapter: 2, type: 'minigame', minigame: 'gaugeDrop', icon: '💪',
+    title: '铁人教练的精准课',
+    text: '山腰古寺兼职健身堂，铁人教练指着沙袋："出拳那一刻全力制动——力道收得准才是高手。"精准收力，和网球触球瞬间一个道理。',
+    rewards: [
+      { kind: 'nothing', flavor: '手劲没收住，打穿了沙袋，赔了钱。' },
+      { kind: 'stat', stat: 'sta', amount: 4, flavor: '收力完美！力量训练见效。' },
+      { kind: 'energyMax', amount: 10, flavor: '极致控制！体能上限突破，肌肉记忆刻入灵魂。' },
+    ],
+  },
+  {
+    id: 'wuxiaReflex', chapter: 2, type: 'minigame', minigame: 'directionReact', icon: '🥷',
+    title: '侠客的方向考',
+    text: '林间岩石上盘坐一侠客，目如寒星："刀来——左还是右？出手即命运。"木剑猝然袭来，方向判断是内功之魂，也是接球之本。',
+    rewards: [
+      { kind: 'nothing', flavor: '判断错了，被木剑轻轻点了脑门。' },
+      { kind: 'stat', stat: 'skill', amount: 4, flavor: '全数判对！身法敏锐度大进。' },
+      { kind: 'stat', stat: 'mind', amount: 7, flavor: '完美预判！侠客收剑："孺子可教。"心境跃升一界。' },
+    ],
+  },
+  {
+    id: 'asteroidDance', chapter: 3, type: 'minigame', minigame: 'rhythmBar', icon: '🌌',
+    title: '星际颁奖节奏课',
+    text: '太空站「银河联赛百周年」庆典，礼宾官拦住你："贵宾欢迎仪式——跟上异星节奏！"外星拍子奇特，心律稳定才能踩准。',
+    rewards: [
+      { kind: 'nothing', flavor: '节奏全乱，外星观众集体回避目光。' },
+      { kind: 'coins', amount: 45, flavor: '节奏踩准！外星贵宾塞来一袋赞助币。' },
+      { kind: 'stat', stat: 'mind', amount: 7, flavor: '完美合拍！异星乐感打通了你的节奏天赋。' },
+    ],
+  },
+
+  // ===== 新增剧情事件（8）=====
   {
     id: 'cobbler', chapter: 1, type: 'story', icon: '👟',
     title: '修鞋匠的跑鞋',
@@ -251,6 +293,42 @@ export const EVENTS = [
     options: [
       { label: '放下包袱，记住这笑脸', reward: { kind: 'stat', stat: 'mind', amount: 10, flavor: '心里暖了，脚步也轻了。' } },
       { label: '拍张照发给家人', reward: { kind: 'coins', amount: 30, flavor: '家人回了一堆红包表情包。意外收入！' } },
+    ],
+  },
+  {
+    id: 'streetBusker', chapter: 1, type: 'story', icon: '🎸',
+    title: '市场口的吉他少年',
+    text: '出市场时，一个少年坐在路边弹吉他，唱的词像是在描述小时候打球的自己。帽子里只有几枚硬币。',
+    options: [
+      { label: '投 20 金币打赏', reward: { kind: 'card', cost: 20, flavor: '少年激动地从琴包翻出一张手写战术卡："我哥留下的，送有缘人！"' } },
+      { label: '驻足听完整首', reward: { kind: 'stat', stat: 'mind', amount: 6, flavor: '音乐让你想起打球最初的感觉，心境澄澈。' } },
+    ],
+  },
+  {
+    id: 'oldCoach', chapter: 1, type: 'story', icon: '🎓',
+    title: '路边的老教练',
+    text: '老教练认出了你，递来一瓶运动饮料，叹了口气："你的步法还是那个老毛病——左脚发力不够，什么时候改？"',
+    options: [
+      { label: '当场跟他练步法', reward: { kind: 'stat', stat: 'skill', amount: 6, flavor: '反复拆解动作，步伐控制质感提升一个档次。' } },
+      { label: '喝完道谢就跑', reward: { kind: 'heal', amount: 25, flavor: '运动饮料真好喝，腿不酸了。' } },
+    ],
+  },
+  {
+    id: 'mediaInterview', chapter: 2, type: 'story', icon: '📰',
+    title: '赛道边的媒体记者',
+    text: '记者拦住你："请问本场赢了有什么感言？"镜头红灯亮着，时间只有五秒。',
+    options: [
+      { label: '夸张演讲，吸引赞助商', reward: { kind: 'coins', amount: 50, flavor: '演讲后走了三步，信封塞进手里——"赞助费。"' } },
+      { label: '低调作答，节省精力', reward: { kind: 'stat', stat: 'mind', amount: 5, healDelta: 10, flavor: '"我只是享受比赛。"说完心情轻松，体力也悄悄回了些。' } },
+    ],
+  },
+  {
+    id: 'starStation', chapter: 3, type: 'story', icon: '🎆',
+    title: '百年庆典的邀请',
+    text: '太空站「银河联赛百周年」，舷窗外焰火绽放。服务机器人端着香槟："贵宾，要参加庆典吗？"',
+    options: [
+      { label: '赴宴放松（回体充足）', reward: { kind: 'heal', amount: 60, flavor: '香槟入喉，音乐绕梁，体力回满大半。' } },
+      { label: '谢绝，保持竞技状态', reward: { kind: 'stat', stat: 'random', amount: 8, flavor: '专注比赛的状态让你在角落偷练了半小时，某项属性突飞猛进。' } },
     ],
   },
 ];
