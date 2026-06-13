@@ -159,19 +159,29 @@ export default function TennisRoute() {
     if (drop.rarity === 'legendary') achievements.add('firstLegendary');
     if (matchStats.aces >= 3) achievements.add('aceMaster');
     if (matchStats.clutchWins > 0) achievements.add('clutchMaster');
+    if ((matchStats.maxConsecAces ?? 0) >= 3) achievements.add('consecAce');
+    if ((matchStats.longestWinStreak ?? 0) >= 5) achievements.add('winStreak5');
+    if ((matchStats.maxMgMult ?? 0) >= 1.4) achievements.add('proTouch');
+    const newAchievements = [...achievements].filter((id) => !progress.achievements.includes(id));
     updateProgress({
       ...progress,
       coins: progress.coins + coins + soldFor,
       equipment: equipped,
       achievements: [...achievements],
     });
-    toast(`🎁 掉落：${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰`);
+    if (newAchievements.length > 0) {
+      const names = newAchievements.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.name ?? id);
+      toast(`🏆 新成就解锁：${names.join(' · ')}`);
+    } else {
+      toast(`🎁 掉落：${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰`);
+    }
     dispatch({
       type: 'MATCH_OVER',
       setsP: score.sets[0],
       setsO: score.sets[1],
       setHistory: score.setHistory,
       matchStats,
+      newAchievements,
     });
   }, [progress, updateProgress, toast, dispatch, state.player, state.opp]);
 
@@ -300,6 +310,7 @@ export default function TennisRoute() {
             onRecorded={refreshBoards}
             boardProps={boardProps}
             matchStats={state.lastMatchStats}
+            newAchievements={state.lastNewAchievements}
           />
         )}
 

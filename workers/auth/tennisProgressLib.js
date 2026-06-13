@@ -14,6 +14,7 @@ const ACHIEVEMENT_IDS = [
   'firstWin', 'familyKing', 'allUltimates', 'sGrade',
   'perfectChampion', 'adventureClear', 'firstLegendary', 'aceMaster',
   'clutchMaster', 'boxOpener', 'goldRush', 'aviator',
+  'consecAce', 'winStreak5', 'proTouch',
 ];
 const COIN_GAIN_CAP = 500;
 const CARD_IDS = [

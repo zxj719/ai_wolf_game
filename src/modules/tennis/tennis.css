@@ -761,3 +761,39 @@
   background: var(--court); color: var(--optic); border-radius: 999px;
   padding: 2px 8px; margin-top: 2px; white-space: nowrap;
 }
+
+/* ============ 新成就解锁卡 (ResultScreen .achieve-*) ============ */
+@keyframes achieve-pop {
+  0%   { opacity: 0; transform: scale(.85) translateY(12px); }
+  60%  { transform: scale(1.04) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes achieve-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.tennis-scope .achieve-unlock-card {
+  margin-top: 16px;
+  border: 2px solid #f5a623;
+  animation: achieve-pop .5s cubic-bezier(.34,1.56,.64,1) both;
+}
+.tennis-scope .achieve-unlock-card h2 {
+  background: linear-gradient(90deg, #f5a623, #ffe066, #f5a623);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: achieve-shimmer 2.5s linear infinite;
+}
+.tennis-scope .achieve-unlock-grid {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 12px;
+}
+.tennis-scope .achieve-unlock-item {
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(245,166,35,.08); border: 1px solid rgba(245,166,35,.25);
+  border-radius: 12px; padding: 12px 16px;
+}
+.tennis-scope .achieve-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; }
+.tennis-scope .achieve-text { display: flex; flex-direction: column; gap: 2px; }
+.tennis-scope .achieve-name { font-family: var(--display); font-size: 1.05rem; font-weight: 700; color: #f5a623; }
+.tennis-scope .achieve-desc { font-size: .8rem; color: var(--muted); }

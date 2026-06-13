@@ -3,6 +3,29 @@ import { ENDINGS } from '../gameData';
 import { saveLocalRecord } from '../localBoard';
 import { saveTennisRecord, sendMatchFeedback } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
+import { achievementById } from '../meta/achievements';
+
+function AchievementUnlockCard({ newAchievements }) {
+  if (!newAchievements || newAchievements.length === 0) return null;
+  const items = newAchievements.map((id) => achievementById(id)).filter(Boolean);
+  if (items.length === 0) return null;
+  return (
+    <div className="card flat achieve-unlock-card">
+      <h2>🏆 新成就解锁！</h2>
+      <div className="achieve-unlock-grid">
+        {items.map((a) => (
+          <div key={a.id} className="achieve-unlock-item">
+            <span className="achieve-icon">{a.icon}</span>
+            <div className="achieve-text">
+              <span className="achieve-name">{a.name}</span>
+              <span className="achieve-desc">{a.desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function HighlightsCard({ matchStats }) {
   if (!matchStats) return null;
@@ -35,7 +58,7 @@ function HighlightsCard({ matchStats }) {
 }
 
 /** ⑤ 结局 + 战报 + 双榜。挂载时本地入榜 + 登录用户上传全网榜。 */
-export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats }) {
+export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats, newAchievements }) {
   const ending = ENDINGS[`${state.setsP}-${state.setsO}`];
   const { player: p, opp: o } = state;
   const recordedRef = useRef(false);
@@ -128,6 +151,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
         </div>
       </div>
 
+      <AchievementUnlockCard newAchievements={newAchievements} />
       <HighlightsCard matchStats={matchStats} />
 
       <div className="card flat">

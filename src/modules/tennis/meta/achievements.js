@@ -15,6 +15,9 @@ export const ACHIEVEMENTS = [
   { id: 'boxOpener',       icon: '🎁', name: '开盒手气',   desc: '首次在商店开盲盒' },
   { id: 'goldRush',        icon: '⛏️', name: '黄金矿工',   desc: '矿工盒单次挖到 60 分以上' },
   { id: 'aviator',         icon: '🐦', name: '飞行执照',   desc: '飞翔的网球难度等级达到 5' },
+  { id: 'consecAce',       icon: '🔥', name: '发球炮台',   desc: '单场连续轰出 3 记以上 ACE' },
+  { id: 'winStreak5',      icon: '🌊', name: '势如破竹',   desc: '单场连续赢球 5 次以上' },
+  { id: 'proTouch',        icon: '✨', name: '神之触感',   desc: '小游戏操作倍率达到 1.4 以上' },
 ];
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id);

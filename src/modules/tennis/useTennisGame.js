@@ -36,6 +36,7 @@ export const initialState = {
   setHistory: [],
   lastRally: null,  // { pBase, pRoll, pTot, oBase, oRoll, oTot, win, label }
   lastMatchStats: null,
+  lastNewAchievements: [],
 };
 
 export function tennisReducer(state, action) {
@@ -91,6 +92,7 @@ export function tennisReducer(state, action) {
         setHistory: action.setHistory,
         lastRally: null,
         lastMatchStats: action.matchStats ?? null,
+        lastNewAchievements: action.newAchievements ?? [],
       };
 
     case 'REPLAY':
