@@ -77,7 +77,8 @@ export function createBattle({ player, opponent, deckInstances, rng, ultimate, t
     activeUltimate: null,
     lastRally: null,
     rallyLog: [],
-    matchStats: { aces: 0, countersWon: 0, clutchWins: 0, moveUsage: {}, mgSum: 0, mgCount: 0 },
+    matchStats: { aces: 0, countersWon: 0, clutchWins: 0, moveUsage: {}, mgSum: 0, mgCount: 0,
+                  curConsecAces: 0, maxConsecAces: 0, curWinStreak: 0, longestWinStreak: 0, maxMgMult: 0 },
   };
 }
 
@@ -138,17 +139,27 @@ export function battleReducer(state, action) {
       if (state.phase !== 'serve') return state;
       const base = { ...state, needServe: false };
       if (action.result === 'ace') {
+        const curConsecAces = state.matchStats.curConsecAces + 1;
+        const curWinStreak = state.matchStats.curWinStreak + 1;
         return afterPoint(
           {
             ...base,
-            matchStats: { ...state.matchStats, aces: state.matchStats.aces + 1 },
-            aceBoostArmed: !!state.special?.aceBoost,   // aceBoost 挂件：下球威力加成
+            matchStats: {
+              ...state.matchStats,
+              aces: state.matchStats.aces + 1,
+              curConsecAces,
+              maxConsecAces: Math.max(state.matchStats.maxConsecAces, curConsecAces),
+              curWinStreak,
+              longestWinStreak: Math.max(state.matchStats.longestWinStreak, curWinStreak),
+            },
+            aceBoostArmed: !!state.special?.aceBoost,
           },
           0
         );
       }
       const serveBonus = action.result === 'good' ? 0.15 : action.result === 'fault' ? -0.10 : 0;
-      return { ...base, serveBonus, phase: 'cards' };
+      return { ...base, serveBonus, phase: 'cards',
+               matchStats: { ...state.matchStats, curConsecAces: 0 } };
     }
 
     case 'PLAY_CARD': {
@@ -251,6 +262,7 @@ export function battleReducer(state, action) {
           ...state.matchStats,
           mgSum: state.matchStats.mgSum + m,
           mgCount: state.matchStats.mgCount + 1,
+          maxMgMult: Math.max(state.matchStats.maxMgMult, m),
         },
       };
     }
@@ -335,10 +347,13 @@ export function battleReducer(state, action) {
         tie: Math.abs(pPower - oPower) < 1e-9,
         reflected, mindDuel, keyPoint, clutch,
       };
+      const curWinStreak = win ? state.matchStats.curWinStreak + 1 : 0;
       const matchStats = {
         ...state.matchStats,
         countersWon: state.matchStats.countersWon + (win && pCounter > 1 ? 1 : 0),
         clutchWins: state.matchStats.clutchWins + (clutch ? 1 : 0),
+        curWinStreak,
+        longestWinStreak: Math.max(state.matchStats.longestWinStreak, curWinStreak),
       };
       const settled = {
         ...state,

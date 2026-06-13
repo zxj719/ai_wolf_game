@@ -4,8 +4,38 @@ import { saveLocalRecord } from '../localBoard';
 import { saveTennisRecord, sendMatchFeedback } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
 
+function HighlightsCard({ matchStats }) {
+  if (!matchStats) return null;
+  const { aces, clutchWins, longestWinStreak, maxMgMult, mgCount, mgSum, maxConsecAces } = matchStats;
+  const avgMg = mgCount > 0 ? (mgSum / mgCount).toFixed(2) : null;
+  const items = [
+    { icon: '🎾', label: 'ACE 数', value: aces, badge: aces >= 3 ? 'ACE Master' : null },
+    maxConsecAces >= 3 && { icon: '🔥', label: '最长连ACE', value: `×${maxConsecAces}`, badge: '发球炮台' },
+    { icon: '⚡', label: 'CLUTCH 成功', value: clutchWins, badge: clutchWins >= 2 ? '压哨王' : null },
+    { icon: '📈', label: '最长连胜球', value: longestWinStreak },
+    mgCount > 0 && { icon: '🎯', label: '最佳操作倍率', value: maxMgMult.toFixed(2), badge: maxMgMult >= 1.4 ? 'Pro 操作' : null },
+    avgMg && { icon: '📊', label: '平均操作倍率', value: avgMg },
+  ].filter(Boolean);
+
+  return (
+    <div className="card flat hl-card">
+      <h2>✨ 本场亮点</h2>
+      <div className="hl-grid">
+        {items.map((it) => (
+          <div key={it.label} className="hl-item">
+            <span className="hl-icon">{it.icon}</span>
+            <span className="hl-label">{it.label}</span>
+            <span className="hl-value">{it.value}</span>
+            {it.badge && <span className="hl-badge">{it.badge}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** ⑤ 结局 + 战报 + 双榜。挂载时本地入榜 + 登录用户上传全网榜。 */
-export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps }) {
+export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats }) {
   const ending = ENDINGS[`${state.setsP}-${state.setsO}`];
   const { player: p, opp: o } = state;
   const recordedRef = useRef(false);
@@ -97,6 +127,8 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           </div>
         </div>
       </div>
+
+      <HighlightsCard matchStats={matchStats} />
 
       <div className="card flat">
         <h2>🏆 历史战绩榜</h2>

@@ -171,6 +171,7 @@ export default function TennisRoute() {
       setsP: score.sets[0],
       setsO: score.sets[1],
       setHistory: score.setHistory,
+      matchStats,
     });
   }, [progress, updateProgress, toast, dispatch, state.player, state.opp]);
 
@@ -298,6 +299,7 @@ export default function TennisRoute() {
             toast={toast}
             onRecorded={refreshBoards}
             boardProps={boardProps}
+            matchStats={state.lastMatchStats}
           />
         )}
 

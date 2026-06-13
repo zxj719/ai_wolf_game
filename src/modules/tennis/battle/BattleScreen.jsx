@@ -148,14 +148,25 @@ function MovePicker({ state, onPick, onUltimate }) {
   );
 }
 
-/** 特效层（D 段）：ACE 金闪 / 效果拔群 / CLUTCH / 被克。reduced-motion 自动隐藏（CSS） */
+/** 特效层（D 段）：ACE 金闪 / 连续ACE / 效果拔群 / CLUTCH / 被克。reduced-motion 自动隐藏（CSS） */
 function FxOverlay({ state }) {
   const [fx, setFx] = useState(null);
   const prevRally = useRef(null);
   const prevAces = useRef(0);
-
+  const prevConsecAces = useRef(0);
   const prevUlt = useRef(false);
+
   useEffect(() => {
+    const { curConsecAces } = state.matchStats;
+    // 连续 ACE ≥3：替换普通 ACE 动画，显示更强烈的特效
+    if (curConsecAces >= 3 && curConsecAces > prevConsecAces.current) {
+      prevConsecAces.current = curConsecAces;
+      prevAces.current = state.matchStats.aces; // 避免同帧再触发普通 ACE
+      setFx({ key: Date.now(), type: 'consecace', text: `🔥 连ACE ×${curConsecAces}！`, gold: true });
+      return;
+    }
+    prevConsecAces.current = curConsecAces;
+
     if (state.matchStats.aces > prevAces.current) {
       prevAces.current = state.matchStats.aces;
       setFx({ key: Date.now(), type: 'ace', text: 'ACE！🎾', gold: true });
@@ -175,7 +186,7 @@ function FxOverlay({ state }) {
       else if (r.counterMul > 1 && r.win) setFx({ key: Date.now(), type: 'super', text: '效果拔群！' });
       else if (r.counterMul < 1 && !r.win) setFx({ key: Date.now(), type: 'bad', text: '被克制……' });
     }
-  }, [state.lastRally, state.matchStats.aces, state.ultimateUsed, state.ultimateName]);
+  }, [state.lastRally, state.matchStats.aces, state.matchStats.curConsecAces, state.ultimateUsed, state.ultimateName]);
 
   useEffect(() => {
     if (!fx) return undefined;

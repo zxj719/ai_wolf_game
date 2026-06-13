@@ -544,6 +544,11 @@
 .tennis-scope .fx-burst.ace { color: #ffd84f; }
 .tennis-scope .fx-burst.clutch { color: #ffb27a; letter-spacing: .12em; }
 .tennis-scope .fx-burst.bad { color: #e2814f; font-size: clamp(1.4rem, 5vw, 2.2rem); }
+.tennis-scope .fx-burst.consecace {
+  color: #ff6b35; font-size: clamp(2.4rem, 9vw, 4.2rem); letter-spacing: .06em;
+  text-shadow: 0 0 24px rgba(255,107,53,.7), 0 4px 18px rgba(0,0,0,.6);
+  animation: tennis-burst 1.5s ease forwards;
+}
 .tennis-scope .fx-goldflash {
   position: fixed; inset: 0; z-index: 79; pointer-events: none;
   background: radial-gradient(ellipse at center, rgba(255,216,79,.5), transparent 65%);
@@ -736,3 +741,23 @@
 }
 .tennis-scope .fb-input:focus { outline: none; border-color: var(--court); }
 .tennis-scope .fb-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ============ 本场亮点卡 (ResultScreen .hl-*) ============ */
+.tennis-scope .hl-card { margin-top: 16px; }
+.tennis-scope .hl-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px; margin-top: 14px;
+}
+.tennis-scope .hl-item {
+  background: rgba(13,59,46,.07); border: 1.5px solid rgba(13,59,46,.15);
+  border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; text-align: center;
+}
+.tennis-scope .hl-icon { font-size: 1.5rem; line-height: 1; }
+.tennis-scope .hl-label { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+.tennis-scope .hl-value { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; color: var(--clay); }
+.tennis-scope .hl-badge {
+  font-size: .65rem; font-family: var(--mono); letter-spacing: .08em;
+  background: var(--court); color: var(--optic); border-radius: 999px;
+  padding: 2px 8px; margin-top: 2px; white-space: nowrap;
+}
