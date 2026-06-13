@@ -278,6 +278,7 @@ export default function TennisRoute() {
               ultimate={activeUltimate}
               equip={equipBonus}
               onMatchOver={onSingleMatchOver}
+              noviceTell={isNovice()}
             />
           </section>
         )}

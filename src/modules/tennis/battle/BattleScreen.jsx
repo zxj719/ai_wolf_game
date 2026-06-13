@@ -235,6 +235,7 @@ function RallyLog({ state }) {
  */
 export function BattleScreen({
   player, opponent, deckInstances, ultimate, twists, equip, playerMoves, onMatchOver,
+  noviceTell = false,
 }) {
   const [state, dispatch] = useReducer(
     battleReducer,
@@ -259,7 +260,8 @@ export function BattleScreen({
         type: 'BEGIN_RALLY',
         rng: Math.random,
         moveRoll: Math.random(),
-        truthRoll: Math.random(),
+        // 新手期（前3局）读招提示强制真实，降低初见系统的困惑感
+        truthRoll: noviceTell ? 0 : Math.random(),
         fakeRoll: Math.random(),
       });
     }, state.lastRally ? 1400 : 400);
