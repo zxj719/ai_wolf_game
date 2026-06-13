@@ -762,6 +762,22 @@
   padding: 2px 8px; margin-top: 2px; white-space: nowrap;
 }
 
+/* ============ 成就图鉴（模式页 .ach-gallery） ============ */
+.tennis-scope .ach-gallery {
+  display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 14px;
+}
+.tennis-scope .ach-chip {
+  font-size: .75rem; border-radius: 999px; padding: 4px 10px;
+  background: var(--court); color: var(--muted); opacity: .55;
+  cursor: default; transition: opacity .15s;
+}
+.tennis-scope .ach-chip:hover { opacity: .75; }
+.tennis-scope .ach-chip--on {
+  background: rgba(245,166,35,.18); color: #f5a623; opacity: 1;
+  border: 1px solid rgba(245,166,35,.3);
+}
+.tennis-scope .ach-chip--on:hover { background: rgba(245,166,35,.26); }
+
 /* ============ 新成就解锁卡 (ResultScreen .achieve-*) ============ */
 @keyframes achieve-pop {
   0%   { opacity: 0; transform: scale(.85) translateY(12px); }

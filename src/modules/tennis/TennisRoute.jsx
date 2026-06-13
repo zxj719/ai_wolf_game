@@ -215,15 +215,22 @@ export default function TennisRoute() {
             <div className="card">
               <h2>② 赛事报名 · 今天打哪种比赛？</h2>
               <p className="hint">
-                💰 {progress.coins} 金币 · 👑 球王 ×{progress.championships} · 📖 绝技图鉴 {ultimateOptions.length}/7
+                💰 {progress.coins} 金币 · 👑 球王 ×{progress.championships} · 📖 绝技图鉴 {ultimateOptions.length}/7 · 🏅 成就 {progress.achievements.length}/{ACHIEVEMENTS.length}
               </p>
-              {progress.achievements.length > 0 && (
-                <div className="rule-strip" style={{ marginTop: 0, marginBottom: 14 }}>
-                  {ACHIEVEMENTS.filter((a) => progress.achievements.includes(a.id)).map((a) => (
-                    <span key={a.id} title={a.desc}>{a.icon} {a.name}</span>
-                  ))}
-                </div>
-              )}
+              <div className="ach-gallery">
+                {ACHIEVEMENTS.map((a) => {
+                  const unlocked = progress.achievements.includes(a.id);
+                  return (
+                    <span
+                      key={a.id}
+                      className={`ach-chip${unlocked ? ' ach-chip--on' : ''}`}
+                      title={unlocked ? a.desc : `🔒 ${a.desc}`}
+                    >
+                      {unlocked ? a.icon : '🔒'} {a.name}
+                    </span>
+                  );
+                })}
+              </div>
               <div className="opts">
                 <button type="button" className="opt" onClick={() => dispatch({ type: 'SET_MODE', mode: 'single' })}>
                   <span className="key">🎾</span>
