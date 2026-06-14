@@ -2,6 +2,26 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-14] 赛后"下一个目标"卡片 + 星评按钮触控修复（第 14 轮评估循环）
+
+### 新功能
+- **下一个目标卡片**：每场比赛结算屏新增 🎯 "下一个目标"卡，根据本场数据（ACE 数/连球/操作倍率/角色图鉴进度）动态推荐最近可解锁的成就，并给出具体行动提示，提升场次间留存动力
+
+### Bug 修复
+- **星评按钮触控面积**：将 `fb-star` 按钮 padding 从 `2px 4px` 提升至 `8px 6px` + `min-width/min-height: 44px`，满足 Apple HIG 最小触控目标要求，确保移动端可顺利提交评价
+
+### 技术细节
+- `NextTargetCard` 为纯前端组件，根据 `progress.achievements`（已解锁）和 `matchStats` 计算最高 closeness score 的锁定成就
+- 无新后端接口、无 D1 迁移，零部署风险
+- `progress` 通过新 prop 从 TennisRoute.jsx 传入 ResultScreen
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/tennis/components/ResultScreen.jsx` | 修改 | 新增 NextTargetCard 组件；ResultScreen 接受 progress prop |
+| `src/modules/tennis/TennisRoute.jsx` | 修改 | ResultScreen 调用加 progress={progress} |
+| `src/modules/tennis/tennis.css` | 修改 | fb-star 触控修复 + next-target-* 样式块 |
+
 ## [2026-06-14] 全能选手成就 + 角色图鉴（第 13 轮评估循环）
 
 ### 新功能

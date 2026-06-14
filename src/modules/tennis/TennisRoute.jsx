@@ -343,6 +343,7 @@ export default function TennisRoute() {
             boardProps={boardProps}
             matchStats={state.lastMatchStats}
             newAchievements={state.lastNewAchievements}
+            progress={progress}
           />
         )}
 

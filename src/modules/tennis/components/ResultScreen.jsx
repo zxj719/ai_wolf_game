@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ENDINGS } from '../gameData';
+import { CHARS, ENDINGS } from '../gameData';
 import { saveLocalRecord } from '../localBoard';
 import { saveTennisRecord, sendMatchFeedback } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
-import { achievementById } from '../meta/achievements';
+import { ACHIEVEMENTS, achievementById } from '../meta/achievements';
 
 function AchievementUnlockCard({ newAchievements }) {
   if (!newAchievements || newAchievements.length === 0) return null;
@@ -57,8 +57,88 @@ function HighlightsCard({ matchStats }) {
   );
 }
 
+function NextTargetCard({ progress, matchStats }) {
+  const locked = ACHIEVEMENTS.filter((a) => !progress.achievements.includes(a.id));
+  if (locked.length === 0) {
+    return (
+      <div className="card flat next-target-card">
+        <h2>🏆 全成就达成！</h2>
+        <p className="hint">16/16 成就全部解锁，你是真正的家族全能选手！</p>
+      </div>
+    );
+  }
+
+  const charWins = progress.charWins ?? {};
+  const charCount = CHARS.filter((c) => (charWins[c.n] ?? 0) >= 1).length;
+  const unlockedMoves = progress.unlockedMoves ?? [];
+  const aces = matchStats?.aces ?? 0;
+  const consec = matchStats?.maxConsecAces ?? 0;
+  const streak = matchStats?.longestWinStreak ?? 0;
+  const mgMult = matchStats?.maxMgMult ?? 0;
+
+  const scored = locked.map((a) => {
+    switch (a.id) {
+      case 'firstWin':
+        return { ...a, score: 0.95, hint: '赢下你的第一场比赛！' };
+      case 'aceMaster':
+        return { ...a, score: Math.min(aces / 3, 0.99), hint: `本场 ${aces}/3 ACE，发球连打 🎾 可提高 ACE 概率` };
+      case 'consecAce':
+        return { ...a, score: Math.min(consec / 3, 0.99), hint: `本场最长连 ACE ${consec}，保持发球节奏！` };
+      case 'winStreak5':
+        return { ...a, score: Math.min(streak / 5, 0.99), hint: `本场最长连球 ${streak}，找准对手弱点猛攻！` };
+      case 'proTouch':
+        return { ...a, score: Math.min(mgMult / 1.4, 0.99), hint: `本场最高操作倍率 ${mgMult.toFixed(2)}，小游戏点越准分越高` };
+      case 'clutchMaster':
+        return { ...a, score: 0.5, hint: '在关键分（Match Point / Break Point）时敢于挑战可触发！' };
+      case 'allChars': {
+        const unwon = CHARS.filter((c) => (charWins[c.n] ?? 0) === 0);
+        const hint = unwon.length > 0
+          ? `已用 ${charCount}/7 位家人获胜，下次试试 ${unwon[0].f} ${unwon[0].n}`
+          : '即将达成！';
+        return { ...a, score: charCount / 7, hint };
+      }
+      case 'allUltimates':
+        return { ...a, score: Math.min(unlockedMoves.length / 7, 0.99), hint: `已解锁 ${unlockedMoves.length}/7 绝技，家族挑战赢对手可解锁新绝技` };
+      case 'familyKing':
+        return { ...a, score: 0.4, hint: '家族挑战 6 连胜加冕！用单局快打热热身再去挑战' };
+      case 'perfectChampion':
+        return { ...a, score: 0.25, hint: '家族挑战全程不丢一盘——控制流角色是利器' };
+      case 'adventureClear':
+        return { ...a, score: 0.35, hint: '奇幻闯关还没通关，家族奖杯等你找回！' };
+      case 'firstLegendary':
+        return { ...a, score: 0.3, hint: '赢球掉落概率更高，传说装备随时可能出现' };
+      case 'boxOpener':
+        return { ...a, score: 0.2, hint: '去「网球用品店」开一个盲盒试试' };
+      case 'goldRush':
+        return { ...a, score: 0.25, hint: '矿工盒单次挖 60+ 分，靠手感爆！' };
+      case 'aviator':
+        return { ...a, score: 0.3, hint: '「飞翔的网球」小游戏挑战 5 级难度' };
+      case 'sGrade':
+        return { ...a, score: 0.35, hint: '反应测试摁越快越好，S 级天赋就差临门一脚！' };
+      default:
+        return { ...a, score: 0.2, hint: a.desc };
+    }
+  });
+
+  const target = scored.reduce((best, cur) => (cur.score > best.score ? cur : best));
+
+  return (
+    <div className="card flat next-target-card">
+      <h2>🎯 下一个目标</h2>
+      <div className="next-target-body">
+        <span className="next-target-icon">{target.icon}</span>
+        <div className="next-target-text">
+          <span className="next-target-name">{target.name}</span>
+          <span className="next-target-hint">{target.hint}</span>
+        </div>
+      </div>
+      <p className="next-target-footer">还有 {locked.length} 个成就待解锁 · 带着目标，下场见！</p>
+    </div>
+  );
+}
+
 /** ⑤ 结局 + 战报 + 双榜。挂载时本地入榜 + 登录用户上传全网榜。 */
-export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats, newAchievements }) {
+export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats, newAchievements, progress }) {
   const ending = ENDINGS[`${state.setsP}-${state.setsO}`];
   const { player: p, opp: o } = state;
   const recordedRef = useRef(false);
@@ -153,6 +233,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
 
       <AchievementUnlockCard newAchievements={newAchievements} />
       <HighlightsCard matchStats={matchStats} />
+      {progress && <NextTargetCard progress={progress} matchStats={matchStats} />}
 
       <div className="card flat">
         <h2>🏆 历史战绩榜</h2>
