@@ -220,6 +220,53 @@ export async function handleTennisFeedback(request, env) {
   }
 }
 
+/** GET /api/tennis/feedback/summary（公开只读聚合：用户情感数据源） */
+export async function handleTennisFeedbackSummary(request, env) {
+  try {
+    const [byRating, byMode, byCharacter, recentComments, total] = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT rating, COUNT(*) AS count
+         FROM tennis_feedback GROUP BY rating ORDER BY rating DESC`
+      ),
+      env.DB.prepare(
+        `SELECT mode, COUNT(*) AS count,
+                ROUND(AVG(rating), 2) AS avg_rating
+         FROM tennis_feedback WHERE mode IS NOT NULL
+         GROUP BY mode ORDER BY count DESC`
+      ),
+      env.DB.prepare(
+        `SELECT character, COUNT(*) AS count,
+                ROUND(AVG(rating), 2) AS avg_rating
+         FROM tennis_feedback WHERE character IS NOT NULL
+         GROUP BY character ORDER BY count DESC`
+      ),
+      env.DB.prepare(
+        `SELECT rating, comment, mode, character, result, created_at
+         FROM tennis_feedback WHERE comment IS NOT NULL
+         ORDER BY created_at DESC LIMIT 20`
+      ),
+      env.DB.prepare(`SELECT COUNT(*) AS total FROM tennis_feedback`),
+    ]);
+
+    const ratingCounts = byRating.results ?? [];
+    const totalCount = total.results?.[0]?.total ?? 0;
+    const weightedSum = ratingCounts.reduce((s, r) => s + r.rating * r.count, 0);
+    const avgRating = totalCount > 0 ? Math.round((weightedSum / totalCount) * 100) / 100 : null;
+
+    return jsonResponse({
+      total: totalCount,
+      avgRating,
+      byRating: ratingCounts,
+      byMode: byMode.results ?? [],
+      byCharacter: byCharacter.results ?? [],
+      recentComments: recentComments.results ?? [],
+    }, 200, env, request);
+  } catch (err) {
+    console.error('Tennis feedback summary error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
+  }
+}
+
 /** GET /api/tennis/leaderboard（公开） */
 export async function handleTennisLeaderboard(request, env) {
   try {
