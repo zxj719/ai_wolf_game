@@ -331,6 +331,77 @@ export const EVENTS = [
       { label: '谢绝，保持竞技状态', reward: { kind: 'stat', stat: 'random', amount: 8, flavor: '专注比赛的状态让你在角落偷练了半小时，某项属性突飞猛进。' } },
     ],
   },
+
+  // ===== 第 11 轮扩充：6 个新事件（3 小游戏 + 3 剧情，每章各 2）=====
+
+  // 第一章 · 菜市场江湖（+1 minigame）
+  {
+    id: 'wokChef', chapter: 1, type: 'minigame', minigame: 'rhythmMash', icon: '🍳',
+    title: '铁锅颠勺大赛',
+    text: '夜市收摊前，大厨临时拉你进厨房："帮我颠够三十下锅！颠锅讲究节奏和爆发力——这不就是底线抽击的精髓？"老食客们在旁边计数围观。',
+    rewards: [
+      { kind: 'nothing', flavor: '节奏全乱，锅里的菜飞了一半，大厨欲哭无泪。' },
+      { kind: 'stat', stat: 'sta', amount: 4, flavor: '颠出火候！反复爆发的手臂力量悄悄提升了。' },
+      { kind: 'stat', stat: 'sta', amount: 8, flavor: '三十下行云流水！大厨收你为关门弟子，体能飙升。' },
+    ],
+  },
+
+  // 第一章 · 菜市场江湖（+1 story）
+  {
+    id: 'catChase', chapter: 1, type: 'story', icon: '🐱',
+    title: '流浪猫的秘密',
+    text: '一只橘猫衔着什么东西从你脚边跑过——仔细一看，是一张折叠的纸条，夹着一枚金币。猫停下来，用眼神示意你。',
+    options: [
+      { label: '跟猫走看究竟', reward: { kind: 'gear', flavor: '老屋角落里，一箱落灰的运动装备在等着你。' } },
+      { label: '摸摸猫就走', reward: { kind: 'heal', amount: 20, flavor: '橘猫在你腿上蹭了两下，心情大好，步伐也轻盈了许多。' } },
+    ],
+  },
+
+  // 第二章 · 修仙界（+1 minigame）
+  {
+    id: 'mountDebate', chapter: 2, type: 'minigame', minigame: 'dualTiming', icon: '⚖️',
+    title: '论道擂台双鼓',
+    text: '修仙界论道擂台规则简单：师叔抛问，双手同时各拍一面玄鼓作答。"左问智，右问力，拍鼓的时机就是你的答案。"这和网前截击双手握拍一个道理。',
+    rewards: [
+      { kind: 'nothing', flavor: '双鼓差了半拍，师叔轻叹："火候未到。"' },
+      { kind: 'stat', stat: 'mind', amount: 5, flavor: '左右齐鸣！智力与心态同步提升。' },
+      { kind: 'stat', stat: 'skill', amount: 9, flavor: '完美共振！擂台老人动容："百年一见的双鼓天才！"技巧大涨。' },
+    ],
+  },
+
+  // 第二章 · 修仙界（+1 story）
+  {
+    id: 'sealSpirit', chapter: 2, type: 'story', icon: '🔯',
+    title: '封印中的灵兽',
+    text: '一个光球被困在符咒阵中，冲你发出微弱光芒。符咒刻着："解开者，得其缘；吸收者，得其力。"',
+    options: [
+      { label: '破除符咒放走灵兽', reward: { kind: 'card', flavor: '灵兽感激地消散，留下一张充满灵气的战术卡。' } },
+      { label: '吸收封印能量', reward: { kind: 'stat', stat: 'sta', amount: 7, flavor: '封印能量涌入体内，体能大幅提升，但光球的眼神久久萦绕。' } },
+    ],
+  },
+
+  // 第三章 · 太空站（+1 minigame）
+  {
+    id: 'dockPrecision', chapter: 3, type: 'minigame', minigame: 'gaugeDrop', icon: '🛸',
+    title: '飞船对接精度训练',
+    text: '太空站训练舱：模拟飞船对接——推进器必须在窗口读数恰好归零时制动。误差超过 0.1% 就功亏一篑。比网球触球瞬间的力度控制还精密。',
+    rewards: [
+      { kind: 'nothing', flavor: '对接口擦过，训练舱响起警报音。教官摇头："再来一百次。"' },
+      { kind: 'stat', stat: 'skill', amount: 5, flavor: '对接成功！精准制动的感觉深入肌肉记忆，技巧提升。' },
+      { kind: 'energyMax', amount: 10, flavor: '完美归零！极限精准的专注把体能极限也一并突破了。' },
+    ],
+  },
+
+  // 第三章 · 太空站（+1 story）
+  {
+    id: 'timeZone', chapter: 3, type: 'story', icon: '⏱️',
+    title: '时区悖论',
+    text: '穿越时区时，服务机器人递上一枚记忆补丁："植入后你将记住所有对手的出招习惯。但副作用是短时头晕，体力下降。"',
+    options: [
+      { label: '植入记忆补丁', reward: { kind: 'stat', stat: 'mind', amount: 8, healDelta: -10, flavor: '头晕片刻……对手动作在脑中逐帧回放，判断力跃升一级。' } },
+      { label: '谢绝，让记忆自然沉淀', reward: { kind: 'heal', amount: 35, flavor: '好好睡一觉，第二天精神满满，体力恢复如初。' } },
+    ],
+  },
 ];
 
 /** 按章节 + roll 取事件（小游戏与剧情混合池） */

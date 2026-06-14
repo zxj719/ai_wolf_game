@@ -3,9 +3,9 @@ import { EVENTS, pickEvent, rewardTier, REWARD_KINDS } from '../events';
 import { MOVES } from '../../../battle/moves';
 
 describe('事件表（spec §4.4 + §7b）', () => {
-  it('16 个小游戏事件 + 16 个剧情事件，三章都有内容', () => {
-    expect(EVENTS.filter((e) => e.type === 'minigame')).toHaveLength(16);
-    expect(EVENTS.filter((e) => e.type === 'story')).toHaveLength(16);
+  it('19 个小游戏事件 + 19 个剧情事件，三章都有内容', () => {
+    expect(EVENTS.filter((e) => e.type === 'minigame')).toHaveLength(19);
+    expect(EVENTS.filter((e) => e.type === 'story')).toHaveLength(19);
     for (const ch of [1, 2, 3]) {
       expect(EVENTS.some((e) => e.chapter === ch)).toBe(true);
     }
