@@ -66,8 +66,29 @@ describe('validateProgressUpdate', () => {
   it('DEFAULT_PROGRESS 形状', () => {
     expect(DEFAULT_PROGRESS).toEqual({
       coins: 0, equipment: {}, unlockedMoves: [], achievements: [], ownedCards: [],
-      championships: 0, adventureClears: 0,
+      championships: 0, adventureClears: 0, charWins: {},
     });
+  });
+
+  it('charWins：合法增量通过，枚举外角色/增量>1/负值拒绝', () => {
+    const base = { ...existing(), charWins: { '诚': 1 } };
+    expect(validateProgressUpdate({ ...valid(), charWins: { '诚': 2 } }, base).ok).toBe(true);
+    expect(validateProgressUpdate({ ...valid(), charWins: { '诚': 3 } }, base).ok).toBe(false);
+    expect(validateProgressUpdate({ ...valid(), charWins: { '幽灵': 1 } }, base).ok).toBe(false);
+    expect(validateProgressUpdate({ ...valid(), charWins: { 'Elza': -1 } }, base).ok).toBe(false);
+  });
+
+  it('charWins：新角色获胜从 0 到 1 通过', () => {
+    const r = validateProgressUpdate({ ...valid(), charWins: { 'Elza': 1 } }, existing());
+    expect(r.ok).toBe(true);
+    expect(r.progress.charWins['Elza']).toBe(1);
+  });
+
+  it('charWins：omit 等价 {}，不影响已有记录', () => {
+    const base = { ...existing(), charWins: { '诚': 3 } };
+    const r = validateProgressUpdate({ ...valid() }, base);
+    expect(r.ok).toBe(true);
+    expect(r.progress.charWins['诚']).toBe(3);
   });
 
   it('ownedCards：枚举外/超上限/形状错误拒绝，合法通过', () => {

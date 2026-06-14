@@ -18,6 +18,7 @@ export const ACHIEVEMENTS = [
   { id: 'consecAce',       icon: '🔥', name: '发球炮台',   desc: '单场连续轰出 3 记以上 ACE' },
   { id: 'winStreak5',      icon: '🌊', name: '势如破竹',   desc: '单场连续赢球 5 次以上' },
   { id: 'proTouch',        icon: '✨', name: '神之触感',   desc: '小游戏操作倍率达到 1.4 以上' },
+  { id: 'allChars',        icon: '🌈', name: '全能选手',   desc: '用所有 7 位家人各赢一场' },
 ];
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id);

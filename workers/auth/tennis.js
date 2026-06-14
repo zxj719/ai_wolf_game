@@ -52,6 +52,7 @@ function rowToProgress(row) {
     ownedCards: JSON.parse(row.owned_cards || '[]'),
     championships: row.championships,
     adventureClears: row.adventure_clears,
+    charWins: JSON.parse(row.char_wins || '{}'),
   };
 }
 
@@ -90,8 +91,8 @@ export async function handlePutTennisProgress(request, env) {
     const p = result.progress;
     await env.DB.prepare(
       `INSERT INTO tennis_progress
-         (user_id, coins, equipment, unlocked_moves, achievements, owned_cards, championships, adventure_clears, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         (user_id, coins, equipment, unlocked_moves, achievements, owned_cards, championships, adventure_clears, char_wins, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(user_id) DO UPDATE SET
          coins = excluded.coins,
          equipment = excluded.equipment,
@@ -100,10 +101,12 @@ export async function handlePutTennisProgress(request, env) {
          owned_cards = excluded.owned_cards,
          championships = excluded.championships,
          adventure_clears = excluded.adventure_clears,
+         char_wins = excluded.char_wins,
          updated_at = CURRENT_TIMESTAMP`
     ).bind(
       user.sub, p.coins, JSON.stringify(p.equipment), JSON.stringify(p.unlockedMoves),
-      JSON.stringify(p.achievements), JSON.stringify(p.ownedCards), p.championships, p.adventureClears
+      JSON.stringify(p.achievements), JSON.stringify(p.ownedCards), p.championships, p.adventureClears,
+      JSON.stringify(p.charWins ?? {})
     ).run();
 
     return jsonResponse({ success: true, progress: p }, 200, env, request);

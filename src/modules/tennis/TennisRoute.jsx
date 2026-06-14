@@ -155,7 +155,14 @@ export default function TennisRoute() {
     const coins = win ? 25 : 10;
     const { equipped, soldFor } = mergeDrop(progress.equipment, drop);
     const achievements = new Set(progress.achievements);
-    if (win) achievements.add('firstWin');
+    // 角色胜场追踪：更新 charWins
+    const charWins = { ...(progress.charWins ?? {}) };
+    if (win) {
+      charWins[state.player.name] = (charWins[state.player.name] ?? 0) + 1;
+      achievements.add('firstWin');
+      // 全能选手：7 位家人各赢过至少 1 场
+      if (CHARS.every((c) => (charWins[c.n] ?? 0) >= 1)) achievements.add('allChars');
+    }
     if (drop.rarity === 'legendary') achievements.add('firstLegendary');
     if (matchStats.aces >= 3) achievements.add('aceMaster');
     if (matchStats.clutchWins > 0) achievements.add('clutchMaster');
@@ -168,6 +175,7 @@ export default function TennisRoute() {
       coins: progress.coins + coins + soldFor,
       equipment: equipped,
       achievements: [...achievements],
+      charWins,
     });
     if (newAchievements.length > 0) {
       const names = newAchievements.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.name ?? id);
@@ -215,8 +223,24 @@ export default function TennisRoute() {
             <div className="card">
               <h2>② 赛事报名 · 今天打哪种比赛？</h2>
               <p className="hint">
-                💰 {progress.coins} 金币 · 👑 球王 ×{progress.championships} · 📖 绝技图鉴 {ultimateOptions.length}/7 · 🏅 成就 {progress.achievements.length}/{ACHIEVEMENTS.length}
+                💰 {progress.coins} 金币 · 👑 球王 ×{progress.championships} · 📖 绝技图鉴 {ultimateOptions.length}/7 · 🏅 成就 {progress.achievements.length}/{ACHIEVEMENTS.length} · 🌈 角色 {CHARS.filter((c) => (progress.charWins ?? {})[c.n] > 0).length}/7
               </p>
+              <div className="char-wins-bar">
+                {CHARS.map((c) => {
+                  const wins = (progress.charWins ?? {})[c.n] ?? 0;
+                  return (
+                    <span
+                      key={c.n}
+                      className={`char-chip${wins > 0 ? ' char-chip--won' : ''}`}
+                      title={wins > 0 ? `${c.n}：赢过 ${wins} 场` : `${c.n}：未获胜`}
+                    >
+                      {c.f}
+                      {wins > 0 && <span className="char-badge">✓</span>}
+                    </span>
+                  );
+                })}
+                <span className="char-wins-hint">用每位家人各赢一场，解锁「全能选手」🌈</span>
+              </div>
               <div className="ach-gallery">
                 {ACHIEVEMENTS.map((a) => {
                   const unlocked = progress.achievements.includes(a.id);

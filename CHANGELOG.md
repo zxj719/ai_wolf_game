@@ -2,6 +2,25 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-14] 全能选手成就 + 角色图鉴（第 13 轮评估循环）
+
+### 新功能
+- **角色图鉴**：模式选择屏新增 7 个角色图章，记录每位家人的胜场数，赢过亮绿色 ✓ 徽章
+- **全能选手成就 🌈**：用所有 7 位家人各赢一场后解锁（第 16 个成就）
+- **charWins 追踪**：前后端双写 `charWins: {}` 字段，登录用户同步 D1，游客存 localStorage
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `migrations/010_tennis_charwins.sql` | 新建 | `tennis_progress` 表新增 `char_wins` JSON 列 |
+| `workers/auth/tennisProgressLib.js` | 修改 | 新增 charWins 校验、DEFAULT_PROGRESS 更新、ACHIEVEMENT_IDS 加 allChars |
+| `workers/auth/tennis.js` | 修改 | `rowToProgress` 和 INSERT/UPDATE 加 char_wins 列 |
+| `src/modules/tennis/meta/achievements.js` | 修改 | 新增 `allChars` 成就 |
+| `src/modules/tennis/meta/progressStore.js` | 修改 | EMPTY_PROGRESS 加 charWins，mergeProgress 做 max 合并 |
+| `src/modules/tennis/TennisRoute.jsx` | 修改 | onSingleMatchOver 追踪胜场，检查 allChars，模式屏加图鉴视图 |
+| `src/modules/tennis/tennis.css` | 修改 | 新增 char-wins-bar/char-chip 样式 |
+| `workers/auth/__tests__/tennisProgressLib.test.js` | 修改 | 新增 3 个 charWins 测试用例 |
+
 ## [2026-06-14] 用户评价聚合端点（第 12 轮评估循环）
 
 ### 新功能

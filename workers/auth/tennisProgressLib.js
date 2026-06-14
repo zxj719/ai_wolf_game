@@ -14,8 +14,9 @@ const ACHIEVEMENT_IDS = [
   'firstWin', 'familyKing', 'allUltimates', 'sGrade',
   'perfectChampion', 'adventureClear', 'firstLegendary', 'aceMaster',
   'clutchMaster', 'boxOpener', 'goldRush', 'aviator',
-  'consecAce', 'winStreak5', 'proTouch',
+  'consecAce', 'winStreak5', 'proTouch', 'allChars',
 ];
+const CHAR_NAMES = ['诚', 'Elza', '菲比', 'Ross', '铁蛋', '丫', '莹'];
 const COIN_GAIN_CAP = 500;
 const CARD_IDS = [
   'deepBreath', 'crowdCheer', 'towelTime', 'newBalls', 'coachSign',
@@ -32,6 +33,7 @@ export const DEFAULT_PROGRESS = {
   ownedCards: [],
   championships: 0,
   adventureClears: 0,
+  charWins: {},
 };
 
 function validOwnedCards(cards) {
@@ -58,6 +60,18 @@ function monotonicStep(next, prev) {
   return Number.isInteger(next) && next >= prev && next - prev <= 1;
 }
 
+function validCharWins(next, prevCharWins) {
+  if (next == null) return true;
+  if (typeof next !== 'object' || Array.isArray(next)) return false;
+  const prev = prevCharWins ?? {};
+  for (const [k, v] of Object.entries(next)) {
+    if (!CHAR_NAMES.includes(k)) return false;
+    if (!Number.isInteger(v) || v < 0) return false;
+    if (v - (prev[k] ?? 0) > 1) return false;
+  }
+  return true;
+}
+
 /**
  * @returns {{ok: true, progress} | {ok: false, error}}
  */
@@ -73,6 +87,7 @@ export function validateProgressUpdate(body, existing) {
   if (!validOwnedCards(body.ownedCards ?? [])) return { ok: false, error: 'Invalid ownedCards' };
   if (!isSubset(body.unlockedMoves ?? [], ULTIMATE_NAMES)) return { ok: false, error: 'Invalid unlockedMoves' };
   if (!isSubset(body.achievements ?? [], ACHIEVEMENT_IDS)) return { ok: false, error: 'Invalid achievements' };
+  if (!validCharWins(body.charWins ?? null, prev.charWins ?? {})) return { ok: false, error: 'Invalid charWins' };
 
   if (!monotonicStep(body.championships ?? prev.championships, prev.championships)) {
     return { ok: false, error: 'Invalid championships' };
@@ -85,6 +100,14 @@ export function validateProgressUpdate(body, existing) {
   const unlockedMoves = [...new Set([...prev.unlockedMoves, ...(body.unlockedMoves ?? [])])];
   const achievements = [...new Set([...prev.achievements, ...(body.achievements ?? [])])];
 
+  // charWins：每角色取最大值（单次 PUT 仅 +1，merge 取大防重放问题）
+  const prevCW = prev.charWins ?? {};
+  const bodyCW = body.charWins ?? {};
+  const charWins = { ...prevCW };
+  for (const [k, v] of Object.entries(bodyCW)) {
+    charWins[k] = Math.max(prevCW[k] ?? 0, v);
+  }
+
   return {
     ok: true,
     progress: {
@@ -95,6 +118,7 @@ export function validateProgressUpdate(body, existing) {
       ownedCards: body.ownedCards ?? prev.ownedCards ?? [],
       championships: body.championships ?? prev.championships,
       adventureClears: body.adventureClears ?? prev.adventureClears,
+      charWins,
     },
   };
 }

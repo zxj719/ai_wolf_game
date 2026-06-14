@@ -20,6 +20,7 @@ export const EMPTY_PROGRESS = {
   ownedCards: [],          // 永久卡牌收藏（上限 10，组进每次出战牌库）
   championships: 0,
   adventureClears: 0,
+  charWins: {},            // { 角色名: 胜场数 }，全收集解锁全能选手成就
 };
 
 const tier = (r) => RARITIES.indexOf(r);
@@ -36,6 +37,13 @@ export function mergeProgress(a, b) {
   }
   const aCards = a.ownedCards ?? [];
   const bCards = b.ownedCards ?? [];
+  // charWins: 每角色取两边最大值
+  const aCW = a.charWins ?? {};
+  const bCW = b.charWins ?? {};
+  const charWins = { ...aCW };
+  for (const [k, v] of Object.entries(bCW)) {
+    charWins[k] = Math.max(aCW[k] ?? 0, v);
+  }
   return {
     coins: Math.max(a.coins ?? 0, b.coins ?? 0),
     equipment,
@@ -44,6 +52,7 @@ export function mergeProgress(a, b) {
     ownedCards: aCards.length >= bCards.length ? aCards : bCards,   // 收藏取多的一份
     championships: Math.max(a.championships ?? 0, b.championships ?? 0),
     adventureClears: Math.max(a.adventureClears ?? 0, b.adventureClears ?? 0),
+    charWins,
   };
 }
 
