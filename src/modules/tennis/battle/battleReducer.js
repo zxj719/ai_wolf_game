@@ -11,7 +11,7 @@
 import { MOVES, counterMultiplier, ULTIMATES } from './moves';
 import { createScore, addPoint, isKeyPoint } from './scoring';
 import { createDeckState, startRally, playCard, drawCards, TP_MAX } from './cards';
-import { pickOpponentMove, makeTell } from './opponentAI';
+import { pickOpponentMove, makeTell, DISRUPT_RATE } from './opponentAI';
 
 export function energyPenalty(energy) {
   if (energy >= 50) return 1.0;     // 平衡补丁：充沛线 60→50
@@ -106,18 +106,21 @@ export function battleReducer(state, action) {
       const build = state.opponent.builds
         ? state.opponent.builds[setsPlayed % state.opponent.builds.length]
         : state.opponent.build;
+      const oppAttrAvg = ((state.opponent.sta ?? 0) + (state.opponent.skill ?? 0) + (state.opponent.mind ?? 0)) / 3;
       const oppMove = pickOpponentMove({
         charName: state.opponent.name,
         build,
         energy: state.oEnergy,
         rngRoll: action.moveRoll,
       });
+      // 反读招扰动（高档对手 avgAttr ≥ 75）：28% 概率强制假提示，削弱 tellReader 天花板
+      const disruptFires = oppAttrAvg >= 75 && action.disruptRoll !== undefined && action.disruptRoll < DISRUPT_RATE;
       const tell = makeTell({
         charName: state.opponent.name,
         build,
         actualMove: oppMove,
-        // predictable 扭曲（BOT-3000）：提示永真
-        truthRoll: state.twists.predictable ? 0 : action.truthRoll,
+        // predictable 扭曲（BOT-3000）：提示永真；扰动不覆盖扭曲
+        truthRoll: state.twists.predictable ? 0 : (disruptFires ? 1.0 : action.truthRoll),
         fakeRoll: action.fakeRoll,
       });
       return {

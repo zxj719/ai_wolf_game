@@ -2,6 +2,32 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-14] 反读招扰动：高档对手 AI 强化（第 10 轮评估循环）
+
+### 平衡性优化
+
+- **反读招扰动**（`DISRUPT_RATE = 0.12`）：属性均值 ≥ 75 的高档对手，每球有 12% 概率强制发出假提示，破坏 `tellReader` 策略的确定性优势
+  - 实现层：`battleReducer.BEGIN_RALLY` 内检测 `oppAttrAvg` 并修改 `truthRoll`，`pickOpponentMove` 函数保持纯净
+  - 仿真验证：高档 75-85 对手胜率 81.5% → 66.5%（下降约 15pp）；中档 55-65 完全不受影响（100%=100%）
+  - 家族挑战曲线优化：站 5[72-82] 76.5%、站 6[80-90] 45.3%，累计通关率 34.1%（roguelite 合理区间）
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/tennis/battle/opponentAI.js` | 修改 | 导出 `DISRUPT_RATE = 0.12`，更新注释说明扰动在 battleReducer 层 |
+| `src/modules/tennis/battle/battleReducer.js` | 修改 | 导入 `DISRUPT_RATE`，计算 `oppAttrAvg`，tell 层扰动逻辑 |
+| `src/modules/tennis/battle/BattleScreen.jsx` | 修改 | `BEGIN_RALLY` dispatch 新增 `disruptRoll: Math.random()` |
+| `.tmp/balance-sim.mjs` | 修改 | `simMatch` 支持 `disruptRollFn` 参数，新增 §9 高档对比节 |
+| `src/modules/tennis/battle/__tests__/opponentAI.test.js` | 修改 | 导入 `DISRUPT_RATE`，加 DISRUPT_RATE 导出测试 |
+| `src/modules/tennis/battle/__tests__/battleReducer.test.js` | 修改 | 新增 5 个高档对手 tell 扰动测试 |
+
+### 技术细节
+
+- `disruptRoll: undefined`（旧调用路径）不触发扰动，完全向后兼容
+- `twists.predictable`（BOT-3000）永真优先，扰动不覆盖
+- 测试：477/477 全绿；build ✅ 5.97s；check-build 25 bundles clean
+
 ## [2026-06-12] 网球平衡补丁 + 用户反馈批次 + 遥测系统
 
 ### 平衡性（蒙特卡洛仿真驱动，报告见 docs/tennis-evaluation-2026-06-12.md）

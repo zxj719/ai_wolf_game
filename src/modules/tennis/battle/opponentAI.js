@@ -3,6 +3,10 @@
  *
  * 出招：按性格权重在配招内加权随机，体力约束（力竭禁重招）后归一化。
  * 提示：75% 真实率；假提示也必须来自该角色配招（否则秒拆穿）。
+ *
+ * 反读招扰动（高档对手 avgAttr ≥ 75）实现在 battleReducer.BEGIN_RALLY：
+ *   28% 概率强制提示为假，让 tellReader 策略失去信息优势。
+ *   DISRUPT_RATE 导出供 battleReducer 和测试使用。
  */
 
 import { CHAR_BUILDS, MOVES } from './moves';
@@ -21,6 +25,8 @@ export const TEMPERAMENTS = {
 /** 力竭线与禁招阈值（与 spec §1.1 玩家规则镜像） */
 const EXHAUSTED_BELOW = 20;
 const HEAVY_COST = 16;
+/** 高档对手强制假提示的概率阈值（被 battleReducer 消费） */
+export const DISRUPT_RATE = 0.12;
 
 function availableMovesFrom(moves, energy) {
   if (energy >= EXHAUSTED_BELOW) return moves;

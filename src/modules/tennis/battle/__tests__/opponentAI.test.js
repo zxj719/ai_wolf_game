@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TEMPERAMENTS, pickOpponentMove, makeTell, TELLS } from '../opponentAI';
+import { TEMPERAMENTS, pickOpponentMove, makeTell, TELLS, DISRUPT_RATE } from '../opponentAI';
 import { CHAR_BUILDS, MOVES } from '../moves';
 
 describe('TEMPERAMENTS 性格权重', () => {
@@ -41,6 +41,14 @@ describe('pickOpponentMove', () => {
     // 构造极端：体力 10 时 Ross 的可用招 = slice/passingShot(14)
     const m = pickOpponentMove({ charName: 'Ross', energy: 10, rngRoll: 0.5 });
     expect(['slice', 'passingShot']).toContain(m);
+  });
+});
+
+describe('DISRUPT_RATE 常量', () => {
+  it('导出 DISRUPT_RATE，供 battleReducer 消费', () => {
+    expect(typeof DISRUPT_RATE).toBe('number');
+    expect(DISRUPT_RATE).toBeGreaterThan(0);
+    expect(DISRUPT_RATE).toBeLessThan(1);
   });
 });
 

@@ -263,6 +263,7 @@ export function BattleScreen({
         // 新手期（前3局）读招提示强制真实，降低初见系统的困惑感
         truthRoll: noviceTell ? 0 : Math.random(),
         fakeRoll: Math.random(),
+        disruptRoll: Math.random(),
       });
     }, state.lastRally ? 1400 : 400);
     return () => clearTimeout(t);

@@ -50,7 +50,7 @@ const STRATEGIES = {
 };
 
 // ===== 单场仿真 =====
-function simMatch({ playerChar, build, skill, oppChar, oppBand, strategy, equip = null, survivePassOverride = null }) {
+function simMatch({ playerChar, build, skill, oppChar, oppBand, strategy, equip = null, survivePassOverride = null, disruptRollFn = Math.random }) {
   const sk = SKILLS[skill];
   const player = { name: playerChar, face: '', talent: 70, ...build };
   const opponent = {
@@ -63,7 +63,7 @@ function simMatch({ playerChar, build, skill, oppChar, oppBand, strategy, equip 
   let guard = 0;
 
   while (!s.score.matchOver && guard++ < 400) {
-    s = battleReducer(s, { type: 'BEGIN_RALLY', rng: Math.random, moveRoll: Math.random(), truthRoll: Math.random(), fakeRoll: Math.random() });
+    s = battleReducer(s, { type: 'BEGIN_RALLY', rng: Math.random, moveRoll: Math.random(), truthRoll: Math.random(), fakeRoll: Math.random(), disruptRoll: disruptRollFn() });
     if (s.phase === 'serve') {
       const r = Math.random();
       const [pa, pg, pf] = sk.serve;
@@ -180,6 +180,16 @@ for (const p of [0.25, 0.55, 0.85]) {
   const r = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'avg', oppChar: 'Elza', oppBand: [55, 65], strategy: 'tellReader', survivePassOverride: p });
   console.log(`坚持过关率 ${(p * 100).toFixed(0)}% → 整场胜率 ${r.winRate}%（关键分胜率 ${r.keyWinPct}%）`);
 }
+
+console.log('\n═══ 9) 反读招扰动：高档对手（75-85）tellReader avg 前后对比 ═══');
+const hiNoDisrupt55 = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'avg', oppChar: 'Elza', oppBand: [55, 65], strategy: 'tellReader', disruptRollFn: () => 1.0 });
+const hiNoDisrupt75 = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'avg', oppChar: 'Elza', oppBand: [75, 85], strategy: 'tellReader', disruptRollFn: () => 1.0 });
+const hiWithDisrupt75 = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'avg', oppChar: 'Elza', oppBand: [75, 85], strategy: 'tellReader' });
+const hiWithDisrupt55 = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'avg', oppChar: 'Elza', oppBand: [55, 65], strategy: 'tellReader' });
+console.log(`中档 55-65 · 无扰动（旧） → 胜率 ${hiNoDisrupt55.winRate}%  （avgAttr<75 不触发，对照组）`);
+console.log(`中档 55-65 · 有扰动（新） → 胜率 ${hiWithDisrupt55.winRate}%  （应与旧版一致）`);
+console.log(`高档 75-85 · 无扰动（旧） → 胜率 ${hiNoDisrupt75.winRate}%`);
+console.log(`高档 75-85 · 有扰动（新） → 胜率 ${hiWithDisrupt75.winRate}%  ← 目标 ≈80%`);
 
 console.log('\n═══ 7) 用户反馈专项：广场舞大妈（mind 99）vs 各水平玩家 ═══');
 import('../src/modules/tennis/modes/adventure/oddOpponents.js').then(({ ODD_OPPONENTS }) => {

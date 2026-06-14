@@ -186,3 +186,47 @@ describe('battleReducer 球级流程', () => {
     expect(s.phase).toBe('over');
   });
 });
+
+describe('反读招扰动（高档对手 tell 层）', () => {
+  const HIGH_OPP = { name: 'Elza', face: '🦊', sta: 80, skill: 80, mind: 80 };  // avgAttr=80 ≥ 75
+
+  function highBattle() {
+    return createBattle({
+      player: PLAYER, opponent: HIGH_OPP, deckInstances: [], rng: rngId,
+    });
+  }
+
+  it('中档对手（avgAttr<75）+ disruptRoll<0.28 → tell 不变（正常真实率）', () => {
+    // OPP.avgAttr = (60+70+60)/3 ≈ 63 < 75，扰动不应触发
+    let s = freshBattle();
+    s = battleReducer(s, { type: 'BEGIN_RALLY', rng: rngId, moveRoll: 0, truthRoll: 0.1, fakeRoll: 0, disruptRoll: 0.01 });
+    expect(s.tell.isTrue).toBe(true);  // truthRoll=0.1 < 0.75 → 真提示，扰动未改变
+  });
+
+  it('高档对手（avgAttr≥75）+ disruptRoll<0.28 → 强制假提示（告示 isTrue=false）', () => {
+    let s = highBattle();
+    s = battleReducer(s, { type: 'BEGIN_RALLY', rng: rngId, moveRoll: 0, truthRoll: 0.1, fakeRoll: 0, disruptRoll: 0.01 });
+    // truthRoll=0.1 本应产生真提示，但扰动强制 truthRoll=1.0 → 假提示
+    expect(s.tell.isTrue).toBe(false);
+  });
+
+  it('高档对手 + disruptRoll ≥ 0.28 → 不触发扰动，正常真实率', () => {
+    let s = highBattle();
+    s = battleReducer(s, { type: 'BEGIN_RALLY', rng: rngId, moveRoll: 0, truthRoll: 0.1, fakeRoll: 0, disruptRoll: 0.50 });
+    expect(s.tell.isTrue).toBe(true);
+  });
+
+  it('高档对手 + disruptRoll 未提供 → 不触发扰动（向后兼容）', () => {
+    let s = highBattle();
+    s = battleReducer(s, { type: 'BEGIN_RALLY', rng: rngId, moveRoll: 0, truthRoll: 0.1, fakeRoll: 0 });
+    expect(s.tell.isTrue).toBe(true);
+  });
+
+  it('twists.predictable 时扰动不覆盖（永真优先）', () => {
+    let s = createBattle({
+      player: PLAYER, opponent: HIGH_OPP, deckInstances: [], rng: rngId, twists: { predictable: true },
+    });
+    s = battleReducer(s, { type: 'BEGIN_RALLY', rng: rngId, moveRoll: 0, truthRoll: 0.9, fakeRoll: 0, disruptRoll: 0.01 });
+    expect(s.tell.isTrue).toBe(true);  // predictable 强制真，不被扰动覆盖
+  });
+});
