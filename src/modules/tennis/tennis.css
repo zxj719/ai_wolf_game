@@ -454,6 +454,7 @@
   box-shadow: 0 0 12px rgba(226,129,79,.6);
 }
 .tennis-scope .ladder-stage { font-family: var(--mono); font-size: .75rem; color: rgba(242,238,224,.8); margin-left: 6px; }
+.tennis-scope .ladder-streak { display: inline-flex; align-items: center; background: var(--clay); color: #fff; border-radius: 999px; font-family: var(--mono); font-size: .7rem; font-weight: 700; padding: 2px 10px; letter-spacing: .04em; white-space: nowrap; margin-left: 8px; }
 .tennis-scope .ladder-loot {
   display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 16px;
   font-family: var(--mono); font-size: .9rem; color: var(--card-ink);

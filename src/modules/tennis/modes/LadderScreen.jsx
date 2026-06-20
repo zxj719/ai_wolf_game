@@ -139,6 +139,7 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
             </span>
           ))}
           <span className="ladder-stage">第 {ladder.stage + 1} / {STAGE_COUNT} 站</span>
+          {ladder.stage > 0 && <span className="ladder-streak">🔥 {ladder.stage}连胜</span>}
         </div>
         <BattleScreen
           key={ladder.stage}
@@ -159,7 +160,7 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
     return (
       <section className="screen">
         <div className="card">
-          <h2>🏟️ 第 {ladder.stage + 1} 站拿下！</h2>
+          <h2>🏟️ 第 {ladder.stage + 1} 站拿下！{' '}<span className="ladder-streak">🔥 {ladder.stage + 1}连胜</span></h2>
           <p className="hint">
             击败 {opponent.face} {opponent.name}，解锁绝技「{ladder.unlockedThisRun[ladder.unlockedThisRun.length - 1]}」！
             下一站对手更强——赛间做点什么？
