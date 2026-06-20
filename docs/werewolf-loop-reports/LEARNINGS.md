@@ -381,7 +381,9 @@
 53. **防并发回归检查**：每轮开始时运行 `git merge-base HEAD origin/main` 确认工作基础是否最新，避免不同 session 使用旧版基础覆盖改进。
 54. ~~**DAY_SPEECH + DAY_VOTE isSheriff 注入**~~ ✅ Round 28 已完成（roleParams 加 isSheriff；sheriffHint 后处理注入警长指路三分支；DAY_VOTE 加 sheriffVoteHint 1.5 票权重提醒；25/25 测试通过）
 55. **实局 smoke test**（28 轮未完成）：建议用户本地验证警长发言结尾是否出现"我本轮指向X号"等指路语言。
-56. **SHERIFF_RUN 神职上警策略细化**：女巫/守卫/猎人的"不上警"规则有博弈例外，当前提示词过于绝对，可在特定局面（如无预言家竞选时）给出例外提示。
+56. ~~**SHERIFF_RUN 神职上警策略细化**~~ ✅ Round 29 已完成（猎人独立分支"值得认真考虑"含死亡双重威慑分析；女巫"默认不上警+双例外"；守卫"强烈建议不上警+极端例外"；let+if 块替代合并三元；25/25 测试通过）
+57. **实局 smoke test**（29 轮未完成）：建议用户本地验证 AI 猎人上警率变化 + thought 字段是否出现"双重威慑/1.5票+开枪"等框架语言。
+58. **SHERIFF_SPEECH 猎人隐性威慑框架**：若猎人上警，竞选发言可在不暴露身份的前提下暗示"死不是终点"（如"我认为好的警长应该不怕公开死亡"），提升竞选说服力而不暴露技能。
 
 ---
 
@@ -402,3 +404,13 @@
 - **教训**：新增或修改任何 player 状态字段时，必须扫描所有 `DAY_*` 和 `NIGHT_*` case，问"此字段在该 action 的决策时刻是否改变最优策略？如是，是否已传入且被消费？"——这是 R22 关于 `hasRevealed` 的同类遗漏，也是 R6 教训的同类问题，应被视为常驻检查义务而非单次修复。
 - **修复模式**：采用"后处理注入"模式（在 `rolePromptGenerator` 之后、`CLAIMS_SCHEMA_SUFFIX` 之前插入特殊任务块），避免修改 9 个角色函数，是处理"所有角色共有但不通用"的横切关注点的最简方式。
 - **可泛化规则**：对警长类"横切关注点"（同时影响所有/多数角色但内容不同），后处理注入比修改每个角色函数更可维护；对单角色专属字段，直接在对应 case 传入并消费。
+
+---
+
+### [2026-06-20 Round 29] 委托模式的测试需要联合验证委托目标文件
+
+- **问题**：T24 回归测试检查"所有 NIGHT_* case 均含 identity_table"，在 aiPrompts.js 中扫描 NIGHT_MAGICIAN 的 case 块时，块内只有 `return magicianModule.nightAction(...)` 而没有字面量 `identity_table`，导致测试误报 FAIL。实际上 identity_table 在 magician.js 的 `getMagicianNightActionPrompt` 返回字符串中（line 194）。
+- **根因**：`NIGHT_MAGICIAN` 和 `NIGHT_DREAMWEAVER` 两个 case 通过委托模式（`roleModule.nightAction()`）把提示词生成移到了各自的 `.js` 文件中，不在 aiPrompts.js 的 case 块内。这与 `NIGHT_GUARD/SEER/WOLF/WITCH` 直接内联的模式不同。
+- **教训**：每次编写"全量字段存在性"测试时，必须先确认每个 case 的实现模式：① 直接内联 → 只扫 aiPrompts.js ② 委托模块 → 同时扫 aiPrompts.js + 委托目标文件。可用 `grep -n "roleModule.nightAction\|Module.nightAction"` 快速找出哪些 case 使用委托模式。
+- **修复**：Round 29 将 T24 改为：直接实现的 4 个 case 在 aiPrompts.js 中检查；NIGHT_MAGICIAN → 检查 magician.js；NIGHT_DREAMWEAVER → 检查 dreamweaver.js。
+- **常驻清单更新**：如未来新增 NIGHT_KNIGHT 等 case 且也采用委托模式，需在 T24 中增加对应文件的检查。
