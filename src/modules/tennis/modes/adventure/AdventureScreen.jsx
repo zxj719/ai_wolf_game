@@ -18,6 +18,7 @@ import { pickEvent, rewardTier } from './events';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../../meta/equipment';
 import { ShopPanel } from '../../meta/ShopPanel';
 import { sendMatchTelemetry } from '../../../../services/tennisService';
+import { FeedbackWidget } from '../../components/FeedbackWidget';
 import { CHARS, rand } from '../../gameData';
 
 const SNAPSHOT_KEY = 'tennis_v2_adventure_snapshot';
@@ -173,6 +174,11 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
             <button type="button" className="btn" onClick={onExit}>返回报名处</button>
           </div>
         </div>
+        <FeedbackWidget
+          mode="adventure"
+          character={basePlayer.name}
+          result={won ? 'win' : 'loss'}
+        />
       </section>
     );
   }

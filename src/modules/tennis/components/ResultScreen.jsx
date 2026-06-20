@@ -49,9 +49,12 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
         <h2>{ending.title}</h2>
         <div className="score-line">大比分 {state.setsP} : {state.setsO}（{state.setHistory.join(' / ')}）</div>
         <p className="comment">{ending.c}</p>
-        <div style={{ marginTop: 22 }}>
-          <button type="button" className="btn" onClick={() => dispatch({ type: 'REPLAY' })}>
-            🔁 不服！再来一局
+        <div style={{ marginTop: 22, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn" onClick={() => dispatch({ type: 'REMATCH' })}>
+            ⚡ 再战 {state.opp.face} {state.opp.name}
+          </button>
+          <button type="button" className="btn ghost" onClick={() => dispatch({ type: 'REPLAY' })}>
+            🔁 换对手
           </button>
         </div>
       </div>

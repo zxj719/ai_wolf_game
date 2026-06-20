@@ -94,6 +94,18 @@ export function tennisReducer(state, action) {
     case 'REPLAY':
       return initialState;
 
+    case 'REMATCH': {
+      // Same character + opponent, fresh reaction test and prep — skip opponent random draw
+      const me = CHARS.find((c) => c.n === state.player.name);
+      return {
+        ...initialState,
+        screen: 'react',
+        mode: state.mode,
+        player: { name: me.n, face: me.f, talent: 0, sta: 0, skill: 0, mind: 0, ms: null, grade: '' },
+        opp: state.opp,
+      };
+    }
+
     default:
       return state;
   }

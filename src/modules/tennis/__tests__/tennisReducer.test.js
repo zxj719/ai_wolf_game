@@ -80,4 +80,16 @@ describe('tennisReducer（外层流程：选角/反应/备战/结算）', () => 
     const s = tennisReducer(toMatch(), { type: 'REPLAY' });
     expect(s).toEqual(initialState);
   });
+
+  it('REMATCH 保留角色与对手、重置属性、回到反应测试', () => {
+    let s = toMatch();
+    s = tennisReducer(s, { type: 'MATCH_OVER', setsP: 2, setsO: 1, setHistory: ['W', 'L', 'W'] });
+    const rematch = tennisReducer(s, { type: 'REMATCH' });
+    expect(rematch.screen).toBe('react');
+    expect(rematch.mode).toBe('single');
+    expect(rematch.player.name).toBe('诚');
+    expect(rematch.player.sta).toBe(0);
+    expect(rematch.player.ms).toBeNull();
+    expect(rematch.opp).toEqual({ name: 'Elza', face: '🦊', sta: 60, skill: 60, mind: 60 });
+  });
 });
