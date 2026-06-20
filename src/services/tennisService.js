@@ -113,6 +113,19 @@ export function sendMatchTelemetry({ mode, character, opponent, score, matchStat
 }
 
 /**
+ * 提交赛后评价（公开，游客可提交；fire-and-forget，不阻塞 UI）
+ */
+export function sendMatchFeedback({ rating, comment, mode, character, result }) {
+  try {
+    fetch(buildApiUrl('/api/tennis/feedback'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating, comment, mode, character, result }),
+    }).catch(() => { /* 评价静默失败 */ });
+  } catch { /* noop */ }
+}
+
+/**
  * 拉取全网排行榜（公开接口）
  * @returns {{players: Array, recent: Array}|null} 失败返回 null，由调用方降级
  */

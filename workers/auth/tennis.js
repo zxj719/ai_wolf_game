@@ -259,3 +259,54 @@ export async function handleTennisLeaderboard(request, env) {
     return errorResponse('Failed to load leaderboard: ' + err.message, 500, env, request);
   }
 }
+
+/** POST /api/tennis/feedback（公开，游客可提交；严格白名单校验） */
+export async function handleTennisFeedback(request, env) {
+  try {
+    const b = await request.json().catch(() => null);
+    if (!b || typeof b !== 'object') return errorResponse('Invalid body', 400, env, request);
+    if (!Number.isInteger(b.rating) || b.rating < 1 || b.rating > 5) {
+      return errorResponse('Invalid rating', 400, env, request);
+    }
+    const comment = typeof b.comment === 'string' ? b.comment.slice(0, 200) : null;
+    const mode = TELEMETRY_MODES.includes(b.mode) ? b.mode : null;
+    const character = TELEMETRY_CHARS.includes(b.character) ? b.character : null;
+    const result = ['win', 'loss'].includes(b.result) ? b.result : null;
+
+    await env.DB.prepare(
+      `INSERT INTO tennis_feedback (rating, comment, mode, character, result) VALUES (?, ?, ?, ?, ?)`
+    ).bind(b.rating, comment, mode, character, result).run();
+    return jsonResponse({ success: true }, 201, env, request);
+  } catch (err) {
+    console.error('Tennis feedback error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
+  }
+}
+
+/** GET /api/tennis/feedback/summary（公开只读聚合，供评估循环读取） */
+export async function handleTennisFeedbackSummary(request, env) {
+  try {
+    const [agg, recent] = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT COUNT(*) AS total,
+                ROUND(AVG(rating), 2) AS avg_rating,
+                COUNT(CASE WHEN rating >= 4 THEN 1 END) AS positive,
+                COUNT(CASE WHEN rating <= 2 THEN 1 END) AS negative
+         FROM tennis_feedback`
+      ),
+      env.DB.prepare(
+        `SELECT rating, comment, mode, character, result, created_at
+         FROM tennis_feedback
+         WHERE comment IS NOT NULL AND comment != ''
+         ORDER BY created_at DESC LIMIT 10`
+      ),
+    ]);
+    return jsonResponse({
+      summary: agg.results?.[0] ?? {},
+      recentComments: recent.results ?? [],
+    }, 200, env, request);
+  } catch (err) {
+    console.error('Tennis feedback summary error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
+  }
+}

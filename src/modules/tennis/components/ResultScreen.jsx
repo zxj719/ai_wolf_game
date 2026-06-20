@@ -3,6 +3,7 @@ import { ENDINGS } from '../gameData';
 import { saveLocalRecord } from '../localBoard';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
+import { FeedbackWidget } from './FeedbackWidget';
 
 /** ⑤ 结局 + 战报 + 双榜。挂载时本地入榜 + 登录用户上传全网榜。 */
 export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps }) {
@@ -78,6 +79,12 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           </div>
         </div>
       </div>
+
+      <FeedbackWidget
+        mode="single"
+        character={state.player.name}
+        result={state.setsP > state.setsO ? 'win' : 'loss'}
+      />
 
       <div className="card flat">
         <h2>🏆 历史战绩榜</h2>

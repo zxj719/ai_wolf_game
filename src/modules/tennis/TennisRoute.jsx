@@ -18,6 +18,8 @@ import { ACHIEVEMENTS } from './meta/achievements';
 import { ShopPanel } from './meta/ShopPanel';
 import { LadderScreen } from './modes/LadderScreen';
 import { AdventureScreen } from './modes/adventure/AdventureScreen';
+import { OnboardingModal, checkOnboardingSeen } from './components/OnboardingModal';
+import { isNovice, incrementNoviceGames, NOVICE_STAT_PENALTY } from './meta/noviceTracker';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -36,6 +38,7 @@ export default function TennisRoute() {
   const { user } = useAuth();
   const [state, dispatch] = useTennisGame();
 
+  const [showOnboarding, setShowOnboarding] = useState(() => !checkOnboardingSeen());
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimer = useRef(null);
   const toast = useCallback((msg) => {
@@ -93,13 +96,19 @@ export default function TennisRoute() {
   const onStart = useCallback((playerName) => {
     const pool = CHARS.filter((c) => c.n !== playerName);
     const foe = pool[rand(0, pool.length - 1)];
+    const novicePenalty = isNovice() ? NOVICE_STAT_PENALTY : 0;
     dispatch({
       type: 'START',
       playerName,
       oppName: foe.n,
-      oppStats: { sta: rand(40, 90), skill: rand(40, 90), mind: rand(40, 90) },
+      oppStats: {
+        sta: Math.max(20, rand(40, 90) - novicePenalty),
+        skill: Math.max(20, rand(40, 90) - novicePenalty),
+        mind: Math.max(20, rand(40, 90) - novicePenalty),
+      },
     });
-    toast(`宿敌已抽出：${foe.f} ${foe.n}！`);
+    if (novicePenalty > 0) toast(`新手保护中！对手属性 -${novicePenalty} 🛡️`);
+    else toast(`宿敌已抽出：${foe.f} ${foe.n}！`);
   }, [dispatch, toast]);
 
   const onLogin = useCallback(() => navigate(ROUTES.LOGIN), [navigate]);
@@ -135,6 +144,7 @@ export default function TennisRoute() {
 
   // 单局快打结束：盘分回填 + 掉落/金币入永久层 + 遥测上报
   const onSingleMatchOver = useCallback(({ score, matchStats, durationS }) => {
+    incrementNoviceGames();
     sendMatchTelemetry({
       mode: 'single', character: state.player.name, opponent: state.opp.name,
       score, matchStats, durationS,
@@ -190,7 +200,10 @@ export default function TennisRoute() {
         {state.screen === 'mode' && (
           <section className="screen">
             <div className="card">
-              <h2>② 赛事报名 · 今天打哪种比赛？</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2>② 赛事报名 · 今天打哪种比赛？</h2>
+                <button type="button" className="ob-help-btn" onClick={() => setShowOnboarding(true)} title="游戏指南">?</button>
+              </div>
               <p className="hint">
                 💰 {progress.coins} 金币 · 👑 球王 ×{progress.championships} · 📖 绝技图鉴 {ultimateOptions.length}/7
               </p>
@@ -297,6 +310,7 @@ export default function TennisRoute() {
       </div>
 
       <div className={`toast ${toastMsg ? 'show' : ''}`}>{toastMsg}</div>
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
     </div>
   );
 }

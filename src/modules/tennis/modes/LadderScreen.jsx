@@ -13,7 +13,9 @@ import { CARDS } from '../battle/cards';
 import { createLadder, ladderReducer, STAGE_COUNT } from './ladderReducer';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
 import { ShopPanel } from '../meta/ShopPanel';
+import { FeedbackWidget } from '../components/FeedbackWidget';
 import { sendMatchTelemetry } from '../../../services/tennisService';
+import { incrementNoviceGames } from '../meta/noviceTracker';
 
 const SNAPSHOT_KEY = 'tennis_v2_ladder_snapshot';
 
@@ -75,6 +77,7 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
 
   const handleMatchOver = useCallback(({ score, matchStats, pEnergy, durationS }) => {
     const win = score.winner === 0;
+    incrementNoviceGames();
     sendMatchTelemetry({
       mode: 'ladder', character: basePlayer.name, opponent: opponent.name,
       score, matchStats, durationS,
@@ -208,6 +211,11 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
           <button type="button" className="btn" onClick={onExit}>返回报名处</button>
         </div>
       </div>
+      <FeedbackWidget
+        mode="ladder"
+        character={basePlayer.name}
+        result={won ? 'win' : 'loss'}
+      />
     </section>
   );
 }
