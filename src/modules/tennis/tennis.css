@@ -471,6 +471,22 @@
 .tennis-scope .ult-pick-label { font-family: var(--display); color: var(--card-ink); }
 .tennis-scope .ult-pick .player-select { flex: 1; min-width: 200px; }
 
+/* 绝技图鉴芯片组（mode 页） */
+.tennis-scope .ult-gallery { margin-top: 14px; margin-bottom: 4px; }
+.tennis-scope .ult-gallery-label { font-size: .75rem; color: var(--muted); font-family: var(--mono); display: block; margin-bottom: 8px; }
+.tennis-scope .ult-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tennis-scope .ult-chip {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 10px; border: 1.5px solid; border-radius: 10px;
+  background: transparent; font-family: var(--display); transition: all .15s; cursor: default;
+}
+.tennis-scope .ult-chip.locked { border-color: rgba(242,238,224,.12); color: rgba(242,238,224,.25); filter: grayscale(1); }
+.tennis-scope .ult-chip.unlocked { border-color: rgba(194,94,29,.55); color: var(--clay); cursor: pointer; }
+.tennis-scope .ult-chip.unlocked:hover, .tennis-scope .ult-chip.expanded { border-color: var(--clay); background: rgba(194,94,29,.12); }
+.tennis-scope .ult-chip-face { font-size: 1.25rem; line-height: 1; }
+.tennis-scope .ult-chip-name { font-size: .68rem; font-weight: 700; white-space: nowrap; }
+.tennis-scope .ult-chip-desc { font-size: .62rem; color: var(--muted); font-family: var(--mono); text-align: center; margin-top: 3px; line-height: 1.35; max-width: 108px; }
+
 /* ============ v2 奇幻闯关 ============ */
 .tennis-scope .adv-banner {
   font-family: var(--display); text-align: center; color: var(--optic);

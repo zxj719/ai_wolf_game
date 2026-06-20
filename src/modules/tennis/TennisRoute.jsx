@@ -141,6 +141,8 @@ export default function TennisRoute() {
     : [];
 
   const equipBonus = applyEquipment(progress.equipment);
+  // 已解锁绝技名称集合（本命 + 图鉴）
+  const unlockedUltNames = new Set([ownUltimate, ...progress.unlockedMoves].filter(Boolean));
 
   // 单局快打结束：盘分回填 + 掉落/金币入永久层 + 遥测上报
   const onSingleMatchOver = useCallback(({ score, matchStats, durationS }) => {
@@ -175,6 +177,8 @@ export default function TennisRoute() {
 
   // 模式页商店（永久收藏购卡/购装/开盒，金币消费出口）
   const [showMetaShop, setShowMetaShop] = useState(false);
+  // 绝技图鉴：当前展开的芯片名（null = 全收起）
+  const [expandedUlt, setExpandedUlt] = useState(null);
 
   // 出战牌库 = 基础牌 + 永久收藏（用户反馈：买的卡要能长期用）
   const fightingDeck = [...STARTER_DECK, ...(progress.ownedCards ?? [])];
@@ -214,6 +218,31 @@ export default function TennisRoute() {
                   ))}
                 </div>
               )}
+              {/* 绝技图鉴：全 7 枚芯片，解锁彩色可点击展开描述，未解锁灰显 */}
+              <div className="ult-gallery">
+                <span className="ult-gallery-label">📖 绝技图鉴（点击已解锁绝技查看说明）</span>
+                <div className="ult-chips">
+                  {Object.entries(ULTIMATES).map(([name, u]) => {
+                    const unlocked = unlockedUltNames.has(name);
+                    const expanded = expandedUlt === name;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        className={`ult-chip${unlocked ? ' unlocked' : ' locked'}${expanded ? ' expanded' : ''}`}
+                        onClick={() => setExpandedUlt(expanded ? null : name)}
+                        disabled={!unlocked}
+                        title={unlocked ? u.desc : `击败 ${u.owner} 解锁`}
+                      >
+                        <span className="ult-chip-face">{u.face}</span>
+                        <span className="ult-chip-name">{name}</span>
+                        {expanded && <span className="ult-chip-desc">{u.desc}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="opts">
                 <button type="button" className="opt" onClick={() => dispatch({ type: 'SET_MODE', mode: 'single' })}>
                   <span className="key">🎾</span>
