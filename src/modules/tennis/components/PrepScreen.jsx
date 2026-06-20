@@ -7,25 +7,37 @@ function fxTags(fx) {
   ));
 }
 
-export function StatsPanel({ player }) {
-  const bar = (label, val, cls = '') => (
-    <div className={`stat ${cls}`}>
-      <div className="lab"><span>{label}</span><b>{val}</b></div>
-      <div className="bar"><i style={{ width: `${Math.min(100, val)}%` }} /></div>
-    </div>
-  );
+export function StatsPanel({ player, equipBonus }) {
+  const eq = equipBonus || {};
+  const bar = (label, val, cls = '', bonusKey = '') => {
+    const bv = bonusKey ? (eq[bonusKey] || 0) : 0;
+    return (
+      <div className={`stat ${cls}`}>
+        <div className="lab">
+          <span>{label}</span>
+          <b>{val}{bv > 0 && <span className="eq-bonus">+{bv}装</span>}</b>
+        </div>
+        <div className="bar"><i style={{ width: `${Math.min(100, val)}%` }} /></div>
+      </div>
+    );
+  };
   return (
     <div className="stats-panel">
       {bar(`✨ 天赋（${player.grade}级）`, player.talent, 'talent')}
-      {bar('💪 体力', player.sta)}
-      {bar('🎯 技巧', player.skill)}
-      {bar('🧘 心态', player.mind)}
+      {bar('💪 体力', player.sta, '', 'sta')}
+      {bar('🎯 技巧', player.skill, '', 'skill')}
+      {bar('🧘 心态', player.mind, '', 'mind')}
+      {(eq.energyMax || 0) > 0 && (
+        <div className="stat">
+          <div className="lab"><span>👟 能量上限</span><b><span className="eq-bonus">+{eq.energyMax} 装</span></b></div>
+        </div>
+      )}
     </div>
   );
 }
 
 /** ③ 备战垃圾话环节（4 回合加点 + 绝技换装） */
-export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equippedUltimate, onUltimateChange }) {
+export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equippedUltimate, onUltimateChange, equipBonus }) {
   const round = PREP[state.prepRound];
   const [locked, setLocked] = useState(false);
   const lockTimer = useRef(null);
@@ -58,7 +70,7 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
       </div>
       <div className="card flat">
         <h2 style={{ fontSize: '1.1rem' }}>📋 当前状态面板</h2>
-        <StatsPanel player={state.player} />
+        <StatsPanel player={state.player} equipBonus={equipBonus} />
         {ultimateOptions.length > 1 && (
           <div className="ult-pick">
             <span className="ult-pick-label">⚡ 出战绝技</span>

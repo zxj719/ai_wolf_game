@@ -256,6 +256,7 @@ export default function TennisRoute() {
             ultimateOptions={ultimateOptions}
             equippedUltimate={activeUltimate}
             onUltimateChange={setEquippedUltimate}
+            equipBonus={equipBonus}
           />
         )}
         {state.screen === 'match' && state.mode === 'single' && (

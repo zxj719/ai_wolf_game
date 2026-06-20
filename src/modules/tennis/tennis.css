@@ -169,6 +169,7 @@
   width: 0; transition: width .6s cubic-bezier(.2,.8,.3,1);
 }
 .tennis-scope .stat.talent .bar i { background: linear-gradient(90deg, var(--clay), #ffb27a); }
+.tennis-scope .eq-bonus { font-size: .72rem; color: var(--optic-deep); margin-left: 5px; font-family: var(--mono); }
 
 /* ============ 备战选项 ============ */
 .tennis-scope .round-tag {
