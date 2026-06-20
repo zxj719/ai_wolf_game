@@ -117,6 +117,14 @@
   font-size: .8rem; background: var(--court); color: var(--line);
   border-radius: 999px; padding: 6px 12px;
 }
+.tennis-scope .equip-mini-bar { display: flex; align-items: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.tennis-scope .equip-mini-label { font-size: .78rem; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+.tennis-scope .equip-mini-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  border: 1.5px solid; border-radius: 8px; padding: 3px 8px;
+  font-size: .85rem; line-height: 1; transition: opacity .15s;
+}
+.tennis-scope .equip-mini-rarity { font-family: var(--mono); font-size: .62rem; font-weight: 700; }
 
 /* ============ 反应测试 ============ */
 .tennis-scope .arena {

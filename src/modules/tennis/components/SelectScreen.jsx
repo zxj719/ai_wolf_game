@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
+import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
 
 /** ① 报名处：选身份 + 双榜 */
-export function SelectScreen({ onStart, toast, boardProps }) {
+export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
   const [picked, setPicked] = useState('');
 
   const handleStart = () => {
@@ -40,6 +41,25 @@ export function SelectScreen({ onStart, toast, boardProps }) {
               <span className="nm">{c.n}</span>
             </div>
           ))}
+        </div>
+        <div className="equip-mini-bar">
+          <span className="equip-mini-label">🎒 当前装备：</span>
+          {EQUIPMENT_SLOTS.map((slot) => {
+            const item = equipment[slot];
+            const meta = SLOT_META[slot];
+            const color = item ? RARITY_META[item.rarity].color : 'rgba(242,238,224,0.2)';
+            return (
+              <span
+                key={slot}
+                className="equip-mini-chip"
+                style={{ borderColor: color, color: item ? color : 'rgba(242,238,224,0.3)' }}
+                title={item ? `${meta.name}（${RARITY_META[item.rarity].name}）` : `${meta.name}（空）`}
+              >
+                {meta.icon}
+                {item && <span className="equip-mini-rarity">{RARITY_META[item.rarity].name[0]}</span>}
+              </span>
+            );
+          })}
         </div>
         <div className="rule-strip">
           <span>三局两胜</span><span>每盘 3 球，赢 2 球拿下一盘</span><span>反应测试决定天赋</span><span>4 轮备战加点</span>

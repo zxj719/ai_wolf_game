@@ -195,7 +195,7 @@ export default function TennisRoute() {
         </header>
 
         {state.screen === 'select' && (
-          <SelectScreen onStart={onStart} toast={toast} boardProps={boardProps} />
+          <SelectScreen onStart={onStart} toast={toast} boardProps={boardProps} equipment={progress.equipment} />
         )}
         {state.screen === 'mode' && (
           <section className="screen">
