@@ -379,6 +379,9 @@
 51. ~~**DAY_VOTE 预言家对跳投票优先级**~~ ✅ Round 27 已完成（seerCounterClaimantsInVote 检测 + seerVoteStrategy 三路分支：对跳+PK必须投/对跳+普通优先/无对跳回退；27/27 测试通过；恢复 R1-R26 回归）
 52. **实局 smoke test**（27 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证对跳局面 DAY_VOTE thought 字段是否出现"对跳优先"等框架语言。
 53. **防并发回归检查**：每轮开始时运行 `git merge-base HEAD origin/main` 确认工作基础是否最新，避免不同 session 使用旧版基础覆盖改进。
+54. ~~**DAY_SPEECH + DAY_VOTE isSheriff 注入**~~ ✅ Round 28 已完成（roleParams 加 isSheriff；sheriffHint 后处理注入警长指路三分支；DAY_VOTE 加 sheriffVoteHint 1.5 票权重提醒；25/25 测试通过）
+55. **实局 smoke test**（28 轮未完成）：建议用户本地验证警长发言结尾是否出现"我本轮指向X号"等指路语言。
+56. **SHERIFF_RUN 神职上警策略细化**：女巫/守卫/猎人的"不上警"规则有博弈例外，当前提示词过于绝对，可在特定局面（如无预言家竞选时）给出例外提示。
 
 ---
 
@@ -389,3 +392,13 @@
 - **检测方法**：每轮开始时运行 `git diff HEAD origin/HEAD -- src/services/aiPrompts.js | wc -l`，若结果 > 50，说明本地工作基础比远端落后较多，需要先 `git pull` 再开始。
 - **修复**：从 2184daf 恢复完整版 aiPrompts.js（含 R1-R26 全部改进）叠加 R27 改进后 push 到 main。
 - **教训**：云端定时任务的 HEAD detach 可能停留在历史提交。每轮务必先 `git fetch && git status`，确认本地状态与 origin/main 对齐后再开始工作。
+
+---
+
+### [2026-06-20 Round 28] player 字段存在于对象上 ≠ 提示词已消费——需主动扫描所有 action case
+
+- **问题**：`isSheriff` 字段在 `player.isSheriff` 上存在、在 `useDayFlow.js` 中用于投票权重计算，但在 `aiPrompts.js` 的任何 `DAY_*` 或 `NIGHT_*` case 中均未被消费，导致 28 轮内警长 AI 发言无"指路"行为、投票无 1.5 票权重感知。
+- **根因**：每次新增 player 字段时，只检查了"有没有添加到 player 对象"，没有问"哪些 action case 在该字段影响最优策略时需要感知它"。
+- **教训**：新增或修改任何 player 状态字段时，必须扫描所有 `DAY_*` 和 `NIGHT_*` case，问"此字段在该 action 的决策时刻是否改变最优策略？如是，是否已传入且被消费？"——这是 R22 关于 `hasRevealed` 的同类遗漏，也是 R6 教训的同类问题，应被视为常驻检查义务而非单次修复。
+- **修复模式**：采用"后处理注入"模式（在 `rolePromptGenerator` 之后、`CLAIMS_SCHEMA_SUFFIX` 之前插入特殊任务块），避免修改 9 个角色函数，是处理"所有角色共有但不通用"的横切关注点的最简方式。
+- **可泛化规则**：对警长类"横切关注点"（同时影响所有/多数角色但内容不同），后处理注入比修改每个角色函数更可维护；对单角色专属字段，直接在对应 case 传入并消费。

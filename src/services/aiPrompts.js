@@ -1235,10 +1235,22 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                         .filter(c => c.type === 'jump_seer' && c.playerId !== currentPlayer?.id)
                         .map(c => c.playerId)
                     : [],
+                // 警长身份（影响发言策略：需要在发言结尾给出警长指路/投票方向）
+                isSheriff: currentPlayer?.isSheriff || false,
             };
 
-            // 返回角色特定的提示词 + 结构化 claims schema（柱三）
-            return rolePromptGenerator(ctx, roleParams) + CLAIMS_SCHEMA_SUFFIX;
+            // 警长身份注入：在角色提示词之后追加"警长指路"任务（避免修改各角色提示词函数）
+            const sheriffHint = roleParams.isSheriff
+                ? `\n\n【⚖️ 警长任务（本轮额外职责）】你是本局警长，投票权重1.5票。"警长指路"是你最重要的职责——在发言结尾**明确宣告**你本轮的投票方向（一句话：如"综合目前信息，我本轮指向X号"），引导好人集中票型。
+${playerRole === '狼人'
+  ? '【狼人警长】利用警长权威引导好人打错方向：指向你想放逐的好人，用"根据目前发言逻辑"等分析语气（而非命令语气）；绝不指向狼队友；不要过于强硬——权威滥用是暴露信号。'
+  : playerRole === '预言家'
+  ? '【预言家警长】你已掌握查验结果，警长指路直接指向查杀目标（如有）或逻辑最可疑者；若有对跳者，指路对象优先指向悍跳者，用查验链为你的指向背书。'
+  : '【好人警长】优先指向：已知查杀目标 > 本轮发言逻辑最混乱者 > 历史多轮被投者。明确宣告而非含糊暗示——你的1.5票 + 公开宣告会影响他人跟投。'}`
+                : '';
+
+            // 返回角色特定的提示词 + 警长任务（如有）+ 结构化 claims schema（柱三）
+            return rolePromptGenerator(ctx, roleParams) + sheriffHint + CLAIMS_SCHEMA_SUFFIX;
 
         case PROMPT_ACTIONS.NIGHT_GUARD:
             const { cannotGuard } = params;
@@ -1511,6 +1523,7 @@ Step5: 确定入梦目标
 
         case PROMPT_ACTIONS.DAY_VOTE: {
             const { validTargets: voteTargets, seerConstraint, lastVoteIntention, pkMode } = params;
+            const isVoterSheriff = currentPlayer?.isSheriff || false;
             const intentionReminder = lastVoteIntention && lastVoteIntention !== -1
                 ? `你刚才在发言中表示想投 ${lastVoteIntention} 号。`
                 : (lastVoteIntention === -1 ? '你刚才在发言中表示暂不表态/弃票。' : '');
@@ -1563,6 +1576,11 @@ Step5: 确定入梦目标
                 sceneHint = `\n【终局警报】场上仅${aliveCount}人，约${wolfCount}狼。票型错误可能直接触发好狼人数平衡导致失利！必须投有信息支撑的目标（查杀>多轮被投>单轮可疑>弃票）。`;
             }
 
+            // 警长投票权重提醒：警长知道自己的票值1.5，应更审慎避免投错
+            const sheriffVoteHint = isVoterSheriff
+                ? `\n【🎖️ 警长投票】你的投票权重为1.5票——比普通玩家多出半票。你的票型在接近平票的局面中决定胜负。务必投有信息支撑的目标，切勿弃票（警长弃票=放弃1.5票，好人阵营损失最重）。`
+                : '';
+
             // 预言家投票策略：对跳局面时悍跳者优先于其他目标（悍跳 = 公开谎言 = 已知狼人）
             const seerVoteStrategy = seerCounterClaimantsInVote.length > 0
                 ? `2. 【预言家投票策略—对跳优先】${seerCounterClaimantsInVote.join(',')}号是在场悍跳者（自称预言家），你已知其身份虚假，投票优先级等同于已验查杀——${pkMode ? 'PK必须投悍跳者！弃票=放过已知狼人，对好人阵营不可接受' : '率先投悍跳者出局！勿浪费这次信息优势，绝不投金水（已验好人）。'}`
@@ -1573,7 +1591,7 @@ Step5: 确定入梦目标
 ${intentionReminder}
 ${seerConstraint || ''}
 ${voteMomentumHint}
-${sceneHint}
+${sceneHint}${sheriffVoteHint}
 ${voteCotTemplate}
 
 【投票逻辑推演】
