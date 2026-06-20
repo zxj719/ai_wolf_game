@@ -949,7 +949,14 @@ const ROLE_DAY_SPEECH_PROMPTS = {
             const lateHint = isLateGame
                 ? `\n【残局(${aliveCount}人/${totalWolves}狼)】重心从角色声明转为票型精算：每票落点不能打到队友；若被质疑无法脱身，抢先指控第三方好人转移焦点`
                 : '';
-            wolfTeammatesHint = `\n【多狼协作——白天发言规则】存活队友：${params.wolfTeammates.join(',')}号${roleDiv}${lateHint}\n- 立场分散：如果队友已站边某人，你要对那人保持中立或轻度质疑——两狼同步支持同一好人是关系暴露的头号原因\n- 投票错位：在thought中预演票型，避免和队友同时指向同一人（两票同向是好人发现关系链的强信号）\n- 制造分歧感：在某细节上和队友立场有轻微差异，让好人误认为你们不是同阵营`;
+            // 当知道发言顺序时，给出明确的本轮分工角色（而非模糊的"先开口者"指导）
+            let wolfRoleAssignment = '';
+            if (params.isFirstWolfToSpeak !== undefined) {
+                wolfRoleAssignment = params.isFirstWolfToSpeak
+                    ? `\n⭐【本轮你是：主动方】队友尚未发言，你率先开口——主动点名怀疑一名好人，带动讨论方向，为队友创造"中立回应你"的叙事空间`
+                    : `\n⭐【本轮你是：低调方】队友已先发言——以中立评委口吻回应，在某细节上与先发言队友轻微分歧（如"我感觉X方向更值得关注"），绝不追杀与队友完全相同的目标`;
+            }
+            wolfTeammatesHint = `\n【多狼协作——白天发言规则】存活队友：${params.wolfTeammates.join(',')}号${roleDiv}${wolfRoleAssignment}${lateHint}\n- 立场分散：如果队友已站边某人，你要对那人保持中立或轻度质疑——两狼同步支持同一好人是关系暴露的头号原因\n- 投票错位：在thought中预演票型，避免和队友同时指向同一人（两票同向是好人发现关系链的强信号）\n- 制造分歧感：在某细节上和队友立场有轻微差异，让好人误认为你们不是同阵营`;
         }
         return `${getBaseContext(ctx)}
 【狼人专属任务】白天发言 — 最大化狼队胜率

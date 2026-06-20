@@ -182,7 +182,20 @@ export function useSpeechFlow({
             return;
           }
 
-          const res = await askAI(currentSpeaker, PROMPT_ACTIONS.DAY_SPEECH);
+          // 狼人发言顺序感知：判断本轮是否为首个说话的狼，用于主动方/低调方分工
+          const wolfSpeakParams = {};
+          if (currentSpeaker.role === '狼人') {
+            const wolfTeammateIds = players
+              .filter(p => p.isAlive && p.role === '狼人' && p.id !== currentSpeaker.id)
+              .map(p => p.id);
+            if (wolfTeammateIds.length > 0) {
+              const alreadySpokenWolves = wolfTeammateIds.filter(id =>
+                speechHistory.some(s => s.day === dayCount && s.playerId === id)
+              );
+              wolfSpeakParams.isFirstWolfToSpeak = alreadySpokenWolves.length === 0;
+            }
+          }
+          const res = await askAI(currentSpeaker, PROMPT_ACTIONS.DAY_SPEECH, wolfSpeakParams);
 
           if (!gameActiveRef.current) return;
 

@@ -426,6 +426,9 @@
 66. **实局 smoke test**（32 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证骑士上警决策 + 竞选发言（关注 thought 是否出现"双重不确定性"，speech 不出现"骑士/决斗"词汇）
 67. **DAY_VOTE 热力盲从效果观察**（item 49 续）：实局验证热力降权三标准是否被正确应用
 68. **守卫跨轮追加格式效果回验**（item 50 续）：连续守 2 夜后检查 identity_table reason 是否出现"N1守...；N2守..."追加格式
+69. ~~**多狼发言顺序感知（isFirstWolfToSpeak）**~~ ✅ Round 33 已完成（useSpeechFlow.js 计算首发/后发 + wolf DAY_SPEECH ⭐主动方/低调方确认；25/25 测试通过）
+70. **实局 smoke test**（33 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证 2 狼局两只狼的 thought 字段是否分别出现"主动方/低调方"语言 + speech 内容差异化（一只质疑好人、另一只中立评委口吻）
+71. **pkMode 下 wolfRoleAssignment 评估**：PK 场景（`useDayFlow.js:869`）的 `askAI(candidate, PROMPT_ACTIONS.DAY_SPEECH, { pkMode: true })` 不传 `isFirstWolfToSpeak`，`wolfRoleAssignment = ''`（安全兜底）。若 PK 阶段也有 2 狼存活需要协作，可在 PK 路径也计算 isFirstWolfToSpeak（下轮评估是否值得）
 
 ---
 
@@ -474,3 +477,13 @@
 - **根因**：Python 和 JavaScript 的转义规则不同。Python 字符串中 `\n`/`\t` 有意义，但 `\$` 没有对应转义含义，保留为两个字符。JS 模板字符串中 `\${` 是对 `$` 的显式转义，阻止插值。两者叠加造成跨语言写文件时的静默语义错误。
 - **修复**：在 Python 中直接写 `${badgeFlowLine}`（不加反斜杠）；已写入的 `\${...}` 用 `content.replace('\\${badgeFlowLine}', '${badgeFlowLine}')` 批量修复。
 - **防范**：测试脚本中加入负向断言（T15: `!speechBlock.includes('\\${badgeFlowLine}')`），监测此类静默错误。凡 Python 脚本向 JS 模板字符串写内容时，事后必须用 `grep '\\${'` 检查写入结果。
+
+---
+
+### [2026-06-20 Round 33] 多代理协作策略必须配套"角色身份感知"——感知-执行分裂是策略失效的根因
+
+- **问题**：R15 在狼人 DAY_SPEECH 中加入"先开口担任主动方/后开口担任低调方"的角色分工指导，但 `askAI(currentSpeaker, PROMPT_ACTIONS.DAY_SPEECH)` 不传任何参数，AI 无法得知自己是先还是后发言 → 可能两只狼都成主动方（同时质疑同一目标，协作暴露），或两只狼都低调（失去攻击主动权）。
+- **根因**：这是"感知-执行分裂"（Perception-Execution Split）的典型模式：有策略框架（执行），但缺少当前状态感知（感知）。参照 Wang 2025 §4.3：多代理欺骗需要"全局策略 + 局部感知"同时具备。
+- **修复**：在 `useSpeechFlow.js` 的 `triggerAISpeech` 中，通过 `speechHistory.some(s => s.day === dayCount && s.playerId === id)` 判断当天是否有队友已发言，计算 `isFirstWolfToSpeak: boolean`，透传给 wolf DAY_SPEECH 提示词，在 `wolfTeammatesHint` 中生成 `⭐【本轮你是：主动方/低调方】` 明确确认。
+- **通用规则**：每次在提示词中加入"依据当前状态做出不同行为"的指导（如"若你是 X 则做 A，若你是 Y 则做 B"），必须同时检查调用端是否传递了区分 X/Y 的具体数据。没有数据的状态感知 = 随机猜测 = 策略失效。
+- **边界处理**：solo wolf（无存活队友）不传 `isFirstWolfToSpeak`（保持空 params），提示词中 `wolfRoleAssignment = ''` 安全兜底；死亡队友过滤 `p.isAlive`；跨天记录过滤 `s.day === dayCount`。
