@@ -1398,7 +1398,7 @@ ${nightCot}
                 hasRevealed: currentPlayer?.hasRevealed,  // 身份已公开时优先级 C 提升为 A
             });
 
-        case PROMPT_ACTIONS.NIGHT_WOLF:
+        case PROMPT_ACTIONS.NIGHT_WOLF: {
              const validTargets = players.filter(p => p.isAlive && p.role !== '狼人').map(p => p.id).join(',');
              // P1渐进式披露：根据存在的角色动态生成刀法优先级
              const wolfExistingRoles = detectExistingRoles(players);
@@ -1425,6 +1425,12 @@ ${nightCot}
              if (wolfExistingRoles.hasGuard) wolfThreatHints.push('守卫可能保护关键目标——需要考虑博弈');
              if (wolfExistingRoles.hasHunter) wolfThreatHints.push('猎人死亡时带走一人——需要权衡交换价值');
 
+             // 首夜无历史刀口；N2+夜从 previousIdentityTable 中读取"高优先刀口"标记
+             const wolfNightLabel = `N${ctx.dayCount}`;
+             const wolfHistoryStep = ctx.dayCount > 1
+                 ? '0. 【读取历史刀口】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"高优先刀口"？将其列为今晚刀口候选起点（若该目标已死或不在可袭击列表中，重新评估其他高优先项）'
+                 : '0. 【首夜】无历史刀口记录——直接进行角色推断';
+
              return `狼人袭击决策。
 【重要规则】每晚必须袭击一名玩家，不能空刀！
 【可袭击目标】${validTargets}号
@@ -1434,14 +1440,17 @@ ${nightCot}
 ${wolfThreatHints.length > 0 ? '【威胁分析】\n' + wolfThreatHints.map(h => `- ${h}`).join('\n') : ''}
 
 【思维链】
-1. 根据白天发言，谁最可能是什么角色？
-2. 消灭谁对狼队的期望收益最大？（信息链、投票权、技能威胁）
-3. 对方可能被保护吗？
-【identity_table 战略用途（你已知所有人真实身份）】
-- 对高威胁好人（神职/发言锋利/已对队友起疑）：confidence 填 85-95，reason 写"高优先刀口：[具体威胁原因]"，供下轮夜间决策时优先锁定
-- 对已知狼队友：suspect 填"村民"，confidence 填 40-60，reason 填中性描述（维持与你公开发言立场的一致性）
-- 对低威胁村民：confidence 填 30-50，reason 填"无明显神职特征，刀口优先级低"
+${wolfHistoryStep}
+1. 【角色推断】白天发言中谁的行为印证或更新了上轮 identity_table 的判断？是否出现新的神职暴露信号？
+2. 【期望价值评估】高优先目标是否仍存活？综合：角色威胁 × 被守护概率（连守规律） × 猎人/骑士反杀代价
+3. 【最终决策】确定今晚目标——若切换了历史"高优先刀口"目标，在 thought 中说明切换原因（避免随机换刀）
+【identity_table 战略更新（读写闭环）】
+- 高威胁好人（神职/发言锋利/已对队友起疑）：confidence 填 85-95，reason 写"高优先刀口：[具体威胁原因]"（下轮 Step 0 将直接从此读取）
+- 若本轮刀了某目标：在TA的 reason 末尾追加"→已${wolfNightLabel}夜行刀"，标记执行状态，防止下轮重复评估
+- 已知狼队友：suspect 填"村民"，confidence 填 40-60，reason 填中性描述（维持公开发言一致性）
+- 低威胁村民：confidence 填 30-50，reason 填"无明显神职特征，刀口优先级低"
 输出:{"targetId":数字(必须从可袭击目标中选),"reasoning":"选择理由","thought":"完整刀法推演过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+        }
 
         case PROMPT_ACTIONS.NIGHT_SEER: {
              const { validTargets: seerTargets } = params;
