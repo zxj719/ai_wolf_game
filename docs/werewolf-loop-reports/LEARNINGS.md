@@ -442,7 +442,17 @@
 82. **NIGHT_WOLF 刀口连续性效果回验**（新增，Round 38 改动）：用户本地验证 N2+ 夜 thought 是否引用历史"高优先刀口"标记（Step 0 框架语言）；刀口是否有跨夜连续性；切换目标时是否有切换原因说明
 83. ~~**NIGHT_WITCH 毒药候选读写闭环**~~ ✅ Round 39 已完成（witchHistoryStep：首夜=无历史；N2+夜=读取 identity_table 中"毒药优先候选"标记；case 花括号 R11；witchNightLabel R18；23/23 测试通过）
 84. **NIGHT_WITCH 毒药候选连续性效果回验**（新增，Round 39 改动）：用户本地验证 N2+ 夜 thought 是否引用历史"毒药优先候选"标记（Step 0 框架语言）；连续嫌疑场景是否延续 N1 候选目标
-85. **NIGHT_GUARD 同构评估**（新增，Round 39 识别）：守卫 identity_table 写指导有"守护优先级：高/中"标记，但 NIGHT_GUARD 无 Step 0 读取——需评估是否与 NIGHT_WOLF/WITCH 同构，或守卫每晚需切换而不同
+85. ~~**NIGHT_GUARD 同构评估**~~ ✅ Round 40 已完成（guardHistoryStep：首夜=无历史；N2+夜=读取 identity_table 中"守护优先级：高/中"标记；case 花括号 R11；guardNightLabel R18；Step 2 处理连守禁令顺延；24/24 测试通过）
+86. **NIGHT_GUARD 守护候选连续性效果回验**（新增，Round 40 改动）：用户本地验证 N2+ 夜 thought 是否引用"守护优先级"历史标记（Step 0 框架语言）；连守禁令冲突时是否有切换原因说明
+
+---
+
+### [2026-06-21 Round 40] 读写闭环三轮完成：WOLF/WITCH/GUARD 首次全部清零
+
+- **完成标志**：本轮修复 NIGHT_GUARD 后，`grep "供下轮\|下轮用\|下轮参考\|下轮复查" aiPrompts.js` 首次返回空——三个主要夜间行动的 identity_table 读写闭环全部完成。
+- **NIGHT_GUARD 特殊性**：守卫有"禁止连守"约束（`cannotGuard` 参数），历史优先候选可能恰好是禁守对象——Step 0 读取指令必须包含"若该目标在禁止连守限制内，改选次高优先候选"，Step 2 专门处理连守顺延逻辑。这是 WOLF/WITCH 没有的守卫专属约束。
+- **发现方式**：R39 LEARNINGS item 85 人工预标注（NIGHT_GUARD 的写指导无"下轮复查"关键词，只有"守护优先级：高/中"，常驻诊断命令无法自动捕获）。说明常驻诊断命令有局限性——只能发现"下轮"关键词类缺口，不含该关键词的同类缺口需要人工评估。
+- **通用规则**：R38/R39/R40 确立了夜间行动读写闭环的完整模式：① `const xNightLabel = N${ctx.dayCount}` (R18) ② `const xHistoryStep = dayCount > 1 ? '0. 读取历史...' : '0. 首夜无历史'` ③ return 模板中注入 `${xHistoryStep}` 作为 Step 0 ④ 写指导末尾追加"（下轮 Step 0 将直接从此读取）" ⑤ case 花括号 (R11)。每个夜间行动的私有跨轮标记都应套用此模式。
 
 ---
 
