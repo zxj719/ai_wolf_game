@@ -1505,7 +1505,7 @@ ${seerNightStrategy}
 输出:{"targetId":数字,"reasoning":"查验理由","thought":"查验思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
         }
 
-        case PROMPT_ACTIONS.NIGHT_WITCH:
+        case PROMPT_ACTIONS.NIGHT_WITCH: {
              const { dyingId, canSave, hasPoison, witchId } = params;
              const witchHint = ctx.dayCount === 1 ? '【首夜策略】通常使用解药救人。⚠️ 重要：第一晚女巫可以自救（如果自己被刀）！' : '';
              const witchInfo = `被刀:${dyingId !== null ? dyingId + '号' : '无人被刀(平安夜)'}。解药:${canSave ? '可用' : '已用/无'}。毒药:${hasPoison ? '可用' : '已用/无'}。`;
@@ -1525,21 +1525,30 @@ ${seerNightStrategy}
 - 如果推断出"好人还有优势"：
   → 按照常规策略，谨慎使用毒药`;
 
+             // R18 规范：避免在 return 模板字符串内直接使用 ctx.dayCount
+             const witchNightLabel = `N${ctx.dayCount}`;
+             // 读写闭环（同 R38 NIGHT_WOLF 模式）：首夜无历史；N2+夜从 identity_table 读取"毒药优先候选"
+             const witchHistoryStep = ctx.dayCount > 1
+                 ? '0. 【读取历史毒药候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"毒药优先候选"？将其列为今晚开毒候选起点（若该目标已死或局面改变，重新评估其他高威胁项）'
+                 : '0. 【首夜】无历史毒药候选记录——直接根据当前情况判断用药';
+
              return `女巫用药决策。
 ${witchHint}
 【当前情况】${witchInfo}
 【重要规则】不能同时使用两药！${criticalGuidance}
 ${nightCot}
-【用药策略】
-- 解药考量：被刀者是否为关键神职？是否可能是自刀狼？救人收益vs保留价值？
-- 毒药考量：只有高度确信某人是狼且逻辑完全崩坏时才考虑开毒
-- 风险评估：毒错好人会导致阵营崩盘
-- 临界决策：在危急时刻，保守会导致失败，必须果断出手
+【用药策略（思维链）】
+${witchHistoryStep}
+1. 解药考量：被刀者是否为关键神职？是否可能是自刀狼？救人收益vs保留价值？
+2. 毒药考量：结合上方历史候选（Step 0），只有高度确信某人是狼且逻辑完全崩坏时才考虑开毒
+3. 风险评估：毒错好人会导致阵营崩盘
+4. 临界决策：在危急时刻，保守会导致失败，必须果断出手
 【identity_table 填写指导（女巫夜间：药水决策状态持久化）】
-- 本晚被刀目标：confidence 填 70-85，reason 写"N[X]夜被狼刀：[救/未救原因]；解药状态：[当前可用/已用]，若是关键神职则救，否则保留"
-- 高威胁毒药候选：confidence 填 65-85，reason 写"毒药优先候选：[发言带节奏/投好人]，本夜[是否用毒]；下轮复查"
-- 确认出局玩家（已毒杀）：confidence 填 98-100，reason 写"N[X]夜毒药处决，出局确认"
+- 本晚被刀目标：confidence 填 70-85，reason 写"${witchNightLabel}夜被狼刀：[救/未救原因]；解药状态：[当前可用/已用]，若是关键神职则救，否则保留"
+- 高威胁毒药候选：confidence 填 65-85，reason 写"毒药优先候选：[发言带节奏/投好人]，本夜[是否用毒]（下轮 Step 0 将直接从此读取）"
+- 确认出局玩家（已毒杀）：confidence 填 98-100，reason 写"${witchNightLabel}夜毒药处决，出局确认"
 输出:{"useSave":true/false,"usePoison":数字或null,"reasoning":"决策理由(必须包含你的推断：当前大概还剩X好人Y狼人)","thought":"用药思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+        }
 
         case PROMPT_ACTIONS.NIGHT_DREAMWEAVER: {
              const { dreamHistory, lastDreamTarget: dwLastTarget, aliveTargets: dwAliveTargets, hasRevealed: dwHasRevealed } = params;
