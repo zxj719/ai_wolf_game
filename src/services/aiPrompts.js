@@ -1329,7 +1329,7 @@ ${playerRole === '狼人'
             // 返回角色特定的提示词 + PK 辩护（如有）+ 警长任务（如有）+ 结构化 claims schema（柱三）
             return rolePromptGenerator(ctx, roleParams) + pkHint + sheriffHint + CLAIMS_SCHEMA_SUFFIX;
 
-        case PROMPT_ACTIONS.NIGHT_GUARD:
+        case PROMPT_ACTIONS.NIGHT_GUARD: {
             const { cannotGuard } = params;
             const aliveStr = players.filter(p => p.isAlive).map(p => p.id).join(',');
             // P1渐进式披露：根据有无女巫调整首夜策略
@@ -1350,19 +1350,30 @@ ${playerRole === '狼人'
 - 昨晚守的人死了？守错了，重新判断谁是狼的首选刀口
 - 空守：不确定时空守比守错强（守错可能暴露守卫认知）`
               : '';
+            // R18 规范：避免在 return 模板字符串内直接使用 ctx.dayCount
+            const guardNightLabel = `N${ctx.dayCount}`;
+            // 读写闭环（同 R38/R39 模式）：首夜无历史；N2+夜从 identity_table 读取"守护优先级：高/中"标记
+            const guardHistoryStep = ctx.dayCount > 1
+                ? '0. 【读取历史守护优先候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"守护优先级：高"或"守护优先级：中"？将其列为今晚守护候选起点（若该目标在禁止连守限制内或已出局，改选次高优先候选）'
+                : '0. 【首夜】无历史守护记录——直接根据场上信息判断守护目标';
 
             return `守卫守护选择。
 ${guardHint}${guardSubsequentHint}
 【存活玩家】${aliveStr}
 ${cannotGuard !== null ? `【禁止连守】不能守${cannotGuard}号(昨夜已守)` : ''}
 ${nightCot}
-【守护优先级】已跳身份的预言家 > 重要神职 > 被狼针对的好人
+【守护思维链】
+${guardHistoryStep}
+1. 【守护优先级】已跳身份的预言家 > 重要神职 > 被狼针对的好人
+2. 【禁连守处理】若上方历史优先候选恰好是连守禁止对象，顺延至次高优先候选
+3. 【最终决策】确定今晚守护目标——若切换了历史优先候选目标，在 thought 中说明切换原因
 【identity_table 填写指导（守卫夜间：守护历史跨轮追加，辅助连贯策略）】
-- 守护候选/已守护者：confidence 50-80，reason 追加写"N[X]夜守护→[平安夜/成功拦截刀]"——**不覆盖历史**
+- 守护候选/已守护者：confidence 50-80，reason 追加写"${guardNightLabel}夜守护→[平安夜/成功拦截刀]"——**不覆盖历史**
   【追加示例】上轮 reason="N1守3号→平安夜" → 本轮追加为"N1守3号→平安夜；N2换守5号(疑真预)→[结果待观察]"
-- 疑似神职（但未守护过）：reason 写"行为疑似[预言家/守卫]，守护优先级：高/中"
+- 疑似神职（但未守护过）：reason 写"行为疑似[预言家/守卫]，守护优先级：高/中"（下轮 Step 0 将直接从此读取）
 - 明确狼嫌疑：reason 写"发言矛盾/带节奏，不守对象"
 输出:{"targetId":数字或null(空守),"reasoning":"一句话理由","thought":"守护思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
+        }
 
         case PROMPT_ACTIONS.NIGHT_MAGICIAN:
             const { validSwapTargets, magicianHistory, seerChecks: magicianSeerChecks } = params;
