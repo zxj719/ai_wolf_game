@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
+import { loadLocalRecords } from '../localBoard';
 
 /** ① 报名处：选身份 + 双榜 */
 export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
   const [picked, setPicked] = useState('');
+  const seenOpps = useMemo(() => new Set(loadLocalRecords().map((r) => r.o)), []);
+  const seenCount = seenOpps.size;
+  const totalOpps = CHARS.length;
 
   const handleStart = () => {
     if (!picked) {
@@ -42,6 +46,17 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
             </div>
           ))}
         </div>
+        {seenCount > 0 && (
+          <div className="opp-progress">
+            <span className="opp-progress-label">
+              已挑战 {seenCount}/{totalOpps} 位家人
+              {seenCount === totalOpps && '　🏅 全家大挑战完成！'}
+            </span>
+            <div className="opp-progress-bar">
+              <div className="opp-progress-fill" style={{ width: `${(seenCount / totalOpps) * 100}%` }} />
+            </div>
+          </div>
+        )}
         <div className="equip-mini-bar">
           <span className="equip-mini-label">🎒 当前装备：</span>
           {EQUIPMENT_SLOTS.map((slot) => {

@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
-import { saveLocalRecord } from '../localBoard';
+import { saveLocalRecord, loadLocalRecords } from '../localBoard';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
@@ -13,6 +13,14 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
   const oppQuotePool = CHAR_QUOTES[o.name]?.[playerWon ? 'defeated' : 'victory'];
   const oppQuote = oppQuotePool ? oppQuotePool[rand(0, oppQuotePool.length - 1)] : null;
   const recordedRef = useRef(false);
+
+  // 连胜计算：读取当前游戏保存前的历史记录（effect 尚未运行），加上本局结果
+  const winStreak = useMemo(() => {
+    const mine = loadLocalRecords().filter((r) => r.p === p.name);
+    let streak = playerWon ? 1 : 0;
+    for (let i = mine.length - 1; i >= 0 && mine[i].sp > mine[i].so; i--) streak++;
+    return streak;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // StrictMode 下 effect 会跑两次，ref 去重避免一局记两条
@@ -51,6 +59,11 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
         <span className="trophy">{ending.icon}</span>
         <h2>{ending.title}</h2>
         <div className="score-line">大比分 {state.setsP} : {state.setsO}（{state.setHistory.join(' / ')}）</div>
+        {playerWon && winStreak >= 2 && (
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <span className="ladder-streak">🔥 本次连胜 {winStreak} 场</span>
+          </div>
+        )}
         <p className="comment">{ending.c}</p>
         <div style={{ marginTop: 22, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button type="button" className="btn" onClick={() => dispatch({ type: 'REMATCH' })}>
