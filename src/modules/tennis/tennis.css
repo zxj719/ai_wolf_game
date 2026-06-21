@@ -449,6 +449,10 @@
 .tennis-scope .shop-empty { color: var(--muted); font-size: .85rem; padding: 8px; }
 .tennis-scope .shop-mini-actions { display: flex; gap: 6px; }
 .tennis-scope .btn.mini { padding: 5px 12px; font-size: .8rem; box-shadow: none; }
+.tennis-scope .shop-close-x { padding: 4px 10px; border-radius: 50%; font-size: 1.2rem; opacity: .6; border-color: transparent; }
+.tennis-scope .shop-close-x:hover { opacity: 1; background: rgba(13,59,46,.1); border-color: var(--court); }
+.tennis-scope .shop-exit-bar { margin-top: 20px; padding-top: 16px; border-top: 2px dashed rgba(13,59,46,.18); display: flex; justify-content: center; }
+.tennis-scope .shop-exit-btn { width: 100%; max-width: 320px; font-size: 1rem; border-radius: 12px; padding: 14px; }
 .tennis-scope .ladder-bar {
   display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap;
 }

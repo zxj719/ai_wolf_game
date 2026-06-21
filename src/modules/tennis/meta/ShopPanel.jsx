@@ -178,7 +178,7 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
         <div className="shop-head">
           <h2>🛒 网球用品店</h2>
           <span className="shop-coins">💰 {coins}</span>
-          <button type="button" className="btn ghost" onClick={onClose}>离开商店</button>
+          <button type="button" className="btn ghost shop-close-x" onClick={onClose} aria-label="关闭商店">×</button>
         </div>
 
         <div className="shop-section">
@@ -262,6 +262,10 @@ export function ShopPanel({ progress, onUpdateProgress, deck, onDeckChange, onCl
               <span className="shop-empty">还没有装备 —— 先去打几场吧</span>
             )}
           </div>
+        </div>
+
+        <div className="shop-exit-bar">
+          <button type="button" className="btn ghost shop-exit-btn" onClick={onClose}>退出商店</button>
         </div>
       </div>
     </div>
