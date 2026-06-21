@@ -428,7 +428,11 @@
 68. **守卫跨轮追加格式效果回验**（item 50 续）：连续守 2 夜后检查 identity_table reason 是否出现"N1守...；N2守..."追加格式
 69. ~~**多狼发言顺序感知（isFirstWolfToSpeak）**~~ ✅ Round 33 已完成（useSpeechFlow.js 计算首发/后发 + wolf DAY_SPEECH ⭐主动方/低调方确认；25/25 测试通过）
 70. **实局 smoke test**（33 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证 2 狼局两只狼的 thought 字段是否分别出现"主动方/低调方"语言 + speech 内容差异化（一只质疑好人、另一只中立评委口吻）
-71. **pkMode 下 wolfRoleAssignment 评估**：PK 场景（`useDayFlow.js:869`）的 `askAI(candidate, PROMPT_ACTIONS.DAY_SPEECH, { pkMode: true })` 不传 `isFirstWolfToSpeak`，`wolfRoleAssignment = ''`（安全兜底）。若 PK 阶段也有 2 狼存活需要协作，可在 PK 路径也计算 isFirstWolfToSpeak（下轮评估是否值得）
+71. ~~**pkMode 下 wolfRoleAssignment 评估**~~ ✅ Round 34 已完成（评估结论：不应在 PK 中沿用主动方/低调方分工，而应完全切换为防御框架；实现了 pkMode 覆盖逻辑 + 全局 pkHint；25/25 测试通过）
+72. **实局 smoke test**（34 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证 PK 发言——狼人 thought 是否出现"辩护"语言，双狼 PK 场景是否各自为战
+73. **预言家/守卫 PK 专属 pkHint 评估**：全局 pkHint 是通用框架，预言家在 PK 时有独特优势（可公开查验记录），是否需要角色专属分支？（评估：预言家 PK 可公开所有查验记录自证，这是非常有竞争力的策略，需专属框架）
+74. **DAY_VOTE 热力盲从效果观察**（item 67 续）：实局验证热力降权三标准是否被正确应用
+75. **守卫跨轮追加格式效果回验**（item 68 续）：连续守 2 夜后检查 identity_table reason 格式
 
 ---
 
@@ -487,3 +491,14 @@
 - **修复**：在 `useSpeechFlow.js` 的 `triggerAISpeech` 中，通过 `speechHistory.some(s => s.day === dayCount && s.playerId === id)` 判断当天是否有队友已发言，计算 `isFirstWolfToSpeak: boolean`，透传给 wolf DAY_SPEECH 提示词，在 `wolfTeammatesHint` 中生成 `⭐【本轮你是：主动方/低调方】` 明确确认。
 - **通用规则**：每次在提示词中加入"依据当前状态做出不同行为"的指导（如"若你是 X 则做 A，若你是 Y 则做 B"），必须同时检查调用端是否传递了区分 X/Y 的具体数据。没有数据的状态感知 = 随机猜测 = 策略失效。
 - **边界处理**：solo wolf（无存活队友）不传 `isFirstWolfToSpeak`（保持空 params），提示词中 `wolfRoleAssignment = ''` 安全兜底；死亡队友过滤 `p.isAlive`；跨天记录过滤 `s.day === dayCount`。
+
+---
+
+### [2026-06-21 Round 34] PK 发言是「发言目的反转」场景——进攻协作框架在防御模式完全失效
+
+- **问题**：`wolfTeammatesHint`（主动方/低调方角色分化）在 `pkMode: true` 的 PK 发言中被原样发送给 AI。但 PK 是防御场景（目标：说服他人不投自己），而 `wolfTeammatesHint` 完全是进攻协作框架（目标：分散好人注意力、协调投票方向）。两者目标正相反，AI 会收到矛盾指令而无法正确执行。
+- **最危险子场景**：双狼都进入 PK（`teammatesInPk.length > 0`）——如果其中一只执行"主动方"框架（质疑第三方好人）而非自我辩护，好人立刻能看出两只狼行为的异常协调，关系链立即暴露。
+- **根因**：每次添加新的 `params`（如 `pkMode`）时，没有检查已有的条件化策略块（如 `wolfTeammatesHint`）是否需要在该新参数的语义下重新设计。
+- **修复**：在 `wolfTeammatesHint` 构建块之后添加 `if (params.pkMode)` 覆盖：双狼 PK → 反协调指令（攻击队友逻辑漏洞）；场外队友 → 中性轻提示（无协作指令）。同时为所有角色添加全局 `pkHint` 后处理（新论点 / 直接对抗 / 存活价值）。
+- **通用规则**：每次为现有动作添加新的模式参数（如 `pkMode`、`endgameMode`）时，必须检查所有已有的条件化策略块并问"在这个模式下，该策略块的目标函数是否发生了反转？如果是，需要完全覆盖而不是叠加"。进攻目标和防御目标反转时，策略框架必须随之反转，不能部分覆盖。
+

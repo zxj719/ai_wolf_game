@@ -866,7 +866,7 @@ export function useDayFlow({
       const candidate = players.find(p => p.id === candidateId);
       if (!candidate || !candidate.isAlive) continue;
 
-      const res = await askAI(candidate, PROMPT_ACTIONS.DAY_SPEECH, { pkMode: true });
+      const res = await askAI(candidate, PROMPT_ACTIONS.DAY_SPEECH, { pkMode: true, pkCandidates: pkCandidateIds });
       if (res?.speech) {
         addLog(`[PK] [${candidate.id}号] ${candidate.name}: ${res.speech}`, 'chat');
         if (gameMode === 'ai-only' && res.thought) {

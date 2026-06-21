@@ -958,6 +958,22 @@ const ROLE_DAY_SPEECH_PROMPTS = {
             }
             wolfTeammatesHint = `\n【多狼协作——白天发言规则】存活队友：${params.wolfTeammates.join(',')}号${roleDiv}${wolfRoleAssignment}${lateHint}\n- 立场分散：如果队友已站边某人，你要对那人保持中立或轻度质疑——两狼同步支持同一好人是关系暴露的头号原因\n- 投票错位：在thought中预演票型，避免和队友同时指向同一人（两票同向是好人发现关系链的强信号）\n- 制造分歧感：在某细节上和队友立场有轻微差异，让好人误认为你们不是同阵营`;
         }
+        // PK 模式覆盖：PK 发言目标是自保，进攻协作框架完全错误
+        if (params.pkMode) {
+            const teammatesInPk = (params.wolfTeammates || []).filter(id =>
+                (params.pkCandidates || []).includes(id)
+            );
+            if (teammatesInPk.length > 0) {
+                // 最高风险：队友也是 PK 候选人 → 禁止任何保护行为，反而需要独立对抗
+                wolfTeammatesHint = `\n🚨【PK 危机：队友${teammatesInPk.join(',')}号也在 PK！】这是关系链暴露的最高风险场景。\n- 绝对禁止：为队友辩护、暗示对方"比你更可疑"（即使队友确实在场）——任何微妙保护都会让好人锁定你们的关系\n- 正确策略：把 PK 当成两个无关陌生人之间的正当博弈，找对方（包括队友）的逻辑漏洞、发言矛盾，建立"你们各自为战"的叙事\n- 最优解：展现出比队友更清晰的逻辑分析，让好人误判队友比你危险`;
+            } else {
+                // 有场外队友：专注自保，不影响场外队友的观众策略
+                const outsideHint = (params.wolfTeammates || []).length > 0
+                    ? `\n（场外队友${params.wolfTeammates.join(',')}号正在观看——你的 PK 表现会影响他们之后的投票判断）`
+                    : '';
+                wolfTeammatesHint = outsideHint;
+            }
+        }
         return `${getBaseContext(ctx)}
 【狼人专属任务】白天发言 — 最大化狼队胜率
 ${wolfTeammatesHint}
@@ -1246,6 +1262,14 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                 isSheriff: currentPlayer?.isSheriff || false,
             };
 
+            // PK 辩护模式注入：向所有角色补充 PK 语境（避免修改各角色提示词函数）
+            const pkHint = roleParams.pkMode
+                ? `\n\n【⚔️ PK 辩护模式（平票决赛）】你与其他候选人进入最终对决！本次发言首要目标是说服场上其他玩家投票淘汰对方而非你。
+- 提供新论点（不要重复之前已说过的话——重复 = 没有新信息 = 说服力为零）
+- 直接回应或质疑对方（PK 中主动对抗的可信度远高于被动辩解——让旁观者看到你的逻辑更清晰）
+- 明确陈述你存活的价值（不要泛说"我是好人"，说明你有什么未完成的信息/判断/保护对阵营更有用）`
+                : '';
+
             // 警长身份注入：在角色提示词之后追加"警长指路"任务（避免修改各角色提示词函数）
             const sheriffHint = roleParams.isSheriff
                 ? `\n\n【⚖️ 警长任务（本轮额外职责）】你是本局警长，投票权重1.5票。"警长指路"是你最重要的职责——在发言结尾**明确宣告**你本轮的投票方向（一句话：如"综合目前信息，我本轮指向X号"），引导好人集中票型。
@@ -1256,8 +1280,8 @@ ${playerRole === '狼人'
   : '【好人警长】优先指向：已知查杀目标 > 本轮发言逻辑最混乱者 > 历史多轮被投者。明确宣告而非含糊暗示——你的1.5票 + 公开宣告会影响他人跟投。'}`
                 : '';
 
-            // 返回角色特定的提示词 + 警长任务（如有）+ 结构化 claims schema（柱三）
-            return rolePromptGenerator(ctx, roleParams) + sheriffHint + CLAIMS_SCHEMA_SUFFIX;
+            // 返回角色特定的提示词 + PK 辩护（如有）+ 警长任务（如有）+ 结构化 claims schema（柱三）
+            return rolePromptGenerator(ctx, roleParams) + pkHint + sheriffHint + CLAIMS_SCHEMA_SUFFIX;
 
         case PROMPT_ACTIONS.NIGHT_GUARD:
             const { cannotGuard } = params;
