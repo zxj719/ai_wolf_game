@@ -7,6 +7,7 @@ import { loadLocalRecords } from '../localBoard';
 /** ① 报名处：选身份 + 双榜 */
 export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
   const [picked, setPicked] = useState('');
+  const [showOppHistory, setShowOppHistory] = useState(false);
   const seenOpps = useMemo(() => new Set(loadLocalRecords().map((r) => r.o)), []);
   const seenCount = seenOpps.size;
   const totalOpps = CHARS.length;
@@ -48,13 +49,32 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
         </div>
         {seenCount > 0 && (
           <div className="opp-progress">
-            <span className="opp-progress-label">
-              已挑战 {seenCount}/{totalOpps} 位家人
-              {seenCount === totalOpps && '　🏅 全家大挑战完成！'}
-            </span>
+            <button
+              type="button"
+              className="opp-progress-toggle"
+              onClick={() => setShowOppHistory((v) => !v)}
+              aria-expanded={showOppHistory}
+            >
+              <span>
+                已挑战 {seenCount}/{totalOpps} 位家人
+                {seenCount === totalOpps && '　🏅 全家大挑战完成！'}
+              </span>
+              <span className="opp-progress-chevron">{showOppHistory ? '▲' : '▼'}</span>
+            </button>
             <div className="opp-progress-bar">
               <div className="opp-progress-fill" style={{ width: `${(seenCount / totalOpps) * 100}%` }} />
             </div>
+            {showOppHistory && (
+              <div className="opp-history-panel">
+                {CHARS.map((c) => (
+                  <div key={c.n} className={`opp-history-chip${seenOpps.has(c.n) ? ' seen' : ' unseen'}`}>
+                    <span className="opp-history-face">{c.f}</span>
+                    <span className="opp-history-name">{c.n}</span>
+                    {seenOpps.has(c.n) && <span className="opp-history-badge">✓</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <div className="equip-mini-bar">
