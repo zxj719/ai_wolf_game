@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ENDINGS } from '../gameData';
+import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
 import { saveLocalRecord } from '../localBoard';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
@@ -9,6 +9,9 @@ import { FeedbackWidget } from './FeedbackWidget';
 export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps }) {
   const ending = ENDINGS[`${state.setsP}-${state.setsO}`];
   const { player: p, opp: o } = state;
+  const playerWon = state.setsP > state.setsO;
+  const oppQuotePool = CHAR_QUOTES[o.name]?.[playerWon ? 'defeated' : 'victory'];
+  const oppQuote = oppQuotePool ? oppQuotePool[rand(0, oppQuotePool.length - 1)] : null;
   const recordedRef = useRef(false);
 
   useEffect(() => {
@@ -58,6 +61,13 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           </button>
         </div>
       </div>
+
+      {oppQuote && (
+        <div className="card flat char-quote-card">
+          <span className="char-quote-who">{o.face} {o.name} 赛后说：</span>
+          <p className="char-quote-text">「{oppQuote}」</p>
+        </div>
+      )}
 
       <div className="card flat">
         <h2>📡 赛后战报</h2>

@@ -714,3 +714,8 @@
 .tennis-scope .fb-thanks {
   text-align: center; color: #6ee7b7; font-size: .95rem; padding: 8px 0;
 }
+
+/* ===== 角色赛后评语卡 (ResultScreen) ===== */
+.tennis-scope .char-quote-card { text-align: center; padding: 18px 24px; }
+.tennis-scope .char-quote-who { display: block; font-size: .78rem; color: var(--muted); font-family: var(--mono); letter-spacing: .04em; margin-bottom: 10px; }
+.tennis-scope .char-quote-text { font-size: 1.05rem; color: var(--card-ink); line-height: 1.65; margin: 0; font-style: italic; }
