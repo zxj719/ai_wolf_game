@@ -242,6 +242,11 @@ export default function TennisRoute() {
                     );
                   })}
                 </div>
+                {unlockedUltNames.size === Object.keys(ULTIMATES).length && (
+                  <div className="rule-strip" style={{ marginTop: 12, marginBottom: 0 }}>
+                    🏆 绝技图鉴已完成收集！七大绝技尽在掌握！
+                  </div>
+                )}
               </div>
 
               <div className="opts">

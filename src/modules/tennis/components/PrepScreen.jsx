@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { FXNAME, PREP } from '../gameData';
+import { useMemo, useRef, useState } from 'react';
+import { CHAR_QUOTES, FXNAME, PREP, rand } from '../gameData';
 
 function fxTags(fx) {
   return Object.entries(fx).map(([k, v]) => (
@@ -42,6 +42,12 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
   const [locked, setLocked] = useState(false);
   const lockTimer = useRef(null);
 
+  const preMatchQuote = useMemo(() => {
+    if (state.prepRound !== PREP.length - 1 || !state.opp) return null;
+    const pool = CHAR_QUOTES[state.opp.name]?.victory;
+    return pool ? pool[rand(0, pool.length - 1)] : null;
+  }, [state.prepRound, state.opp?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onPick = (i) => {
     if (locked) return;
     setLocked(true);
@@ -59,6 +65,12 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
         <span className="round-tag">备战回合 {state.prepRound + 1} / 4</span>
         <h2>{round.title}</h2>
         <p className="hint">{round.desc}</p>
+        {preMatchQuote && (
+          <div className="char-quote-card">
+            <span className="char-quote-who">{state.opp.face} {state.opp.name} 赛前嘚瑟：</span>
+            <p className="char-quote-text">「{preMatchQuote}」</p>
+          </div>
+        )}
         <div className="opts">
           {round.opts.map((o, i) => (
             <button type="button" className="opt" key={o.t} onClick={() => onPick(i)}>
