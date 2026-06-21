@@ -83,6 +83,7 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
                 <option key={u.name} value={u.name}>{u.face} {u.name} — {u.desc}</option>
               ))}
             </select>
+            {(() => { const sel = ultimateOptions.find((u) => u.name === equippedUltimate); return sel ? <p className="ult-pick-desc">⚡ {sel.face} {sel.name}：{sel.desc}</p> : null; })()}
           </div>
         )}
       </div>

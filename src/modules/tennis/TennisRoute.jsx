@@ -236,6 +236,7 @@ export default function TennisRoute() {
                       >
                         <span className="ult-chip-face">{u.face}</span>
                         <span className="ult-chip-name">{name}</span>
+                        {!unlocked && <span className="ult-chip-hint">击败{u.face}{u.owner}</span>}
                         {expanded && <span className="ult-chip-desc">{u.desc}</span>}
                       </button>
                     );
