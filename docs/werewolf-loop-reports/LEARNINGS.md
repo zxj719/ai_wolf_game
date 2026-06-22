@@ -444,6 +444,18 @@
 84. **NIGHT_WITCH 毒药候选连续性效果回验**（新增，Round 39 改动）：用户本地验证 N2+ 夜 thought 是否引用历史"毒药优先候选"标记（Step 0 框架语言）；连续嫌疑场景是否延续 N1 候选目标
 85. ~~**NIGHT_GUARD 同构评估**~~ ✅ Round 40 已完成（guardHistoryStep：首夜=无历史；N2+夜=读取 identity_table 中"守护优先级：高/中"标记；case 花括号 R11；guardNightLabel R18；Step 2 处理连守禁令顺延；24/24 测试通过）
 86. **NIGHT_GUARD 守护候选连续性效果回验**（新增，Round 40 改动）：用户本地验证 N2+ 夜 thought 是否引用"守护优先级"历史标记（Step 0 框架语言）；连守禁令冲突时是否有切换原因说明
+87. ~~**NIGHT_SEER + HUNTER_SHOOT 读写闭环**~~ ✅ Round 41 已完成（seerHistoryStep + hunterHistoryStep；seerNightLabel R18；26/26 测试通过）
+88. **NIGHT_SEER 查验候选连续性效果回验**（新增，Round 41 改动）：用户本地验证 N2+ 夜 thought 是否引用"排队查验优先级"历史标记（Step 0 框架语言）；连续嫌疑场景是否延续 N1 候选目标
+89. **HUNTER_SHOOT 历史候选效果回验**（新增，Round 41 改动）：多轮后死亡的猎人 thought 是否出现"开枪优先级：高""历史推理表"等语言；是否正确区分"查杀优先"vs"历史候选"
+
+---
+
+### [2026-06-22 Round 41] 读写闭环扩展：NIGHT_SEER + HUNTER_SHOOT 两处同构缺口
+
+- **发现方式**：人工评估（同 R40 模式）——常驻诊断命令 `grep "供下轮|下轮复查"` 仍返回空（旧格式），但 NIGHT_SEER 的"排队查验优先级"标记和 HUNTER_SHOOT 中 DAY_SPEECH 的"开枪前回顾 identity_table"说明都是同类缺口，只是没有旧式关键词。
+- **NIGHT_SEER 特殊性**：预言家的"排队查验优先级"记录的是**尚未验证的嫌疑候选**（不是执行历史）。Step 0 说明"结合新信息重新排序；已死亡目标跳过"——历史候选是起点，不是硬约束（不同于守卫的守护优先级约束）。
+- **HUNTER_SHOOT 特殊性**：① 不是 NIGHT_* action，不需要 `hunterNightLabel`（R18 规范不适用）② 查杀信息优先于历史候选（hunterHistoryStep 明确澄清）③ 这是"读写闭环"模式扩展到 DAY action 的首例——说明该模式不限于夜间行动。
+- **通用规则更新**：任何 action（不论 DAY_* 还是 NIGHT_*）的 identity_table 写指导，如果包含"积累候选供后续使用"的语义，必须有对应的显式读取 Step 0。检查方法：逐一审计所有角色的 identity_table 写指导，找"供X场景使用"或"前回顾"等语义。
 
 ---
 

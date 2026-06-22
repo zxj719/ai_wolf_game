@@ -1467,6 +1467,13 @@ ${wolfHistoryStep}
              const { validTargets: seerTargets } = params;
              const isFirstNight = ctx.dayCount === 1;
 
+             // R18 规范：避免在 return 模板字符串内直接使用 ctx.dayCount
+             const seerNightLabel = `N${ctx.dayCount}`;
+             // 读写闭环（同 R38/R39/R40 NIGHT_WOLF/WITCH/GUARD 模式）
+             const seerHistoryStep = ctx.dayCount > 1
+                 ? '0. 【读取历史查验候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"排队查验优先级"？将其作为今晚查验候选起点（结合新信息重新排序；已死亡目标跳过）'
+                 : '0. 【首夜】无历史查验队列——直接按下方策略选择查验目标';
+
              // 动态上下文：检测悍跳者（其他玩家声称是预言家）
              const mySeerChecksCount = (gameState.seerChecks || []).filter(c => c.seerId === currentPlayer?.id).length;
              const counterClaimants = (gameState.claimHistory || [])
@@ -1506,13 +1513,14 @@ ${wolfHistoryStep}
              return `预言家查验决策。
 ${counterClaimText}
 【可查验目标】${seerTargets?.join(',') || '无'}号
-【查验历史】本局已查验 ${mySeerChecksCount} 人，当前第 N${ctx.dayCount} 夜
+【查验历史】本局已查验 ${mySeerChecksCount} 人，当前第 ${seerNightLabel} 夜
 ${nightCot}
+${seerHistoryStep}
 ${seerNightStrategy}
 【identity_table 填写指导（夜间查验：记录确认知识与候选优先级）】
-- 已查验玩家：confidence 填 95-100，reason 写"N[X]夜查验确认：[狼人/好人角色名]（已公开/待明日报）"——标"待报"提醒自己次日发言必须优先公开
+- 已查验玩家：confidence 填 95-100，reason 写"${seerNightLabel}夜查验确认：[狼人/好人角色名]（已公开/待明日报）"——标"待报"提醒自己次日发言必须优先公开
 - 今晚查验目标：confidence 填 50-70，reason 写"本轮查验候选：[策略原因，如'对跳验证'/'多路汇聚'/'投票节点']"
-- 高度可疑但未查者：confidence 填 60-80，reason 写"行为可疑：[具体原因]，排队查验优先级：[①②③④⑤ 哪级]"
+- 高度可疑但未查者：confidence 填 60-80，reason 写"行为可疑：[具体原因]，排队查验优先级：[①②③④⑤ 哪级]（下轮 Step 0 将直接从此读取）"
 输出:{"targetId":数字,"reasoning":"查验理由","thought":"查验思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
         }
 
@@ -1725,6 +1733,8 @@ ${playerRole === '狼人'
         case PROMPT_ACTIONS.HUNTER_SHOOT: {
              const { aliveTargets, hunterContext } = params;
              const hunterExistingRoles = detectExistingRoles(players);
+             // 读写闭环：读取 DAY_SPEECH 历史中积累的开枪优先候选（R38/R39/R40 同构模式）
+             const hunterHistoryStep = '0. 【读取历史开枪候选】先查看系统提示中【你之前的身份推理表】：哪些玩家 reason 含"开枪优先级：高"？这是你日间积累的高嫌疑候选（注：预言家查杀信息优先于此；已死亡目标跳过）';
              const hunterStrategies = [];
              if (hunterExistingRoles.hasSeer) {
                  hunterStrategies.push('优先带走被预言家"查杀"的玩家');
@@ -1756,7 +1766,9 @@ ${playerRole === '狼人'
 【重要规则】猎人死亡时必须开枪，不能选择不开枪！你必须从下方目标中选择一个带走。
 【存活可选】${aliveTargets.join(',')}号
 ${hunterContext || ''}
-【开枪策略——按优先级从高到低】
+【开枪决策（思维链）】
+${hunterHistoryStep}
+【开枪策略——按优先级从高到低（Step 0 历史候选可提升以下优先级）】
 ${hunterStrategies.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 ${hunterCriticalGuidance}
 输出JSON:{"shoot":true,"targetId":必须是数字(从存活可选中选择),"reason":"一句话理由","thought":"开枪决策思考过程（必须包含推断：场上约剩X狼，带错是否直接输）"}`;
