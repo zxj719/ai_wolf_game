@@ -20,6 +20,14 @@ import { loadLocalRecords } from '../localBoard';
 
 const SNAPSHOT_KEY = 'tennis_v2_ladder_snapshot';
 
+function getBetweenAdvice(winRate, historyCount) {
+  if (historyCount === 0) return '💡 首次对阵，建议加练摸清套路';
+  const pct = Math.round(winRate * 100);
+  if (winRate < 0.3) return `💡 胜率仅 ${pct}%，强烈建议特训冲刺！`;
+  if (winRate >= 0.7) return `💡 胜率 ${pct}%，状态不错，随便选都行`;
+  return `💡 胜率 ${pct}%，特训或逛店补装备皆可`;
+}
+
 const LADDER_STARTER_DECK = [
   { cardId: 'towelTime', upgraded: false },
   { cardId: 'newBalls', upgraded: false },
@@ -76,6 +84,7 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
     ? loadLocalRecords().filter((r) => r.p === basePlayer.name && r.o === nextOppForBetween.name)
     : [];
   const vsNextWins = vsNextHistory.filter((r) => r.sp > r.so).length;
+  const vsNextWinRate = vsNextHistory.length > 0 ? vsNextWins / vsNextHistory.length : null;
 
   const player = {
     ...basePlayer,
@@ -175,12 +184,17 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
             下一站对手更强——赛间做点什么？
           </p>
           {nextOppForBetween && (
-            <p className="hint" style={{ marginBottom: 14 }}>
-              🔮 下一站：{nextOppForBetween.face} {nextOppForBetween.name}
-              {vsNextHistory.length > 0
-                ? `，历史 ${vsNextHistory.length} 战 ${vsNextWins} 胜 ${vsNextHistory.length - vsNextWins} 负`
-                : '，首次对阵'}
-            </p>
+            <>
+              <p className="hint">
+                🔮 下一站：{nextOppForBetween.face} {nextOppForBetween.name}
+                {vsNextHistory.length > 0
+                  ? `，历史 ${vsNextHistory.length} 战 ${vsNextWins} 胜 ${vsNextHistory.length - vsNextWins} 负`
+                  : '，首次对阵'}
+              </p>
+              <p className="hint between-suggest" style={{ marginBottom: 14 }}>
+                {getBetweenAdvice(vsNextWinRate, vsNextHistory.length)}
+              </p>
+            </>
           )}
           <div className="opts">
             <button type="button" className="opt" onClick={() => dispatchLadder({ type: 'INTERMISSION', choice: 'train', statRoll: Math.random() })}>

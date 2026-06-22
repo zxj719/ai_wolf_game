@@ -740,3 +740,4 @@
 .tennis-scope .ms-val { font-family: var(--mono); font-size: 1.45rem; font-weight: 700; color: var(--clay); line-height: 1; }
 .tennis-scope .ms-label { font-size: .65rem; color: var(--muted); margin-top: 4px; text-align: center; letter-spacing: .02em; }
 .tennis-scope .counter-hl { text-align: center; margin: .6rem 0 0; font-size: .85rem; color: var(--clay); font-weight: 700; }
+.tennis-scope .between-suggest { font-size: .82rem; color: var(--clay); font-weight: 600; opacity: .88; }
