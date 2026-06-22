@@ -70,6 +70,14 @@ export const buildKnightPersonaPrompt = (player, existingRoles, gameSetup) => {
 export const getKnightDaySpeechPrompt = (ctx, params) => {
   const { hasUsedDuel, seerChecks, deathHistory, speechHistory } = params;
 
+  // R44 DAY→DAY 读写闭环：历史决斗候选读取步骤
+  const knightHistoryStep = ctx.dayCount > 1
+    ? `0. 【读取历史决斗候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"决斗候选"字样？
+   - 确认这些候选目标是否仍然存活（已出局则跳过）
+   - 结合今天新信息（发言漏洞/死亡验证/验人结果）更新候选优先级
+   - 历史候选是决策起点，不是硬约束——若新信息推翻旧候选，更新并在 thought 中说明原因`
+    : '0. 【第一天】无历史决斗候选记录——直接根据当前局势推断决斗候选目标';
+
   const duelStatus = hasUsedDuel
     ? '【已使用决斗】你已经使用过决斗技能，现在作为已知骑士身份指挥全场'
     : '【未使用决斗】你的决斗技能尚未使用，保持低调观察';
@@ -126,6 +134,7 @@ ${duelStatus}
 ✗ 严禁决斗投票倾向与你一致的玩家
 
 【思维链（必须完成）】
+${knightHistoryStep}
 Step1: 场上局势分析
   - 是"双预言家对跳"还是"单边预言家"？
   - 哪些玩家声称是预言家？
@@ -167,7 +176,15 @@ Step5: 投票倾向（如果未决斗）
   - 如果你决斗失败撞死在 3 号身上，那么 3 号就是铁好人
   - 你的死亡虽然是损失，但也提供了正逻辑
 
-输出JSON:{\"thought\":\"完整的5步思维链\",\"speech\":\"发言内容(40-80字)\",\"shouldDuel\":true/false,\"duelTarget\":数字或null,\"duelReason\":\"决斗理由（如果shouldDuel=true）\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
+【identity_table 填写指导（骑士白天：决斗候选积累 DAY→DAY 闭环）】
+- 高嫌疑决斗目标：reason 写"决斗候选：[优先级A/B/C]，[逻辑依据摘要]"（下天 Step 0 将直接从此读取）
+  【追加示例】上轮 reason="发言可疑" → 本轮追加为"发言可疑；决斗候选：优先级A，预言家对跳逻辑链崩溃"
+- 确认好人/真神职：reason 写"铁好人：[依据]；禁止决斗"（防止误伤）
+- 行为中立玩家：正常记录推断，不加"决斗候选"标签
+- 已决斗出局目标：reason 追加"→已决斗出局"
+- 每轮在上轮 reason 基础上追加本轮新观察，不要覆盖历史
+
+输出JSON:{\"thought\":\"完整的6步思维链（含Step0读历史）\",\"speech\":\"发言内容(40-80字)\",\"shouldDuel\":true/false,\"duelTarget\":数字或null,\"duelReason\":\"决斗理由（如果shouldDuel=true）\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
 };
 
 /**
