@@ -276,6 +276,7 @@ export function BattleScreen({
       onMatchOver({
         score: state.score,
         matchStats: state.matchStats,
+        rallyCount: state.rallyCount,
         pEnergy: state.pEnergy,
         durationS: Math.round((Date.now() - startedAt.current) / 1000),
       });

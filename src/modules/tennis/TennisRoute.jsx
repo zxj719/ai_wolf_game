@@ -145,7 +145,8 @@ export default function TennisRoute() {
   const unlockedUltNames = new Set([ownUltimate, ...progress.unlockedMoves].filter(Boolean));
 
   // 单局快打结束：盘分回填 + 掉落/金币入永久层 + 遥测上报
-  const onSingleMatchOver = useCallback(({ score, matchStats, durationS }) => {
+  const onSingleMatchOver = useCallback(({ score, matchStats, rallyCount, durationS }) => {
+    setLastMatchStats({ ...matchStats, rallyCount, durationS });
     incrementNoviceGames();
     sendMatchTelemetry({
       mode: 'single', character: state.player.name, opponent: state.opp.name,
@@ -174,6 +175,9 @@ export default function TennisRoute() {
       setHistory: score.setHistory,
     });
   }, [progress, updateProgress, toast, dispatch, state.player, state.opp]);
+
+  // 结算屏统计摘要（单局快打结束后由 onSingleMatchOver 存入）
+  const [lastMatchStats, setLastMatchStats] = useState(null);
 
   // 模式页商店（永久收藏购卡/购装/开盒，金币消费出口）
   const [showMetaShop, setShowMetaShop] = useState(false);
@@ -335,6 +339,7 @@ export default function TennisRoute() {
             toast={toast}
             onRecorded={refreshBoards}
             boardProps={boardProps}
+            matchStats={lastMatchStats}
           />
         )}
 
