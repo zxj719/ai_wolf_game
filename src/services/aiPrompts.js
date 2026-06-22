@@ -1617,7 +1617,9 @@ ${witchHistoryStep}
         }
 
         case PROMPT_ACTIONS.NIGHT_DREAMWEAVER: {
-             const { dreamHistory, lastDreamTarget: dwLastTarget, aliveTargets: dwAliveTargets, hasRevealed: dwHasRevealed } = params;
+             const { dreamHistory, lastDreamTarget: dwLastTarget, aliveTargets: dwAliveTargets } = params;
+             // R46 Bug 修复：useNightFlow 调用端未传 hasRevealed，从 currentPlayer 读取（R12 gameState 访问模式）
+             const dwHasRevealed = params.hasRevealed ?? params.currentPlayer?.hasRevealed ?? false;
              const dwExistingRoles = detectExistingRoles(players);
 
              // 构建入梦历史提示
@@ -2007,7 +2009,9 @@ ${ssHint}
         }
 
         case PROMPT_ACTIONS.SHERIFF_BADGE_PASS: {
-             const { validTargets: badgeTargets, seerChecks: bpSeerChecks } = params || {};
+             const { validTargets: badgeTargets } = params || {};
+             // R46 Bug 修复：seerChecks 从 gameState 直接读取（同 SHERIFF_VOTE R12 模式），调用端无需传参
+             const bpSeerChecks = gameState.seerChecks || [];
              const badgeableSet = new Set(badgeTargets || []);
 
              // 根据预言家查验结果，对候选人分级

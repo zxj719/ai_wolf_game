@@ -90,7 +90,8 @@ export const getMagicianNightActionPrompt = (params) => {
     nightContext,
     seerChecks,
     knownGods,
-    suspectedWolves
+    suspectedWolves,
+    hasRevealed,  // R46 Bug 修复：身份已公开时自保优先级跃升为最高（R22 补传但未消费）
   } = params;
 
   // R43 读写闭环（同 R38-R41 NIGHT_WOLF/WITCH/GUARD/SEER 模式）
@@ -122,13 +123,23 @@ export const getMagicianNightActionPrompt = (params) => {
 - 或者交换两个你认为可能被刀的目标`;
   }
 
-  // 根据存在的角色给出策略建议（优先级系统）
+  // 根据有无身份暴露调整优先级顺序（R46 Bug 修复：hasRevealed 原本应在 R22 实现）
+  // 未暴露：A（保核）> B（换刀）> C（自保）
+  // 已暴露：C（自保）最高优先 > A（保核）> B（换刀）
   const strategyHints = [];
 
   strategyHints.push('【决策优先级系统】');
 
+  if (hasRevealed) {
+    // 身份已公开：狼人极可能刀你，自保跃升最高优先
+    strategyHints.push('⭐ 优先级C（自保——最高优先！身份已暴露）：你的魔术师身份已公开，狼人今晚极可能以你为首选刀口！');
+    strategyHints.push('  · 交换自己和最高嫌疑狼人：狼刀你 → 实际该狼人死亡（狼刀狼 + 自保双赢）');
+    strategyHints.push('  · 即使不确定狼人，也优先考虑自换——因为被刀代价远大于换错的代价');
+  }
+
   if (existingRoles.hasSeer && knownGods && knownGods.length > 0) {
-    strategyHints.push('✦ 优先级A（保核）：保护已暴露的预言家等关键神职');
+    const priorityLabel = hasRevealed ? '优先级A（保核）' : '优先级A（保核——最高优先）';
+    strategyHints.push(`✦ ${priorityLabel}：保护已暴露的预言家等关键神职`);
     strategyHints.push('  · 预测狼人刀法：狼人会刀谁？');
     strategyHints.push('  · 将"预言家"与"狼嫌疑人"或"边缘好人"交换');
     strategyHints.push('  · 结果：狼刀预言家 → 实际狼嫌疑人死亡（如果他真是狼，达成狼刀狼）');
@@ -141,10 +152,12 @@ export const getMagicianNightActionPrompt = (params) => {
     strategyHints.push('  · 结果：狼刀A → 实际狼嫌疑人B死亡');
   }
 
-  strategyHints.push('✦ 优先级C（自保）：生命受威胁时自换躲刀');
-  strategyHints.push('  · 如果你暴露了魔术师身份，狼人可能会刀你');
-  strategyHints.push('  · 交换自己和狼嫌疑人：狼刀你 → 实际狼嫌疑人死亡');
-  strategyHints.push('  · 自换是最稳的保命手段');
+  if (!hasRevealed) {
+    strategyHints.push('✦ 优先级C（自保）：生命受威胁时自换躲刀');
+    strategyHints.push('  · 如果你暴露了魔术师身份，狼人可能会刀你');
+    strategyHints.push('  · 交换自己和狼嫌疑人：狼刀你 → 实际狼嫌疑人死亡');
+    strategyHints.push('  · 自换是最稳的保命手段');
+  }
 
   if (existingRoles.hasWitch) {
     strategyHints.push('✦ 高级操作：重定向女巫的毒药');

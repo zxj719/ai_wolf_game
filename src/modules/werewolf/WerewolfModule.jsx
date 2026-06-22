@@ -426,6 +426,7 @@ export default function WerewolfModule() {
     AI_MODELS: aiModels, gameSetup: selectedSetup, nightActionHistory,
     claimHistory,
     onModelUsed: updatePlayerModel, gameSessionId: modelUsage.gameSessionId, victoryMode, gameActiveRef,
+    dreamweaverHistory, magicianHistory,
   });
 
   const {

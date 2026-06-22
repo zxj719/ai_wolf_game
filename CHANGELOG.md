@@ -2,6 +2,27 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-22] Round 46 — 四项静默 Bug 修复（数据传递链断裂）
+
+### Bug 修复
+
+- **dreamweaverHistory/magicianHistory 三层传递链**：`useAI.js` 参数列表 + gameState 对象 + `WerewolfModule.jsx` 调用端，三处同步添加两个历史字段；修复前摄梦人/魔术师的跨轮历史记忆对发言/遗言 AI 永远不可见
+- **NIGHT_DREAMWEAVER hasRevealed 回退**：调用端从不传 `hasRevealed`，改为从 `params.currentPlayer?.hasRevealed` 回退读取（R12 gameState 访问模式），牺牲模式现可正常激活
+- **magician.js hasRevealed 消费**：`getMagicianNightActionPrompt` 解构列表补充 `hasRevealed`，`if (hasRevealed)` 分支实现"身份已公开时自保跃升最高优先"
+- **SHERIFF_BADGE_PASS seerChecks**：从 `params` 解构（调用端从不传，永远为空）改为 `gameState.seerChecks`（R12 标准模式），金水/杀手提示现可正常填充
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/hooks/useAI.js` | 修改 | 参数列表 + gameState 对象加入 dreamweaverHistory/magicianHistory |
+| `src/modules/werewolf/WerewolfModule.jsx` | 修改 | useAI() 调用传递 dreamweaverHistory/magicianHistory |
+| `src/services/aiPrompts.js` | 修改 | NIGHT_DREAMWEAVER hasRevealed 回退；SHERIFF_BADGE_PASS seerChecks 改从 gameState 读 |
+| `src/services/rolePrompts/magician.js` | 修改 | getMagicianNightActionPrompt 解构+消费 hasRevealed，身份暴露时自保优先级跃升 |
+| `docs/werewolf-loop-reports/LEARNINGS.md` | 修改 | 追加 Round 46 三条教训 |
+| `docs/werewolf-loop-reports/2026-06-22-round46.md` | 新建 | Round 46 完整报告 |
+| `.tmp/test-round46.mjs` | 新建 | 33项测试（全部通过） |
+
 ## [2026-06-12] 网球平衡补丁 + 用户反馈批次 + 遥测系统
 
 ### 平衡性（蒙特卡洛仿真驱动，报告见 docs/tennis-evaluation-2026-06-12.md）

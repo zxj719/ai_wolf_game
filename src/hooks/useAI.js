@@ -52,7 +52,10 @@ export function useAI({
   gameSessionId = null,
   // 胜利模式
   victoryMode = 'edge',
-  gameActiveRef = null
+  gameActiveRef = null,
+  // 特殊角色历史（摄梦人/魔术师 DAY_SPEECH 和 LAST_WORDS 需要访问）
+  dreamweaverHistory = null,
+  magicianHistory = null,
 }) {
   // 身份推理表存储：每个玩家的推理表
   const identityTablesRef = useRef({});
@@ -151,7 +154,10 @@ export function useAI({
       // 整局夜间行动历史（包含所有夜晚的行动记录）
       nightActionHistory,
       // 柱三：结构化声明事件流（权威公共事实替代正则NLP）
-      claimHistory
+      claimHistory,
+      // 特殊角色历史（摄梦人/魔术师 DAY_SPEECH & LAST_WORDS 访问）
+      dreamweaverHistory,
+      magicianHistory,
     };
 
     // P0增强：添加RAG上下文到params

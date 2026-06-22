@@ -646,6 +646,26 @@
 - **通用规则**：在提示词中描述"某技能尚未使用"的状态时，**不论是正向还是状态描述**，都必须使用抽象类别词（"技能"/"能力"/"此项能力"）而非具体技能词汇。只有在"技能已使用"（已公开，可以直接引用技能效果和结论）的分支中，才能使用具体技能名称。
 - **测试防护**：每个角色的未揭示/未使用分支中，应加入负向断言检查不含对应技能词汇（T7 示范）。
 
+### [2026-06-22 Round 46] 特殊角色历史必须经过三层传递链：WerewolfModule → useAI → gameState → prompt
+
+- **问题**：`dreamweaverHistory`（摄梦人换梦记录）和 `magicianHistory`（魔术师换位记录）在 `aiPrompts.js` 的 `DAY_SPEECH` 和 `LAST_WORDS` 分支中通过 `gameState?.dreamweaverHistory` / `gameState?.magicianHistory` 访问，但 `useAI.js` 的参数列表没有这两个参数，`gameState` 对象中也未包含它们，导致所有访问永远得到 `undefined`。
+- **根因**：三层传递链中任一层缺失，都会让数据静默消失：① `WerewolfModule.jsx` 向 `useAI()` 传参 → ② `useAI.js` 函数签名接收并放入 `gameState` → ③ `aiPrompts.js` 用 `gameState.X` 读取。只有 ③ 写了读取代码，但 ① 和 ② 均未实现传递，因此永远返回 `undefined`。
+- **检测方法**：每次新增一个 `gameState.X` 访问点，立即 grep `useAI.js` 确认参数列表和 gameState 对象中均有 `X`；再 grep `WerewolfModule.jsx` 确认 `useAI()` 调用中传了 `X`。
+- **修复**：R46 在 `useAI.js` 参数列表、gameState 对象、`WerewolfModule.jsx` 调用端三处同步添加 `dreamweaverHistory` 和 `magicianHistory`。
+
+### [2026-06-22 Round 46] 委托函数接收到参数但不解构 = 特性静默失效
+
+- **问题**：`aiPrompts.js` 的 `NIGHT_MAGICIAN` case 向 `getMagicianNightActionPrompt(params)` 传递了 `hasRevealed: currentPlayer?.hasRevealed`，但 `magician.js` 的 `getMagicianNightActionPrompt` 解构列表中没有 `hasRevealed`，导致"身份已公开时自保跃升最高优先"的功能虽然在调用端配置了，但在执行端从未生效。
+- **教训**：委托模式（`case → moduleFunction(params)`）的参数传递是**无类型的键值对**，TypeScript 不检查，传了不用也不报错。每次在 `case` 中为委托函数新增参数时，必须立即打开目标模块文件确认解构列表已更新。
+- **口诀**：传了就要用，用了就要传——两侧必须成对出现。
+
+### [2026-06-22 Round 46] params 调用端不传 → prompt 端只读 undefined（应改为从 gameState 读）
+
+- **问题**：`SHERIFF_BADGE_PASS` 在 prompt 端通过 `const { seerChecks: bpSeerChecks } = params` 期望调用端传入预言家查验结果，但 `useDayFlow.js` 的调用处 `await askAI(deadSheriff, PROMPT_ACTIONS.SHERIFF_BADGE_PASS, { validTargets: aliveTargets })` 从未传 `seerChecks`，导致金水/杀手提示永远为空字符串。
+- **根因**：同类问题在 `SHERIFF_VOTE` 中已于 R12 修复（改用 `gameState.seerChecks`）。`SHERIFF_BADGE_PASS` 是当时遗漏的同构 case，两者都需要读 seerChecks，应使用同一访问模式。
+- **教训**：`gameState` 在 `generateUserPrompt` 中始终可用，高频公共数据（`seerChecks`、`deathHistory`、`guardHistory`）直接从 `gameState` 读，不依赖调用端传参，可彻底规避"调用端遗漏"这类静默 bug。
+- **R12 访问模式**（标准）：`const bpSeerChecks = gameState.seerChecks || [];`
+
 ### [2026-06-22 Round 45] PK 辩护框架覆盖检查应与 SHERIFF_SPEECH/SHERIFF_RUN 一同进行
 
 - **背景**：R32 完成了 SHERIFF_SPEECH 和 SHERIFF_RUN 的全角色覆盖检查，建立了"每次新增角色必须检查两个 ssHint/if-else 链"的常驻义务。但骑士/摄梦人/魔术师在 PK pkHint 链中退化为通用 fallback（"通用辩护"），直到 R45 才补全，与 R35-R36 发现的缺口相隔 9 轮。
