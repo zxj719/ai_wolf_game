@@ -194,6 +194,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
         <section className="screen">
           <div className="adv-banner">
             {chapter.title} · {node.boss ? '👑 最终 BOSS' : node.elite ? '⭐ 精英战' : '⚔️ 遭遇战'}
+            <small>第 {run.stepIdx + 1} / {chapter.steps.length} 步 · 第 {run.chapterIdx + 1} / {run.map.chapters.length} 章</small>
           </div>
           <div className="bt-tell">{opponent.face} {opponent.taunt}{opponent.twistDesc ? <small>（{opponent.twistDesc}）</small> : null}</div>
           <BattleScreen
@@ -287,7 +288,10 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
   const step = chapter.steps[run.stepIdx];
   return (
     <section className="screen">
-      <div className="adv-banner">{chapter.title}</div>
+      <div className="adv-banner">
+        {chapter.title}
+        <small>第 {run.stepIdx + 1} / {chapter.steps.length} 步 · 第 {run.chapterIdx + 1} / {run.map.chapters.length} 章</small>
+      </div>
       <div className="adv-map">
         {chapter.steps.map((st, si) => (
           <div key={si} className={`adv-step ${si < run.stepIdx ? 'done' : si === run.stepIdx ? 'now' : ''}`}>

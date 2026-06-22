@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
+import { MOVES } from '../battle/moves';
 import { saveLocalRecord, loadLocalRecords } from '../localBoard';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
@@ -27,6 +28,12 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
     for (let i = mine.length - 1; i >= 0 && mine[i].sp > mine[i].so; i--) streak++;
     return streak;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const topMoveEntry = useMemo(() => {
+    if (!matchStats?.moveUsage) return null;
+    const entries = Object.entries(matchStats.moveUsage);
+    return entries.length ? entries.reduce((a, b) => (b[1] > a[1] ? b : a)) : null;
+  }, [matchStats]);
 
   useEffect(() => {
     // StrictMode 下 effect 会跑两次，ref 去重避免一局记两条
@@ -106,6 +113,12 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
             )}
             {matchStats.durationS > 0 && (
               <div className="ms-item"><span className="ms-val">{fmtDuration(matchStats.durationS)}</span><span className="ms-label">局时</span></div>
+            )}
+            {topMoveEntry && (
+              <div className="ms-item">
+                <span className="ms-val">×{topMoveEntry[1]}</span>
+                <span className="ms-label">王牌：{MOVES[topMoveEntry[0]]?.name ?? topMoveEntry[0]}</span>
+              </div>
             )}
           </div>
         </div>
