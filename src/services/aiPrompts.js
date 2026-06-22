@@ -1262,7 +1262,7 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                 isSheriff: currentPlayer?.isSheriff || false,
             };
 
-            // PK 辩护模式注入：角色专属 PK 框架（预言家/守卫有独特竞技优势，其余走通用框架）
+            // PK 辩护模式注入：角色专属 PK 框架（预言家/守卫/女巫/猎人/骑士/摄梦人/魔术师；狼人/村民走通用框架）
             let pkHint = '';
             if (roleParams.pkMode) {
                 if (playerRole === '预言家') {
@@ -1308,6 +1308,53 @@ ${witchMedLine}
 - 维度A（隐性路线，默认）：展示判断力和逻辑分析，用"即使最坏情况好人也有合理结果"建立投票动机——维持对手的不确定性，对嫌疑玩家最优
 - 维度B（明示路线）：若对手是明确好人，可透露身份（"我是猎人，出局时开枪带走可疑者"）——让好人有明确保留你的理由，但需权衡身份暴露的代价
 - 无论选哪个维度：必须提供之前未说过的新论点——重复旧话等于说服力归零`;
+                } else if (playerRole === '骑士') {
+                    // R45: 骑士 PK 专属框架 — 决斗前后两套价值主张
+                    let knightPkLine;
+                    if (roleParams.hasUsedDuel) {
+                        knightPkLine = '- 决斗已使用，身份已公开：指出决斗验证过的身份结论（物理验证不可伪造），证明你的判断准确性；强调你持续贡献分析价值，是场上可靠的判断锚点';
+                    } else {
+                        knightPkLine = '- 隐性威慑（技能尚未使用）：好人阵营保留着一个"尚未落地的确定性判断机会"——绝不明说身份或技能细节，用"我的判断一旦落地即刻生效""本轮淘汰我等于放弃一次确定性结论"等语言传达潜在价值；维持最大不确定性威慑，让对手无法确认你的底牌';
+                    }
+                    pkHint = `\n\n【⚔️ PK 辩护模式（平票决赛）—— 骑士专属框架】
+${knightPkLine}
+- 直接质疑对手：找出对手发言中的逻辑矛盾（主动对抗比被动辩解更有说服力）
+- 必须提供之前未说过的新论点——重复旧话等于说服力归零`;
+                } else if (playerRole === '摄梦人') {
+                    // R45: 摄梦人 PK 专属框架 — 同生共死连接是核心筹码
+                    const activeDreamTarget = roleParams.lastDreamTarget;
+                    let dwPkLine;
+                    if (roleParams.hasRevealed && activeDreamTarget != null) {
+                        const dtStr = String(activeDreamTarget);
+                        dwPkLine = `- 同生共死关联：你当前与${dtStr}号存在特殊生命关联——好人方需要判断：淘汰你的代价是同时失去两张牌；在 thought 中评估是否主动披露这条关联（说服力极强但会暴露对方位置，权衡后决定）`;
+                    } else if (roleParams.hasRevealed) {
+                        const dreamedList = roleParams.dreamHistory?.dreamedPlayers || [];
+                        const dreamsText = dreamedList.length > 0
+                            ? `入梦历史（${dreamedList.join(',')}号）可佐证你的信息掌握深度`
+                            : '你对场上死讯逻辑的掌握';
+                        dwPkLine = `- 入梦记录可核实：${dreamsText}，连梦信息是解释死讯逻辑的关键，仍有持续分析价值`;
+                    } else {
+                        dwPkLine = '- 聚焦逻辑辩护：找出对手发言中的具体矛盾，用清晰的推理链建立信任——比泛说"好人"更有说服力';
+                    }
+                    pkHint = `\n\n【⚔️ PK 辩护模式（平票决赛）—— 摄梦人专属框架】
+${dwPkLine}
+- 直接质疑对手：主动对抗比被动辩解更有说服力
+- 必须提供之前未说过的新论点——重复旧话等于说服力归零`;
+                } else if (playerRole === '魔术师') {
+                    // R45: 魔术师 PK 专属框架 — 信息修正能力是核心竞技资产
+                    const hasSwapRecord = roleParams.lastSwap?.player1Id != null;
+                    let magPkLine;
+                    if (roleParams.hasRevealed && hasSwapRecord) {
+                        magPkLine = '- 信息修正资产（已跳身份+有交换记录）：主动说明最近一次位置交换的意图与目标——这是帮助好人方还原真实信息链的唯一途径；你的存活保留了继续澄清信息不对称的能力，你出局等于好人在不完整信息下继续游戏';
+                    } else if (roleParams.hasRevealed) {
+                        magPkLine = '- 信息修正能力（已跳身份）：强调你掌握的信息修正能力；指出场上可能存在的信息偏差，证明你在场比不在场对好人方更有利';
+                    } else {
+                        magPkLine = '- 隐秘存活价值：聚焦逻辑辩护，找出对手发言中的具体矛盾；隐含地传达你掌握的"未公开信息"有持续价值（无需明说身份）';
+                    }
+                    pkHint = `\n\n【⚔️ PK 辩护模式（平票决赛）—— 魔术师专属框架】
+${magPkLine}
+- 直接质疑对手：找出对手发言中的矛盾（主动对抗更有说服力）
+- 必须提供之前未说过的新论点——重复旧话等于说服力归零`;
                 } else {
                     pkHint = `\n\n【⚔️ PK 辩护模式（平票决赛）】你与其他候选人进入最终对决！本次发言首要目标是说服场上其他玩家投票淘汰对方而非你。
 - 提供新论点（不要重复之前已说过的话——重复 = 没有新信息 = 说服力为零）
