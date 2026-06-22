@@ -61,7 +61,9 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
         <div className="score-line">大比分 {state.setsP} : {state.setsO}（{state.setHistory.join(' / ')}）</div>
         {playerWon && winStreak >= 2 && (
           <div style={{ textAlign: 'center', marginTop: 10 }}>
-            <span className="ladder-streak">🔥 本次连胜 {winStreak} 场</span>
+            <span className="ladder-streak">
+              {winStreak >= 5 ? '🔥🔥🔥' : winStreak >= 3 ? '🔥🔥' : '🔥'} 本次连胜 {winStreak} 场
+            </span>
           </div>
         )}
         <p className="comment">{ending.c}</p>

@@ -70,7 +70,11 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
                   <div key={c.n} className={`opp-history-chip${seenOpps.has(c.n) ? ' seen' : ' unseen'}`}>
                     <span className="opp-history-face">{c.f}</span>
                     <span className="opp-history-name">{c.n}</span>
-                    {seenOpps.has(c.n) && <span className="opp-history-badge">✓</span>}
+                    {seenOpps.has(c.n) ? (
+                      <span className="opp-history-badge">✓</span>
+                    ) : (
+                      <span className="opp-history-badge opp-history-new">NEW</span>
+                    )}
                   </div>
                 ))}
               </div>

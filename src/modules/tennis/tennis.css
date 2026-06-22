@@ -134,10 +134,11 @@
 .tennis-scope .opp-history-panel { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
 .tennis-scope .opp-history-chip { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; border-radius: 8px; position: relative; transition: opacity .2s; }
 .tennis-scope .opp-history-chip.seen { background: rgba(217,255,61,.08); }
-.tennis-scope .opp-history-chip.unseen { opacity: .3; filter: grayscale(1); }
+.tennis-scope .opp-history-chip.unseen { background: rgba(226,129,79,.07); }
 .tennis-scope .opp-history-face { font-size: 1.25rem; line-height: 1; }
 .tennis-scope .opp-history-name { font-family: var(--mono); font-size: .58rem; margin-top: 3px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .tennis-scope .opp-history-badge { position: absolute; top: 2px; right: 3px; font-size: .55rem; color: var(--optic); font-weight: 700; }
+.tennis-scope .opp-history-new { color: var(--clay); }
 
 /* ============ 反应测试 ============ */
 .tennis-scope .arena {
