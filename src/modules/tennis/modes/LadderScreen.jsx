@@ -16,6 +16,7 @@ import { ShopPanel } from '../meta/ShopPanel';
 import { FeedbackWidget } from '../components/FeedbackWidget';
 import { sendMatchTelemetry } from '../../../services/tennisService';
 import { incrementNoviceGames } from '../meta/noviceTracker';
+import { loadLocalRecords } from '../localBoard';
 
 const SNAPSHOT_KEY = 'tennis_v2_ladder_snapshot';
 
@@ -68,6 +69,14 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
 
   const equipBonus = applyEquipment(progress.equipment);
   const opponent = ladder.opponents[Math.min(ladder.stage, STAGE_COUNT - 1)];
+
+  // 下一站对手（仅 between 状态有效；between 时 stage 尚未递增，stage+1 即下一站索引）
+  const nextOppForBetween = ladder.status === 'between' ? ladder.opponents[ladder.stage + 1] : null;
+  const vsNextHistory = nextOppForBetween
+    ? loadLocalRecords().filter((r) => r.p === basePlayer.name && r.o === nextOppForBetween.name)
+    : [];
+  const vsNextWins = vsNextHistory.filter((r) => r.sp > r.so).length;
+
   const player = {
     ...basePlayer,
     sta: basePlayer.sta + ladder.bonusStats.sta,
@@ -165,6 +174,14 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
             击败 {opponent.face} {opponent.name}，解锁绝技「{ladder.unlockedThisRun[ladder.unlockedThisRun.length - 1]}」！
             下一站对手更强——赛间做点什么？
           </p>
+          {nextOppForBetween && (
+            <p className="hint" style={{ marginBottom: 14 }}>
+              🔮 下一站：{nextOppForBetween.face} {nextOppForBetween.name}
+              {vsNextHistory.length > 0
+                ? `，历史 ${vsNextHistory.length} 战 ${vsNextWins} 胜 ${vsNextHistory.length - vsNextWins} 负`
+                : '，首次对阵'}
+            </p>
+          )}
           <div className="opts">
             <button type="button" className="opt" onClick={() => dispatchLadder({ type: 'INTERMISSION', choice: 'train', statRoll: Math.random() })}>
               <span className="key">💪</span><span>加练特训<span className="fx"><em>随机属性 +8</em></span></span>

@@ -121,6 +121,9 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
               </div>
             )}
           </div>
+          {matchStats.countersWon >= 2 && (
+            <p className="counter-hl">🎯 本场克制得分 {matchStats.countersWon} 次！</p>
+          )}
         </div>
       )}
 
