@@ -733,3 +733,5 @@
 .tennis-scope .char-quote-card { text-align: center; padding: 18px 24px; }
 .tennis-scope .char-quote-who { display: block; font-size: .78rem; color: var(--muted); font-family: var(--mono); letter-spacing: .04em; margin-bottom: 10px; }
 .tennis-scope .char-quote-text { font-size: 1.05rem; color: var(--card-ink); line-height: 1.65; margin: 0; font-style: italic; }
+.tennis-scope .last-match-hint { font-size: .78rem; font-family: var(--mono); color: var(--muted); margin: 8px 0 14px; padding: 6px 12px; background: rgba(13,59,46,.07); border-radius: 8px; border-left: 3px solid var(--clay); }
+.tennis-scope .adv-node-desc { display: block; margin-top: 4px; font-size: .75rem; color: var(--muted); font-family: var(--mono); }

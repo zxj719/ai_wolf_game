@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { CHAR_QUOTES, FXNAME, PREP, rand } from '../gameData';
+import { loadLocalRecords } from '../localBoard';
 
 function fxTags(fx) {
   return Object.entries(fx).map(([k, v]) => (
@@ -48,6 +49,15 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
     return pool ? pool[rand(0, pool.length - 1)] : null;
   }, [state.prepRound, state.opp?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const lastMatchHint = useMemo(() => {
+    if (state.prepRound !== 0) return null;
+    const recs = loadLocalRecords();
+    if (!recs.length) return null;
+    const last = recs[recs.length - 1];
+    const won = last.sp > last.so;
+    return `上次你面对 ${last.of} ${last.o}——${won ? '你赢了 🎉' : '你输了 😤'}`;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onPick = (i) => {
     if (locked) return;
     setLocked(true);
@@ -65,6 +75,9 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
         <span className="round-tag">备战回合 {state.prepRound + 1} / 4</span>
         <h2>{round.title}</h2>
         <p className="hint">{round.desc}</p>
+        {lastMatchHint && (
+          <p className="last-match-hint">{lastMatchHint}</p>
+        )}
         {preMatchQuote && (
           <div className="char-quote-card">
             <span className="char-quote-who">{state.opp.face} {state.opp.name} 赛前嘚瑟：</span>

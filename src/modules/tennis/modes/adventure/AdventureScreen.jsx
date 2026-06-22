@@ -35,10 +35,10 @@ const cardIds = Object.keys(CARDS);
 const randomCard = () => ({ cardId: cardIds[Math.floor(Math.random() * cardIds.length)], upgraded: false });
 
 const NODE_META = {
-  battle: { icon: '⚔️', name: '对战' },
-  event: { icon: '❓', name: '奇遇' },
-  shop: { icon: '🛒', name: '商店' },
-  rest: { icon: '🏕️', name: '休息' },
+  battle: { icon: '⚔️', name: '对战', desc: '击败对手赢得装备和金币' },
+  event: { icon: '❓', name: '奇遇', desc: '随机剧情或小游戏，可得金币 / 装备 / 卡牌' },
+  shop: { icon: '🛒', name: '商店', desc: '花💰升级装备或添加卡牌' },
+  rest: { icon: '🏕️', name: '营地', desc: '回复 50 点体力' },
 };
 
 function loadSnapshot() {
@@ -291,7 +291,15 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
       <div className="adv-map">
         {chapter.steps.map((st, si) => (
           <div key={si} className={`adv-step ${si < run.stepIdx ? 'done' : si === run.stepIdx ? 'now' : ''}`}>
-            {st.map((n) => <span key={n.id} className="adv-node">{NODE_META[n.type].icon}</span>)}
+            {st.map((n) => (
+            <span
+              key={n.id}
+              className="adv-node"
+              title={`${NODE_META[n.type].name}：${NODE_META[n.type].desc}`}
+            >
+              {NODE_META[n.type].icon}
+            </span>
+          ))}
           </div>
         ))}
       </div>
@@ -314,6 +322,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
                       : node.opponentId === 'family' ? '神秘的家人' : node.opponentId}
                   </em></span>
                 )}
+                <small className="adv-node-desc">{NODE_META[node.type].desc}</small>
               </span>
             </button>
           ))}
