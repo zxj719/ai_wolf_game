@@ -599,3 +599,21 @@
 - **修复**：在 `wolfTeammatesHint` 构建块之后添加 `if (params.pkMode)` 覆盖：双狼 PK → 反协调指令（攻击队友逻辑漏洞）；场外队友 → 中性轻提示（无协作指令）。同时为所有角色添加全局 `pkHint` 后处理（新论点 / 直接对抗 / 存活价值）。
 - **通用规则**：每次为现有动作添加新的模式参数（如 `pkMode`、`endgameMode`）时，必须检查所有已有的条件化策略块并问"在这个模式下，该策略块的目标函数是否发生了反转？如果是，需要完全覆盖而不是叠加"。进攻目标和防御目标反转时，策略框架必须随之反转，不能部分覆盖。
 
+---
+
+### [2026-06-22 Round 43] 委托模块和内联 case 需要独立审计 identity_table 读写闭环
+
+- **背景**：R38-R41 修复了 wolf/witch/guard/seer 四个角色（均以内联方式在 `aiPrompts.js` 实现 NIGHT_* case）的 identity_table 读写闭环。但摄梦人和魔术师的夜间行动采用了混合模式：NIGHT_DREAMWEAVER 内联在 `aiPrompts.js`，NIGHT_MAGICIAN 委托给 `magician.js` 的 `getMagicianNightActionPrompt`。这两种模式都没有被 R38-R41 的系统性检查覆盖到。
+- **教训**：对内联 case 的批量审计（"所有 NIGHT_* case 是否有 Step 0"）不能自动覆盖委托函数——委托函数在独立文件的独立函数体中，需要单独打开该文件验证。审计时必须区分两类 NIGHT_* 实现，逐一检查。
+- **覆盖矩阵**：每次完成某批 identity_table 闭环后，维护一个 "角色 × 实现方式（内联/委托）× 检查状态" 的矩阵，确认所有行都已检查，而不仅仅检查了某种实现方式。
+- **修复范围**：dreamweaver.js `getDreamweaverDaySpeechPrompt` 写指导 + aiPrompts.js NIGHT_DREAMWEAVER Step 0 + 写指导；magician.js `getMagicianNightActionPrompt` Step 0 + 写指导 + `getMagicianDaySpeechPrompt` 写指导。全部 6 个有夜间行动角色读写闭环首次完全覆盖。
+
+---
+
+### [2026-06-22 Round 43] 测试窗口大小必须基于实际变量声明位置
+
+- **问题**：测试脚本使用 `magicianSrc.slice(magNightReturnIdx - 1500, magNightReturnIdx + 100)` 搜索 `magicianHistoryStep` 变量，但该变量在函数顶部声明，距 `return` 语句约 2500 chars。固定 1500 的窗口导致 T21-T24 全部 FAIL。
+- **根因**：函数体长度因实现复杂度而差异显著。`getMagicianNightActionPrompt` 包含复杂的 Phase/Mode 判断 + 策略 hint 构建，函数体较长。简单角色（如 seer）可能只有 500 chars，复杂角色（如 magician）可能超过 3000 chars。
+- **修复**：将窗口扩大到 3500：`magicianSrc.slice(Math.max(0, magNightReturnIdx - 3500), ...)` 后全部通过。
+- **通用规则**：在测试脚本中搜索函数顶部的变量声明时，不要使用固定小窗口。正确做法：先手动检查函数体实际长度（`getMagicianNightActionPrompt` 函数从 `export function` 到 `return` 的距离），再据此设定窗口大小并加 20% 余量。或者在 `test()` 时直接搜索全文（`magicianSrc.includes(...)`），避免窗口问题。
+

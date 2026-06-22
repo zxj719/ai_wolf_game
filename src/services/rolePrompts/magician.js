@@ -93,6 +93,12 @@ export const getMagicianNightActionPrompt = (params) => {
     suspectedWolves
   } = params;
 
+  // R43 读写闭环（同 R38-R41 NIGHT_WOLF/WITCH/GUARD/SEER 模式）
+  const magicianNightLabel = `N${dayCount}`;
+  const magicianHistoryStep = dayCount > 1
+    ? '0. 【读取历史换刀候选与保护目标】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"换刀候选"或"保核目标候选"？作为今晚交换决策的起点（若该目标已死亡或受整局/连续限制不可换，跳过，改选其他目标）'
+    : '0. 【首夜】无历史换刀/保护候选记录——直接根据当前局势选择交换目标';
+
   // 构建交换限制提示
   const restrictionHints = [];
 
@@ -166,6 +172,7 @@ ${nightContext || ''}
 ${strategyHints.join('\n')}
 
 【博弈思维链（必须按此顺序思考）】
+${magicianHistoryStep}
 Step 1: 当前局势分析
   - 谁是明神（已暴露的神职）？
   - 谁是狼嫌疑人？
@@ -191,6 +198,11 @@ Step 5: 最终决策
   - 综合优先级，选择最优交换方案
   - 如果没有好的交换目标，可以选择不交换（输出 null）
 
+【identity_table 填写指导（魔术师夜间：换刀候选与保护目标持久化）】
+- 高嫌疑狼人（换刀候选）：confidence 填 65-85，reason 写"换刀候选：[发言带节奏/悍跳特征]，${magicianNightLabel}夜[已换至/待换至]狼刀口"（下轮 Step 0 将直接从此读取）
+  【追加示例】上轮 reason="换刀候选：悍跳" → 本轮追加为"换刀候选：悍跳；${magicianNightLabel}夜已换入狼刀口"
+- 确认神职（保护目标）：confidence 填 75-90，reason 写"保核目标候选：[身份判断理由]，下轮优先保护"（下轮 Step 0 将直接从此读取）
+- 受限制目标（整局已交换）：reason 追加"→${magicianNightLabel}夜交换已用，整局不可再换"
 输出JSON:{"player1Id":数字或null,"player2Id":数字或null,"reasoning":"交换理由（包含博弈层级）","thought":"完整思维链（必须包含上述5步）","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
 注意：
 - player1Id 和 player2Id 必须是两个不同的号码
@@ -279,6 +291,11 @@ Step4: 今晚交换计划
 Step5: 投票倾向
   - 基于修正后的逻辑，应该投谁？
 
+【identity_table 填写指导（魔术师白天：换刀候选与保护目标积累）】
+- 高嫌疑狼人（换刀候选）：confidence 填 65-85，reason 写"换刀候选：[发言带节奏/悍跳逻辑漏洞]，威胁等级：高"（下轮夜间 Step 0 将直接从此读取）
+  【追加示例】上轮 reason="可疑" → 本轮追加为"可疑；换刀候选：白天N2发言带节奏升级，威胁等级：高"
+- 确认神职（保护目标）：confidence 填 75-90，reason 写"保核目标候选：[身份判断理由]，优先下轮保护"（下轮夜间 Step 0 将直接从此读取）
+- 已交换过的目标：reason 追加"N[X]夜已交换（整局限制，不可再换）"（不要覆盖历史）
 输出JSON:{"thought":"完整的5步思维链","speech":"发言内容(40-80字，根据是否跳身份调整)","shouldReveal":true/false,"voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据（基于交换修正后的逻辑）"}}}`;
 };
 

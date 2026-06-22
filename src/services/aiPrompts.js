@@ -1611,6 +1611,12 @@ ${witchHistoryStep}
                  dwStrategyHints.push('- 避免入梦猎人：你死时连带猎人，无法开枪');
              }
 
+             // R43 读写闭环（同 R38-R41 NIGHT_WOLF/WITCH/GUARD/SEER 模式）
+             const dreamweaverNightLabel = `N${ctx.dayCount}`;
+             const dreamweaverHistoryStep = ctx.dayCount > 1
+                 ? '0. 【读取历史连梦候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"连梦候选"？将其列为今晚进攻模式入梦候选起点（确信度≥75% 才执行连梦击杀；若已死亡则跳过，改选下一高嫌疑目标）'
+                 : '0. 【首夜】无历史连梦候选记录——直接按当前局势选择入梦目标';
+
              return `摄梦人入梦决策。
 ${dwWarning}${dwRevealedAlert}
 【入梦历史】${dwHistoryText}
@@ -1626,12 +1632,19 @@ ${dwWarning}${dwRevealedAlert}
 ${dwStrategyHints.join('\n')}
 ${nightCot}
 【思维链】
+${dreamweaverHistoryStep}
 Step1: 场上谁是核心好人？谁是狼头？
 Step2: 我昨晚梦了谁？今晚是否需要换目标？
 Step3: 狼人今晚会刀我吗？我是否暴露？
 Step4: 选择决策模式：防御/进攻/殉情
 Step5: 确定入梦目标
 
+【identity_table 填写指导（摄梦人夜间：入梦策略状态持久化）】
+- 高度嫌疑狼人（进攻模式候选）：confidence 填 75-90，reason 写"连梦候选：[发言矛盾/悍跳特征]，${dreamweaverNightLabel}夜[首次入梦/连梦处决]"（下轮 Step 0 将直接从此读取）
+  【追加示例】上轮 reason="连梦候选：逻辑漏洞" → 本轮追加为"连梦候选：逻辑漏洞；${dreamweaverNightLabel}夜首次入梦，待连梦"
+- 已连梦致死目标：reason 末尾追加"→${dreamweaverNightLabel}夜连梦出局确认"，标记执行状态
+- 防御保护好人：confidence 填 55-75，reason 写"防御入梦候选：[判断为真预/关键神职]，绝不连梦"
+- 殉情目标（身份暴露时）：confidence 填 75-95，reason 写"殉情目标候选：[判断理由]，准备拉垫背"
 输出JSON:{"dreamTarget":数字(必选，不能为null不能为自己),"dreamMode":"defense/offense/sacrifice","dreamReason":"入梦理由(20-40字)","isConsecutiveDream":true/false,"confidence":0-100,"thought":"思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
         }
 
