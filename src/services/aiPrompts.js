@@ -1004,7 +1004,7 @@ Step4 最优行动：选择 收益/风险 比最高的行动执行
 Step5 投票规划：场上票型分布？我的投票如何既推进狼队目标又不暴露身份？
 
 【identity_table 填写策略（日间公开视角，但 reason 可记录私有战略注记）】
-- 对高威胁好人（神职/正在推你队友者）：reason 写"刀口候选：[威胁描述]"，便于夜间决策时延续优先级
+- 对高威胁好人（神职/正在推你队友者）：reason 写"高优先刀口：[威胁描述]"（与 NIGHT_WOLF Step 0 关键词对齐，下夜直接读取）
 - 对已知队友：suspect 填"村民"，confidence 填 40-60，reason 填普通描述（维持公开叙事一致）
 - suspect 字段统一用好人视角书写，不能直接填"狼人"（即使你已知）
 
@@ -1069,8 +1069,8 @@ Step4: 绝不能投金水！voteIntention 必须指向狼人或最可疑的人
 
 【identity_table 填写指导（预言家有确定性知识，应差异化填写）】
 - 已查验玩家：confidence 填 95-100，reason 写"N[X]夜查验确认：[狼人/好人角色名]（已公开/待明日报）"——"待报"提醒次日发言优先公开
-- 正在质疑你（悍跳嫌疑）的未验证玩家：reason 写"悍跳攻预嫌疑—优先查验候选，当前不能被其带节奏"
-- 未查验普通玩家：reason 写"发言分析：[可信/可疑点]，下次查验候选"
+- 正在质疑你（悍跳嫌疑）的未验证玩家：reason 写"悍跳攻预嫌疑，排队查验优先级：①（下夜 Step 0 优先验证），当前不能被其带节奏"
+- 未查验可疑玩家：reason 写"发言分析：[可疑点]，排队查验优先级：②③④⑤之一（下夜 Step 0 读取并结合新信息重排序）"
 输出JSON:{"thought":"预言家视角分析","speech":"报验人+坚定带票(40-100字)","voteIntention":数字(绝不能是金水号码!),"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
 注意: voteDecided=true=已决定；false=投票阶段再思考`;
     },
@@ -1105,7 +1105,7 @@ Step3: 我的投票应该投谁？
 【identity_table 填写指导（女巫：药水使用历史 + 备选候选记录）】
 - 已救活的玩家：confidence 填 85-95，reason 写"N[X]夜银水救活（已知被狼刀目标）；若明夜再被刀：[是否还有银水/决策]"
 - 已毒杀的玩家：confidence 填 98-100，reason 写"N[X]夜毒药处决确认出局"
-- 高威胁候选（考虑毒）：confidence 填 65-85，reason 写"行为[带节奏/发言矛盾/攻真预]，毒药备选，威胁等级：高/中"
+- 高威胁候选（考虑毒）：confidence 填 65-85，reason 写"毒药优先候选：[带节奏/发言矛盾/攻真预]，威胁等级：高/中"（与 NIGHT_WITCH Step 0 关键词对齐）
 - 疑似关键神职（考虑下轮银水保护）：confidence 填 50-75，reason 写"行为疑似[预言家/守卫]，若明夜被刀且银水在：优先救"
 输出JSON:{"thought":"女巫视角分析...","speech":"发言内容(40-80字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
 注意: voteDecided=true表示已决定投谁；false表示需要投票阶段再思考`;
@@ -1164,7 +1164,7 @@ Step4: 投票投谁？
 【identity_table 填写指导（守卫：跨轮守护记录 + 神职候选标记）】
 - 守护过的玩家：confidence 50-80，reason 在上轮 reason 基础上**追加**本轮新结果，不覆盖历史
   【追加示例】上轮 reason="N1守5号→平安夜存活" → 本轮末尾追加为"N1守5号→平安夜存活；N2换守3号(发言疑预)→3号次日存活，换守正确"
-- 疑似关键神职（守护候选）：reason 写"白天行为疑似[预言家/女巫]，守护优先级高；如上轮已记则追加新证据"
+- 疑似关键神职（守护候选）：reason 写"白天行为疑似[预言家/女巫]，守护优先级：高；如上轮已记则追加新证据"（与 NIGHT_GUARD Step 0 关键词对齐，含冒号）
 - 高度可疑狼人：reason 写"发言[带节奏/攻真预/逻辑矛盾]，不守对象；追加后续矛盾行为"
 输出JSON:{"thought":"守卫视角分析...","speech":"像平民的发言(40-80字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
 注意: voteDecided=true表示已决定投谁；false表示需要投票阶段再思考`;

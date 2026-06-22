@@ -447,6 +447,23 @@
 87. ~~**NIGHT_SEER + HUNTER_SHOOT 读写闭环**~~ ✅ Round 41 已完成（seerHistoryStep + hunterHistoryStep；seerNightLabel R18；26/26 测试通过）
 88. **NIGHT_SEER 查验候选连续性效果回验**（新增，Round 41 改动）：用户本地验证 N2+ 夜 thought 是否引用"排队查验优先级"历史标记（Step 0 框架语言）；连续嫌疑场景是否延续 N1 候选目标
 89. **HUNTER_SHOOT 历史候选效果回验**（新增，Round 41 改动）：多轮后死亡的猎人 thought 是否出现"开枪优先级：高""历史推理表"等语言；是否正确区分"查杀优先"vs"历史候选"
+90. ~~**DAY→NIGHT identity_table 关键词全量对齐**~~ ✅ Round 42 已完成（狼人"刀口候选"→"高优先刀口"；预言家"下次查验候选"→"排队查验优先级：①②③④⑤"；女巫"毒药备选"→"毒药优先候选"；守卫"守护优先级高"→"守护优先级：高"（补冒号）；25/25 测试通过）
+91. **DAY→NIGHT 白天→夜间连续性回验**（新增，Round 42 修复后续）：白天标注的"高优先刀口/毒药优先候选/守护优先级：高/排队查验优先级"是否能被次夜 Step 0 正确召回，用户本地验证
+92. **identity_table 委托模块 DAY→NIGHT 审计**（新增）：骑士/摄梦人/魔术师的 DAY_SPEECH 委托给各自的 roleModule.daySpeech()，需单独检查这些模块的 identity_table 写指导是否也存在关键词不一致问题
+
+---
+
+### [2026-06-22 Round 42] DAY→NIGHT 是独立于 NIGHT→NIGHT 的关键词流，必须分别检查
+
+- **发现方式**：R41 建议项 4（identity_table 全量人工审计）——逐一比对所有角色 DAY_SPEECH identity_table 写指导与对应 NIGHT_* Step 0 读取关键词。
+- **根本原因**：R38-R41 修复的是 NIGHT→NIGHT 闭环（夜间写→次夜读），但从未检查 DAY→NIGHT 流（白天写→当夜读）。两者使用同一个 `identity_table`，但关键词完全不同。4 个角色（狼人/预言家/女巫/守卫）的白天写入关键词与夜间 Step 0 读取关键词长期不匹配，41 轮白天积累的信息从未流入夜间决策。
+- **4 处修复**：
+  - 狼人 DAY_SPEECH: `"刀口候选：..."` → `"高优先刀口：..."` （对齐 NIGHT_WOLF Step 0）
+  - 预言家 DAY_SPEECH: `"下次查验候选"` → `"排队查验优先级：①②③④⑤之一"` （对齐 NIGHT_SEER Step 0）
+  - 女巫 DAY_SPEECH: `"毒药备选，威胁等级：..."` → `"毒药优先候选：..."` （对齐 NIGHT_WITCH Step 0）
+  - 守卫 DAY_SPEECH: `"守护优先级高"` → `"守护优先级：高"` （补冒号，对齐 NIGHT_GUARD Step 0）
+- **通用规则**：每次修改或新增 NIGHT_* Step 0 的读取关键词时，必须同时检查对应角色的 **所有** identity_table 写指导（包括 DAY_SPEECH 和 NIGHT_* 写指导），确保关键词精确匹配。DAY→NIGHT 和 NIGHT→NIGHT 是两条独立流，缺一检查就会形成静默断裂。
+- **检查清单**：每次 Step 0 关键词变化后，运行 `grep -n "写.*高优先刀口\|写.*毒药优先候选\|写.*守护优先级：高\|写.*排队查验优先级\|写.*开枪优先级：高" src/services/aiPrompts.js` 列出所有写指导，确认与对应 Step 0 读取字符串精确匹配。
 
 ---
 
