@@ -1579,7 +1579,12 @@ ${seerNightStrategy}
 
         case PROMPT_ACTIONS.NIGHT_WITCH: {
              const { dyingId, canSave, hasPoison, witchId } = params;
-             const witchHint = ctx.dayCount === 1 ? '【首夜策略】通常使用解药救人。⚠️ 重要：第一晚女巫可以自救（如果自己被刀）！' : '';
+             const witchExistingRoles = detectExistingRoles(players);
+             const witchHint = ctx.dayCount === 1
+                 ? (witchExistingRoles.hasGuard
+                     ? '【首夜警告】守卫可能也守了被刀目标，同守同救会导致目标死亡！除非目标是关键神职，否则首夜建议不救。⚠️ 例外：若被刀者是你自己，必须自救！'
+                     : '【首夜策略】没有守卫，无同守同救风险，可直接救关键目标。⚠️ 重要：第一晚可以自救（若被刀）！')
+                 : '';
              const witchInfo = `被刀:${dyingId !== null ? dyingId + '号' : '无人被刀(平安夜)'}。解药:${canSave ? '可用' : '已用/无'}。毒药:${hasPoison ? '可用' : '已用/无'}。`;
 
              // 构建临界情况引导（不直接告知数量，引导推理）

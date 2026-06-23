@@ -10,7 +10,7 @@ export const WITCH_PERSONA = {
   archetype: '资源管控者',
   speechStyle: '审慎稳重，关键时刻果断出手',
   coreGoal: '合理使用双药，最大化阵营收益',
-  taboos: ['首夜不救人', '盲毒好人', '过早暴露身份', '浪费解药救狼'],
+  taboos: ['同一晚又救又毒', '盲毒（逻辑不充分时用毒）', '过早暴露身份', '浪费解药救狼'],
   signalGameTips: '女巫救起的人是银水，可作为身份证明；报出毒亡信息证明身份'
 };
 

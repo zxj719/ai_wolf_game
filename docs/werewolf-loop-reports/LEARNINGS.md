@@ -468,6 +468,11 @@
 99. **数据流审计脚本**（R47 新建议，优先级 HIGH）：自动检查所有 `gameState.X` 访问点与 `useAI.js` / `WerewolfModule.jsx` 三层传递链一致性，防止 R46 类三层传递链静默断裂
 100. ~~**委托模式参数合同静态检查**~~ ✅ Round 48 已完成（10 个静态分析测试：T1-T3 验证 NIGHT_MAGICIAN hasRevealed；T4-T7 骑士/摄梦人死解构清理；T8-T10 getDreamweaverNightPrompt 删除验证；495/495 测试通过；构建洁净）
 101. **实局 smoke test**（持续未完成，48 轮无真实 LLM 验证）：ECS 不在云端 allowlist；建议用户本地验证近 48 轮提示词累积效果
+102. ~~**witch.js 主路径 taboos 与 aiPrompts.js 降级路径对齐**~~ ✅ Round 50 已完成（`'首夜不救人'`→`'同一晚又救又毒'`，`'盲毒好人'`→`'盲毒（逻辑不充分时用毒）'`；主路径与降级路径首次完全对齐）
+103. ~~**NIGHT_WITCH firstNight hint 守卫感知**~~ ✅ Round 50 已完成（有守卫→同守同救警告+自救例外；无守卫→鼓励正常救人；17/17 测试通过）
+104. **路径分叉常驻检查**（R50 新教训）：每次修改 rolePrompts/*.js 的 taboos/archetype/coreGoal 时，必须用 `grep -n "taboos:" src/services/rolePrompts/<role>.js src/services/aiPrompts.js` 核查两条路径是否对齐
+105. **dead function → live path 迁移检查**（R50 新教训）：扫描 rolePrompts/*.js 的 dead functions 时，顺便问"live path 是否实现了同等逻辑？"——dead function 里正确的实现不等于 live path 里正确的实现
+106. **实局 smoke test**（50 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证 R50 修复后女巫首夜决策是否更合理（有守卫时不救/无守卫时救）
 
 ---
 
@@ -715,4 +720,23 @@
 - **修复规则**：清理死解构时，必须**同时检查调用端**——若调用端也在传该字段，需一并删除（否则 `delegateParams.test.js` T1 会因"传了但未解构"立即报红）。本轮正是因此追加了 `aiPrompts.js` NIGHT_MAGICIAN 的 `seerChecks` 传参删除。
 - **Item 99 dataFlowChain 测试**：9 个测试守门 gameState 三层传递链（WerewolfModule.jsx → useAI.js → aiPrompts.js）完整性 + magician.js 死解构两处 + 所有特殊神职 SHERIFF/PK 联合覆盖。`extractGameStateKeys` 使用平衡括号配对（非正则）找对象体范围，避免嵌套结构干扰。
 - **R49 状态**：magician.js 清除 3 处死解构；504/504 测试通过；构建洁净。
+
+---
+
+### [2026-06-23 Round 50] 降级路径 fix 不等于主路径 fix——两条路径必须同步维护
+
+- **问题**：LEARNINGS R1（2026-06-15）修复了 `aiPrompts.js` 里 `ROLE_PERSONAS['女巫'].taboos` 中的 `'首夜不救人'`（降级路径），但 `witch.js` 的 `WITCH_PERSONA.taboos`（主路径，通过 `buildWitchPersonaPrompt` 传入系统提示）从未同步修复，`'首夜不救人'` 在主路径存活了 49 轮。
+- **根因**：R1 的修复说明"将 `'首夜不救人'` 改为 `'同一晚又救又毒'`"，但执行者只改了 `aiPrompts.js`，没有打开 `witch.js` 同步。分叉路径（主路径 vs 降级路径）同步是持续义务，但没有测试守门。
+- **影响**：系统提示（`buildWitchPersonaPrompt`）向女巫 AI 传达"首夜不救人是禁忌"（即"必须首夜救人"），但 NIGHT_WITCH 用户提示在有守卫时建议首夜不救，两者直接矛盾，49 轮内所有有守卫的局中女巫都收到了互相冲突的指令。
+- **修复**：witch.js `WITCH_PERSONA.taboos`：`'首夜不救人'` → `'同一晚又救又毒'`，`'盲毒好人'` → `'盲毒（逻辑不充分时用毒）'`，与 aiPrompts.js 降级路径完全对齐。
+- **教训**：每次修改任意一条路径（主路径 `rolePrompts/*.js` 或降级路径 `aiPrompts.js ROLE_PERSONAS`）的 `taboos`/`archetype`/`coreGoal`/`signalGameTips` 时，必须立即检查另一条路径是否需要同步。可用 `grep -n "taboos:" src/services/rolePrompts/witch.js src/services/aiPrompts.js` 快速对比。
+
+### [2026-06-23 Round 50] NIGHT_WITCH firstNight hint 静态字符串未感知守卫存在 49 轮
+
+- **问题**：aiPrompts.js NIGHT_WITCH case 的 `witchHint`（首夜提示）长期是静态字符串 `'【首夜策略】通常使用解药救人...'`，不区分"有守卫"和"无守卫"场景。而 `getWitchNightActionPrompt`（dead function）早在 R1 就实现了守卫感知——只是它从来没被调用过。
+- **修复**：在 NIGHT_WITCH case 中调用 `detectExistingRoles(players)` 得到 `witchExistingRoles`，然后：
+  - 有守卫：`'【首夜警告】守卫可能也守了被刀目标，同守同救会导致目标死亡！...例外：若被刀者是你自己，必须自救！'`
+  - 无守卫：`'【首夜策略】没有守卫，无同守同救风险，可直接救关键目标...'`
+- **教训**：dead function 里有正确的实现不等于 live path 里有正确的实现。当某个逻辑只在 dead function 里存在而 live path 里缺失时，问题不会在 runtime 报错——只有通过对比 dead vs live 实现才能发现。扫描 rolePrompts/*.js 里 dead 函数时，顺便问一句：live path 是否实现了同等逻辑？
+
 
