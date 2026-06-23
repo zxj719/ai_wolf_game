@@ -68,7 +68,15 @@ export const buildKnightPersonaPrompt = (player, existingRoles, gameSetup) => {
  * 骑士白天发言提示词
  */
 export const getKnightDaySpeechPrompt = (ctx, params) => {
-  const { hasUsedDuel } = params;
+  const { hasUsedDuel, aliveCount: aliveNow = 8 } = params;
+
+  // R51: endgame dynamic thresholds — aliveNow passed from aiPrompts.js with intent "骑士终局决斗阈值用"
+  const isEndgame = aliveNow <= 5;
+  const thresholdA = isEndgame ? 50 : 70;
+  const thresholdB = isEndgame ? 40 : 60;
+  const endgameNote = isEndgame
+    ? `\n\n【⚡ 残局模式（存活${aliveNow}人）】决斗窗口收窄——优先级A阈值下调至≥${thresholdA}%，优先级B阈值下调至≥${thresholdB}%。残局每轮信息减少，宁早决断不延误。`
+    : '';
 
   // R44 DAY→DAY 读写闭环：历史决斗候选读取步骤
   const knightHistoryStep = ctx.dayCount > 1
@@ -85,7 +93,7 @@ export const getKnightDaySpeechPrompt = (ctx, params) => {
   return `${getBaseContext(ctx)}
 【骑士专属任务】白天发言 - 正义裁决与逻辑验证
 
-${duelStatus}
+${duelStatus}${endgameNote}
 
 【骑士发言三阶段策略】
 阶段1 - 隐藏期（未决斗前）：
@@ -95,7 +103,7 @@ ${duelStatus}
   - 语气要冷静、理性，像一个有思考能力的好人
 
 阶段2 - 决斗期（准备决斗时）：
-  - 当确认目标是狼人（把握度≥70%）时，果断翻牌
+  - 当确认目标是狼人（把握度≥${thresholdA}%）时，果断翻牌
   - 发言要极其果断、简短有力
   - 例句："我听出 X 号在悍跳预言家，他的逻辑链在 Y 点完全崩溃。我是骑士，我申请与 X 号决斗！"
   - 决斗宣言要包含：明确的逻辑依据、你的身份、决斗目标
@@ -106,7 +114,7 @@ ${duelStatus}
   - 保护真预言家，带领好人找狼
 
 【决斗决策系统（三级优先级）】
-✦ 优先级A（捍卫真言）- 确定度 ≥ 70%：
+✦ 优先级A（捍卫真言）- 确定度 ≥ ${thresholdA}%：
   - 场上出现两名预言家对跳
   - 通过逻辑分析确定其中一人是狼
   - 判断依据：
@@ -115,7 +123,7 @@ ${duelStatus}
     · 验人逻辑（验人顺序是否合理）
   - 决斗假跳预言家，为真预言家正名
 
-✦ 优先级B（破除金水）- 确定度 ≥ 60%：
+✦ 优先级B（破除金水）- 确定度 ≥ ${thresholdB}%：
   - 当一名可疑预言家给另一名玩家发了"金水"
   - 但该金水玩家发言极差、逻辑混乱
   - 决斗该金水玩家，一石二鸟验证两人身份
@@ -152,7 +160,7 @@ Step3: 决斗收益计算
   - 如果我现在决斗 X 号：
     · 若 X 是狼人：白天结束，我活，狼人少一只，真预言家多留一晚
     · 若 X 是好人：我死，白天继续，好人损失两张牌，局势崩盘
-  - 当前把握度是多少？是否满足决斗条件（≥60%）？
+  - 当前把握度是多少？是否满足决斗条件（≥${thresholdB}%）？
 
 Step4: 发言内容确定
   - 如果未决斗：像平民一样分析，暗中观察
