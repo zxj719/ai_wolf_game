@@ -465,6 +465,9 @@
 96. ~~**骑士/摄梦人/魔术师 PK 专属框架**~~ ✅ Round 45 已完成（三角色 pkHint 专属分支：骑士决斗前后双框架/摄梦人同生共死连接/魔术师信息修正资产；R30 白熊效应扩展教训；33/33 测试通过）
 97. **实局 smoke test**（45 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证骑士/摄梦人/魔术师 PK thought 字段语言特征（骑士"尚未落地的确定性判断机会"/摄梦人"同时失去两张牌"/魔术师"信息修正资产"）
 98. **SHERIFF_SPEECH + PK 联合覆盖检查**（新常驻）：每次新增角色时，同时检查 ssHint 链、SHERIFF_RUN if-else 链、pkHint if-else 链三处；可用 `grep -o "playerRole === '[^']*'" src/services/aiPrompts.js | sort -u` 快速列出已有分支
+99. **数据流审计脚本**（R47 新建议，优先级 HIGH）：自动检查所有 `gameState.X` 访问点与 `useAI.js` / `WerewolfModule.jsx` 三层传递链一致性，防止 R46 类三层传递链静默断裂
+100. ~~**委托模式参数合同静态检查**~~ ✅ Round 48 已完成（10 个静态分析测试：T1-T3 验证 NIGHT_MAGICIAN hasRevealed；T4-T7 骑士/摄梦人死解构清理；T8-T10 getDreamweaverNightPrompt 删除验证；495/495 测试通过；构建洁净）
+101. **实局 smoke test**（持续未完成，48 轮无真实 LLM 验证）：ECS 不在云端 allowlist；建议用户本地验证近 48 轮提示词累积效果
 
 ---
 
@@ -682,4 +685,24 @@
 - **教训**：每次新增角色或修改某个角色的竞技框架时，必须同时检查三处 if-else 链：① SHERIFF_SPEECH 的 `ssHint` 链（竞选发言）② SHERIFF_RUN 的 if-else 链（竞选决策）③ `pkHint` 的 if-else 链（PK 辩护），确保新角色在三处都有专属分支，或有意选择 fallback。
 - **检查命令**：`grep -o "playerRole === '[^']*'" src/services/aiPrompts.js | sort -u` 快速列出所有已有分支，对比游戏角色列表。
 - **R45 状态**：R45 后，全部 7 个特殊神职（预言家/守卫/女巫/猎人/骑士/摄梦人/魔术师）均有 pkHint 专属框架；狼人/村民走通用 fallback（有意设计）。
+
+---
+
+### [2026-06-23 Round 48] 死函数比死变量更难发现：外观上"活着"的导出函数
+
+- **问题**：`getDreamweaverNightPrompt`（~129 行）在 R14 报告中记录为"已删除"，实际函数体在 `dreamweaver.js` 中存在了 34 轮（R14→R48）。
+- **为何难以发现**：函数通过 `DREAMWEAVER_PROMPTS.nightAction` 导出，看起来是活跃的 exports 成员。常见工具（linter、tree-shaking）在 ESM 中仅当整个导出对象未被任何模块 import 时才报告死代码。但 `DREAMWEAVER_PROMPTS` 本身是活跃导出，因此死函数字段被当作活代码处理。
+- **定位方法**：追踪**消费端**而非生产端。关键问题是"有没有生产代码调用 `getRoleModule('摄梦人').nightAction()`？"——搜索 `nightAction` 在 `aiPrompts.js` 中的出现情况即可确认摄梦人路径是内联而非委托。
+- **通用规则**：每次重构某个 case 从"委托模式"改为"内联模式"时，必须立即删除目标模块中的委托函数和 exports 字段，不能只删委托调用端。否则委托函数会以"exports 成员"外观存活，直到有人追踪消费端才能发现。
+- **R48 修复**：删除 `getDreamweaverNightPrompt` 函数体 + `DREAMWEAVER_PROMPTS.nightAction`，并通过 T8/T9/T10 三个测试永久守门。
+
+---
+
+### [2026-06-23 Round 48] 静态分析测试是防范"传了但不解构"委托模式 bug 的最佳工具
+
+- **问题**：R46 修复了 NIGHT_MAGICIAN 的 `hasRevealed` 未解构 bug，但同类 bug 可以在任何委托调用中悄然重现——委托函数的参数是无类型键值对，无运行时报错，特性静默失效。
+- **Item 100 解法**：`delegateParams.test.js` 通过读取源文件文本、解析 object literal 和 destructure block，在 **CI 层面** 锁定调用端传参 ↔ 接收端解构的双向一致性。任何 case 未来新增参数而漏更新委托函数时，T1 类测试立即报红。
+- **`extractDestructuredKeys` 的坑**：不能用简单正则 `/\{([^}]+)\}\s*=\s*params/` 匹配解构块，因为箭头函数 `(ctx, params) => {` 的函数体 `{` 会被优先匹配，导致提取的 key 列表包含整个函数头。正确做法是**锚点反向定位**：先找 `'} = params'`（终点），再 `lastIndexOf('const {')`（起点），两者之间的内容才是真正的解构列表。
+- **死解构的危害等级**：死解构（destructured but never used）比未解构（passed but not destructured）更难察觉——后者特性失效，前者连特性失效都不提示，只是白白造成"可用字段"的错误心理预期。T4/T5/T6/T7 四个测试守护骑士和摄梦人的解构列表精确性。
+- **R48 状态**：knight.js 清除死解构 `seerChecks/deathHistory/speechHistory`；dreamweaver.js 清除 `nightDeaths/seerChecks`；10/10 测试通过。
 

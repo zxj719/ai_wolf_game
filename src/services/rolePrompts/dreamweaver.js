@@ -78,143 +78,10 @@ export const buildDreamweaverPersonaPrompt = (player, existingRoles, gameSetup) 
 };
 
 /**
- * 摄梦人夜间入梦提示词
- */
-export const getDreamweaverNightPrompt = (ctx, params) => {
-  const { dreamHistory, lastDreamTarget, aliveTargets, nightDeaths, seerChecks } = params;
-
-  const historyWarning = lastDreamTarget !== null
-    ? `【警告】你昨晚入梦了 ${lastDreamTarget}号，如果今晚再次入梦TA，TA将直接死亡！`
-    : '这是首晚，可自由选择入梦目标。';
-
-  const dreamedPlayers = dreamHistory?.dreamedPlayers || [];
-  const dreamedPlayersText = dreamedPlayers.length > 0
-    ? `已被你入梦过的玩家：${dreamedPlayers.join(',')}号`
-    : '无人被入梦过';
-
-  return `${getBaseContext(ctx)}
-【摄梦人专属任务】夜间入梦 - 保护与追杀的抉择
-
-${historyWarning}
-
-【入梦历史】
-${dreamedPlayersText}
-【上一晚入梦】${lastDreamTarget !== null ? `${lastDreamTarget}号` : '无'}
-
-【入梦机制核心】
-✦ 免疫效果：被入梦者当晚免疫狼刀和毒药
-✦ 连梦必死：连续两晚入梦同一人 → 该人直接死亡（无法被救）
-✦ 同生共死：如果你今晚死亡，被入梦者也会一同出局
-✦ 强制入梦：每晚必须入梦一人（不能是自己）
-
-【三大决策模式】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🛡️ 模式一：防御模式（守护核心）
-使用条件：场上有明确的真预言家或关键好人
-决策逻辑：
-  - 首晚：入梦真预言家（保护免疫狼刀）
-  - 次晚：【必须更换目标】防止预言家因连梦死亡
-  - 后续：根据狼人刀口预判，提前入梦可能被刀的好人
-注意事项：
-  - 绝不连续两晚入梦预言家
-  - 如果守卫存在，与守卫形成双重保护更佳
-  - 避免入梦女巫/猎人，防止你被刀时造成连带损失
-
-⚔️ 模式二：进攻模式（连梦击杀）
-使用条件：高度怀疑某人为狼人，且该狼威胁极大
-决策逻辑：
-  - 第一晚：入梦怀疑对象（标记目标）
-  - 第二晚：再次入梦同一人 → 直接击杀
-  - 判断依据：
-    · 发言极具煽动性的悍跳预言家
-    · 逻辑漏洞明显的金水玩家
-    · 站队摇摆、避重就轻的隐狼
-收益计算：
-  - 成功击杀狼人 = 节省一轮白天投票 + 减少狼刀威胁
-  - 失败误杀好人 = 损失两张好人牌 + 暴露身份
-确信度要求：≥ 75% 才可启动连梦击杀
-
-💀 模式三：殉情模式（临死拉垫背）
-使用条件：你已被狼人锁定或高度怀疑今晚会死
-决策逻辑：
-  - 如果你已起跳身份 → 今晚大概率被刀
-  - 如果场上有狼美人且你被魅惑 → 你必死
-  - 此时入梦目标应选为：你认为的**铁狼**
-  - 你出局时，触发"同生共死"强行带走该狼
-注意事项：
-  - 这是最后的搏命一击，目标选择必须谨慎
-  - 不要入梦你怀疑是好人的玩家
-  - 优先选择狼队的核心/悍跳位
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-【思维链（必须完成）】
-Step1: 场上局势分析
-  - 谁是真预言家？是否需要保护？
-  - 谁最有可能是狼人？悍跳位/金水/隐狼？
-  - 我的身份是否已暴露？今晚会被刀吗？
-
-Step2: 入梦历史回顾
-  - 我昨晚入梦了谁？（${lastDreamTarget !== null ? `${lastDreamTarget}号` : '无'}）
-  - 如果今晚再入梦同一人，是连梦击杀还是误杀？
-  - 历史上我入梦过哪些人？他们现在的状态如何？
-
-Step3: 风险评估
-  - 如果我今晚入梦 A，但我被刀了，A 会不会是好人？
-  - 如果我连梦 B，但 B 其实是好人，损失有多大？
-  - 女巫的救药/毒药还在吗？会不会影响我的决策？
-
-Step4: 决策模式选择
-  - 当前应采用：防御模式 / 进攻模式 / 殉情模式？
-  - 理由是什么？
-  - 确信度是多少？
-
-Step5: 目标确定
-  - 最终入梦目标：X 号
-  - 入梦理由：（保护/击杀/拉垫背）
-  - 预期结果：（免疫保护/连梦击杀/同生共死）
-
-【特殊场景应对】
-场景1 - 预言家首夜被刀：
-  - 如果真预言家首夜倒牌，你无需自责（无法预判）
-  - 次日观察谁会跳假预言家，准备连梦击杀
-
-场景2 - 你被狼美人魅惑：
-  - 立即切换为殉情模式
-  - 今晚入梦你认为的狼同伴，确保你死时能拉走两个狼
-
-场景3 - 守卫和你同时保护一人：
-  - 这是最强保护（双重免疫）
-  - 但要小心第二晚不要再入梦同一人
-
-场景4 - 你需要跳身份自保：
-  - 清晰报出每晚的"入梦名单"
-  - 话术示例："我是摄梦人。第一晚入梦3号（保护），第二晚入梦7号（更换目标）。今晚我会去处理那个悍跳位。"
-
-【输出格式】
-{
-  "thought": "完整的5步思维链",
-  "dreamTarget": 数字（必须选择，不能为null）,
-  "dreamMode": "defense/offense/sacrifice",
-  "dreamReason": "入梦理由（20-40字）",
-  "isConsecutiveDream": true/false,
-  "riskLevel": 0-100,
-  "confidence": 0-100
-}
-
-【严格约束】
-✗ 严禁dreamTarget为null（每晚必须入梦）
-✗ 严禁dreamTarget为自己的ID
-✗ 严禁在不确定的情况下连梦好人
-✗ 严禁忽视"同生共死"机制带来的风险`;
-};
-
-/**
  * 摄梦人白天发言提示词
  */
 export const getDreamweaverDaySpeechPrompt = (ctx, params) => {
-  const { dreamHistory, lastDreamTarget, nightDeaths, seerChecks } = params;
+  const { dreamHistory, lastDreamTarget } = params;
 
   const lastNightInfo = lastDreamTarget !== null
     ? `你昨晚入梦了 ${lastDreamTarget}号`
@@ -320,7 +187,6 @@ export const DREAMWEAVER_PROMPTS = {
   getThinkingDimensions: getDreamweaverThinkingDimensions,
   getPriorities: getDreamweaverPriorities,
   buildPersonaPrompt: buildDreamweaverPersonaPrompt,
-  nightAction: getDreamweaverNightPrompt,
   daySpeech: getDreamweaverDaySpeechPrompt,
   vote: getDreamweaverVotePrompt
 };

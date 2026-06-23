@@ -68,7 +68,7 @@ export const buildKnightPersonaPrompt = (player, existingRoles, gameSetup) => {
  * 骑士白天发言提示词
  */
 export const getKnightDaySpeechPrompt = (ctx, params) => {
-  const { hasUsedDuel, seerChecks, deathHistory, speechHistory } = params;
+  const { hasUsedDuel } = params;
 
   // R44 DAY→DAY 读写闭环：历史决斗候选读取步骤
   const knightHistoryStep = ctx.dayCount > 1
