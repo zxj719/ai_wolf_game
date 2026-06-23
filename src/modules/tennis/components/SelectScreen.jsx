@@ -95,6 +95,9 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
                         <>
                           <span className="opp-history-badge">✓</span>
                           {tag && <span className={`opp-tag ${tag.cls}`}>{tag.label}</span>}
+                          {oppWinRateMap[c.n] && (
+                            <span className="opp-wr">{oppWinRateMap[c.n].wins}/{oppWinRateMap[c.n].total}</span>
+                          )}
                         </>
                       ) : (
                         <span className="opp-history-badge opp-history-new">NEW</span>

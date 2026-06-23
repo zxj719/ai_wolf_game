@@ -51,7 +51,8 @@ function getIntermissionHints(ladder) {
   else if (stagesLeft === 1) shopHint = '最后一次备战，有用就买';
   else shopHint = '灵活选择，升卡最划算';
 
-  return { trainHint, massageHint, shopHint };
+  const massageRecommended = massageDelta > 5 && energyBase < 55;
+  return { trainHint, massageHint, shopHint, massageRecommended };
 }
 
 const LADDER_STARTER_DECK = [
@@ -228,7 +229,7 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
               <span className="key">💪</span><span>加练特训<span className="fx"><em>随机属性 +8</em></span><span className="opt-hint">{hints.trainHint}</span></span>
             </button>
             <button type="button" className="opt" onClick={() => dispatchLadder({ type: 'INTERMISSION', choice: 'massage', statRoll: 0 })}>
-              <span className="key">💆</span><span>全身按摩<span className="fx"><em>额外 +30 体力</em></span><span className="opt-hint">{hints.massageHint}</span></span>
+              <span className="key">💆</span><span>全身按摩<span className="fx"><em>额外 +30 体力</em></span><span className={`opt-hint${hints.massageRecommended ? ' opt-hint-hi' : ''}`}>{hints.massageHint}</span></span>
             </button>
             <button type="button" className="opt" onClick={() => dispatchLadder({ type: 'INTERMISSION', choice: 'shop', statRoll: 0 })}>
               <span className="key">🛒</span><span>逛网球用品店<span className="fx"><em>购卡 / 升卡 / 购装 / 升装</em></span><span className="opt-hint">{hints.shopHint}</span></span>
