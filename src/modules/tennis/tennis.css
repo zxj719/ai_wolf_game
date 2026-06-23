@@ -749,6 +749,7 @@
 .tennis-scope .omc-name { font-size: .62rem; color: var(--muted); margin-top: 3px; text-align: center; }
 .tennis-scope .omc-count { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--clay); margin-top: 2px; line-height: 1; }
 .tennis-scope .omc-counter { font-size: .58rem; color: var(--optic); margin-top: 4px; text-align: center; opacity: .9; }
+.tennis-scope .next-advice { margin: 12px 0 0; font-size: .78rem; color: var(--optic); font-style: italic; text-align: center; opacity: .88; }
 .tennis-scope .between-suggest { font-size: .82rem; color: var(--clay); font-weight: 600; opacity: .88; }
 .tennis-scope .opp-tag { font-size: .68rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
 .tennis-scope .opp-tag-recommend { background: rgba(110,231,183,.18); color: #6ee7b7; }

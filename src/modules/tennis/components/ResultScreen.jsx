@@ -61,6 +61,15 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
       }));
   }, [matchStats]);
 
+  const nextAdvice = useMemo(() => {
+    if (!topOppMoves.length) return null;
+    const top1 = topOppMoves[0];
+    if (top1.counter) {
+      return `下次多出「${top1.counter}」来破解 ${o.name} 惯用的${top1.name}`;
+    }
+    return `${o.name} 本局偏爱${top1.name}，提前读招可增加克制得分`;
+  }, [topOppMoves, o.name]);
+
   useEffect(() => {
     // StrictMode 下 effect 会跑两次，ref 去重避免一局记两条
     if (recordedRef.current) return;
@@ -163,6 +172,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
                   </div>
                 ))}
               </div>
+              {nextAdvice && <p className="next-advice">💡 {nextAdvice}</p>}
             </div>
           )}
         </div>
