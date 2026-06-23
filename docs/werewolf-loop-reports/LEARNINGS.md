@@ -750,4 +750,14 @@
 - **教训**：三例"传了但不解构"（R46 magician.hasRevealed, R49 magician.seerChecks, R51 knight.aliveCount）都无 runtime 报错，只有测试/代码审查才能发现。`delegateParams.test.js` 的"传入 key 集合 ⊆ 接收函数解构 key 集合"检查是标准守门方式。
 - **R51 状态**：knight.js 动态阈值实装；8 个新测试通过（round51KnightEndgame.test.js）；529/529 测试通过（1 pre-existing ws 模块错误无关）；构建洁净。
 
+---
+
+### [2026-06-23 Round 52] 死代码清理时须同步清理不再使用的 import
+
+- **问题**：seer/werewolf/hunter/guard/villager 的 nightAction/daySpeech/vote 函数删除后，对应的 `getBaseContext`、`isMiniGame` import 仍留在文件顶部。未使用的 import 不会触发运行时错误，但 Vite/Rollup 会在打包时尝试解析，可能意外引入不需要的依赖树。
+- **根因**：删除死函数时只关注函数体，忘记检查 import 语句是否还有其他使用场景。
+- **教训**：删除一组函数后，必须立即用 `grep -n "importedName" file.js` 检查每个被删除函数引用的外部 symbol 是否仍在文件剩余代码中出现。若未出现，立即从 import 语句中移除。
+- **通用规则**：清理死代码 = 删函数体 + 检查并清理无用 import，二者是配对操作。
+- **R52 状态**：437 行死代码（14个函数）清除，rolePrompts 5个主角色文件从840行减至403行；28个新测试通过；557/557 测试通过；构建洁净。
+
 
