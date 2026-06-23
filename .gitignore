@@ -51,3 +51,4 @@ npm-debug.log*
 
 # Transient tool output (OPPO profiler, etc.)
 .tmp_*
+.tmp/
