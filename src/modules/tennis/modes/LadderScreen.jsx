@@ -28,6 +28,32 @@ function getBetweenAdvice(winRate, historyCount) {
   return `💡 胜率 ${pct}%，特训或逛店补装备皆可`;
 }
 
+function getIntermissionHints(ladder) {
+  const { lastRemainingEnergy, bonusStats, stage } = ladder;
+  const energyBase = Math.min(100, lastRemainingEnergy + 40);
+  const energyMassage = Math.min(100, lastRemainingEnergy + 40 + 30);
+  const massageDelta = energyMassage - energyBase;
+  const totalBonus = bonusStats.sta + bonusStats.skill + bonusStats.mind;
+  const stagesLeft = STAGE_COUNT - 1 - stage;
+
+  let trainHint;
+  if (stagesLeft >= 4) trainHint = `还剩 ${stagesLeft} 站，加练效益最高`;
+  else if (stagesLeft === 1) trainHint = '最后一站，属性直接影响决赛';
+  else trainHint = totalBonus < 16 ? `加成仅 +${totalBonus}，现在加练收益高` : `当前加成 +${totalBonus}，看情况`;
+
+  let massageHint;
+  if (massageDelta <= 5) massageHint = `体力 ${energyBase}%，按摩仅 +${massageDelta}%，收益低`;
+  else if (energyBase < 55) massageHint = `体力仅 ${energyBase}%，按摩→${energyMassage}%，推荐`;
+  else massageHint = `体力 ${energyBase}%→${energyMassage}%，中等收益`;
+
+  let shopHint;
+  if (stagesLeft >= 4) shopHint = `还有 ${stagesLeft} 站，装备早买早收益`;
+  else if (stagesLeft === 1) shopHint = '最后一次备战，有用就买';
+  else shopHint = '灵活选择，升卡最划算';
+
+  return { trainHint, massageHint, shopHint };
+}
+
 const LADDER_STARTER_DECK = [
   { cardId: 'towelTime', upgraded: false },
   { cardId: 'newBalls', upgraded: false },
@@ -175,6 +201,7 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
   }
 
   if (ladder.status === 'between') {
+    const hints = getIntermissionHints(ladder);
     return (
       <section className="screen">
         <div className="card">
@@ -198,13 +225,13 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
           )}
           <div className="opts">
             <button type="button" className="opt" onClick={() => dispatchLadder({ type: 'INTERMISSION', choice: 'train', statRoll: Math.random() })}>
-              <span className="key">💪</span><span>加练特训<span className="fx"><em>随机属性 +8</em></span></span>
+              <span className="key">💪</span><span>加练特训<span className="fx"><em>随机属性 +8</em></span><span className="opt-hint">{hints.trainHint}</span></span>
             </button>
             <button type="button" className="opt" onClick={() => dispatchLadder({ type: 'INTERMISSION', choice: 'massage', statRoll: 0 })}>
-              <span className="key">💆</span><span>全身按摩<span className="fx"><em>额外 +30 体力</em></span></span>
+              <span className="key">💆</span><span>全身按摩<span className="fx"><em>额外 +30 体力</em></span><span className="opt-hint">{hints.massageHint}</span></span>
             </button>
             <button type="button" className="opt" onClick={() => dispatchLadder({ type: 'INTERMISSION', choice: 'shop', statRoll: 0 })}>
-              <span className="key">🛒</span><span>逛网球用品店<span className="fx"><em>购卡 / 升卡 / 购装 / 升装</em></span></span>
+              <span className="key">🛒</span><span>逛网球用品店<span className="fx"><em>购卡 / 升卡 / 购装 / 升装</em></span><span className="opt-hint">{hints.shopHint}</span></span>
             </button>
           </div>
         </div>

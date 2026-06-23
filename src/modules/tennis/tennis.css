@@ -212,6 +212,7 @@
   background: var(--court); color: var(--optic); display: grid; place-items: center;
 }
 .tennis-scope .opt .fx { display: block; margin-top: 5px; font-size: .78rem; color: var(--muted); font-family: var(--mono); }
+.tennis-scope .opt .opt-hint { display: block; font-size: .7rem; color: var(--muted); font-family: var(--mono); margin-top: 3px; opacity: .75; }
 .tennis-scope .fx em { font-style: normal; padding: 1px 6px; border-radius: 5px; margin-right: 5px; background: rgba(217,255,61,.4); color: #3a4a12; }
 .tennis-scope .fx em.neg { background: rgba(226,129,79,.25); color: #9a4513; }
 
