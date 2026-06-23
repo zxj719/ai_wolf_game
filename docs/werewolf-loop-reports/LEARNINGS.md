@@ -739,4 +739,15 @@
   - 无守卫：`'【首夜策略】没有守卫，无同守同救风险，可直接救关键目标...'`
 - **教训**：dead function 里有正确的实现不等于 live path 里有正确的实现。当某个逻辑只在 dead function 里存在而 live path 里缺失时，问题不会在 runtime 报错——只有通过对比 dead vs live 实现才能发现。扫描 rolePrompts/*.js 里 dead 函数时，顺便问一句：live path 是否实现了同等逻辑？
 
+---
+
+### [2026-06-23 Round 51] "传了但不解构" 第三例——intent comment 不等于功能实现
+
+- **问题**：`aiPrompts.js` 在构建骑士 `roleParams` 时传入了 `aliveCount: players.filter(p => p.isAlive).length`，且注释明确写道"骑士终局决斗阈值用"（line 1254）。但 `knight.js` 的 `getKnightDaySpeechPrompt` 只解构 `{ hasUsedDuel }` 而忽略 `aliveCount`，导致决斗阈值永远是硬编码 70%/60%，终局动态阈值从未生效。
+- **根因**：LEARNINGS item 32 记录"Round 22 已完成终局阈值调整（aliveCount≤5 时 A=50%/B=40%）"，但 R27 的并发会话回滚（`git restore` 恢复旧版 aiPrompts.js）把 knight.js 一同回滚到了 R14 之前的版本，实际代码中从未有过动态阈值实现。"已完成"的 LEARNINGS 标注是对计划意图而非代码实现的标注。
+- **修复**：knight.js `getKnightDaySpeechPrompt` 增加 `aliveCount: aliveNow = 8` 解构，计算 `isEndgame = aliveNow <= 5`，`thresholdA = isEndgame ? 50 : 70`，`thresholdB = isEndgame ? 40 : 60`，注入 `endgameNote`（残局时显示降阈说明），并将 prompt 内所有硬编码 70%/60% 替换为模板变量 `${thresholdA}%`/`${thresholdB}%`。
+- **教训**：intent comment（"用于 X"）≠ 功能实现。当 LEARNINGS 标注某 item "已完成"时，需要去读对应代码文件验证——特别是经历过 R27 式大回滚的代码库。今后"完成"标注应附上"已验证行号：file:line"。
+- **教训**：三例"传了但不解构"（R46 magician.hasRevealed, R49 magician.seerChecks, R51 knight.aliveCount）都无 runtime 报错，只有测试/代码审查才能发现。`delegateParams.test.js` 的"传入 key 集合 ⊆ 接收函数解构 key 集合"检查是标准守门方式。
+- **R51 状态**：knight.js 动态阈值实装；8 个新测试通过（round51KnightEndgame.test.js）；529/529 测试通过（1 pre-existing ws 模块错误无关）；构建洁净。
+
 
