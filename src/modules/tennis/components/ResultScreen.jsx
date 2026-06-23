@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
-import { MOVES } from '../battle/moves';
+import { MOVES, COUNTER_QUIPS } from '../battle/moves';
 import { saveLocalRecord, loadLocalRecords } from '../localBoard';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
+
+const MOVE_ICONS = {
+  flatDrive: '💥', smash: '🔨', topspin: '🌀', slice: '✂️',
+  volley: '⚡', dropShot: '🎯', lob: '🏹', passingShot: '🏃',
+};
+
+// Derive "first counter for move X" from COUNTER_QUIPS key format 'a>b' (a counters b)
+const COUNTER_FOR = {};
+for (const key of Object.keys(COUNTER_QUIPS)) {
+  const [a, b] = key.split('>');
+  if (!COUNTER_FOR[b]) COUNTER_FOR[b] = a;
+}
 
 function fmtDuration(s) {
   const m = Math.floor(s / 60);
@@ -33,6 +45,20 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
     if (!matchStats?.moveUsage) return null;
     const entries = Object.entries(matchStats.moveUsage);
     return entries.length ? entries.reduce((a, b) => (b[1] > a[1] ? b : a)) : null;
+  }, [matchStats]);
+
+  const topOppMoves = useMemo(() => {
+    if (!matchStats?.oppMoveUsage) return [];
+    return Object.entries(matchStats.oppMoveUsage)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([moveId, count]) => ({
+        moveId,
+        count,
+        name: MOVES[moveId]?.name ?? moveId,
+        icon: MOVE_ICONS[moveId] ?? '🎾',
+        counter: COUNTER_FOR[moveId] ? MOVES[COUNTER_FOR[moveId]]?.name : null,
+      }));
   }, [matchStats]);
 
   useEffect(() => {
@@ -123,6 +149,21 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           </div>
           {matchStats.countersWon >= 2 && (
             <p className="counter-hl">🎯 本场克制得分 {matchStats.countersWon} 次！</p>
+          )}
+          {topOppMoves.length > 0 && (
+            <div className="opp-moves-section">
+              <div className="opp-moves-title">🔍 对手最常用招式</div>
+              <div className="opp-moves-row">
+                {topOppMoves.map(({ moveId, count, name, icon, counter }) => (
+                  <div key={moveId} className="opp-move-chip">
+                    <span className="omc-icon">{icon}</span>
+                    <span className="omc-name">{name}</span>
+                    <span className="omc-count">×{count}</span>
+                    {counter && <span className="omc-counter">克：{counter}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}

@@ -77,7 +77,7 @@ export function createBattle({ player, opponent, deckInstances, rng, ultimate, t
     activeUltimate: null,
     lastRally: null,
     rallyLog: [],
-    matchStats: { aces: 0, countersWon: 0, clutchWins: 0, moveUsage: {}, mgSum: 0, mgCount: 0 },
+    matchStats: { aces: 0, countersWon: 0, clutchWins: 0, moveUsage: {}, oppMoveUsage: {}, mgSum: 0, mgCount: 0 },
   };
 }
 
@@ -322,6 +322,10 @@ export function battleReducer(state, action) {
           serveBonus: 0,
           lastRally,
           rallyLog: [...state.rallyLog.slice(-9), lastRally],
+          matchStats: {
+            ...state.matchStats,
+            oppMoveUsage: { ...state.matchStats.oppMoveUsage, [oppMove]: (state.matchStats.oppMoveUsage[oppMove] ?? 0) + 1 },
+          },
           phase: 'idle',
         };
       }
@@ -339,6 +343,7 @@ export function battleReducer(state, action) {
         ...state.matchStats,
         countersWon: state.matchStats.countersWon + (win && pCounter > 1 ? 1 : 0),
         clutchWins: state.matchStats.clutchWins + (clutch ? 1 : 0),
+        oppMoveUsage: { ...state.matchStats.oppMoveUsage, [oppMove]: (state.matchStats.oppMoveUsage[oppMove] ?? 0) + 1 },
       };
       const settled = {
         ...state,
