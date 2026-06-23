@@ -1485,13 +1485,20 @@ ${guardHistoryStep}
 
              // 首夜无历史刀口；N2+夜从 previousIdentityTable 中读取"高优先刀口"标记
              const wolfNightLabel = `N${ctx.dayCount}`;
+             // R47：N2+注入上轮夜间结果，用于刀口执行结果核查（女巫资源推断）
+             const wolfLastNightBlock = ctx.dayCount > 1 ? `\n【上轮夜间结果】${ctx.lastNightInfo}` : '';
              const wolfHistoryStep = ctx.dayCount > 1
-                 ? '0. 【读取历史刀口】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"高优先刀口"？将其列为今晚刀口候选起点（若该目标已死或不在可袭击列表中，重新评估其他高优先项）'
+                 ? `0. 【读取历史刀口 + 核查执行结果】
+   a. 从【你之前的身份推理表】中找 reason 含"高优先刀口"的玩家，列为今晚候选起点
+   b. 交叉比对上方【上轮夜间结果】：
+      · 若刀口目标在死亡列表 → 刀成功，延续或重选高优先目标
+      · 若刀口目标存活（不在死亡列表）→ 女巫救了（女巫只剩毒药），将女巫优先级上调
+      · 若平安夜 → 守卫可能守住/女巫救了，重新评估优先目标`
                  : '0. 【首夜】无历史刀口记录——直接进行角色推断';
 
              return `狼人袭击决策。
 【重要规则】每晚必须袭击一名玩家，不能空刀！
-【可袭击目标】${validTargets}号
+【可袭击目标】${validTargets}号${wolfLastNightBlock}
 ${multiWolfHint}
 ${nightCot}
 【威胁评估参考】${wolfPriorityStr}

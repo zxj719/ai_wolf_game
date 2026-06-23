@@ -4,6 +4,15 @@
 
 ---
 
+### [2026-06-23 Round 47] NIGHT_WOLF 的刀口执行结果核查需要显式上下文
+
+- **问题**：NIGHT_WOLF 提示词通过 `wolfHistoryStep` 引导狼人读取上轮 identity_table 中的"高优先刀口"记录，但缺少一个关键推理步骤：刀口目标是否真的死了？若女巫救了刀口目标（平安夜），狼人无法在提示词中直接感知，只能通过复杂的间接推理（目标还活着+identity_table 有行刀标记）得出女巫使用了救药。
+- **根因**：NIGHT_WOLF 的 user prompt 不包含 `getBaseContext(ctx)` 也不包含 `ctx.lastNightInfo`；死亡信息只在 system prompt 的游戏时间线中体现，属于"感知-执行分裂"——AI 在技术上能访问到信息，但没有结构化的推理框架将其映射到具体的策略行动（女巫资源判断）。
+- **修复**：R47 在 NIGHT_WOLF 的 `wolfHistoryStep`（N2+分支）中添加了三分支核查逻辑：① 刀口目标死亡→成功 ② 刀口目标存活→女巫救了（更新女巫优先级）③ 平安夜→重新评估。同时在 prompt 顶部注入 `wolfLastNightBlock`（`ctx.lastNightInfo`）作为显式上下文参照。
+- **通用规则**：凡是需要 AI 在夜间动作中进行跨轮结果验证的推理步骤（"上轮 X 发生了吗？"），必须在 user prompt 中提供对应的显式上下文 block，不能仅依赖 system prompt 中的隐式时间线信息。
+
+---
+
 ## 关于提示词工程
 
 ### [2026-06-15] 女巫人格禁忌不能与夜间策略提示矛盾
