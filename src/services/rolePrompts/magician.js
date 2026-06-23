@@ -88,7 +88,6 @@ export const getMagicianNightActionPrompt = (params) => {
     existingRoles,
     dayCount,
     nightContext,
-    seerChecks,
     knownGods,
     suspectedWolves,
     hasRevealed,  // R46 Bug 修复：身份已公开时自保优先级跃升为最高（R22 补传但未消费）
@@ -228,7 +227,7 @@ Step 5: 最终决策
  * 融入逻辑镜像表概念 - AI必须计算出真实的技能目标
  */
 export const getMagicianDaySpeechPrompt = (ctx, params) => {
-  const { swappedPlayers, lastSwap, seerChecks, deathHistory } = params;
+  const { swappedPlayers, lastSwap } = params;
 
   const swapInfo = lastSwap && lastSwap.player1Id !== null
     ? `昨晚交换了 ${lastSwap.player1Id}号 和 ${lastSwap.player2Id}号`

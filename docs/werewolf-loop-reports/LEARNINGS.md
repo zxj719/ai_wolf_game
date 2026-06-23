@@ -706,3 +706,13 @@
 - **死解构的危害等级**：死解构（destructured but never used）比未解构（passed but not destructured）更难察觉——后者特性失效，前者连特性失效都不提示，只是白白造成"可用字段"的错误心理预期。T4/T5/T6/T7 四个测试守护骑士和摄梦人的解构列表精确性。
 - **R48 状态**：knight.js 清除死解构 `seerChecks/deathHistory/speechHistory`；dreamweaver.js 清除 `nightDeaths/seerChecks`；10/10 测试通过。
 
+---
+
+### [2026-06-23 Round 49] 死解构会让函数的"参数合同"产生误导——解构列表是判断函数消费字段的第一参照
+
+- **问题**：`magician.js` 的两个函数（`getMagicianNightActionPrompt`、`getMagicianDaySpeechPrompt`）解构了 `seerChecks`（以及 `deathHistory`），但函数体中从未引用这些变量。R48 的 `delegateParams.test.js` 只检查"调用端传了什么 ↔ 接收端解构了什么"，并不检测解构了却从未使用的字段——死解构因此漏网。
+- **发现方法**：手动搜索函数体（`seerChecks` 在 ~115 行 / ~90 行范围内无匹配），配合调用端分析（`seerChecks` 已被用来计算 `knownGods`/`suspectedWolves`，不需要再原样传入）。
+- **修复规则**：清理死解构时，必须**同时检查调用端**——若调用端也在传该字段，需一并删除（否则 `delegateParams.test.js` T1 会因"传了但未解构"立即报红）。本轮正是因此追加了 `aiPrompts.js` NIGHT_MAGICIAN 的 `seerChecks` 传参删除。
+- **Item 99 dataFlowChain 测试**：9 个测试守门 gameState 三层传递链（WerewolfModule.jsx → useAI.js → aiPrompts.js）完整性 + magician.js 死解构两处 + 所有特殊神职 SHERIFF/PK 联合覆盖。`extractGameStateKeys` 使用平衡括号配对（非正则）找对象体范围，避免嵌套结构干扰。
+- **R49 状态**：magician.js 清除 3 处死解构；504/504 测试通过；构建洁净。
+

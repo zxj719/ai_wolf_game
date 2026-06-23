@@ -1450,7 +1450,6 @@ ${guardHistoryStep}
                 existingRoles: magicianExistingRoles,
                 dayCount: ctx.dayCount,
                 nightContext: nightCot,
-                seerChecks: magicianSeerChecks || [],
                 knownGods,
                 suspectedWolves,
                 hasRevealed: currentPlayer?.hasRevealed,  // 身份已公开时优先级 C 提升为 A
