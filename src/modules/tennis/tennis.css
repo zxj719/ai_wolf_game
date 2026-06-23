@@ -741,3 +741,6 @@
 .tennis-scope .ms-label { font-size: .65rem; color: var(--muted); margin-top: 4px; text-align: center; letter-spacing: .02em; }
 .tennis-scope .counter-hl { text-align: center; margin: .6rem 0 0; font-size: .85rem; color: var(--clay); font-weight: 700; }
 .tennis-scope .between-suggest { font-size: .82rem; color: var(--clay); font-weight: 600; opacity: .88; }
+.tennis-scope .opp-tag { font-size: .68rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
+.tennis-scope .opp-tag-recommend { background: rgba(110,231,183,.18); color: #6ee7b7; }
+.tennis-scope .opp-tag-rival { background: rgba(248,113,113,.18); color: #f87171; }

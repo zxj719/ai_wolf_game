@@ -4,13 +4,32 @@ import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
 import { loadLocalRecords } from '../localBoard';
 
+function getOppTag(name, map) {
+  const data = map[name];
+  if (!data || data.total === 0) return null;
+  const rate = data.wins / data.total;
+  if (rate >= 0.6) return { label: '推荐', cls: 'opp-tag-recommend' };
+  if (rate < 0.35) return { label: '劲敌', cls: 'opp-tag-rival' };
+  return null;
+}
+
 /** ① 报名处：选身份 + 双榜 */
 export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
   const [picked, setPicked] = useState('');
   const [showOppHistory, setShowOppHistory] = useState(false);
-  const seenOpps = useMemo(() => new Set(loadLocalRecords().map((r) => r.o)), []);
+  const records = useMemo(() => loadLocalRecords(), []);
+  const seenOpps = useMemo(() => new Set(records.map((r) => r.o)), [records]);
   const seenCount = seenOpps.size;
   const totalOpps = CHARS.length;
+  const oppWinRateMap = useMemo(() => {
+    const map = {};
+    for (const r of records) {
+      if (!map[r.o]) map[r.o] = { wins: 0, total: 0 };
+      map[r.o].total++;
+      if (r.sp > r.so) map[r.o].wins++;
+    }
+    return map;
+  }, [records]);
 
   const handleStart = () => {
     if (!picked) {
@@ -66,17 +85,23 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
             </div>
             {showOppHistory && (
               <div className="opp-history-panel">
-                {CHARS.map((c) => (
-                  <div key={c.n} className={`opp-history-chip${seenOpps.has(c.n) ? ' seen' : ' unseen'}`}>
-                    <span className="opp-history-face">{c.f}</span>
-                    <span className="opp-history-name">{c.n}</span>
-                    {seenOpps.has(c.n) ? (
-                      <span className="opp-history-badge">✓</span>
-                    ) : (
-                      <span className="opp-history-badge opp-history-new">NEW</span>
-                    )}
-                  </div>
-                ))}
+                {CHARS.map((c) => {
+                  const tag = seenOpps.has(c.n) ? getOppTag(c.n, oppWinRateMap) : null;
+                  return (
+                    <div key={c.n} className={`opp-history-chip${seenOpps.has(c.n) ? ' seen' : ' unseen'}`}>
+                      <span className="opp-history-face">{c.f}</span>
+                      <span className="opp-history-name">{c.n}</span>
+                      {seenOpps.has(c.n) ? (
+                        <>
+                          <span className="opp-history-badge">✓</span>
+                          {tag && <span className={`opp-tag ${tag.cls}`}>{tag.label}</span>}
+                        </>
+                      ) : (
+                        <span className="opp-history-badge opp-history-new">NEW</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
