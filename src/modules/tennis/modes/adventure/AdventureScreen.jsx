@@ -41,6 +41,28 @@ const NODE_META = {
   rest: { icon: '🏕️', name: '营地', desc: '回复 50 点体力' },
 };
 
+/** 动态节点描述：结合当前状态给出可操作的奖励预览 */
+function getNodeDesc(node, chapterIdx, carryEnergy, tempEnergyMax, coins) {
+  const baseCoins = 40 + chapterIdx * 20;
+  switch (node.type) {
+    case 'battle':
+      if (node.boss) return `👑 BOSS！胜出约 +${baseCoins + 100}💰 + 装备`;
+      if (node.elite) return `⭐ 精英战，胜出约 +${baseCoins}💰 + 装备`;
+      return `胜出约 +${baseCoins}💰 + 随机装备`;
+    case 'event':
+      return '随机剧情 / 小游戏 → 💰 / 🎁装备 / 🃏卡牌';
+    case 'shop':
+      return `3 选 1 购卡或装备（当前 ${coins}💰）`;
+    case 'rest': {
+      const cap = 100 + tempEnergyMax;
+      const after = Math.min(cap, Math.round(carryEnergy) + 50);
+      return `体力 ${Math.round(carryEnergy)} → ${after} / ${cap}`;
+    }
+    default:
+      return NODE_META[node.type]?.desc ?? '';
+  }
+}
+
 function loadSnapshot() {
   try { return JSON.parse(sessionStorage.getItem(SNAPSHOT_KEY)); } catch { return null; }
 }
@@ -326,7 +348,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
                       : node.opponentId === 'family' ? '神秘的家人' : node.opponentId}
                   </em></span>
                 )}
-                <small className="adv-node-desc">{NODE_META[node.type].desc}</small>
+                <small className="adv-node-desc">{getNodeDesc(node, run.chapterIdx, run.carryEnergy, run.tempEnergyMax, progress.coins)}</small>
               </span>
             </button>
           ))}
