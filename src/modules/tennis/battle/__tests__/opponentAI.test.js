@@ -45,19 +45,21 @@ describe('pickOpponentMove', () => {
 });
 
 describe('makeTell 读招提示（75% 真实率）', () => {
-  it('truthRoll < 0.75 → 真提示', () => {
+  it('truthRoll < 0.75 → 真提示，hintMove 等于 actualMove', () => {
     const t = makeTell({ charName: '诚', actualMove: 'smash', truthRoll: 0.5, fakeRoll: 0 });
     expect(t.isTrue).toBe(true);
     expect(t.text).toBe(TELLS.smash);
+    expect(t.hintMove).toBe('smash');
   });
 
-  it('truthRoll ≥ 0.75 → 假提示且来自其它招', () => {
+  it('truthRoll ≥ 0.75 → 假提示且来自其它招，hintMove 在配招内', () => {
     const t = makeTell({ charName: '诚', actualMove: 'smash', truthRoll: 0.8, fakeRoll: 0 });
     expect(t.isTrue).toBe(false);
     expect(t.text).not.toBe(TELLS.smash);
-    // 假提示必须仍是该角色配招内的招式
-    const tellMove = Object.keys(TELLS).find((k) => TELLS[k] === t.text);
-    expect(CHAR_BUILDS['诚'].moves).toContain(tellMove);
+    expect(t.hintMove).not.toBe('smash');
+    expect(CHAR_BUILDS['诚'].moves).toContain(t.hintMove);
+    // 文案仍与 hintMove 对应
+    expect(t.text).toBe(TELLS[t.hintMove]);
   });
 
   it('八招都有提示文案', () => {

@@ -335,8 +335,18 @@ export function BattleScreen({
         {state.tell && state.phase === 'cards' && (
           <div className="bt-tell">
             {opponent.face} {showOppMove
-              ? <>出招已被透视：<b>{MOVES[state.oppMove].name}</b>！</>
-              : <>{state.tell.text}……</>}
+              ? <>
+                  出招已被透视：<b>{MOVES[state.oppMove].name}</b>！
+                  {COUNTER_FOR[state.oppMove] && (
+                    <small className="bt-tell-counter">💡 出「{MOVES[COUNTER_FOR[state.oppMove]].name}」克制！</small>
+                  )}
+                </>
+              : <>
+                  {state.tell.text}……
+                  {state.tell.hintMove && COUNTER_FOR[state.tell.hintMove] && (
+                    <small className="bt-tell-counter">💡 出「{MOVES[COUNTER_FOR[state.tell.hintMove]].name}」可克制</small>
+                  )}
+                </>}
           </div>
         )}
 

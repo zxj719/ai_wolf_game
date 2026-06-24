@@ -381,6 +381,10 @@
   border-radius: 12px; padding: 9px 14px; margin-bottom: 12px; font-style: italic;
 }
 .tennis-scope .bt-tell b { color: #9a4513; }
+.tennis-scope .bt-tell .bt-tell-counter {
+  display: block; font-size: .70rem; font-style: normal;
+  color: #1e4d38; opacity: .90; margin-top: 4px;
+}
 .tennis-scope .bt-hand { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
 .tennis-scope .bt-tp {
   font-family: var(--mono); font-weight: 700; color: var(--optic); background: var(--court);

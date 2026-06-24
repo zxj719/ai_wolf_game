@@ -70,10 +70,10 @@ export const TELLS = {
  */
 export function makeTell({ charName, build, actualMove, truthRoll, fakeRoll }) {
   if (truthRoll < 0.75) {
-    return { text: TELLS[actualMove], isTrue: true };
+    return { text: TELLS[actualMove], isTrue: true, hintMove: actualMove };
   }
   const moves = build?.moves ?? CHAR_BUILDS[charName].moves;
   const others = moves.filter((id) => id !== actualMove);
   const fake = others[Math.floor(fakeRoll * others.length)] ?? others[0];
-  return { text: TELLS[fake], isTrue: false };
+  return { text: TELLS[fake], isTrue: false, hintMove: fake };
 }
