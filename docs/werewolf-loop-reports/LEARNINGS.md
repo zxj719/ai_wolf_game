@@ -478,6 +478,9 @@
 109. ~~**预言家对跳三步法 few-shot 示例**~~ ✅ Round 53 已完成（before→after 对比框架 + Step A→B→C 示例；seer.js + ROLE_PERSONAS 降级路径三处同步；16/16 测试通过；构建洁净）
 110. **实局 smoke test**（53 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证对跳局面预言家发言是否出现三步法框架语言（"N[X]夜查/直接矛盾/为什么验这个人"），且不再出现纯声明式"我是真预言家"。
 111. **ROLE_PERSONAS vs rolePrompts 分叉治理**（长期）：当前三处路径（主路径/降级/seer.js）需手动同步。若差异持续扩大，可考虑将 ROLE_PERSONAS 改为动态从 rolePrompts 模块读取（需 9 角色回归测试）。
+112. ~~**村民 DAY_SPEECH Step 0 读写闭环 + LAST_WORDS identity_table 读取**~~ ✅ Round 54 已完成（村民思维链 Step0 + LAST_WORDS 好人/狼人分支先读 identity_table；24/24 测试通过；597/597 测试通过；构建洁净）
+113. **实局 smoke test**（54 轮未完成）：ECS 不在云端 allowlist；建议用户本地验证 D2+ 村民 thought 字段是否出现"历史推理积累"相关框架语言（引用上轮 confidence 最高的嫌疑人），以及死亡村民/狼人遗言是否出现读取 identity_table 后的历史判断而非纯临场分析。
+114. **读写闭环全量审计**（新常驻）：执行 `grep -n "Step0" src/services/aiPrompts.js` 列出所有已有 Step 0 的段落，与所有有 `identity_table 填写指导` 的段落对比，确认无新增缺口。对象：所有 NIGHT_* case、DAY_SPEECH（村民/狼人/预言家等）、LAST_WORDS、DAY_VOTE（是否需要）。
 
 ---
 
@@ -776,6 +779,27 @@
 - **精确规则**：区分两种类型的 `${}` 使用：① 在"[占位符]"格式说明区域（如"N[X]夜我查了[目标号]"）中使用已声明变量 → **违反 R18**；② 在 few-shot 示例中用有意义的命名动态变量（如 `ccIds`）填充情境 → **合法**，不是白熊效应触发点。白熊效应规则适用于"禁止词汇出现在禁止语境中"，不适用于"有意义的动态上下文注入"。
 - **验证方式**：T14 测试已验证：示例行中除 `ccIds` 外无其他变量插值，且 `ccIds` 是合法动态变量。
 - **通用规则更新**：改写 R18："指导文本的格式说明部分（如`reason 写"X; Y（格式）"`）不得用已声明变量名插值；few-shot 示例部分若需要情境化占位可以用有意义的命名动态变量。两者的区分标准是：是在解释格式还是在示范输出。"
+
+---
+
+### [2026-06-24 Round 54] 读写闭环扩展：DAY_SPEECH 村民 Step 0 + LAST_WORDS 身份推理表读取
+
+- **问题**：R38-R44 系统修复了所有 NIGHT_* case 的读写闭环（每个角色的 Step 0 读取历史 identity_table 标注），但遗漏了两个日间对称点：① 村民 DAY_SPEECH 思维链无 Step 0（有写指导，无读取步骤）；② LAST_WORDS 的好人/村民 fallback 和狼人分支均未引导 AI 读取积累的 identity_table。
+- **根因**：读写闭环的"写侧"（identity_table 填写指导）在 R18-R24 期间已全面补全，但"读侧"（Step 0 读取步骤）的覆盖止步于 NIGHT_* 阶段，未延伸到 DAY_SPEECH 和 LAST_WORDS。
+- **修复**：
+  1. 村民 DAY_SPEECH 思维链新增 Step 0：读取历史推理积累（confidence ≥ 60 → 高嫌疑起点，confidence ≤ 30 → 信任候选；首日无历史可跳过）
+  2. LAST_WORDS 好人 fallback：先查身份推理表 → confidence 最高的玩家作为遗言核心
+  3. LAST_WORDS 狼人分支：先查身份推理表 → confidence 最高（威胁最大）的好人作为遗言"怀疑"目标（维持整局逻辑一致性）；不点"高优先刀口"字面量（R30 白熊效应规则）
+- **影响范围**：村民是最高频角色，DAY_SPEECH Step 0 影响每局 D2+ 的所有村民发言；LAST_WORDS 读取影响每局每个死亡角色的遗言质量。
+- **教训**：读写闭环的修复义务不区分"夜间阶段"和"白天阶段"——只要有写指导（identity_table 填写）且有对应的读取时机（下一次该角色行动），就应该有显式的读取步骤（Step 0）。检查方法：`grep -n "Step0\|身份推理表" src/services/aiPrompts.js` 列出所有读取步骤，逐一确认所有有写指导的角色+阶段是否配套。
+
+---
+
+### [2026-06-24 Round 54] 测试窗口大小：LAST_WORDS else 分支在长 if-else 链末尾，需要 4500+ 字节
+
+- **问题**：LAST_WORDS case 块的 else 分支（好人 fallback）位于 if-else-if 链末尾（9个 if-else-if 之后），距离 `case PROMPT_ACTIONS.LAST_WORDS: {` 约 3467 字符。使用 3000 字节窗口导致 T13/T14 两个测试误报 FAIL。
+- **修复**：将 LAST_WORDS case 段的测试窗口从 3000 改为 4500（R24 教训：窗口 = 实际距离 × 130%）。
+- **通用规则更新**：LAST_WORDS case 的测试窗口不应小于 5000。凡是扫描"长 if-else 链末尾分支"的测试，先用 node -e 命令确认 distance，再设窗口为 distance × 130%。
 
 ---
 
