@@ -186,6 +186,11 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
           <span className="ladder-stage">第 {ladder.stage + 1} / {STAGE_COUNT} 站</span>
           {ladder.stage > 0 && <span className={`ladder-streak${ladder.stage >= 5 ? ' streak-gold' : ladder.stage >= 3 ? ' streak-pulse' : ''}`}>🔥 {ladder.stage}连胜</span>}
         </div>
+        {ladder.stage === 0 && CHAR_BUILDS[opponent.name] && (
+          <p className="hint opp-style-preview">
+            ⚔️ {CHAR_BUILDS[opponent.name].style}：{CHAR_BUILDS[opponent.name].moves.map(m => MOVES[m]?.name ?? m).join(' / ')}
+          </p>
+        )}
         <BattleScreen
           key={ladder.stage}
           player={player}
