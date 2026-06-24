@@ -445,6 +445,11 @@
 .tennis-scope .bt-vs .pill.win { background: rgba(217,255,61,.55); font-weight: 700; }
 .tennis-scope .bt-vs .pill.lose { background: rgba(226,129,79,.3); }
 .tennis-scope .bt-rallylog p { text-align: center; font-size: .92rem; margin: 0; }
+.tennis-scope .bt-rallylog .bt-counter-tip {
+  font-size: .72rem; color: var(--optic); opacity: .75; margin-top: 5px;
+  animation: bt-tip-in .35s ease both;
+}
+@keyframes bt-tip-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: .75; transform: none; } }
 
 /* ============ v2 商店 / 家族挑战 / 绝技换装 ============ */
 .tennis-scope .shop-overlay {

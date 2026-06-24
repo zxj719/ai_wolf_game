@@ -203,6 +203,7 @@ function RallyLog({ state }) {
   const r = state.lastRally;
   if (!r) return null;
   const quip = COUNTER_QUIPS[`${r.pMove}>${r.oppMove}`];
+  const counterForOpp = COUNTER_FOR[r.oppMove];
   return (
     <div className="bt-rallylog">
       <div className="bt-vs">
@@ -221,6 +222,11 @@ function RallyLog({ state }) {
           : r.win ? '🎉 这一分是你的！' : '😤 对手拿下此分。'}
         {r.tie ? '（平分，鹰眼回放偏向主队 🦅）' : ''}
       </p>
+      {!r.win && counterForOpp && (
+        <p className="bt-counter-tip">
+          💡 「{MOVES[r.oppMove].name}」被「{MOVES[counterForOpp].name}」克制
+        </p>
+      )}
     </div>
   );
 }
