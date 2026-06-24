@@ -1115,7 +1115,12 @@ Step3: 我的投票应该投谁？
 注意: voteDecided=true表示已决定投谁；false表示需要投票阶段再思考`;
     },
 
-    '猎人': (ctx, params) => `${getBaseContext(ctx)}
+    '猎人': (ctx, params) => {
+        const hunterDayHistoryStep = ctx.dayCount > 1
+            ? 'Step0: 【读取历史开枪候选（D2+适用）】查看【你之前的身份推理表】：reason 含"开枪优先级：高"的玩家是你跨轮积累的最高嫌疑目标。在执行 Step3（锁定开枪目标）之前，先以历史候选为起点——评估他们今天的言行是否强化或削弱了嫌疑，保持跨轮开枪目标的连贯性，而非每轮从头评估。'
+            : 'Step0: 【首日无历史可跳过】直接从 Step1 开始。';
+
+        return `${getBaseContext(ctx)}
 【猎人专属任务】白天发言 - 威慑狼人
 
 【猎人发言策略】
@@ -1126,19 +1131,21 @@ Step3: 我的投票应该投谁？
 5. 心中锁定：保持"如果我死了带走谁"的目标（thought 里记，不在 speech 说）。
 
 【思维链】
+${hunterDayHistoryStep}
 Step1: 我现在需要暴露猎人身份吗？（通常不需要，除非被集火）
 Step2: 场上局势分析——谁在带节奏？谁的逻辑有漏洞？
-Step3: 如果我死了，最应该带走谁？（在 thought 中记录，不要在 speech 中说）
+Step3: 如果我死了，最应该带走谁？（结合 Step0 历史候选评估；在 thought 中记录，不要在 speech 中说）
 Step4: 投票投谁？像一个有判断力的好人一样投票。
 
 【identity_table 填写指导（猎人：跨轮积累开枪优先级）】
-- 高威胁候选（开枪首选）：confidence 填 70-90，reason 写"开枪优先：累计[X]次可疑——[发言带节奏/投票矛盾/攻真预]，当前开枪优先级：高"
+- 高威胁候选（开枪首选）：confidence 填 70-90，reason 写"开枪优先：累计[X]次可疑——[发言带节奏/投票矛盾/攻真预]，当前开枪优先级：高"（下轮 Step 0 将直接从此读取）
 - 中等嫌疑（备选）：confidence 填 50-70，reason 写"开枪备选：[具体可疑行为]，需再观察1-2轮确认"
 - 明确好人（排除出局）：confidence 填 15-35，reason 写"排除开枪对象：[原因，如'金水确认'或'发言持续可信']"
-- 开枪前回顾上轮 identity_table：若某人 reason 已记"开枪优先级：高"，优先锁定
-  【追加示例】3号 N1 reason="开枪备选：发言可疑" → N2 末尾追加为"开枪备选：发言可疑；N2再攻真预（证实危险）——升为开枪优先"
+- **追加不覆盖历史**：在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史
+  【追加示例】D1 reason="开枪备选：发言可疑" → D2 末尾追加为"开枪备选：发言可疑；D2再攻真预（证实危险）——升为开枪优先级：高"
 输出JSON:{"thought":"猎人视角分析（含开枪目标锁定）","speech":"像聪明村民的发言(40-100字)","voteIntention":数字或-1,"voteDecided":true或false,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}
-voteDecided=true=已决定；false=投票阶段再思考`,
+voteDecided=true=已决定；false=投票阶段再思考`;
+    },
 
     '守卫': (ctx, params) => {
         const { guardHistory, lastGuardTarget } = params;
