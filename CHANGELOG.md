@@ -2,6 +2,18 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-24] 网球 Round 71 — 连胜战绩双档 CSS 动画
+
+### 新功能
+- **连胜动画强化**：`ladder-streak` 徽章新增两档动画；3–4 连胜激活橙色脉冲（glow + scale），5+ 连胜升级金光闪烁（clay→#f5b400 呼吸）；ResultScreen 与 LadderScreen（进度条 + 赛间标题）三处同步
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/tennis/tennis.css` | 修改 | 新增 `@keyframes streakPulse/streakGold` + 2 修饰类 |
+| `src/modules/tennis/components/ResultScreen.jsx` | 修改 | 徽章 className 动态注入 streak-pulse/streak-gold |
+| `src/modules/tennis/modes/LadderScreen.jsx` | 修改 | 同上，覆盖对局中进度条和赛间标题两处徽章 |
+
 ## [2026-06-22] Round 46 — 四项静默 Bug 修复（数据传递链断裂）
 
 ### Bug 修复
