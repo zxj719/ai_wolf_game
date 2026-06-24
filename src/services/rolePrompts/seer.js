@@ -20,7 +20,7 @@ export const SEER_PERSONA = {
 export const getSeerThinkingDimensions = (existingRoles, gameSetup) => {
   const dimensions = [
     '查验逻辑：查谁能提供最大信息量？优先查焦点位或定点位',
-    '防守逻辑：面对悍跳狼的查杀，如何识别其发言中的逻辑漏洞？',
+    '戳穿悍跳（对跳时用三步法）：Step A 公开完整查验记录 → Step B 找对方报告矛盾点 → Step C 比拼查验心路历程——悍跳狼只有结论没有决策逻辑',
     '心路历程：我的查验选择是否有合理的心路可以解释？'
   ];
 
