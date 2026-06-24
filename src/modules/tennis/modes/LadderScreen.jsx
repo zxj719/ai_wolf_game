@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { BattleScreen } from '../battle/BattleScreen';
-import { CHAR_BUILDS, ULTIMATES } from '../battle/moves';
+import { CHAR_BUILDS, ULTIMATES, MOVES } from '../battle/moves';
 import { CARDS } from '../battle/cards';
 import { createLadder, ladderReducer, STAGE_COUNT } from './ladderReducer';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
@@ -219,6 +219,11 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
                   ? `，历史 ${vsNextHistory.length} 战 ${vsNextWins} 胜 ${vsNextHistory.length - vsNextWins} 负`
                   : '，首次对阵'}
               </p>
+              {CHAR_BUILDS[nextOppForBetween.name] && (
+                <p className="hint opp-style-preview">
+                  ⚔️ {CHAR_BUILDS[nextOppForBetween.name].style}：{CHAR_BUILDS[nextOppForBetween.name].moves.map(m => MOVES[m]?.name ?? m).join(' / ')}
+                </p>
+              )}
               <p className="hint between-suggest" style={{ marginBottom: 14 }}>
                 {getBetweenAdvice(vsNextWinRate, vsNextHistory.length)}
               </p>
