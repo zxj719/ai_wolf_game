@@ -17,6 +17,13 @@ const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 
 const SYSTEM_ICONS = { power: '🔨', spin: '🌀', net: '🥅', control: '🧠' };
 
+// victim move → its first counter (derived from COUNTER_QUIPS key format 'a>b')
+const COUNTER_FOR = {};
+Object.keys(COUNTER_QUIPS).forEach(key => {
+  const [a, b] = key.split('>');
+  if (!COUNTER_FOR[b]) COUNTER_FOR[b] = a;
+});
+
 function ScorePanel({ state }) {
   const { score, player, opponent } = state;
   return (
@@ -218,6 +225,25 @@ function RallyLog({ state }) {
   );
 }
 
+/** 关键分读招提示：仅在 isKeyPoint + cards 阶段 + 对手已用某招 ≥2 次时显示 */
+function CrisisHint({ matchStats, score, phase }) {
+  if (phase !== 'cards' || !isKeyPoint(score)) return null;
+  const usage = matchStats?.oppMoveUsage ?? {};
+  const top = Object.entries(usage).sort((a, b) => b[1] - a[1])[0];
+  if (!top || top[1] < 2) return null;
+  const [moveId, count] = top;
+  const counter = COUNTER_FOR[moveId];
+  return (
+    <div className="bt-crisis-hint">
+      <span className="bt-crisis-icon">⚡</span>
+      <span className="bt-crisis-text">
+        关键分！对手惯用「{MOVES[moveId]?.name}」(×{count})
+        {counter ? <>，出「{MOVES[counter]?.name}」可克制</> : '，注意读招'}
+      </span>
+    </div>
+  );
+}
+
 /**
  * @param {{player, opponent, deckInstances, ultimate?, twists?, equip?, playerMoves,
  *          onMatchOver: (result: {score, matchStats}) => void}} props
@@ -321,6 +347,7 @@ export function BattleScreen({
             {state.activeUltimate && (
               <div className="bt-ult-armed">⚡ 绝技已就绪 —— 本球生效！</div>
             )}
+            <CrisisHint matchStats={state.matchStats} score={state.score} phase={state.phase} />
             <HandCards deck={state.deck} onPlay={(idx) => dispatch({ type: 'PLAY_CARD', idx })} />
             <MovePicker
               state={fullState}
