@@ -284,6 +284,23 @@ function CrisisHint({ matchStats, score, phase }) {
   );
 }
 
+/** 近球攻防趋势点阵：绿=克中 / 红=被克 / 灰=普通；0 球时不渲染 */
+function RallyTrend({ rallyLog }) {
+  if (!rallyLog.length) return null;
+  const dots = rallyLog.slice(-7);
+  return (
+    <div className="bt-rally-trend" aria-label="近球攻防趋势">
+      {dots.map((r, i) => {
+        const type = r.counterMul > 1 && r.win && !r.hawkeyeSaved ? 'won'
+          : r.counterMul < 1 && !r.win ? 'lost' : 'neutral';
+        return <span key={i} className={`bt-rt-dot ${type}`} title={
+          type === 'won' ? '克中' : type === 'lost' ? '被克' : '普通'
+        } />;
+      })}
+    </div>
+  );
+}
+
 /** 实时攻防压力芯片：克中得分 vs 被克失分，0/0 时隐藏 */
 function DefensePressure({ countersWon, counterLost }) {
   if (!countersWon && !counterLost) return null;
@@ -384,6 +401,7 @@ export function BattleScreen({
         countersWon={state.matchStats.countersWon}
         counterLost={state.matchStats.counterLost ?? 0}
       />
+      <RallyTrend rallyLog={state.rallyLog} />
 
       <div className="card flat bt-arena-card">
         {state.tell && state.phase === 'cards' && (

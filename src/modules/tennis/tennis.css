@@ -381,6 +381,11 @@
 .tennis-scope .bt-dp-chip.lost { color: rgba(242,238,224,.5); background: rgba(242,238,224,.07); }
 .tennis-scope .bt-dp-chip.lost.warn { color: #d9814f; background: rgba(217,129,79,.18); }
 .tennis-scope .bt-dp-chip.lost.danger { color: var(--clay); background: rgba(194,94,29,.22); font-size: .72rem; }
+.tennis-scope .bt-rally-trend { display: flex; justify-content: center; gap: 5px; padding: 0 0 6px; min-height: 16px; }
+.tennis-scope .bt-rt-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.tennis-scope .bt-rt-dot.won { background: #4caf76; box-shadow: 0 0 4px rgba(76,175,118,.5); }
+.tennis-scope .bt-rt-dot.lost { background: var(--clay, #cc4444); box-shadow: 0 0 4px rgba(194,94,29,.4); }
+.tennis-scope .bt-rt-dot.neutral { background: rgba(242,238,224,.2); }
 .tennis-scope .bt-arena-card { min-height: 320px; }
 .tennis-scope .bt-tell {
   font-size: .9rem; color: var(--card-ink); background: rgba(217,255,61,.25);
