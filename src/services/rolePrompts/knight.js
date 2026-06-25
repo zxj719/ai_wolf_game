@@ -190,7 +190,7 @@ Step5: 投票倾向（如果未决斗）
 - 确认好人/真神职：reason 写"铁好人：[依据]；禁止决斗"（防止误伤）
 - 行为中立玩家：正常记录推断，不加"决斗候选"标签
 - 已决斗出局目标：reason 追加"→已决斗出局"
-- 每轮在上轮 reason 基础上追加本轮新观察，不要覆盖历史
+- **追加不覆盖历史**：每轮在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史积累
 
 输出JSON:{\"thought\":\"完整的6步思维链（含Step0读历史）\",\"speech\":\"发言内容(40-80字)\",\"shouldDuel\":true/false,\"duelTarget\":数字或null,\"duelReason\":\"决斗理由（如果shouldDuel=true）\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
 };

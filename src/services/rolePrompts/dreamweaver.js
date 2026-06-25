@@ -87,6 +87,11 @@ export const getDreamweaverDaySpeechPrompt = (ctx, params) => {
     ? `你昨晚入梦了 ${lastDreamTarget}号`
     : '你昨晚未入梦（异常情况）';
 
+  // R60 DAY→DAY 读写闭环：历史连梦候选读取步骤（与 NIGHT_DREAMWEAVER Step 0 共用"连梦候选"关键词）
+  const dreamweaverDayHistoryStep = ctx.dayCount > 1
+    ? 'Step0: 【读取历史连梦候选与防御目标（D2+适用）】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"连梦候选"标注？将其作为今晚进攻策略的评估起点（结合今日新发言判断是否升级/降级威胁；已死亡目标跳过）。含"防御入梦候选"的玩家是今晚优先入梦的保护对象。'
+    : 'Step0: 【首日无历史候选记录】直接从 Step1 开始——今天是第一天，尚无跨轮积累的连梦/防御候选。';
+
   return `${getBaseContext(ctx)}
 【摄梦人专属任务】白天发言 - 隐藏身份与逻辑输出
 
@@ -132,6 +137,7 @@ ${lastNightInfo}
   → 白天可以适时透露信息（如果该目标是狼）
 
 【思维链（必须完成）】
+${dreamweaverDayHistoryStep}
 Step1: 昨晚入梦回顾
   - 我入梦了谁？为什么入梦TA？
   - 今早TA的状态如何？
@@ -159,6 +165,7 @@ Step5: 投票倾向
   【追加示例】上轮 reason="可疑" → 本轮追加为"可疑；连梦候选：白天N2发言悍跳逻辑升级，威胁等级：高"
 - 防御保护核心好人：confidence 填 55-75，reason 写"防御入梦候选：[判断为真预/关键神职]，入梦优先，绝不连梦"
 - 殉情备选目标（预感自己被刀时）：confidence 填 70-90，reason 写"殉情目标候选：[判断理由]，准备拉垫背"
+- **追加不覆盖历史**：每轮在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史积累
 - 已入梦过的玩家：reason 追加"N[X]夜已入梦→[存活/死亡]"（不要覆盖历史记录）
 输出JSON:{\"thought\":\"完整的5步思维链\",\"speech\":\"发言内容(40-80字)\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
 };
