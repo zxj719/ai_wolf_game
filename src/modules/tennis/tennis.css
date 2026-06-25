@@ -375,6 +375,12 @@
 .tennis-scope .bt-energy.tired .bt-energy-bar i { background: linear-gradient(90deg, #b08a3e, #e2c14f); }
 .tennis-scope .bt-energy.spent .bt-energy-bar i { background: linear-gradient(90deg, #8a3e3e, var(--clay)); }
 .tennis-scope .bt-energy-num { font-size: .8rem; color: rgba(242,238,224,.85); min-width: 28px; text-align: right; }
+.tennis-scope .bt-defense-pressure { display: flex; gap: 8px; justify-content: center; margin: -6px 0 8px; }
+.tennis-scope .bt-dp-chip { font-size: .7rem; font-weight: 700; padding: 2px 9px; border-radius: 12px; letter-spacing: .02em; }
+.tennis-scope .bt-dp-chip.won { color: #4caf76; background: rgba(44,154,74,.14); }
+.tennis-scope .bt-dp-chip.lost { color: rgba(242,238,224,.5); background: rgba(242,238,224,.07); }
+.tennis-scope .bt-dp-chip.lost.warn { color: #d9814f; background: rgba(217,129,79,.18); }
+.tennis-scope .bt-dp-chip.lost.danger { color: var(--clay); background: rgba(194,94,29,.22); font-size: .72rem; }
 .tennis-scope .bt-arena-card { min-height: 320px; }
 .tennis-scope .bt-tell {
   font-size: .9rem; color: var(--card-ink); background: rgba(217,255,61,.25);

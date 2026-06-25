@@ -284,6 +284,22 @@ function CrisisHint({ matchStats, score, phase }) {
   );
 }
 
+/** 实时攻防压力芯片：克中得分 vs 被克失分，0/0 时隐藏 */
+function DefensePressure({ countersWon, counterLost }) {
+  if (!countersWon && !counterLost) return null;
+  const lostTier = counterLost >= 4 ? 'danger' : counterLost >= 2 ? 'warn' : '';
+  return (
+    <div className="bt-defense-pressure">
+      {counterLost > 0 && (
+        <span className={`bt-dp-chip lost ${lostTier}`}>🛡 被克 {counterLost}</span>
+      )}
+      {countersWon > 0 && (
+        <span className="bt-dp-chip won">⚔️ 克中 {countersWon}</span>
+      )}
+    </div>
+  );
+}
+
 /**
  * @param {{player, opponent, deckInstances, ultimate?, twists?, equip?, playerMoves,
  *          onMatchOver: (result: {score, matchStats}) => void}} props
@@ -364,6 +380,10 @@ export function BattleScreen({
         <EnergyBar label={player.face} value={state.pEnergy} max={state.pEnergyMax} />
         <EnergyBar label={opponent.face} value={state.oEnergy} />
       </div>
+      <DefensePressure
+        countersWon={state.matchStats.countersWon}
+        counterLost={state.matchStats.counterLost ?? 0}
+      />
 
       <div className="card flat bt-arena-card">
         {state.tell && state.phase === 'cards' && (
