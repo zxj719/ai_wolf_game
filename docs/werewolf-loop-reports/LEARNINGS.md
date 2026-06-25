@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-06-25 Round 63] DAY_VOTE 读写闭环全量完成：4 角色专属框架 + 守卫/女巫有意 fallback
+
+- **问题**：骑士 DAY_SPEECH（knight.js getKnightDaySpeechPrompt，R44 补全）写"决斗候选：[优先级A/B/C]"到 identity_table，但 DAY_VOTE 长期走通用分支——通用分支不读 identity_table，骑士多轮积累的决斗候选在投票阶段被完全忽略。与 R61/R62 狼人/猎人 DAY_VOTE 感知-执行分裂完全同构（第三个同构实例）。
+- **修复**：新增 `knightVoteStrategy`（双状态框架）：①技能待用：读取 identity_table "决斗候选"存活目标 → 投票首选对齐决斗方向（能出局→全力推票节省决斗；不能→仍然投积累认知）②已使用决斗：作为公开领袖用 1.5 票权重带动票型。形成 knight.js DAY_SPEECH写→aiPrompts.js DAY_VOTE读 闭环。
+- **DAY_VOTE 完成状态（R63 后，里程碑）**：狼人✅(R61)、预言家✅(pre-existing)、猎人✅(R62)、骑士✅(R63)。守卫/女巫/摄梦人/魔术师/村民走通用 fallback 是**有意设计**（守卫写"守护优先级"≠投票候选；女巫"毒药候选"是夜间独立决策）——DAY_VOTE 专属分支已**全量完成**，没有遗漏。
+- **vote-duel 对齐原则（通用化）**：凡是角色有"一次性技能"（骑士决斗/猎人开枪），相关 DAY_SPEECH 积累的"技能候选"必须在 DAY_VOTE 中有对应读取框架——投票方向与技能行动方向对齐，使技能资源利用率最大化（能用投票出局就节省技能）。
+- **工具互补性原则**：骑士决斗和投票是顺序互补工具——如果决斗候选可被群体投票出局，优先使用投票（节省一次性决斗）；无法翻转票型时再决斗。这是竞技狼人杀中"稀缺资源保留"的博弈论原则。
+- **同构检测自动化**：下次修任何 DAY_VOTE 分支时，用 `grep -n "决斗候选\|开枪优先级：高\|高优先刀口\|毒药优先候选\|守护优先级：高" src/services/aiPrompts.js src/services/rolePrompts/*.js` 列出所有 identity_table 行动候选写入，对比 DAY_VOTE 中的专属分支，可快速验证无新缺口。
+- **测试**：749/749 全量通过（10 new）；build ✅；check-build ✅；inline 6/6 通过。
+
+---
+
 ### [2026-06-25 Round 62] 猎人 DAY_VOTE 读写闭环补完：刀票对齐框架
 
 - **问题**：猎人 DAY_SPEECH（D2+）写"开枪优先级：高"到 identity_table，HUNTER_SHOOT 读取，但 DAY_VOTE 长期走通用分支——通用分支不读 identity_table，积累的开枪候选在投票阶段完全被忽略。与 R61 狼人 DAY_VOTE 感知-执行分裂完全同构（只是在好人阵营侧）。
