@@ -153,8 +153,8 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
     toast(`🎁 掉落：${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰`);
 
     dispatchLadder(win
-      ? { type: 'MATCH_WON', remainingEnergy: pEnergy, drop, coins }
-      : { type: 'MATCH_LOST', drop, coins });
+      ? { type: 'MATCH_WON', remainingEnergy: pEnergy, drop, coins, matchStats }
+      : { type: 'MATCH_LOST', drop, coins, matchStats });
   }, [ladder.stage, opponent, progress, onUpdateProgress, toast, basePlayer.name]);
 
   // 球王加冕：championships+1 + 成就（一次性）
@@ -216,6 +216,22 @@ export function LadderScreen({ basePlayer, progress, onUpdateProgress, equippedU
             击败 {opponent.face} {opponent.name}，解锁绝技「{ladder.unlockedThisRun[ladder.unlockedThisRun.length - 1]}」！
             下一站对手更强——赛间做点什么？
           </p>
+          {ladder.lastMatchStats && (() => {
+            const { countersWon = 0, counterLost = 0 } = ladder.lastMatchStats;
+            let adviceText;
+            if (counterLost > countersWon + 1) adviceText = '⚠ 被读穿较多，下场注意变招';
+            else if (countersWon > counterLost + 1) adviceText = '✨ 读招精准，继续保持';
+            else adviceText = '攻防相当';
+            return (
+              <p className="hint between-defense-review">
+                🔁 上场攻防：
+                {countersWon > 0 && <span className="bdp-won">⚔️ 克中 {countersWon}</span>}
+                {counterLost > 0 && <span className={`bdp-lost${counterLost >= 3 ? ' bdp-warn' : ''}`}>🛡 被克 {counterLost}</span>}
+                {countersWon === 0 && counterLost === 0 && <span>平手无克制</span>}
+                <span className="bdp-advice"> — {adviceText}</span>
+              </p>
+            );
+          })()}
           {nextOppForBetween && (
             <>
               <p className="hint">

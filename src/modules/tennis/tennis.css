@@ -823,6 +823,11 @@
 .tennis-scope .opp-style-preview { font-size: .78rem; font-family: var(--mono); color: var(--muted); margin: -8px 0 10px; opacity: .9; }
 .tennis-scope .ladder-bar + .opp-style-preview { margin: 4px 0 2px; text-align: center; }
 .tennis-scope .between-suggest { font-size: .82rem; color: var(--clay); font-weight: 600; opacity: .88; }
+.tennis-scope .between-defense-review { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .78rem; margin: -4px 0 12px; }
+.tennis-scope .bdp-won { color: #4caf76; font-weight: 700; }
+.tennis-scope .bdp-lost { color: rgba(242,238,224,.6); font-weight: 700; }
+.tennis-scope .bdp-lost.bdp-warn { color: #d9814f; }
+.tennis-scope .bdp-advice { color: var(--muted); font-style: italic; }
 .tennis-scope .opp-tag { font-size: .68rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
 .tennis-scope .opp-tag-recommend { background: rgba(110,231,183,.18); color: #6ee7b7; }
 .tennis-scope .opp-tag-rival { background: rgba(248,113,113,.18); color: #f87171; }

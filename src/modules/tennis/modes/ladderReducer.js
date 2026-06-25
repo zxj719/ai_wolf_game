@@ -39,6 +39,7 @@ export function createLadder({ playerName, rng }) {
     status: 'fighting',      // fighting | between | won | lost
     carryEnergy: 100,
     lastRemainingEnergy: 0,
+    lastMatchStats: null,    // { countersWon, counterLost, aces, clutchWins } from last match
     massageBonus: 0,
     bonusStats: { sta: 0, skill: 0, mind: 0 },
     drops: [],
@@ -70,6 +71,7 @@ export function ladderReducer(state, action) {
       const next = {
         ...state,
         lastRemainingEnergy: action.remainingEnergy ?? 0,
+        lastMatchStats: action.matchStats ?? null,
         drops: action.drop ? [...state.drops, action.drop] : state.drops,
         coinsEarned: state.coinsEarned + (action.coins ?? 0),
         unlockedThisRun: ult ? [...state.unlockedThisRun, ult] : state.unlockedThisRun,
@@ -82,6 +84,7 @@ export function ladderReducer(state, action) {
       return {
         ...state,
         status: 'lost',
+        lastMatchStats: action.matchStats ?? null,
         drops: action.drop ? [...state.drops, action.drop] : state.drops,
         coinsEarned: state.coinsEarned + (action.coins ?? 0),
       };
