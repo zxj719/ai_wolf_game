@@ -61,6 +61,29 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
       }));
   }, [matchStats]);
 
+  const topPlayerMoves = useMemo(() => {
+    if (!matchStats?.moveUsage) return [];
+    return Object.entries(matchStats.moveUsage)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([moveId, count]) => ({
+        moveId,
+        count,
+        name: MOVES[moveId]?.name ?? moveId,
+        icon: MOVE_ICONS[moveId] ?? '🎾',
+        beatenBy: COUNTER_FOR[moveId] ? MOVES[COUNTER_FOR[moveId]]?.name : null,
+      }));
+  }, [matchStats]);
+
+  const playerSelfNote = useMemo(() => {
+    if (!topPlayerMoves.length) return null;
+    const top1 = topPlayerMoves[0];
+    if (top1.beatenBy) {
+      return `你最常出「${top1.name}」，对手若出「${top1.beatenBy}」可以克制你，下次注意换招`;
+    }
+    return null;
+  }, [topPlayerMoves]);
+
   const nextAdvice = useMemo(() => {
     if (!topOppMoves.length) return null;
     const top1 = topOppMoves[0];
@@ -158,6 +181,22 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           </div>
           {matchStats.countersWon >= 2 && (
             <p className="counter-hl">🎯 本场克制得分 {matchStats.countersWon} 次！</p>
+          )}
+          {topPlayerMoves.length > 0 && (
+            <div className="player-moves-section">
+              <div className="player-moves-title">🧠 你本场偏爱</div>
+              <div className="opp-moves-row">
+                {topPlayerMoves.map(({ moveId, count, name, icon, beatenBy }) => (
+                  <div key={moveId} className="player-move-chip">
+                    <span className="omc-icon">{icon}</span>
+                    <span className="omc-name">{name}</span>
+                    <span className="omc-count">×{count}</span>
+                    {beatenBy && <span className="pmc-beaten">被克：{beatenBy}</span>}
+                  </div>
+                ))}
+              </div>
+              {playerSelfNote && <p className="player-self-note">⚠️ {playerSelfNote}</p>}
+            </div>
           )}
           {topOppMoves.length > 0 && (
             <div className="opp-moves-section">
