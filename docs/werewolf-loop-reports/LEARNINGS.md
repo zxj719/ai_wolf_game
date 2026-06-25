@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-06-25 Round 61] 干跑模拟完成：45 项核心机制测试全通过，并修复狼人 DAY_VOTE 感知-执行分裂
+
+- **干跑模拟（第一次！）**：R61 编写了 `.tmp/dry-run-sim.mjs`，纯函数重现 `resolveNight` / `checkGameEnd` / 猎人连锁 / 投票计票逻辑，共 23 用例 45 断言，全部通过。验证了：基础狼刀、守卫救、女巫救、同守同救（双保死亡）、摄梦人入梦免疫（刀/毒均免疫）、连梦击杀（第2夜同目标死亡不可救）、摄梦人死亡触发同生共死、魔术师交换、猎人连锁开枪（最大深度3）、胜负判定（含屠边/屠城/通用规则）、投票计票（含警长1.5倍权重）、平票pk判断、女巫同晚救+毒（毒作废）、平安夜。
+- **狼人 DAY_VOTE 感知-执行分裂修复**：`DAY_VOTE` case 中狼人投票策略仅 1 行（"考虑：投谁最大化狼队利益？"），而好人侧有 24 行含 Step A/B 热力图框架。这是 R26/R33/R37 "感知-执行分裂"反模式在投票阶段的重现——狼人的 identity_table 里有"高优先刀口"标注，但 DAY_VOTE 无任何框架指引如何使用它。**修复**：替换为 3 点框架：① 读取 identity_table "高优先刀口"存活目标 → 首选投票方向；② 3 种姿态选择（正常/防守/残局）；③ 掩护一致性（维持发言 voteIntention，改票须台词铺垫）。
+- **读写闭环延伸**：DAY_VOTE 狼人现在读取 DAY_SPEECH 写入的"高优先刀口"标注，形成 DAY_SPEECH写→DAY_VOTE读 的新闭环（不增加新关键词，复用已有的"高优先刀口"）。
+- **教训**：DAY_VOTE 是一个常被忽视的"读写闭环读取点"——角色在 DAY_SPEECH 中写入的 voteIntention 和 identity_table，应该在 DAY_VOTE 中通过明确框架被读取和执行，而不是让 AI 凭感觉投票。凡是有"前置发言写入 voteIntention"的角色，都应在 DAY_VOTE 中有对应读取框架。
+- **测试**：739/739 全量通过（1 个预存在的 ws 依赖失败，与本次无关）；构建洁净；干跑模拟 45/45 通过。
+
+---
+
 ### [2026-06-25 Round 60] 特殊角色在独立文件中实现，DAY Step 0 审计必须单独覆盖这些文件
 
 - **问题**：R54-R58 为主路径 6 个角色（wolf/hunter/seer/witch/guard/villager）补全了 DAY_SPEECH Step 0，骑士在 R44 也已完成；但摄梦人（dreamweaver.js）和魔术师（magician.js）均缺少 DAY_SPEECH Step 0 长达 16 轮。摄梦人/魔术师的 NIGHT Step 0 是有的（aiPrompts.js 的 NIGHT_DREAMWEAVER / R43 的 magicianHistoryStep），但 DAY 侧完全缺失。
@@ -878,5 +888,8 @@
 2. ~~**预言家 DAY_SPEECH Step 0**~~ ✅ Round 57 已完成（seerDayHistoryStep + 思维链 Step0 + Step3 引用 + 写指导追加格式 + DAY→NIGHT→DAY 四环关键词对齐；25/25 测试通过；664/664 全量测试通过）
 3. **女巫 DAY_SPEECH Step 0**（R58 建议）：女巫 NIGHT_WITCH 写指导有 `毒药优先候选` 关键词（R42），但 DAY_SPEECH 思维链无 Step 0 读取。女巫白天发言前应从历史积累的毒药候选起步，评估今天是否可公开压制。优先级高于守卫（女巫的毒药是主动出击技，错误目标代价极高）。可与守卫一并完成，关闭全部大神职 DAY_SPEECH 读写闭环。
 4. **守卫 DAY_SPEECH Step 0**（R58 同步完成候选）：守卫 NIGHT_GUARD 写指导有 `守护优先级：高/中` 关键词（R40），但 DAY_SPEECH 思维链无 Step 0 读取。
-5. **实局 smoke test**（57 轮未完成，最高持续优先级）：ECS 不在云端 allowlist；建议用户本地验证 D2+ 预言家 thought 是否引用"历史查验候选队列""排队查验优先级"等跨轮连贯性语言，是否对同一候选保持连贯关注。
+5. ~~**干跑模拟**~~ ✅ Round 61 已完成（45/45 断言通过，覆盖夜间行动/胜负/猎人链/投票；脚本位于 scratchpad/dry-run-sim.mjs）
+6. **实局 smoke test**（61 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察 D2+ 摄梦人/魔术师 thought 是否引用"历史连梦候选"/"换刀候选"。
+7. **DAY_VOTE 其他角色框架审计**（R61 新建议）：除狼人外，其他角色（猎人/守卫/村民）的 DAY_VOTE 策略文字也偏简单。可考虑在 R62 按角色复杂度顺序逐一补全（优先猎人——猎人有"开枪优先"候选积累，投票时应读取这个历史）。
+8. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。可在某轮代码清理时顺手完成。
 
