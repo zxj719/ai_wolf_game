@@ -77,7 +77,7 @@ export function createBattle({ player, opponent, deckInstances, rng, ultimate, t
     activeUltimate: null,
     lastRally: null,
     rallyLog: [],
-    matchStats: { aces: 0, countersWon: 0, clutchWins: 0, moveUsage: {}, oppMoveUsage: {}, mgSum: 0, mgCount: 0 },
+    matchStats: { aces: 0, countersWon: 0, counterLost: 0, clutchWins: 0, moveUsage: {}, oppMoveUsage: {}, mgSum: 0, mgCount: 0 },
   };
 }
 
@@ -342,6 +342,7 @@ export function battleReducer(state, action) {
       const matchStats = {
         ...state.matchStats,
         countersWon: state.matchStats.countersWon + (win && pCounter > 1 ? 1 : 0),
+        counterLost: state.matchStats.counterLost + (!win && oCounter > 1 ? 1 : 0),
         clutchWins: state.matchStats.clutchWins + (clutch ? 1 : 0),
         oppMoveUsage: { ...state.matchStats.oppMoveUsage, [oppMove]: (state.matchStats.oppMoveUsage[oppMove] ?? 0) + 1 },
       };

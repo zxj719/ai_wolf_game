@@ -68,6 +68,20 @@ describe('battleReducer 球级流程', () => {
     expect(s.lastRally.counterMul).toBe(1.5);
     expect(s.lastRally.win).toBe(true);
     expect(s.score.points[0]).toBe(1);
+    // 玩家克中，counterLost 不变
+    expect(s.matchStats.countersWon).toBe(1);
+    expect(s.matchStats.counterLost).toBe(0);
+  });
+
+  it('matchStats.counterLost：对手克制玩家且玩家失分时计数', () => {
+    // topspin 被 slice 克（oCounter=1.5）；oppPerformRoll 20（最大）确保对手赢
+    let s = toPick(freshBattle());        // Elza 首招 slice
+    s = battleReducer(s, { type: 'PICK_MOVE', moveId: 'topspin' });
+    s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier: 1.0 });
+    s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 20, noiseP: 0, noiseO: 0 });
+    expect(s.lastRally.win).toBe(false);
+    expect(s.matchStats.counterLost).toBe(1);
+    expect(s.matchStats.countersWon).toBe(0);
   });
 
   it('卡牌：毛巾回体、换新球加成进公式', () => {

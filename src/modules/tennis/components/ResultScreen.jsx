@@ -162,6 +162,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
             <div className="ms-item"><span className="ms-val">{matchStats.rallyCount}</span><span className="ms-label">总球数</span></div>
             <div className="ms-item"><span className="ms-val">{matchStats.aces}</span><span className="ms-label">ACE</span></div>
             <div className="ms-item"><span className="ms-val">{matchStats.countersWon}</span><span className="ms-label">克制得分</span></div>
+            <div className="ms-item"><span className="ms-val">{matchStats.counterLost ?? 0}</span><span className="ms-label">被克失分</span></div>
             <div className="ms-item"><span className="ms-val">{matchStats.clutchWins}</span><span className="ms-label">关键分胜</span></div>
             {matchStats.mgCount > 0 && (
               <div className="ms-item">
@@ -181,6 +182,9 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           </div>
           {matchStats.countersWon >= 2 && (
             <p className="counter-hl">🎯 本场克制得分 {matchStats.countersWon} 次！</p>
+          )}
+          {(matchStats.counterLost ?? 0) >= 2 && (matchStats.counterLost ?? 0) > matchStats.countersWon && (
+            <p className="counter-lost-warn">🛡 被克 {matchStats.counterLost} 次，对手读招很准，下次注意变换出招节奏</p>
           )}
           {topPlayerMoves.length > 0 && (
             <div className="player-moves-section">
