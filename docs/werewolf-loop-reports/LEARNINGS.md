@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-25 Round 64] SHERIFF_BADGE_PASS 读写闭环补完：终局高价值动作的 identity_table 读取
+
+- **问题**：SHERIFF_BADGE_PASS 是每局最多触发一次的高价值不可逆决策，但好人警长通过 D1→D(n-1) 积累的 identity_table（confidence 分值 + reason 字段）在传徽时从未被读取。旧版 `bpHint` = "金水>真预言家>发言可信者" 是完全凭空判断，与 R38-R54 系列"写了但不读"的感知-执行分裂完全同构，但发生在触发频率极低（每局一次）、单次影响极大的场景。
+- **修复**：新增 `bpIdentityStep`（好人警长专属）：Step0 读取 confidence ≥ 70 且非狼嫌疑候选 → Step1 传徽优先级（金水 > id_table ≥ 70 > 发言可信 > 撕毁）。与预言家金水（外部确定事实）形成互补：金水最高优先，id_table 作为金水的补充校验和无金水时的备选。
+- **「终局高价值动作」读写闭环完成状态（R64 后）**：HUNTER_SHOOT ✅（R41）、LAST_WORDS ✅（R54）、SHERIFF_BADGE_PASS ✅（R64）。骑士决斗执行链 ⚠️（待下轮确认：`useSpeechFlow.js#handleKnightDuel` 是否读取 identity_table 的"决斗候选"标注）。
+- **守卫/女巫 DAY_VOTE 有意 fallback 确认**：T12/T13 测试验证——守卫的"守护优先级"是夜间计划（不影响白天投票），女巫的"毒药优先候选"是独立夜间决策（白天投票参考会暴露身份），两者走通用 fallback 是正确架构决定。DAY_VOTE 全量覆盖已完成（4 专属 + 5 有意 fallback）。
+- **终局动作类别通用原则**：凡是「每局最多触发一次的不可逆高价值动作」（SHERIFF_BADGE_PASS/HUNTER_SHOOT/LAST_WORDS），都应有 identity_table 读取步骤——这类动作的单次决策影响远大于日常发言，更需要综合利用历史积累的信息。检查方法：枚举所有"一次性触发"动作，逐一确认 Step0 是否存在。
+- **测试**：763/763 通过（+14 new），build ✅，check-build ✅，干跑 11/11 通过。
+
+---
+
 ### [2026-06-25 Round 63] DAY_VOTE 读写闭环全量完成：4 角色专属框架 + 守卫/女巫有意 fallback
 
 - **问题**：骑士 DAY_SPEECH（knight.js getKnightDaySpeechPrompt，R44 补全）写"决斗候选：[优先级A/B/C]"到 identity_table，但 DAY_VOTE 长期走通用分支——通用分支不读 identity_table，骑士多轮积累的决斗候选在投票阶段被完全忽略。与 R61/R62 狼人/猎人 DAY_VOTE 感知-执行分裂完全同构（第三个同构实例）。

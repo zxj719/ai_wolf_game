@@ -2102,12 +2102,18 @@ ${ssHint}
                  seerHint += `\n⛔【预言家查杀（已验狼人）】${killedTargets.map(c => `${c.targetId}号`).join('、')} → 绝对不能移交（传给狼等于送1.5票，直接输）`;
              }
 
+             // R64 读写闭环补完：好人警长死亡时读取 identity_table 积累的身份推理（传徽关键决策）
+             // 系统提示中 previousIdentityTable 始终存在；此 Step0/Step1 指导 AI 主动利用它
+             const bpIdentityStep = playerRole !== '狼人'
+                 ? 'Step0: 【读取历史身份推理（传徽决策依据）】查看系统提示中【你之前的身份推理表】：哪些存活候选人的 confidence ≥ 70 且 suspect 不含"狼人"？将其列为传徽优先候选（若与预言家金水⚡一致则更确信；有冲突时以金水为准）。\nStep1: 传徽优先级 → ⚡预言家金水 > identity_table confidence ≥ 70 非狼嫌疑 > 发言可信者 > -1撕毁。'
+                 : '';
+
              const bpHint = playerRole === '狼人'
                  ? '你是狼人警长：把警徽传给狼队友能延续1.5票优势；若会暴露关系链，可传给一个好人混淆视听或撕掉。'
-                 : '你是好人警长：把警徽传给你最确信的好人（金水>真预言家>发言可信者）。完全无法判断时撕掉警徽（-1）也是合理选择——错传给狼等于送1.5票。';
+                 : '你是好人警长：把警徽传给你最确信的好人。完全无法判断时撕掉警徽（-1）——错传给狼等于送1.5票。';
              return `你（警长）死亡，决定警徽去向。
 【可移交对象】${(badgeTargets || []).join(',')}号，或-1撕毁警徽。
-${bpHint}${seerHint}
+${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}
 输出JSON:{"targetId":数字或-1,"reason":"一句话理由","thought":"决策思考"}`;
         }
 
