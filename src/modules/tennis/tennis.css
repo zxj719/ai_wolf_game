@@ -440,6 +440,38 @@
 .tennis-scope .bt-move-sys { font-size: 1.3rem; }
 .tennis-scope .bt-move-name { font-family: var(--display); color: var(--card-ink); flex: 1; font-size: .95rem; }
 .tennis-scope .bt-move-cost { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+/* 克制速查浮层 */
+.tennis-scope .bt-moves-bar { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.tennis-scope .bt-chart-btn {
+  font-size: .70rem; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid rgba(13,59,46,.22); background: transparent;
+  color: var(--muted); cursor: pointer; font-family: var(--body-font);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.tennis-scope .bt-chart-btn:hover, .tennis-scope .bt-chart-btn.active {
+  background: rgba(13,59,46,.08); color: var(--card-ink); border-color: rgba(13,59,46,.45);
+}
+.tennis-scope .bt-chart {
+  background: rgba(13,59,46,.06); border: 1px solid rgba(13,59,46,.14);
+  border-radius: 10px; padding: 8px 12px; margin-bottom: 10px;
+}
+.tennis-scope .bt-chart-hd {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px; font-size: .74rem; color: var(--card-ink); font-weight: 600;
+}
+.tennis-scope .bt-chart-close {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--muted); font-size: .78rem; padding: 1px 4px;
+  border-radius: 3px; line-height: 1;
+}
+.tennis-scope .bt-chart-close:hover { background: rgba(0,0,0,.08); }
+.tennis-scope .bt-chart-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 3px 16px;
+}
+.tennis-scope .bt-chart-row { display: flex; align-items: center; gap: 4px; font-size: .73rem; padding: 1px 0; }
+.tennis-scope .bt-chart-win { color: #155743; font-weight: 600; }
+.tennis-scope .bt-chart-arr { color: var(--muted); font-size: .62rem; flex-shrink: 0; }
+.tennis-scope .bt-chart-lose { color: #7a3020; }
 .tennis-scope .bt-rallylog { padding: 8px 0; }
 .tennis-scope .bt-vs {
   display: flex; gap: 8px; align-items: center; justify-content: center;

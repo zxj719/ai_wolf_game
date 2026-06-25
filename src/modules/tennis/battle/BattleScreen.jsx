@@ -114,43 +114,77 @@ function HandCards({ deck, onPlay, disabled }) {
   );
 }
 
+function CounterChart({ onClose }) {
+  const pairs = Object.keys(COUNTER_QUIPS).map(k => k.split('>'));
+  return (
+    <div className="bt-chart">
+      <div className="bt-chart-hd">
+        <span>📋 克制速查表（1.5× 克中 / 0.7× 被克）</span>
+        <button type="button" className="bt-chart-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="bt-chart-grid">
+        {pairs.map(([a, b]) => (
+          <div key={`${a}>${b}`} className="bt-chart-row">
+            <span className="bt-chart-win">{MOVES[a].name}</span>
+            <span className="bt-chart-arr">→克→</span>
+            <span className="bt-chart-lose">{MOVES[b].name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MovePicker({ state, onPick, onUltimate }) {
   const moves = state.playerMoves;
   const exhausted = state.pEnergy < 20;
   const ult = state.ultimateName ? ULTIMATES[state.ultimateName] : null;
+  const [showChart, setShowChart] = useState(false);
   return (
-    <div className="bt-moves">
-      {moves.map((id) => {
-        const m = MOVES[id];
-        const banned = exhausted && m.energyCost >= 16;
-        return (
-          <button
-            key={id}
-            type="button"
-            className={`bt-move ${banned ? 'off' : ''}`}
-            onClick={() => !banned && onPick(id)}
-            title={m.desc}
-          >
-            <span className="bt-move-sys">{SYSTEM_ICONS[m.system]}</span>
-            <span className="bt-move-name">{m.name}</span>
-            <span className="bt-move-cost">{m.energyCost > 0 ? `-${m.energyCost}` : `+${-m.energyCost}`}体</span>
-          </button>
-        );
-      })}
-      {ult && (
+    <div>
+      <div className="bt-moves-bar">
         <button
           type="button"
-          className={`bt-move ultimate ${state.ultimateUsed ? 'off' : ''}`}
-          onClick={() => !state.ultimateUsed && onUltimate(state.ultimateName)}
+          className={`bt-chart-btn${showChart ? ' active' : ''}`}
+          onClick={() => setShowChart(v => !v)}
         >
-          <span className="bt-move-sys">{ult.face}</span>
-          <span className="bt-move-name">
-            {state.ultimateName}
-            <small className="bt-ult-desc">{state.ultimateUsed ? '本场已用（一场限一次）' : ult.desc}</small>
-          </span>
-          <span className="bt-move-cost">绝技</span>
+          📋 克制表
         </button>
-      )}
+      </div>
+      {showChart && <CounterChart onClose={() => setShowChart(false)} />}
+      <div className="bt-moves">
+        {moves.map((id) => {
+          const m = MOVES[id];
+          const banned = exhausted && m.energyCost >= 16;
+          return (
+            <button
+              key={id}
+              type="button"
+              className={`bt-move ${banned ? 'off' : ''}`}
+              onClick={() => !banned && onPick(id)}
+              title={m.desc}
+            >
+              <span className="bt-move-sys">{SYSTEM_ICONS[m.system]}</span>
+              <span className="bt-move-name">{m.name}</span>
+              <span className="bt-move-cost">{m.energyCost > 0 ? `-${m.energyCost}` : `+${-m.energyCost}`}体</span>
+            </button>
+          );
+        })}
+        {ult && (
+          <button
+            type="button"
+            className={`bt-move ultimate ${state.ultimateUsed ? 'off' : ''}`}
+            onClick={() => !state.ultimateUsed && onUltimate(state.ultimateName)}
+          >
+            <span className="bt-move-sys">{ult.face}</span>
+            <span className="bt-move-name">
+              {state.ultimateName}
+              <small className="bt-ult-desc">{state.ultimateUsed ? '本场已用（一场限一次）' : ult.desc}</small>
+            </span>
+            <span className="bt-move-cost">绝技</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
