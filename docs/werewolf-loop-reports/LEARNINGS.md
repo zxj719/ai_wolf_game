@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-06-25 Round 60] 特殊角色在独立文件中实现，DAY Step 0 审计必须单独覆盖这些文件
+
+- **问题**：R54-R58 为主路径 6 个角色（wolf/hunter/seer/witch/guard/villager）补全了 DAY_SPEECH Step 0，骑士在 R44 也已完成；但摄梦人（dreamweaver.js）和魔术师（magician.js）均缺少 DAY_SPEECH Step 0 长达 16 轮。摄梦人/魔术师的 NIGHT Step 0 是有的（aiPrompts.js 的 NIGHT_DREAMWEAVER / R43 的 magicianHistoryStep），但 DAY 侧完全缺失。
+- **根因**：R58 声称"读写闭环 9 角色全部完成"时，只检查了 aiPrompts.js 中的 6 大主角色。特殊角色的 DAY_SPEECH 在独立文件（rolePrompts/*.js）中，对这些文件的审计被遗漏了 16 轮。
+- **教训**：凡是进行"全角色 DAY Step 0 覆盖率"审计，必须同时检查 aiPrompts.js（主路径）和所有 rolePrompts/*.js 文件（特殊角色路径）。`grep -n "DayHistoryStep\|DayStep0\|dayHistoryStep" src/services/rolePrompts/*.js` 可列出已有 DAY Step 0 的特殊角色文件，与角色列表对比即可发现缺口。
+- **检测方法**：`grep -rn "HistoryStep\|dayHistoryStep" src/services/rolePrompts/` 列出所有已有 Step 0 的特殊角色，对比骑士/摄梦人/魔术师应各有 DAY+NIGHT Step 0（骑士无夜间行动）。
+- **修复**：R60 在 dreamweaver.js 添加 `dreamweaverDayHistoryStep`，在 magician.js 添加 `magicianDayHistoryStep`，均与各自的 NIGHT write guide 关键词（"连梦候选"/"换刀候选"）精确对齐；同时将三特殊角色文件的"不要覆盖历史"平文本统一升级为 `**追加不覆盖历史**` 粗体格式；25/25 测试通过；738/738 全量通过；构建洁净。
+- **里程碑**：9/9 角色的 DAY_SPEECH Step 0 + 写指导"追加不覆盖历史"格式已全部完成（真正意义的全量完成）。
+- **下轮建议**：60 轮累计 0 次实局 smoke test，所有提示词优化均未经真实对局验证。下轮最高优先级是用干跑模拟或触发一局测试观察摄梦人/魔术师的 D2 thought 字段是否引用历史候选。
+
+---
+
 ### [2026-06-25 Round 59] 读写闭环修复必须同时检查写指导是否有"追加约束"——只有关键词对齐而无追加规则是半完成状态
 
 - **问题**：R55 修复了狼人 DAY_SPEECH Step 0（读取侧），并检查了关键词四环对齐（DAY写→DAY读→NIGHT读→NIGHT写的"高优先刀口"对齐），但遗漏了检查"写指导是否有追加不覆盖历史规则"。结果：预言家/女巫/猎人/守卫/村民的写指导都有"**追加不覆盖历史**"+"【追加示例】"，只有狼人缺失。
