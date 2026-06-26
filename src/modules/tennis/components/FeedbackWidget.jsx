@@ -7,17 +7,20 @@ const LABELS = ['', '差评', '一般', '还行', '不错', '超赞！'];
 export function FeedbackWidget({ mode, character, result }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [done, setDone] = useState(false);
+  // 'idle' | 'submitted' | 'skipped'
+  const [status, setStatus] = useState('idle');
 
   function submit() {
     sendMatchFeedback({ rating, comment, mode, character, result });
-    setDone(true);
+    setStatus('submitted');
   }
 
   return (
     <div className="card flat fb-card">
-      {done ? (
+      {status === 'submitted' ? (
         <p className="fb-thanks">✅ 感谢你的评价，会帮我们把游戏做得更好！</p>
+      ) : status === 'skipped' ? (
+        <p className="fb-skip-msg">好的，没问题 🎾</p>
       ) : (
         <>
           <h2>💬 赛后评价（可跳过）</h2>
@@ -56,7 +59,7 @@ export function FeedbackWidget({ mode, character, result }) {
             <button
               type="button"
               className="btn ghost"
-              onClick={() => setDone(true)}
+              onClick={() => setStatus('skipped')}
             >
               跳过
             </button>
