@@ -1760,6 +1760,57 @@ Step5: 确定入梦目标
             const wolfCount = (gameState.gameSetup?.STANDARD_ROLES || []).filter(r => r === '狼人').length || 2;
             const isLateGame = aliveCount <= wolfCount * 2 + 2;
 
+            // ── 本轮发言票型摘要（R65）：从 speechHistory.voteIntention 提取已表达意向 ──
+            // 关键：DAY_VOTE 不包含 getBaseContext(today speeches)，AI 无法从上下文自行汇总票型。
+            // 直接从结构化字段提取，比让模型 NLP 解析发言文本更可靠。
+            const todayIntentionsList = (gameState.speechHistory || []).filter(s =>
+              s.day === voteDay &&
+              s.voteIntention !== undefined && s.voteIntention !== null && s.voteIntention !== -1 &&
+              s.playerId !== currentPlayer?.id
+            );
+            const thisRoundTally = {};
+            todayIntentionsList.forEach(s => {
+              const target = Number(s.voteIntention);
+              if (!isNaN(target) && target !== -1) {
+                thisRoundTally[target] = (thisRoundTally[target] || 0) + 1;
+              }
+            });
+            const sortedThisRoundTally = Object.entries(thisRoundTally)
+              .filter(([id]) => alivePlayers.find(p => p.id === Number(id)))
+              .sort((a, b) => b[1] - a[1]);
+
+            let thisRoundVoteHint = '';
+            if (sortedThisRoundTally.length > 0) {
+              const totalExpressed = todayIntentionsList.length;
+              thisRoundVoteHint = `\n【本轮发言票型】已有${totalExpressed}人表达投票意向：${sortedThisRoundTally.map(([id, cnt]) => `${id}号(${cnt}票意向)`).join('、')}。`;
+            }
+
+            // ── 狼人防守局面感知信号（R65）──
+            // 感知-执行分裂修复：wolf 有"防守局面"执行路径，但之前无法感知何时激活。
+            let wolfDefenseTrigger = '';
+            if (playerRole === '狼人') {
+              const wolfTeammateIdsForDefense = players
+                .filter(p => p.isAlive && p.role === '狼人' && p.id !== currentPlayer?.id)
+                .map(p => p.id);
+              if (wolfTeammateIdsForDefense.length > 0 && todayIntentionsList.length > 0) {
+                const totalExpressed = todayIntentionsList.length;
+                const teammateUnderFire = wolfTeammateIdsForDefense.find(id =>
+                  (thisRoundTally[id] || 0) >= Math.ceil(totalExpressed / 2)
+                );
+                if (teammateUnderFire) {
+                  const fireCnt = thisRoundTally[teammateUnderFire];
+                  wolfDefenseTrigger = `\n⚡【防守局面已触发】已表态的${totalExpressed}人中，${fireCnt}人目标指向你队友${teammateUnderFire}号 → 执行"防守局面"！须在不破坏发言一致性的前提下，将票转向第三方好人。`;
+                } else {
+                  const teammatePressureStr = wolfTeammateIdsForDefense
+                    .filter(id => (thisRoundTally[id] || 0) > 0)
+                    .map(id => `${id}号(${thisRoundTally[id]}票意向)`).join(',');
+                  if (teammatePressureStr) {
+                    wolfDefenseTrigger = `\n【局势预警】队友承受票压：${teammatePressureStr}，评估是否接近触发"防守局面"阈值。`;
+                  }
+                }
+              }
+            }
+
             // 预言家对跳场景：识别场上悍跳者且在本轮投票目标中（PK时 voteTargets 只有2人）
             const seerCounterClaimantsInVote = playerRole === '预言家'
                 ? (gameState.claimHistory || [])
@@ -1837,6 +1888,7 @@ Step5: 确定入梦目标
 ${intentionReminder}
 ${seerConstraint || ''}
 ${voteMomentumHint}
+${thisRoundVoteHint}
 ${sceneHint}${sheriffVoteHint}
 ${voteCotTemplate}
 
@@ -1844,7 +1896,7 @@ ${voteCotTemplate}
 1. 回顾你的发言意向（${lastVoteIntention === -1 ? '弃票' : lastVoteIntention || '无'}），保持言行一致，除非有新信息改变判断。
 ${playerRole === '狼人'
   ? `2. 【狼人投票博弈框架】
-   a) 刀口对齐：先查【身份推理表】(identity_table)中 reason 含"高优先刀口"的存活好人——这是最优投票目标（与夜间策略对齐，保持决策一致性）
+   a) 刀口对齐：先查【身份推理表】(identity_table)中 reason 含"高优先刀口"的存活好人——这是最优投票目标（与夜间策略对齐，保持决策一致性）${wolfDefenseTrigger}
    b) 场景选择（选一种姿态执行）：
       正常局面：把票落到高优先刀口目标；若仅你一票且票型分散，可跟随最大多数以减少暴露风险
       防守局面（队友被多数追杀）：强行转移票至第三方好人——须在发言阶段已预铺"更可疑"的理由才能说服他人

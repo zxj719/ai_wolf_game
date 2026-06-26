@@ -4,6 +4,19 @@
 
 ---
 
+### [2026-06-26 Round 65] DAY_VOTE 本轮发言票型感知 + 狼人防守局面激活信号
+
+- **问题**：DAY_VOTE 不使用 `getBaseContext(ctx)`，因此 `todaySpeeches` **完全不在** DAY_VOTE 上下文中。`speechHistory.voteIntention` 是 DAY_SPEECH 每个玩家必须输出的结构化字段，但从未被汇总注入投票阶段。狼人的"防守局面（队友被多数追杀）"执行路径存在，但 AI 无法从 DAY_VOTE 上下文感知是否满足触发条件——经典**感知-执行分裂**。
+- **修复一（所有角色）**：`thisRoundVoteHint` — 从 `speechHistory.voteIntention` 中提取当天（day=voteDay）非弃票的结构化意向，按票数降序汇总，注入到 DAY_VOTE prompt。格式：`【本轮发言票型】已有N人表达投票意向：X号(n票意向)、Y号(m票意向)`。帮助所有角色在投票时了解当前轮票型趋势。
+- **修复二（狼人专属）**：`wolfDefenseTrigger` — 对狼人玩家预计算队友受票压情况：若 ≥ ceil(已表态数/2) 人指向同一队友，注入 `⚡【防守局面已触发】` 信号；有少量票压但未达多数则注入 `【局势预警】`。注入位置在 `a) 刀口对齐` 末尾，确保 wolf 读完刀口信息后立即看到防守激活信号，自然选择正确场景。
+- **关键诊断工具**：`grep "getBaseContext" src/services/aiPrompts.js` → DAY_VOTE case 从不调用 `getBaseContext`。任何依赖 `todaySpeeches` 的感知需求，必须从 `gameState.speechHistory` 中单独提取结构化字段，不能假设上下文中有发言文本。
+- **DAY_VOTE 上下文结构（已知清单）**：`authoritativeFacts`（存活/死亡/事件线/历史投票/声明）、`ragContext`（对抗分析/金查信息/矛盾检测）、`voteMomentumHint`（跨轮热力）、`thisRoundVoteHint`（本轮意向，R65新增）。**不包含**：today speeches 文本（需单独提取）。
+- **阈值设计**：严格多数 ceil(N/2) 对应"票型领先=追杀成功"的临界点；N/3 以下轻量预警；两级梯度设计避免误触发。
+- **KNIGHT_DUEL 执行链确认（R64 待确认事项）**：经 R65 详细审计，骑士决斗链 **完整**。DAY_SPEECH 中 `knightHistoryStep` 读取 identity_table "决斗候选" → AI 输出 `shouldDuel/duelTarget` → `useSpeechFlow.js:278` 直接消费 → `handleKnightDuel` 执行。函数不需要独立读取 identity_table，因 AI 已在 prompt 生成时完成读取。所有"终局高价值动作"（HUNTER_SHOOT/LAST_WORDS/SHERIFF_BADGE_PASS/KNIGHT_DUEL）确认全部完整 ✅。
+- **测试**：787/787 通过（+21 new），build ✅，check-build ✅，干跑 8/8 通过（票意向计票边界条件全覆盖）。
+
+---
+
 ### [2026-06-25 Round 64] SHERIFF_BADGE_PASS 读写闭环补完：终局高价值动作的 identity_table 读取
 
 - **问题**：SHERIFF_BADGE_PASS 是每局最多触发一次的高价值不可逆决策，但好人警长通过 D1→D(n-1) 积累的 identity_table（confidence 分值 + reason 字段）在传徽时从未被读取。旧版 `bpHint` = "金水>真预言家>发言可信者" 是完全凭空判断，与 R38-R54 系列"写了但不读"的感知-执行分裂完全同构，但发生在触发频率极低（每局一次）、单次影响极大的场景。
