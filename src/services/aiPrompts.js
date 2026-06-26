@@ -974,9 +974,20 @@ const ROLE_DAY_SPEECH_PROMPTS = {
                 wolfTeammatesHint = outsideHint;
             }
         }
+        // R66：发言阶段队友票压感知 — 已有≥2名玩家将票意向指向队友时，主动引入第三嫌疑目标
+        // 目的：为 DAY_VOTE 中的"防守局面"提供叙事铺垫（需在发言阶段先建立"Z比队友更可疑"的叙事）
+        // 注：此块在 PK 模式下不触发（PK 已有专属覆盖逻辑）
+        let wolfSpeechPressureHint = '';
+        if (!params.pkMode &&
+            params.pressuredTeammate !== undefined &&
+            (params.wolfTeammates || []).includes(params.pressuredTeammate)) {
+            wolfSpeechPressureHint = `\n⚡【发言时机：队友${params.pressuredTeammate}号承压（已有${params.pressuredCount}票意向指向）】` +
+                `\n发言策略：在 speech 中主动引入一名发言有逻辑漏洞的好人作为"更值得关注的焦点"（如"Z号今天的发言有几处值得注意"），让好人注意力转移——为后续投票阶段执行"转移票型"提前构建叙事支撑。` +
+                `\n叙事要点：用分析语气提出替代目标，不对当前票型发表评论（避免暴露你在意队友的风向）。`;
+        }
         return `${getBaseContext(ctx)}
 【狼人专属任务】白天发言 — 最大化狼队胜率
-${wolfTeammatesHint}
+${wolfTeammatesHint}${wolfSpeechPressureHint}
 ██ 铁律：thought 和 speech 是两个世界 ██
 - thought = 你的完整策略推演（只有你能看到），自由分析局势、推理、规划
 - speech = 公开发言（所有人听到），必须100%以好人视角写就：只谈发言分析、怀疑依据、投票逻辑

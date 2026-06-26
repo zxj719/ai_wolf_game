@@ -193,6 +193,26 @@ export function useSpeechFlow({
                 speechHistory.some(s => s.day === dayCount && s.playerId === id)
               );
               wolfSpeakParams.isFirstWolfToSpeak = alreadySpokenWolves.length === 0;
+
+              // R66：检测当天已有≥2名玩家将票意向指向同一队友（DAY_SPEECH预铺感知）
+              // 帮助狼人在发言阶段就知道队友处于票压之下，从而主动引入第三嫌疑目标
+              const pressureMap = {};
+              speechHistory.forEach(s => {
+                if (s.day === dayCount &&
+                    s.voteIntention !== undefined && s.voteIntention !== null &&
+                    s.voteIntention !== -1 &&
+                    wolfTeammateIds.includes(Number(s.voteIntention))) {
+                  const t = Number(s.voteIntention);
+                  pressureMap[t] = (pressureMap[t] || 0) + 1;
+                }
+              });
+              const pressureEntries = Object.entries(pressureMap)
+                .filter(([, cnt]) => cnt >= 2)
+                .sort(([, a], [, b]) => b - a);
+              if (pressureEntries.length > 0) {
+                wolfSpeakParams.pressuredTeammate = Number(pressureEntries[0][0]);
+                wolfSpeakParams.pressuredCount = pressureEntries[0][1];
+              }
             }
           }
           const res = await askAI(currentSpeaker, PROMPT_ACTIONS.DAY_SPEECH, wolfSpeakParams);

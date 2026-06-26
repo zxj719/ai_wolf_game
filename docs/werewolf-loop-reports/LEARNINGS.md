@@ -4,6 +4,19 @@
 
 ---
 
+### [2026-06-26 Round 66] DAY_SPEECH 狼人发言阶段队友票压感知 — 跨阶段防守链补全
+
+- **问题**：R65 为 DAY_VOTE 添加了 `wolfDefenseTrigger`（当 ≥ ceil(N/2) 人指向队友时执行防守），但 DAY_VOTE 中的防守操作（"将票转向第三方好人"）依赖一个前提：发言阶段已预铺"Z号更可疑"的叙事。aiPrompts.js 第1902行明确标注"须在发言阶段已预铺理由才能说服他人"，但 DAY_SPEECH 提示词没有任何机制让狼人在此时机采取行动。结果：防守链"发令枪"在投票时发出，但"赛前准备"（发言阶段的叙事建立）从未完成。
+- **修复**：
+  - `useSpeechFlow.js`：在 wolf roleParams 构建块中新增压力图计算——扫描当天已发言记录的 `voteIntention` 字段，当 ≥2 个非弃票意向指向同一队友时，注入 `pressuredTeammate` + `pressuredCount` 参数。
+  - `aiPrompts.js`：wolf DAY_SPEECH 中新增 `wolfSpeechPressureHint`——触发时注入"引入第三嫌疑人作为焦点"指令，为后续投票阶段的叙事转移提供基础；PK 模式下自动跳过。
+- **阈值梯度设计**：DAY_SPEECH 阶段 2票触发（需要早期预防），DAY_VOTE 阶段 ceil(N/2) 触发（严格多数执行）——两阶段梯度形成"早准备→晚执行"的防守链。
+- **白熊效应检查**：hint 为纯正向指令（"引入Z作为焦点"），无"不要保护X"等负向禁止词 ✅。
+- **跨阶段感知-执行分裂的通用原则**：当某个"执行指令"（DAY_VOTE防守）依赖前一阶段（DAY_SPEECH）的叙事准备时，必须在前一阶段同时注入对应的感知信号。检测方法：在 aiPrompts.js 中搜索"须在…阶段…铺垫"等前提条件描述，验证这些前提的满足机制是否存在于对应的前置阶段提示词中。
+- **测试**：806/806 通过（+15 new），build ✅，check-build ✅。
+
+---
+
 ### [2026-06-26 Round 65] DAY_VOTE 本轮发言票型感知 + 狼人防守局面激活信号
 
 - **问题**：DAY_VOTE 不使用 `getBaseContext(ctx)`，因此 `todaySpeeches` **完全不在** DAY_VOTE 上下文中。`speechHistory.voteIntention` 是 DAY_SPEECH 每个玩家必须输出的结构化字段，但从未被汇总注入投票阶段。狼人的"防守局面（队友被多数追杀）"执行路径存在，但 AI 无法从 DAY_VOTE 上下文感知是否满足触发条件——经典**感知-执行分裂**。
@@ -931,12 +944,15 @@
 
 ## 下轮建议
 
-1. ~~**猎人 DAY_SPEECH Step 0**~~ ✅ Round 56 已完成（函数体化 + hunterDayHistoryStep + 思维链 Step0 + 写指导追加格式 + 关键词三环对齐；25/25 测试通过；639/639 全量测试通过）
-2. ~~**预言家 DAY_SPEECH Step 0**~~ ✅ Round 57 已完成（seerDayHistoryStep + 思维链 Step0 + Step3 引用 + 写指导追加格式 + DAY→NIGHT→DAY 四环关键词对齐；25/25 测试通过；664/664 全量测试通过）
-3. **女巫 DAY_SPEECH Step 0**（R58 建议）：女巫 NIGHT_WITCH 写指导有 `毒药优先候选` 关键词（R42），但 DAY_SPEECH 思维链无 Step 0 读取。女巫白天发言前应从历史积累的毒药候选起步，评估今天是否可公开压制。优先级高于守卫（女巫的毒药是主动出击技，错误目标代价极高）。可与守卫一并完成，关闭全部大神职 DAY_SPEECH 读写闭环。
-4. **守卫 DAY_SPEECH Step 0**（R58 同步完成候选）：守卫 NIGHT_GUARD 写指导有 `守护优先级：高/中` 关键词（R40），但 DAY_SPEECH 思维链无 Step 0 读取。
-5. ~~**干跑模拟**~~ ✅ Round 61 已完成（45/45 断言通过，覆盖夜间行动/胜负/猎人链/投票；脚本位于 scratchpad/dry-run-sim.mjs）
-6. **实局 smoke test**（61 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察 D2+ 摄梦人/魔术师 thought 是否引用"历史连梦候选"/"换刀候选"。
-7. **DAY_VOTE 其他角色框架审计**（R61 新建议）：除狼人外，其他角色（猎人/守卫/村民）的 DAY_VOTE 策略文字也偏简单。可考虑在 R62 按角色复杂度顺序逐一补全（优先猎人——猎人有"开枪优先"候选积累，投票时应读取这个历史）。
-8. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。可在某轮代码清理时顺手完成。
+1. ~~**猎人 DAY_SPEECH Step 0**~~ ✅ Round 56 已完成
+2. ~~**预言家 DAY_SPEECH Step 0**~~ ✅ Round 57 已完成
+3. ~~**女巫 DAY_SPEECH Step 0**~~ ✅ Round 58 已完成
+4. ~~**守卫 DAY_SPEECH Step 0**~~ ✅ Round 58 已完成
+5. ~~**干跑模拟**~~ ✅ Round 61 已完成（45/45 断言通过）
+6. ~~**DAY_VOTE 角色框架全量**~~ ✅ Round 61-63 已完成（狼/猎/骑全专属，守/女/摄/魔/村有意 fallback）
+7. ~~**DAY_SPEECH 狼人防守预铺**~~ ✅ Round 66 已完成（wolfSpeechPressureHint + pressuredTeammate 参数链）
+8. **实局 smoke test**（66 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察 wolfSpeechPressureHint 触发场景（需 D2+ 多狼局面），以及摄梦人/魔术师 thought 引用历史候选的实际效果。
+9. **可观战性提升**（当前 7.8，持续低分）：发言内容多样性/性格差异化可能是突破口——村民发言模式若过于相似，会降低观战吸引力。可评估在 villager DAY_SPEECH 中加入基于 identity_table confidence 分层的"发言深度/语气"差异化。
+10. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。
+11. **跨阶段感知-执行分裂系统审计**（R66 通用原则衍生）：搜索 aiPrompts.js 中所有"须在…阶段…铺垫/预铺"类语言，逐一确认对应的前置阶段是否有感知信号注入机制。`grep -n "须在.*阶段\|发言阶段已\|需要提前" src/services/aiPrompts.js` 可列出候选。
 
