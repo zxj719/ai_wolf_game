@@ -27,7 +27,7 @@ const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const hunterFnMarker = "'猎人': (ctx, params) => {";
 const hunterFnStart = src.indexOf(hunterFnMarker);
 // 窗口：猎人函数体约 1100 chars → 窗口 1600
-const hunterBlock = src.slice(hunterFnStart, hunterFnStart + 1600);
+const hunterBlock = src.slice(hunterFnStart, hunterFnStart + 4000);
 
 // ─── 定位思维链段落（在 return 模板字符串内，含插值占位）─────────────────────
 // 注意：Step0 文本在 hunterDayHistoryStep 变量声明中（函数体顶部），

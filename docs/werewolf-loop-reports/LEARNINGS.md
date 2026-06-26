@@ -4,6 +4,37 @@
 
 ---
 
+### [2026-06-26 Round 69] 猎人/守卫 DAY_SPEECH personalityLens + 发言字数差异化
+
+- **完成状态**：R67（村民）→ R68（预言家/女巫）→ R69（猎人/守卫）完成 personalityLens 注入，所有主路径 DAY_SPEECH 角色均已覆盖。
+- **伪装风格 vs 分析/报验风格**：猎人/守卫 lens 的设计维度与村民/预言家本质不同——村民 lens 影响"如何分析局势"，预言家 lens 影响"如何呈现验证结果"，而**猎人/守卫 lens 影响"如何伪装成普通村民"**。核心张力是信息优势与身份隐藏之间的平衡，不同个性产生不同的"信息泄露风险控制策略"。
+- **发言字数差异化**：`hunterSpeechLen`（aggressive→40-60字；cautious→60-100字；默认40-80字）+ `guardSpeechLen`（aggressive→35-55字；steady→45-75字；默认40-70字）。字数分化使不同性格的 AI 发言长度自然匹配其风格期望，提升可观战性。
+- **R68-A 教训再次验证**：为角色添加新代码段（personalityLens + speechLen 两组 if/else）会使函数体显著增长，导致已有测试的窗口截断失效。每次新增大段代码后，必须检查所有引用该函数的测试文件的 `src.slice(start, start + N)` 窗口大小是否仍然足够。本轮猎人函数超出 1600 窗口（需 4000），roleParams 区超出 2000 窗口（需 2200）。
+- **vitest test() 格式强制规则（R69 新增）**：测试文件中任何断言必须放在 `test()` 或 `it()` 调用内，vitest 才能发现和执行。console.log + 手动循环的"脚本式测试"在 `node` 环境可运行，但 vitest 显示 `(0 tests)`，相当于测试完全无效。检测方法：`grep -c "^test\b\|^it\b" src/services/__tests__/*.test.js` 所有文件应 ≥ 1。
+- **白熊效应合规程式**：lens 块从变量初始化到 speechLen 声明之间，全面检查是否包含"不要说"、"禁止"、"绝不能"、"不能说"。本轮猎人/守卫 lens 全部为正向描述（"展现X形象"、"用Y方式表达"），合规 ✅。
+- **测试**：894/894 通过（+28 new R69 tests）；build ✅；check-build ✅。
+
+---
+
+### [2026-06-26 Round 68] 预言家/女巫 DAY_SPEECH personalityLens 注入
+
+- **完成**：R67 村民 personalityLens → R68 预言家（seerPersonalityLens，7分支"报验风格"）+ 女巫（witchPersonalityLens，7分支"发言风格"）。
+- **R68-A 教训（窗口截断）**：为 seer/witch 添加 personalityLens if/else 链后，函数体约增加 1200-1500 字节。round67VillagerPersonalityLens.test.js 的 `roleParamsBlock` 窗口（2000 chars）开始逼近边界——后续每次在 DAY_SPEECH case 之前添加代码都可能推移 `const roleParams = {` 位置。解决方案：窗口保持 ≥ 2500 以留有余量，或改用 `src.indexOf('personality?.type', roleParamsStart)` 直接定位而非依赖固定窗口。
+- **R68-B 教训（lens 设计原则）**：角色特定的 personalityLens 影响的是"呈现方式"而非"决策内容"——预言家 lens 影响"如何在发言中传递验证信息"（强势vs柔和vs暗示），女巫 lens 影响"如何在保留资源/行动后组织发言"。lens 不应触及"是否用药"、"今晚守护谁"等核心决策——那些属于 thought 层面，不在发言风格范畴。
+- **测试**：866/866 通过；build ✅。
+
+---
+
+### [2026-06-26 Round 67] 村民 DAY_SPEECH personalityLens 注入
+
+- **问题**：所有村民发言模式趋同，可观战性 7.8/10。8 种个性类型在系统提示词有差异，但用户提示词【分析框架】完全相同。
+- **修复**：`personalityType` 字段新增到 roleParams，村民 DAY_SPEECH 函数体语法改写，按 7 种类型动态生成 `personalityLens`，注入到【村民发言要求】之后、【分析框架】之前。
+- **白熊效应**：所有 lens 均为正向指令（"优先用X分析"），无负向禁止词 ✅。
+- **向下兼容**：无 personalityType 时 `personalityLens = ''`，prompt 退化到 R66 状态 ✅。
+- **测试**：806/806（含 R67 的 24 new tests）；build ✅。
+
+---
+
 ### [2026-06-26 Round 66] DAY_SPEECH 狼人发言阶段队友票压感知 — 跨阶段防守链补全
 
 - **问题**：R65 为 DAY_VOTE 添加了 `wolfDefenseTrigger`（当 ≥ ceil(N/2) 人指向队友时执行防守），但 DAY_VOTE 中的防守操作（"将票转向第三方好人"）依赖一个前提：发言阶段已预铺"Z号更可疑"的叙事。aiPrompts.js 第1902行明确标注"须在发言阶段已预铺理由才能说服他人"，但 DAY_SPEECH 提示词没有任何机制让狼人在此时机采取行动。结果：防守链"发令枪"在投票时发出，但"赛前准备"（发言阶段的叙事建立）从未完成。

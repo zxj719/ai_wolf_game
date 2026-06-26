@@ -2,6 +2,26 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-26] 狼人杀 Round 69 — 猎人/守卫 DAY_SPEECH personalityLens + 发言字数差异化
+
+### 新功能
+- **猎人个性化发言风格**：7 种 `hunterPersonalityLens` 分支注入（逻辑推演型/强势出击型/感知驱动型/反向质疑型/提问引导型/精炼谨慎型/稳健平衡型），影响猎人如何伪装成不同风格的普通村民
+- **守卫个性化发言风格**：7 种 `guardPersonalityLens` 分支注入（逻辑推演型/主动出击型/共情共鸣型/独立判断型/信息潜伏型/低调精炼型/平衡协调型），影响守卫如何隐藏身份融入讨论
+- **发言字数差异化**：猎人（aggressive→40-60字；cautious→60-100字；默认40-80字）、守卫（aggressive→35-55字；steady→45-75字；默认40-70字）
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/services/aiPrompts.js` | 修改 | 猎人/守卫 DAY_SPEECH 函数添加 personalityLens 和 speechLen 动态注入，roleParams 注释更新为 R69 |
+| `src/services/__tests__/round69HunterGuardPersonalityLens.test.js` | 新建 | 28 个 vitest 测试，覆盖 T1-T28 猎人/守卫 personalityLens 全验证 |
+| `src/services/__tests__/round56HunterDaySpeechStep0.test.js` | 修改 | 窗口从 1600 扩展到 4000（猎人函数体随 R69 扩展） |
+| `src/services/__tests__/round67VillagerPersonalityLens.test.js` | 修改 | roleParams 窗口从 2000 扩展到 2200（注释扩展后偏移增加） |
+
+### 技术细节
+- personalityLens 注入位置：策略点 5 之后、`【思维链】`之前（与 R67/R68 注入规范一致）
+- 所有 lens 分支为正向指令，无"不要说"/"禁止"等白熊效应违规词 ✅
+- 测试窗口大小随代码扩展自动失效问题（R68-A 教训再次验证）：每次添加大段代码后需检查所有引用该函数区块的测试窗口
+
 ## [2026-06-24] 网球 Round 71 — 连胜战绩双档 CSS 动画
 
 ### 新功能
