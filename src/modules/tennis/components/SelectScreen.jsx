@@ -3,6 +3,7 @@ import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
 import { loadLocalRecords, computeCharStats, findBestChar } from '../localBoard';
+import { getDailyChallenge, isDailyChallengeCompleted, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
   const data = map[name];
@@ -14,7 +15,7 @@ function getOppTag(name, map) {
 }
 
 /** ① 报名处：选身份 + 双榜 */
-export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
+export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipment = {} }) {
   const [picked, setPicked] = useState('');
   const [showOppHistory, setShowOppHistory] = useState(false);
   const records = useMemo(() => loadLocalRecords(), []);
@@ -32,6 +33,9 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
   }, [records]);
   const charStatsMap = useMemo(() => computeCharStats(records), [records]);
   const bestChar = useMemo(() => findBestChar(charStatsMap), [charStatsMap]);
+
+  const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
+  const dailyDone = picked ? isDailyChallengeCompleted() : false;
 
   const handleStart = () => {
     if (!picked) {
@@ -77,6 +81,34 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
             );
           })}
         </div>
+        {dailyChallenge && (
+          <div className={`daily-banner${dailyDone ? ' daily-banner-done' : ''}`}>
+            <div className="daily-header">
+              <span className="daily-label">⚡ 今日一战</span>
+              <span className="daily-date">{dailyChallenge.date}</span>
+              {dailyDone && <span className="daily-done-badge">✓ 今日已完成</span>}
+            </div>
+            <div className="daily-body">
+              <span className="daily-face">{dailyChallenge.foe.f}</span>
+              <div className="daily-info">
+                <span className="daily-opp-name">{dailyChallenge.foe.n}</span>
+                <span className="daily-stats">
+                  体力 {dailyChallenge.stats.sta} · 技巧 {dailyChallenge.stats.skill} · 心理 {dailyChallenge.stats.mind}
+                </span>
+              </div>
+              {!dailyDone && (
+                <button
+                  type="button"
+                  className="btn btn-daily"
+                  onClick={() => onStartDaily && onStartDaily(picked)}
+                >
+                  今日一战 +{DAILY_BONUS_COINS}💰
+                </button>
+              )}
+              {dailyDone && <span className="daily-done-msg">明天再来挑战！🎾</span>}
+            </div>
+          </div>
+        )}
         {seenCount > 0 && (
           <div className="opp-progress">
             <button

@@ -20,6 +20,7 @@ import { LadderScreen } from './modes/LadderScreen';
 import { AdventureScreen } from './modes/adventure/AdventureScreen';
 import { OnboardingModal, checkOnboardingSeen } from './components/OnboardingModal';
 import { isNovice, incrementNoviceGames, NOVICE_STAT_PENALTY } from './meta/noviceTracker';
+import { getDailyChallenge, markDailyChallengeCompleted, DAILY_BONUS_COINS } from './meta/dailyChallenge';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -41,6 +42,7 @@ export default function TennisRoute() {
   const [showOnboarding, setShowOnboarding] = useState(() => !checkOnboardingSeen());
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimer = useRef(null);
+  const isDailyRef = useRef(false);
   const toast = useCallback((msg) => {
     setToastMsg(msg);
     clearTimeout(toastTimer.current);
@@ -94,6 +96,7 @@ export default function TennisRoute() {
   }, [state.screen]);
 
   const onStart = useCallback((playerName) => {
+    isDailyRef.current = false;
     const pool = CHARS.filter((c) => c.n !== playerName);
     const foe = pool[rand(0, pool.length - 1)];
     const novicePenalty = isNovice() ? NOVICE_STAT_PENALTY : 0;
@@ -109,6 +112,24 @@ export default function TennisRoute() {
     });
     if (novicePenalty > 0) toast(`新手保护中！对手属性 -${novicePenalty} 🛡️`);
     else toast(`宿敌已抽出：${foe.f} ${foe.n}！`);
+  }, [dispatch, toast]);
+
+  const onStartDaily = useCallback((playerName) => {
+    if (!playerName) { toast('裁判：请先选好你是谁再上场！'); return; }
+    const dc = getDailyChallenge(playerName);
+    const novicePenalty = isNovice() ? NOVICE_STAT_PENALTY : 0;
+    isDailyRef.current = true;
+    dispatch({
+      type: 'START',
+      playerName,
+      oppName: dc.foe.n,
+      oppStats: {
+        sta: Math.max(20, dc.stats.sta - novicePenalty),
+        skill: Math.max(20, dc.stats.skill - novicePenalty),
+        mind: Math.max(20, dc.stats.mind - novicePenalty),
+      },
+    });
+    toast(`⚡ 今日一战！宿敌：${dc.foe.f} ${dc.foe.n}　胜利可得 +${DAILY_BONUS_COINS}💰！`);
   }, [dispatch, toast]);
 
   const onLogin = useCallback(() => navigate(ROUTES.LOGIN), [navigate]);
@@ -161,13 +182,19 @@ export default function TennisRoute() {
     if (drop.rarity === 'legendary') achievements.add('firstLegendary');
     if (matchStats.aces >= 3) achievements.add('aceMaster');
     if (matchStats.clutchWins > 0) achievements.add('clutchMaster');
+    const dailyBonus = (isDailyRef.current && win) ? DAILY_BONUS_COINS : 0;
+    if (isDailyRef.current && win) {
+      markDailyChallengeCompleted();
+      isDailyRef.current = false;
+    }
     updateProgress({
       ...progress,
-      coins: progress.coins + coins + soldFor,
+      coins: progress.coins + coins + soldFor + dailyBonus,
       equipment: equipped,
       achievements: [...achievements],
     });
-    toast(`🎁 掉落：${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰`);
+    const dailyTag = dailyBonus > 0 ? `　⚡今日一战 +${dailyBonus}💰` : '';
+    toast(`🎁 掉落：${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰${dailyTag}`);
     dispatch({
       type: 'MATCH_OVER',
       setsP: score.sets[0],
@@ -203,7 +230,7 @@ export default function TennisRoute() {
         </header>
 
         {state.screen === 'select' && (
-          <SelectScreen onStart={onStart} toast={toast} boardProps={boardProps} equipment={progress.equipment} />
+          <SelectScreen onStart={onStart} onStartDaily={onStartDaily} toast={toast} boardProps={boardProps} equipment={progress.equipment} />
         )}
         {state.screen === 'mode' && (
           <section className="screen">

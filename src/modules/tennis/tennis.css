@@ -127,6 +127,20 @@
   font-size: .85rem; line-height: 1; transition: opacity .15s;
 }
 .tennis-scope .equip-mini-rarity { font-family: var(--mono); font-size: .62rem; font-weight: 700; }
+.tennis-scope .daily-banner { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: linear-gradient(135deg, rgba(217,255,61,.08), rgba(139,195,74,.06)); border: 1px solid rgba(217,255,61,.25); }
+.tennis-scope .daily-banner.daily-banner-done { opacity: .65; }
+.tennis-scope .daily-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tennis-scope .daily-label { font-size: .8rem; font-weight: 700; color: var(--optic); font-family: var(--mono); letter-spacing: .04em; }
+.tennis-scope .daily-date { font-size: .72rem; color: var(--muted); font-family: var(--mono); }
+.tennis-scope .daily-done-badge { font-size: .7rem; color: #4ade80; font-family: var(--mono); font-weight: 700; margin-left: auto; }
+.tennis-scope .daily-body { display: flex; align-items: center; gap: 10px; }
+.tennis-scope .daily-face { font-size: 1.8rem; flex-shrink: 0; }
+.tennis-scope .daily-info { flex: 1; min-width: 0; }
+.tennis-scope .daily-opp-name { display: block; font-family: var(--display); font-size: .9rem; color: var(--text); }
+.tennis-scope .daily-stats { display: block; font-size: .68rem; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+.tennis-scope .btn-daily { flex-shrink: 0; background: linear-gradient(135deg, var(--clay), #d97706); color: #fff; border: none; border-radius: 7px; padding: 7px 12px; font-size: .8rem; font-weight: 700; cursor: pointer; letter-spacing: .02em; }
+.tennis-scope .btn-daily:hover { opacity: .88; }
+.tennis-scope .daily-done-msg { flex-shrink: 0; font-size: .75rem; color: var(--muted); font-family: var(--mono); font-style: italic; }
 .tennis-scope .opp-progress { margin-top: 14px; }
 .tennis-scope .opp-progress-label { display: block; font-size: .75rem; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
 .tennis-scope .opp-progress-bar { height: 5px; background: rgba(13,59,46,.15); border-radius: 4px; overflow: hidden; }
