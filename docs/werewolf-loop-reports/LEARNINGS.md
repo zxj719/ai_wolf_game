@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-06-26 Round 70] 狼人/预言家/女巫/村民 DAY_SPEECH 发言字数差异化
+
+- **完成状态**：R67（村民）→ R68（预言家/女巫）→ R69（猎人/守卫）→ R70（狼人+预言家+女巫+村民）完成所有 6 主角色 `speechLen` 差异化。`aggressive` 型发言更短促，`cautious` 型发言更详尽，每个角色的字数范围与其个性风格自然匹配，提升可观战性。
+- **窗口截断第二次发生（R68-A 重演）**：R70 为女巫函数新增 `witchSpeechLen` 块（~110 bytes）后，round58 测试的 3200 字节窗口变得不够用（女巫函数至 `return` 已达 2261 bytes，追加示例位于 tmpl 第 995 bytes）。必须把窗口从 3200 升至 4500。这是 R68-A 教训第二次发生的情况——证明该问题是系统性的，不是一次性的。
+- **窗口截断预防性命令**：每次修改大型 DAY_SPEECH 函数后，用以下命令快速估算风险：`node -e "const fs=require('fs'); const src=fs.readFileSync('src/services/aiPrompts.js','utf8'); ['女巫','狼人','预言家','猎人','守卫','村民'].forEach(r => { const i=src.lastIndexOf(\"'\" + r + \"': (ctx, params) =>\"); if(i>-1) { const ret=src.indexOf('return \`', i); console.log(r+'函数至return:',ret-i,'bytes'); }})"` 对比各测试文件的窗口值，发现截断风险。
+- **字数差异化设计原则（R70 新增）**：反映该性格"信息处理深度"的自然差异——`aggressive` 结论先行省略铺垫（下界降低），`cautious` 全面分析再表态（上界提高）。其他类型保持默认范围不变。
+- **测试**：918/918 通过（+24 new R70 tests）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-26 Round 69] 猎人/守卫 DAY_SPEECH personalityLens + 发言字数差异化
 
 - **完成状态**：R67（村民）→ R68（预言家/女巫）→ R69（猎人/守卫）完成 personalityLens 注入，所有主路径 DAY_SPEECH 角色均已覆盖。
