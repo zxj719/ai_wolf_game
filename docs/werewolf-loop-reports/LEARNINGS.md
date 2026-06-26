@@ -967,6 +967,30 @@
 
 ---
 
+---
+
+## Round 68（2026-06-26）：神职角色（预言家/女巫）DAY_SPEECH 个性化发言风格注入
+
+**问题**：R67 为村民引入 personalityLens，但预言家/女巫 DAY_SPEECH 仍趋同——8 种个性类型在系统提示词中有差异，但用户提示词的发言要点/策略对所有预言家、所有女巫完全相同，可观战性仍受限（7.9/10）。
+
+**修复**：在 `'预言家': (ctx, params) => {}` 和 `'女巫': (ctx, params) => {}` 函数体内各新增 personalityLens 变量块（7 分支）：
+- `seerPersonalityLens`：影响"如何呈现查验结论"（数据驱动/强攻/感染/质疑/谋划/严谨/稳健型），注入在 `${lastPointNumber}. 语气要坚定果断...` 之后、`【思维链】` 之前。
+- `witchPersonalityLens`：影响"如何伪装平民并参与讨论"（分析/强势/共情/逆向/策略/保守/稳健型），注入在 `5. 配合预言家...` 之后、`【思维链】` 之前。
+
+**教训 R68-A：为已有函数体新增大量预计算变量（~1500 chars）后，下游测试的切片窗口必须更新**
+- `seerPersonalityLens` 变量块约 1500 chars，加入后 `round57SeerDaySpeechStep0.test.js` 的 4200-char 窗口不再覆盖 `【思维链】` 和 `identity_table 填写指导` 段落，导致 10 个测试失败（`thinkStart=-1`、`writeGuideStart=-1`，slice 返回空字符串）。
+- 修复：窗口从 4200 扩至 6000（R24 铁律：窗口 = 实际距离 × 130%）。
+- **通用规则**：每次在任意角色的 DAY_SPEECH 函数体增加大段内容（>500 chars）后，必须检查该角色的所有历史测试文件，更新 `src.slice(fnStart, fnStart + N)` 中的 N。
+
+**教训 R68-B：神职 personalityLens 是"表达风格" lens，不是"决策" lens**
+- 神职角色 lens 影响"如何框架和呈现"（叙事风格/修辞策略），不影响"做什么决策"（预言家报哪些查验、女巫用什么药）。
+- 与村民的"分析视角" lens 不同——村民 lens 影响分析框架；神职 lens 影响表达方式。
+- 白熊效应铁律同样适用：全正向指令（"XX型：优先/重点/以..."），无"不要""禁止"等负向词。
+
+**测试覆盖**：新增 `round68DivineRolePersonalityLens.test.js` 26 个测试，全部通过；R57 回归修复（窗口扩展）25/25 通过；866/866 全量通过。
+
+---
+
 ## 下轮建议
 
 1. ~~**猎人 DAY_SPEECH Step 0**~~ ✅ Round 56 已完成
@@ -977,8 +1001,9 @@
 6. ~~**DAY_VOTE 角色框架全量**~~ ✅ Round 61-63 已完成（狼/猎/骑全专属，守/女/摄/魔/村有意 fallback）
 7. ~~**DAY_SPEECH 狼人防守预铺**~~ ✅ Round 66 已完成（wolfSpeechPressureHint + pressuredTeammate 参数链）
 8. ~~**村民 DAY_SPEECH 个性化视角**~~ ✅ Round 67 已完成（personalityLens 7 分支 + roleParams.personalityType）
-9. **实局 smoke test**（67 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察 personalityLens 差异化效果（8人局覆盖多种个性），以及 wolfSpeechPressureHint 触发场景。
-10. **可观战性提升后续**（目标 >8.5）：R67 personalityLens 是第一步，后续考虑：(a) 神职角色个性化（预言家/女巫 DAY_SPEECH 也注入 personalityLens），(b) 发言长度差异化（aggressive 短促强硬，cautious 细腻迟疑），(c) identity_table confidence 分层发言深度。
-11. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。
-12. **跨阶段感知-执行分裂系统审计**（R66 通用原则衍生）：搜索 aiPrompts.js 中所有"须在…阶段…铺垫/预铺"类语言，逐一确认对应的前置阶段是否有感知信号注入机制。`grep -n "须在.*阶段\|发言阶段已\|需要提前" src/services/aiPrompts.js` 可列出候选。
+9. ~~**神职角色（预言家/女巫）DAY_SPEECH 个性化**~~ ✅ Round 68 已完成（seerPersonalityLens + witchPersonalityLens 各 7 分支）
+10. **实局 smoke test**（68 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察预言家/女巫/村民 personalityLens 三角色差异化效果（8人局），以及 wolfSpeechPressureHint 触发场景。
+11. **可观战性提升后续**（目标 >8.5）：R68 神职个性化完成后，后续考虑：(a) 发言长度差异化（aggressive 限定 40-50 字，cautious 允许 70-90 字，动态修改字数约束），(b) 守卫/猎人 personalityLens，(c) identity_table confidence 分层发言深度。
+12. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。
+13. **跨阶段感知-执行分裂系统审计**（R66 通用原则衍生）：搜索 aiPrompts.js 中所有"须在…阶段…铺垫/预铺"类语言，逐一确认对应的前置阶段是否有感知信号注入机制。`grep -n "须在.*阶段\|发言阶段已\|需要提前" src/services/aiPrompts.js` 可列出候选。
 

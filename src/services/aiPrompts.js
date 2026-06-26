@@ -1068,6 +1068,25 @@ Step C - 用心路历程收口：解释你"为什么验这个人"（信息链决
             ? 'Step0: 【读取历史验证候选队列（D2+适用）】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"排队查验优先级"标注？将优先级①②③之一作为今天发言分析和投票引导的重点起点（结合今日新发言信息重排序；已死亡/已查验目标跳过）。今晚查验优先从此队列中选取。'
             : 'Step0: 【首日无历史候选队列】直接从 Step1 开始——今天是第一天，尚无跨轮积累的查验候选。';
 
+        // R68：个性化报验风格（影响如何呈现和说服，不影响报什么信息）
+        const seerPersonalityType = params.personalityType || '';
+        let seerPersonalityLens = '';
+        if (seerPersonalityType === 'logical' || seerPersonalityType === 'analytical') {
+            seerPersonalityLens = `\n【你的报验风格】数据驱动型：按夜序逐条报验，用"N1→N2→决策"推理链说明信息来源，以逻辑链说服好人——用"因为...所以..."句式建立可追溯的信息体系。`;
+        } else if (seerPersonalityType === 'aggressive') {
+            seerPersonalityLens = `\n【你的报验风格】强攻型：查杀结果直接强推，省略铺垫，用"必须今天出局"式语言施压带动票型；查无问题时直接点名最可疑发言，不绕弯。`;
+        } else if (seerPersonalityType === 'emotional') {
+            seerPersonalityLens = `\n【你的报验风格】感染型：报验时带入决策当时的心理过程（"那晚我注意到..."），用叙述方式让信息有温度，感染好人跟随你的判断。`;
+        } else if (seerPersonalityType === 'contrarian') {
+            seerPersonalityLens = `\n【你的报验风格】质疑型：报验前先对场上主流判断提出一个疑点，再顺势引入查验结论让好人"自己想通"——从"挑战共识"到"用数据收口"。`;
+        } else if (seerPersonalityType === 'cunning') {
+            seerPersonalityLens = `\n【你的报验风格】谋划型：优先公开能立刻推动投票的查杀结论，在 thought 中评估是否保留部分待报信息以备不时之需，按战略价值披露。`;
+        } else if (seerPersonalityType === 'cautious') {
+            seerPersonalityLens = `\n【你的报验风格】严谨型：详细说明每次查验决策的推理依据，让好人能独立验证你的逻辑，宁可多解释也确保每句站得住脚。`;
+        } else if (seerPersonalityType === 'steady') {
+            seerPersonalityLens = `\n【你的报验风格】稳健型：先肯定场上其他合理发言，再将查验结论融入全局分析，建立"整体战局 + 信息锚点"的叙事，而非单点说服。`;
+        }
+
         return `${getBaseContext(ctx)}
 【预言家专属任务】白天发言 - 报验人/带节奏${endgameHint}
 
@@ -1082,7 +1101,7 @@ ${counterClaimSection}
 4. 有金水就保护："Y号是好人，投Y号 = 帮狼人"
 5. 对跳预言家：若有对跳局面，执行上方【对跳局面专属策略】三步框架（Step A-B-C）${policeFlowPoint}
 ${lastPointNumber}. 语气要坚定果断——预言家是好人阵营的信息源，犹豫不决会让好人失去信心
-
+${seerPersonalityLens}
 【思维链】
 ${seerDayHistoryStep}
 Step1: 我有什么查验信息必须报？（全部报出，不要藏）
@@ -1110,6 +1129,25 @@ Step4: 绝不能投金水！voteIntention 必须指向狼人或最可疑的人
             ? 'Step0: 【读取历史毒药候选队列（D2+适用）】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"毒药优先候选"标注？将其作为今天投票压制和发言分析的重点起点（评估今日言行是否强化/削弱嫌疑；已死亡目标跳过）。今晚是否用毒优先从此队列中评估。'
             : 'Step0: 【首日无历史毒药候选】直接从 Step1 开始——今天是第一天，尚无跨轮积累的毒药候选记录。';
 
+        // R68：个性化发言风格（影响如何伪装/分析，不影响跳不跳身份的策略判断）
+        const witchPersonalityType = params.personalityType || '';
+        let witchPersonalityLens = '';
+        if (witchPersonalityType === 'logical' || witchPersonalityType === 'analytical') {
+            witchPersonalityLens = `\n【你的发言风格】分析型：用逻辑框架解构场上发言，给出有依据的怀疑链，让分析显得专业而中立，符合"观察细致的平民"形象。`;
+        } else if (witchPersonalityType === 'aggressive') {
+            witchPersonalityLens = `\n【你的发言风格】强势型：直接推票可疑目标，发言简短有力，展现一个积极追杀狼人的好人立场，让注意力聚焦到你指向的目标上。`;
+        } else if (witchPersonalityType === 'emotional') {
+            witchPersonalityLens = `\n【你的发言风格】共情型：表达对局面的情感反应（"X号的发言让我很担心"），用情感共鸣感染其他玩家，在好人阵营中建立信任感。`;
+        } else if (witchPersonalityType === 'contrarian') {
+            witchPersonalityLens = `\n【你的发言风格】逆向型：质疑主流追杀目标是否过于草率，为被忽视的嫌疑人建模，展示独立判断力——以"反直觉推理者"形象融入好人阵营。`;
+        } else if (witchPersonalityType === 'cunning') {
+            witchPersonalityLens = `\n【你的发言风格】策略型：伪装成最普通的平民，通过提问引导他人表态，从反应中收集情报；少主动暴露立场，多观察多倾听。`;
+        } else if (witchPersonalityType === 'cautious') {
+            witchPersonalityLens = `\n【你的发言风格】保守型：少说多观察，发言精炼聚焦，只在有充分依据时表态；以稳健低调的形象融入，在关键时刻发挥最大影响。`;
+        } else if (witchPersonalityType === 'steady') {
+            witchPersonalityLens = `\n【你的发言风格】稳健型：先认可场上合理发言再提出补充疑点，平易近人的分析者形象；自然融入好人阵营讨论节奏，不急不躁。`;
+        }
+
         return `${getBaseContext(ctx)}
 【女巫专属任务】白天发言 - 隐藏身份/关键时刻跳
 
@@ -1126,7 +1164,7 @@ ${poisonedInfo ? `你确实毒过: ${poisonedInfo}。` : ''}
 3. 跳身份时机：当你的银水信息能关键帮助好人判断时再跳
 4. 跳身份必须基于事实：只能报你真正救过的人（见上方记录），绝不编造
 5. 配合预言家：银水+金水可以锁定好人阵营
-
+${witchPersonalityLens}
 【思维链】
 ${witchDayHistoryStep}
 Step1: 我需要跳身份吗？跳身份的收益是什么？
@@ -1327,7 +1365,7 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                     : [],
                 // 警长身份（影响发言策略：需要在发言结尾给出警长指路/投票方向）
                 isSheriff: currentPlayer?.isSheriff || false,
-                // R67：个性类型（用于村民 DAY_SPEECH 个性化分析视角注入）
+                // R67/R68：个性类型（村民/预言家/女巫 DAY_SPEECH 个性化发言风格注入）
                 personalityType: currentPlayer?.personality?.type || '',
             };
 
