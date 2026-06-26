@@ -50,6 +50,18 @@ export function clearLocalRecords() {
   store.removeItem(LB_KEY);
 }
 
+/** 以「玩家身份」为维度统计出战/胜场（用于 SelectScreen 角色小字） */
+export function computeCharStats(records) {
+  const map = {};
+  for (const r of records) {
+    if (!r.p) continue;
+    if (!map[r.p]) map[r.p] = { played: 0, won: 0 };
+    map[r.p].played++;
+    if (r.sp > r.so) map[r.p].won++;
+  }
+  return map;
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>

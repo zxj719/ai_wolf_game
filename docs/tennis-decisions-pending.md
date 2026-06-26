@@ -47,7 +47,7 @@ Elza 的配招：`[slice, dropShot, lob, volley]`
 
 ---
 
-## [2026-06-24] SelectScreen 角色解锁进度提示 · 是否引入角色锁定机制
+## [2026-06-24] SelectScreen 角色解锁进度提示 · 是否引入角色锁定机制 ✅ Round 82 已实现方案 C
 
 **背景：**
 

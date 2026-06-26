@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords } from '../localBoard';
+import { loadLocalRecords, computeCharStats } from '../localBoard';
 
 function getOppTag(name, map) {
   const data = map[name];
@@ -30,6 +30,7 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
     }
     return map;
   }, [records]);
+  const charStatsMap = useMemo(() => computeCharStats(records), [records]);
 
   const handleStart = () => {
     if (!picked) {
@@ -59,12 +60,18 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
           <button type="button" className="btn" onClick={handleStart}>入场检录 →</button>
         </div>
         <div className="roster">
-          {CHARS.map((c) => (
-            <div className="chip" key={c.n}>
-              <span className="face">{c.f}</span>
-              <span className="nm">{c.n}</span>
-            </div>
-          ))}
+          {CHARS.map((c) => {
+            const cs = charStatsMap[c.n];
+            return (
+              <div className="chip" key={c.n}>
+                <span className="face">{c.f}</span>
+                <span className="nm">{c.n}</span>
+                {cs && (
+                  <span className="char-stat">出战 {cs.played} · 赢 {cs.won}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
         {seenCount > 0 && (
           <div className="opp-progress">
