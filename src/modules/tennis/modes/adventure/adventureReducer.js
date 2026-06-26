@@ -26,6 +26,7 @@ export function createAdventure({ rng }) {
     drops: [],
     cardsGained: 0,
     log: [],
+    lastMatchStats: null, // { countersWon, counterLost, ... } from most recent battle
   };
 }
 
@@ -59,6 +60,7 @@ export function adventureReducer(state, action) {
       const loot = {
         coinsEarned: state.coinsEarned + (action.coins ?? 0),
         drops: action.drop ? [...state.drops, action.drop] : state.drops,
+        lastMatchStats: action.matchStats ?? null,
       };
       if (!action.win) {
         return { ...state, ...loot, phase: 'failed' };

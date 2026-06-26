@@ -148,7 +148,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
     });
     toast(`🎁 ${RARITY_META[drop.rarity].name}${SLOT_META[drop.slot].name} +${coins + soldFor}💰`);
     setBattleOpponent(null);
-    dispatchRun({ type: 'BATTLE_RESULT', win, remainingEnergy: pEnergy, drop, coins });
+    dispatchRun({ type: 'BATTLE_RESULT', win, remainingEnergy: pEnergy, drop, coins, matchStats });
   }, [run.chapterIdx, run.currentNode, progress, onUpdateProgress, toast, basePlayer.name, battleOpponent]);
 
   /** 事件奖励：永久部分入 progress，run 部分交 reducer */
@@ -335,6 +335,22 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
           体力 {Math.round(run.carryEnergy)}/{100 + run.tempEnergyMax} ·
           加点 💪{run.runStats.sta} 🎯{run.runStats.skill} 🧘{run.runStats.mind} · 💰{progress.coins}
         </p>
+        {run.lastMatchStats && (() => {
+          const { countersWon = 0, counterLost = 0 } = run.lastMatchStats;
+          let adviceText;
+          if (counterLost > countersWon + 1) adviceText = '⚠ 被读穿较多，下场注意变招';
+          else if (countersWon > counterLost + 1) adviceText = '✨ 读招精准，继续保持';
+          else adviceText = '攻防相当';
+          return (
+            <p className="hint between-defense-review">
+              🔁 上场攻防：
+              {countersWon > 0 && <span className="bdp-won">⚔️ 克中 {countersWon}</span>}
+              {counterLost > 0 && <span className={`bdp-lost${counterLost >= 3 ? ' bdp-warn' : ''}`}>🛡 被克 {counterLost}</span>}
+              {countersWon === 0 && counterLost === 0 && <span>平手无克制</span>}
+              <span className="bdp-advice"> — {adviceText}</span>
+            </p>
+          );
+        })()}
         <div className="opts">
           {step.map((node, i) => (
             <button key={node.id} type="button" className="opt"

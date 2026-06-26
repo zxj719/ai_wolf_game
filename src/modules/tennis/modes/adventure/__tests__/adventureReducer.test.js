@@ -94,6 +94,31 @@ describe('adventureReducer（spec §4）', () => {
     expect(s.chapterIdx).toBe(2);
   });
 
+  it('BATTLE_RESULT 胜利时保存 lastMatchStats，供攻防回顾', () => {
+    let s = mk();
+    s = { ...s, phase: 'node', currentNode: { type: 'battle', opponentId: '广场舞大妈' } };
+    const matchStats = { countersWon: 3, counterLost: 1, aces: 0, clutchWins: 0 };
+    s = adventureReducer(s, { type: 'BATTLE_RESULT', win: true, remainingEnergy: 40, drop: null, coins: 30, matchStats });
+    expect(s.lastMatchStats).toEqual(matchStats);
+    expect(s.phase).toBe('pick');
+  });
+
+  it('BATTLE_RESULT 失败时也保存 lastMatchStats', () => {
+    let s = mk();
+    s = { ...s, phase: 'node', currentNode: { type: 'battle', opponentId: '广场舞大妈' } };
+    const matchStats = { countersWon: 0, counterLost: 4, aces: 0, clutchWins: 0 };
+    s = adventureReducer(s, { type: 'BATTLE_RESULT', win: false, remainingEnergy: 0, drop: null, coins: 15, matchStats });
+    expect(s.lastMatchStats).toEqual(matchStats);
+    expect(s.phase).toBe('failed');
+  });
+
+  it('无 matchStats 时 lastMatchStats 为 null', () => {
+    let s = mk();
+    s = { ...s, phase: 'node', currentNode: { type: 'battle', opponentId: '广场舞大妈' } };
+    s = adventureReducer(s, { type: 'BATTLE_RESULT', win: true, remainingEnergy: 40, drop: null, coins: 30 });
+    expect(s.lastMatchStats).toBeNull();
+  });
+
   it('快照 JSON 往返', () => {
     let s = clearStep(mk());
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);
