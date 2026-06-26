@@ -62,6 +62,25 @@ export function computeCharStats(records) {
   return map;
 }
 
+/**
+ * 找出胜率最高的已出战角色（至少 minPlayed 场且至少 1 胜）。
+ * 同胜率时，出战场次更多者优先（样本更可信）。
+ * 返回角色名字符串，无满足条件者返回 null。
+ */
+export function findBestChar(charStatsMap, minPlayed = 2) {
+  let bestName = null, bestRate = -1, bestPlayed = 0;
+  for (const [name, { played, won }] of Object.entries(charStatsMap)) {
+    if (played < minPlayed || won === 0) continue;
+    const rate = won / played;
+    if (rate > bestRate || (rate === bestRate && played > bestPlayed)) {
+      bestRate = rate;
+      bestPlayed = played;
+      bestName = name;
+    }
+  }
+  return bestName;
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>

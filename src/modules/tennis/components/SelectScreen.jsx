@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar } from '../localBoard';
 
 function getOppTag(name, map) {
   const data = map[name];
@@ -31,6 +31,7 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
     return map;
   }, [records]);
   const charStatsMap = useMemo(() => computeCharStats(records), [records]);
+  const bestChar = useMemo(() => findBestChar(charStatsMap), [charStatsMap]);
 
   const handleStart = () => {
     if (!picked) {
@@ -66,6 +67,9 @@ export function SelectScreen({ onStart, toast, boardProps, equipment = {} }) {
               <div className="chip" key={c.n}>
                 <span className="face">{c.f}</span>
                 <span className="nm">{c.n}</span>
+                {bestChar === c.n && (
+                  <span className="best-char-star">✦ 最佳</span>
+                )}
                 {cs && (
                   <span className="char-stat">出战 {cs.played} · 赢 {cs.won}</span>
                 )}

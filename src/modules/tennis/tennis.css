@@ -112,6 +112,7 @@
 .tennis-scope .roster .chip:hover { transform: translateY(-3px); background: rgba(217,255,61,.25); }
 .tennis-scope .roster .chip .face { font-size: 1.7rem; display: block; }
 .tennis-scope .roster .chip .nm { font-family: var(--display); font-size: .95rem; }
+.tennis-scope .roster .chip .best-char-star { display: block; font-size: .6rem; color: #fbbf24; font-weight: 700; margin-top: 2px; letter-spacing: .04em; }
 .tennis-scope .roster .chip .char-stat { display: block; font-size: .62rem; color: var(--muted); font-family: var(--mono); margin-top: 3px; opacity: .8; }
 .tennis-scope .rule-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
 .tennis-scope .rule-strip span {
