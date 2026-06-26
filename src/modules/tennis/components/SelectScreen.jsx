@@ -14,8 +14,17 @@ function getOppTag(name, map) {
   return null;
 }
 
+const CHAR_FACE = Object.fromEntries(CHARS.map((c) => [c.n, c.f]));
+
+function fmtDuration(s) {
+  if (!s) return '';
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return m > 0 ? `${m}分${sec}秒` : `${sec}秒`;
+}
+
 /** ① 报名处：选身份 + 双榜 */
-export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipment = {} }) {
+export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipment = {}, dailyBoard = null }) {
   const [picked, setPicked] = useState('');
   const [showOppHistory, setShowOppHistory] = useState(false);
   const records = useMemo(() => loadLocalRecords(), []);
@@ -107,6 +116,24 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
               )}
               {dailyDone && <span className="daily-done-msg">明天再来挑战！🎾</span>}
             </div>
+          </div>
+        )}
+        {dailyBoard && dailyBoard.completions.length > 0 && (
+          <div className="daily-completions">
+            <span className="daily-completions-label">
+              今日出战 · {dailyBoard.completions.length} 位家人
+            </span>
+            <ul className="daily-completions-list">
+              {dailyBoard.completions.slice(0, 7).map((c) => (
+                <li key={c.player_name} className={`dc-entry${c.won ? ' dc-won' : ' dc-lost'}`}>
+                  <span className="dc-player">{CHAR_FACE[c.player_name] ?? ''} {c.player_name}</span>
+                  <span className="dc-arrow">→</span>
+                  <span className="dc-foe">{CHAR_FACE[c.foe_name] ?? ''} {c.foe_name}</span>
+                  <span className="dc-result">{c.won ? '✓ 胜' : '✗ 败'}</span>
+                  {c.duration_s > 0 && <span className="dc-dur">{fmtDuration(c.duration_s)}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         {seenCount > 0 && (

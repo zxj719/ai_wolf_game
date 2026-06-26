@@ -126,6 +126,33 @@ export function sendMatchFeedback({ rating, comment, mode, character, result }) 
 }
 
 /**
+ * 记录每日一战完成（公开，游客可用；fire-and-forget，不阻塞 UI）
+ */
+export function recordDailyCompletion({ playerName, foeName, won, durationS }) {
+  try {
+    fetch(buildApiUrl('/api/tennis/daily/record'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName, foeName, won, durationS }),
+    }).catch(() => { /* 静默失败 */ });
+  } catch { /* noop */ }
+}
+
+/**
+ * 拉取今日一战排行榜（公开）
+ * @returns {{date: string, completions: Array}|null} 失败返回 null
+ */
+export async function getDailyLeaderboard() {
+  try {
+    const res = await fetch(buildApiUrl('/api/tennis/daily/leaderboard'));
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 拉取全网排行榜（公开接口）
  * @returns {{players: Array, recent: Array}|null} 失败返回 null，由调用方降级
  */

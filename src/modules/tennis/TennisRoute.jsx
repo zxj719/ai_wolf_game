@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ROUTES } from '../../shell/paths';
 import { CHARS, rand } from './gameData';
 import { useTennisGame } from './useTennisGame';
-import { getTennisLeaderboard, sendMatchTelemetry } from '../../services/tennisService';
+import { getTennisLeaderboard, sendMatchTelemetry, recordDailyCompletion, getDailyLeaderboard } from '../../services/tennisService';
 import { loadLocalRecords, clearLocalRecords } from './localBoard';
 import { SelectScreen } from './components/SelectScreen';
 import { ReactTest } from './components/ReactTest';
@@ -51,6 +51,11 @@ export default function TennisRoute() {
 
   const [globalBoard, setGlobalBoard] = useState(undefined);
   const [localRecords, setLocalRecords] = useState(loadLocalRecords);
+  const [dailyBoard, setDailyBoard] = useState(null);
+
+  const refreshDailyBoard = useCallback(() => {
+    getDailyLeaderboard().then(setDailyBoard);
+  }, []);
 
   // 永久养成层（装备/金币/图鉴/成就），登录走 D1 双写、游客 localStorage
   const [progress, setProgress] = useState(EMPTY_PROGRESS);
@@ -88,6 +93,7 @@ export default function TennisRoute() {
       document.head.appendChild(link);
     }
     getTennisLeaderboard().then(setGlobalBoard);
+    getDailyLeaderboard().then(setDailyBoard);
     return () => clearTimeout(toastTimer.current);
   }, []);
 
@@ -183,9 +189,16 @@ export default function TennisRoute() {
     if (matchStats.aces >= 3) achievements.add('aceMaster');
     if (matchStats.clutchWins > 0) achievements.add('clutchMaster');
     const dailyBonus = (isDailyRef.current && win) ? DAILY_BONUS_COINS : 0;
-    if (isDailyRef.current && win) {
-      markDailyChallengeCompleted();
+    if (isDailyRef.current) {
+      recordDailyCompletion({
+        playerName: state.player.name,
+        foeName: state.opp.name,
+        won: win,
+        durationS: durationS ?? null,
+      });
+      if (win) markDailyChallengeCompleted();
       isDailyRef.current = false;
+      setTimeout(refreshDailyBoard, 800);
     }
     updateProgress({
       ...progress,
@@ -201,7 +214,7 @@ export default function TennisRoute() {
       setsO: score.sets[1],
       setHistory: score.setHistory,
     });
-  }, [progress, updateProgress, toast, dispatch, state.player, state.opp]);
+  }, [progress, updateProgress, toast, dispatch, state.player, state.opp, refreshDailyBoard]);
 
   // 结算屏统计摘要（单局快打结束后由 onSingleMatchOver 存入）
   const [lastMatchStats, setLastMatchStats] = useState(null);
@@ -230,7 +243,7 @@ export default function TennisRoute() {
         </header>
 
         {state.screen === 'select' && (
-          <SelectScreen onStart={onStart} onStartDaily={onStartDaily} toast={toast} boardProps={boardProps} equipment={progress.equipment} />
+          <SelectScreen onStart={onStart} onStartDaily={onStartDaily} toast={toast} boardProps={boardProps} equipment={progress.equipment} dailyBoard={dailyBoard} />
         )}
         {state.screen === 'mode' && (
           <section className="screen">

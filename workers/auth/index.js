@@ -72,6 +72,8 @@ import {
   handleTennisTelemetrySummary,
   handleTennisFeedback,
   handleTennisFeedbackSummary,
+  handleTennisDailyRecord,
+  handleTennisDailyLeaderboard,
 } from './tennis.js';
 
 export default {
@@ -248,6 +250,12 @@ export default {
       }
       if (path === '/api/tennis/feedback/summary' && request.method === 'GET') {
         return handleTennisFeedbackSummary(request, env);
+      }
+      if (path === '/api/tennis/daily/record' && request.method === 'POST') {
+        return handleTennisDailyRecord(request, env);
+      }
+      if (path === '/api/tennis/daily/leaderboard' && request.method === 'GET') {
+        return handleTennisDailyLeaderboard(request, env);
       }
 
       // 排行榜（公开接口）

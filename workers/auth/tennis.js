@@ -283,6 +283,51 @@ export async function handleTennisFeedback(request, env) {
   }
 }
 
+/** POST /api/tennis/daily/record（公开；记录每日一战完成，同选手当天只保留第一条） */
+export async function handleTennisDailyRecord(request, env) {
+  try {
+    const b = await request.json().catch(() => null);
+    if (!b || typeof b !== 'object') return errorResponse('Invalid body', 400, env, request);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const ok = TELEMETRY_CHARS.includes(b.playerName)
+      && TELEMETRY_CHARS.includes(b.foeName)
+      && typeof b.won === 'boolean'
+      && (b.durationS == null || (Number.isInteger(b.durationS) && b.durationS >= 0 && b.durationS <= 7200));
+
+    if (!ok) return errorResponse('Invalid payload', 400, env, request);
+
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tennis_daily_completions (date, player_name, foe_name, won, duration_s)
+       VALUES (?, ?, ?, ?, ?)`
+    ).bind(today, b.playerName, b.foeName, b.won ? 1 : 0, b.durationS ?? null).run();
+
+    return jsonResponse({ success: true }, 201, env, request);
+  } catch (err) {
+    console.error('Tennis daily record error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
+  }
+}
+
+/** GET /api/tennis/daily/leaderboard（公开；返回今日完成者，胜者优先） */
+export async function handleTennisDailyLeaderboard(request, env) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = await env.DB.prepare(
+      `SELECT player_name, foe_name, won, duration_s, created_at
+       FROM tennis_daily_completions
+       WHERE date = ?
+       ORDER BY won DESC, created_at ASC
+       LIMIT 50`
+    ).bind(today).all();
+
+    return jsonResponse({ date: today, completions: rows.results ?? [] }, 200, env, request);
+  } catch (err) {
+    console.error('Tennis daily leaderboard error:', err);
+    return errorResponse('Failed: ' + err.message, 500, env, request);
+  }
+}
+
 /** GET /api/tennis/feedback/summary（公开只读聚合，供评估循环读取） */
 export async function handleTennisFeedbackSummary(request, env) {
   try {

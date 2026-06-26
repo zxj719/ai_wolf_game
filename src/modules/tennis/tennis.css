@@ -141,6 +141,19 @@
 .tennis-scope .btn-daily { flex-shrink: 0; background: linear-gradient(135deg, var(--clay), #d97706); color: #fff; border: none; border-radius: 7px; padding: 7px 12px; font-size: .8rem; font-weight: 700; cursor: pointer; letter-spacing: .02em; }
 .tennis-scope .btn-daily:hover { opacity: .88; }
 .tennis-scope .daily-done-msg { flex-shrink: 0; font-size: .75rem; color: var(--muted); font-family: var(--mono); font-style: italic; }
+.tennis-scope .daily-completions { margin-top: 10px; border-top: 1px solid rgba(13,59,46,.25); padding-top: 10px; }
+.tennis-scope .daily-completions-label { display: block; font-size: .7rem; color: var(--muted); font-family: var(--mono); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 7px; }
+.tennis-scope .daily-completions-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.tennis-scope .dc-entry { display: flex; align-items: center; gap: 6px; font-size: .78rem; font-family: var(--mono); padding: 4px 8px; border-radius: 6px; background: rgba(13,59,46,.08); }
+.tennis-scope .dc-won { border-left: 3px solid #4ade80; }
+.tennis-scope .dc-lost { border-left: 3px solid rgba(242,238,224,.2); }
+.tennis-scope .dc-player { font-weight: 700; color: var(--text); }
+.tennis-scope .dc-arrow { color: var(--muted); font-size: .65rem; }
+.tennis-scope .dc-foe { color: var(--muted); }
+.tennis-scope .dc-result { margin-left: auto; font-weight: 700; font-size: .72rem; }
+.tennis-scope .dc-won .dc-result { color: #4ade80; }
+.tennis-scope .dc-lost .dc-result { color: rgba(242,238,224,.35); }
+.tennis-scope .dc-dur { font-size: .65rem; color: var(--muted); margin-left: 4px; }
 .tennis-scope .opp-progress { margin-top: 14px; }
 .tennis-scope .opp-progress-label { display: block; font-size: .75rem; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
 .tennis-scope .opp-progress-bar { height: 5px; background: rgba(13,59,46,.15); border-radius: 4px; overflow: hidden; }
