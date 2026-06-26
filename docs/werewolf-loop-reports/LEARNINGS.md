@@ -942,6 +942,31 @@
 
 ---
 
+---
+
+## Round 67（2026-06-26）：村民 DAY_SPEECH 个性化分析视角注入
+
+**问题**：8 种个性类型在系统提示词中有差异，但用户提示词的【分析框架】对所有村民完全相同，导致所有村民发言模式趋同，可观战性持续偏低（7.8/10）。
+
+**修复**：`ROLE_DAY_SPEECH_PROMPTS['村民']` 改为函数体语法，根据 `params.personalityType` 动态生成 `personalityLens`（7 种有效分支 + 无类型 fallback=空），注入在【村民发言要求】之后、【分析框架】之前。`roleParams` 中新增 `personalityType: currentPlayer?.personality?.type || ''`。
+
+**教训 R67-A：函数体语法改动必须同步更新所有依赖 `=> \`` 标记的测试文件**
+- 将 `(ctx, params) => \`` 改为 `(ctx, params) => { ... return \`...\`; }` 后，所有用 `src.indexOf("'角色': (ctx, params) => \`")` 定位的测试文件全部返回 -1。
+- 修复方法：改用 `"'角色': (ctx, params) => {"` 作为标记，并将切片窗口从 2500 扩大到 4000（函数体前置声明区 ~1800 chars）。
+- 扩展 R56/R57 教训：函数体语法有两个区域（declaration block + template block），测试应分别定位，用 `villagerBlock.indexOf('return \`')` 分割。
+
+**教训 R67-B：personalityLens 白熊效应检查为正向指令铁律**
+- 所有 personalityLens 均以"XX驱动型：优先/重点/以..."开头，描述期望行为，不使用"不要""禁止"等负向词。
+- logical 和 analytical 共用同一个数据驱动 lens（两者行为模式重叠，符合设计意图）。
+
+**教训 R67-C：unrelated histories 场景下 git stash/rebase 必须谨慎**
+- 若本地与远端无共同祖先（`git merge-base` 返回空），不要 `git pull --rebase`——直接 `git reset --hard origin/main` 然后重新应用变更是最安全的路径。
+- auto-merge 可能丢失模板内容，每次合并后必须运行全套专项测试，不能只靠 build passed 判断。
+
+**测试覆盖**：新增 `round67VillagerPersonalityLens.test.js` 24 个测试，全部通过。
+
+---
+
 ## 下轮建议
 
 1. ~~**猎人 DAY_SPEECH Step 0**~~ ✅ Round 56 已完成
@@ -951,8 +976,9 @@
 5. ~~**干跑模拟**~~ ✅ Round 61 已完成（45/45 断言通过）
 6. ~~**DAY_VOTE 角色框架全量**~~ ✅ Round 61-63 已完成（狼/猎/骑全专属，守/女/摄/魔/村有意 fallback）
 7. ~~**DAY_SPEECH 狼人防守预铺**~~ ✅ Round 66 已完成（wolfSpeechPressureHint + pressuredTeammate 参数链）
-8. **实局 smoke test**（66 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察 wolfSpeechPressureHint 触发场景（需 D2+ 多狼局面），以及摄梦人/魔术师 thought 引用历史候选的实际效果。
-9. **可观战性提升**（当前 7.8，持续低分）：发言内容多样性/性格差异化可能是突破口——村民发言模式若过于相似，会降低观战吸引力。可评估在 villager DAY_SPEECH 中加入基于 identity_table confidence 分层的"发言深度/语气"差异化。
-10. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。
-11. **跨阶段感知-执行分裂系统审计**（R66 通用原则衍生）：搜索 aiPrompts.js 中所有"须在…阶段…铺垫/预铺"类语言，逐一确认对应的前置阶段是否有感知信号注入机制。`grep -n "须在.*阶段\|发言阶段已\|需要提前" src/services/aiPrompts.js` 可列出候选。
+8. ~~**村民 DAY_SPEECH 个性化视角**~~ ✅ Round 67 已完成（personalityLens 7 分支 + roleParams.personalityType）
+9. **实局 smoke test**（67 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察 personalityLens 差异化效果（8人局覆盖多种个性），以及 wolfSpeechPressureHint 触发场景。
+10. **可观战性提升后续**（目标 >8.5）：R67 personalityLens 是第一步，后续考虑：(a) 神职角色个性化（预言家/女巫 DAY_SPEECH 也注入 personalityLens），(b) 发言长度差异化（aggressive 短促强硬，cautious 细腻迟疑），(c) identity_table confidence 分层发言深度。
+11. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。
+12. **跨阶段感知-执行分裂系统审计**（R66 通用原则衍生）：搜索 aiPrompts.js 中所有"须在…阶段…铺垫/预铺"类语言，逐一确认对应的前置阶段是否有感知信号注入机制。`grep -n "须在.*阶段\|发言阶段已\|需要提前" src/services/aiPrompts.js` 可列出候选。
 

@@ -17,8 +17,8 @@ const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 
 // ─── Section 1: DAY_SPEECH 村民 Step 0 ─────────────────────────────────────
 
-// 定位村民 DAY_SPEECH 段落（lastIndexOf 避免 getCOTTemplate 假 case）
-const villagerDaySpeechMarker = "'村民': (ctx, params) => `${getBaseContext(ctx)}";
+// 定位村民 DAY_SPEECH 段落（R67 改为函数体语法，使用函数体标记定位；R56 教训：函数体形式需用非箭头标记）
+const villagerDaySpeechMarker = "'村民': (ctx, params) => {";
 const villagerStart = src.indexOf(villagerDaySpeechMarker);
 
 describe('R54: DAY_SPEECH 村民 思维链 Step 0（读写闭环）', () => {
@@ -27,32 +27,32 @@ describe('R54: DAY_SPEECH 村民 思维链 Step 0（读写闭环）', () => {
     });
 
     test('T2: 村民段落包含 Step0', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         expect(segment).toContain('Step0');
     });
 
     test('T3: Step0 包含"历史推理积累"关键词', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         expect(segment).toContain('历史推理积累');
     });
 
     test('T4: Step0 包含"身份推理表"关键词（指向 identity_table）', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         expect(segment).toContain('身份推理表');
     });
 
     test('T5: Step0 包含 confidence 阈值指导（≥ 60）', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         expect(segment).toContain('≥ 60');
     });
 
     test('T6: Step0 包含首日免责说明（首日无历史可跳过）', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         expect(segment).toContain('首日');
     });
 
     test('T7: Step0 在 Step1 之前（正确顺序）', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         const step0Pos = segment.indexOf('Step0');
         const step1Pos = segment.indexOf('Step1');
         expect(step0Pos).toBeGreaterThan(0);
@@ -61,7 +61,7 @@ describe('R54: DAY_SPEECH 村民 思维链 Step 0（读写闭环）', () => {
     });
 
     test('T8: Step1-Step4 均存在（未破坏原思维链结构）', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         expect(segment).toContain('Step1');
         expect(segment).toContain('Step2');
         expect(segment).toContain('Step3');
@@ -69,7 +69,7 @@ describe('R54: DAY_SPEECH 村民 思维链 Step 0（读写闭环）', () => {
     });
 
     test('T9: identity_table 写指导仍存在（追加示例未被删除）', () => {
-        const segment = src.slice(villagerStart, villagerStart + 2500);
+        const segment = src.slice(villagerStart, villagerStart + 4000);
         expect(segment).toContain('追加示例');
     });
 });
@@ -167,12 +167,12 @@ describe('R54: 回归测试（预言家/女巫/守卫等分支未受影响）', 
     });
 
     test('T23: 村民 DAY_SPEECH identity_table 填写指导中的追加示例未被删除', () => {
-        const villagerSeg = src.slice(villagerStart, villagerStart + 2500);
+        const villagerSeg = src.slice(villagerStart, villagerStart + 4000);
         expect(villagerSeg).toContain('N1发言带节奏');
     });
 
     test('T24: 村民 DAY_SPEECH 输出 JSON schema 未变（含 identity_table）', () => {
-        const villagerSeg = src.slice(villagerStart, villagerStart + 2500);
+        const villagerSeg = src.slice(villagerStart, villagerStart + 4000);
         expect(villagerSeg).toContain('"identity_table"');
         expect(villagerSeg).toContain('"voteIntention"');
     });
