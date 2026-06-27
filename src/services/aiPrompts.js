@@ -1683,6 +1683,25 @@ ${guardNightStyle}
       · 若平安夜 → 守卫可能守住/女巫救了，重新评估优先目标`
                  : '0. 【首夜】无历史刀口记录——直接进行角色推断';
 
+             // R76：NIGHT_WOLF 刀口选择风格个性化（wolfNightStyle）
+             const wolfNightPersonalityType = currentPlayer?.personality?.type || '';
+             let wolfNightStyle = '';
+             if (wolfNightPersonalityType === 'aggressive') {
+                 wolfNightStyle = '\n【你的刀口风格】主动锁刀型：直刀当前 identity_table confidence 最高的威胁目标——早清除高威胁来得及，不因被守护概率而回避决策；若高优先目标被守护，则换刀次高威胁，不浪费夜间行动。';
+             } else if (wolfNightPersonalityType === 'cautious') {
+                 wolfNightStyle = '\n【你的刀口风格】保守规避型：选威胁等级中等但被守护概率低的目标——刀"最安全"的人，宁可慢一步也不浪费刀；尤其规避猎人/骑士高代价反杀，守护概率 > 40% 的目标优先放弃。';
+             } else if (wolfNightPersonalityType === 'logical' || wolfNightPersonalityType === 'analytical') {
+                 wolfNightStyle = '\n【你的刀口风格】推理优化型：量化期望价值 = 威胁等级 × (1 - 估算被守护概率)，按 identity_table confidence 降序列出存活好人，在 thought 中逐一计算期望值后选最高目标。';
+             } else if (wolfNightPersonalityType === 'cunning') {
+                 wolfNightStyle = '\n【你的刀口风格】博弈迷雾型：偶尔刀"看起来低优先"的目标，制造刀口方向假象——让好人难以通过连续死亡推断你的判断逻辑；若已连续两夜刀高优先，第三夜可考虑刀次优目标混淆预言家/守卫的保护预测。';
+             } else if (wolfNightPersonalityType === 'emotional') {
+                 wolfNightStyle = '\n【你的刀口风格】直觉感知型：今天白天发言中对你/队友最有敌意、最活跃或最咄咄逼人的玩家优先——个人威胁感知先于 confidence 数据；若某人今天发言触发了强烈警觉，即使 confidence 中等也可优先刀。';
+             } else if (wolfNightPersonalityType === 'contrarian') {
+                 wolfNightStyle = '\n【你的刀口风格】反预判型：预判守卫正在守护"当前最明显的高优先目标"，选守卫最不可能守护的次优目标——博弈不对称信息，让守卫保护资源空置；若守卫连守规律已暴露，重新评估其守护意图再做选择。';
+             } else if (wolfNightPersonalityType === 'steady') {
+                 wolfNightStyle = '\n【你的刀口风格】平衡渐进型：严格按角色优先级框架（女巫→预言家→守卫→猎人→村民）逐步执行，多轮间保持目标连续性——若无充分切换理由，维持上轮"高优先刀口"目标不变，稳步推进不随意换刀。';
+             }
+
              return `狼人袭击决策。
 【重要规则】每晚必须袭击一名玩家，不能空刀！
 【可袭击目标】${validTargets}号${wolfLastNightBlock}
@@ -1693,6 +1712,7 @@ ${wolfThreatHints.length > 0 ? '【威胁分析】\n' + wolfThreatHints.map(h =>
 
 【思维链】
 ${wolfHistoryStep}
+${wolfNightStyle}
 1. 【角色推断】白天发言中谁的行为印证或更新了上轮 identity_table 的判断？是否出现新的神职暴露信号？
 2. 【期望价值评估】高优先目标是否仍存活？综合：角色威胁 × 被守护概率（连守规律） × 猎人/骑士反杀代价
 3. 【最终决策】确定今晚目标——若切换了历史"高优先刀口"目标，在 thought 中说明切换原因（避免随机换刀）

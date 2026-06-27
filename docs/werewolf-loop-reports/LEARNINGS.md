@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-27 Round 76] 狼人 NIGHT_WOLF 刀口选择风格个性化（wolfNightStyle）— NIGHT 侧四连完成里程碑
+
+- **完成状态**：NIGHT_WOLF case 新增 `wolfNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `wolfNightStyle`（7 种个性类型的刀口选择风格分叉）。aggressive→主动锁刀型（直刀最高 confidence 威胁目标，不因守护风险回避）；cautious→保守规避型（刀"最安全"目标，守护概率>40%放弃）；logical/analytical→推理优化型（量化期望价值=威胁等级×(1-被守护概率)，选最高）；cunning→博弈迷雾型（偶尔刀次优目标制造刀口方向假象）；emotional→直觉感知型（白天最敌对/活跃玩家优先，个人威胁感知先于数据）；contrarian→反预判型（选守卫最不可能守护的次优目标，让守护资源浪费）；steady→平衡渐进型（严格按角色优先级框架保持目标连续性，不随意换刀）。注入位置：wolfHistoryStep 之后、1.【角色推断】之前，与 R73/R74/R75 守卫/女巫/预言家模式完全对称。
+- **NIGHT_WOLF block 大小变化**：3287 → 4975 chars（+1688 chars），测试窗口设为 7000（4975 × 1.4）。第四次成功应用"先估算块大小→再设测试窗口"规则（R73 首建、R74/R75/R76 连续验证）——规则已完全固化，可不再赘述。
+- **NIGHT 侧四连完成里程碑**：守卫（R73）→ 女巫（R74）→ 预言家（R75）→ 狼人（R76）全部完成 NIGHT 侧个性化。4 大主 NIGHT 行动角色全量覆盖，骑士/摄梦人/魔术师因特殊性可放低优先级。
+- **狼人三阶段覆盖里程碑**：狼人成为第四个三阶段全覆盖角色：DAY_SPEECH（R66 pressureHint + R70 speechLen）+ DAY_VOTE（R61 wolfDefenseTrigger + R65 thisRoundVoteHint）+ NIGHT_WOLF（R76 wolfNightStyle）。
+- **NIGHT 侧个性化注入位置模式（四例验证后完全固化）**：注入点 = `${角色HistoryStep}` 之后（紧接历史读取）、主思维链步骤 1 之前（不干预决策框架）。调用端无需改动（`currentPlayer` 在 generateUserPrompt 闭包中直接可用，R5 教训）。7 种风格均正向描述，无"不要刀"等负向禁词（白熊效应合规）。
+- **测试**：1048/1048（+20 new R76 tests）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-27 Round 75] 预言家 NIGHT_SEER 夜间查验顺序个性化（seerNightStyle）— NIGHT 侧第三个个性化完成
 
 - **完成状态**：NIGHT_SEER case 新增 `seerNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `seerNightStyle`（7 种个性类型的查验目标选择风格分叉）。aggressive→主动威胁型（直接查最高嫌疑目标，早确认=早带全员集票）；cautious→边缘安全型（查边缘/陌生目标，多元化路径掩护推断主方向）；logical/analytical→推理优化型（按 identity_table confidence 选信息增量最大目标）；cunning→情报迷雾型（故意查确认好人制造查验随机假象）；emotional→直觉导向型（白天强烈直觉感知优先于数据 confidence）；contrarian→反预判型（预判狼人在预判被查目标，选次优但最不被预期的候选）；steady→平衡渐进型（严格按①②③④⑤优先级框架稳步推进）。注入位置：seerHistoryStep 之后、seerNightStrategy（三阶段策略框架）之前，与 R73 守卫、R74 女巫模式完全对称。
