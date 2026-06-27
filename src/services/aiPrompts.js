@@ -2015,6 +2015,23 @@ Step5: 确定入梦目标
    b) 场景评估：能推票出局 → 全力推票（投票出局比决斗更省资源，保留决斗用于更高价值时刻）；无法翻转票型 → 仍然投他，积累好人阵营公共认知，伺机决斗
    c) 无"决斗候选"标注时：跟投预言家查杀 > 发言逻辑最崩塌的玩家 > 历史热力最高的目标`;
 
+            // R71：DAY_VOTE 语气风格一致性——personalityType 影响投票理由表述风格
+            // 设计：风格 hint 调整"如何表达决策"，不影响"选谁"的策略框架（策略已由角色专属块覆盖）
+            // 白熊效应合规：所有分支均为正向描述（"用X方式表达"），无"不要Y"禁止语句
+            const votePersonalityType = currentPlayer?.personality?.type || '';
+            let voteStyleHint = '';
+            if (votePersonalityType === 'aggressive') {
+                voteStyleHint = `\n【投票风格—结论先行】直接说"投X号，因为Y"——一句话，不铺垫，不迟疑。`;
+            } else if (votePersonalityType === 'cautious') {
+                voteStyleHint = `\n【投票风格—分析铺垫】先说推理过程（综合了A和B之后），再表态——reasoning 完整呈现推理链条。`;
+            } else if (votePersonalityType === 'emotional') {
+                voteStyleHint = `\n【投票风格—感知表达】reasoning 带一丝直觉色彩（"感觉X号今天很不对劲"），仍基于发言证据但语气更感性。`;
+            } else if (votePersonalityType === 'cunning') {
+                voteStyleHint = `\n【投票风格—策略表达】reasoning 给出表面合理的理由（观察到的行为证据），thought 中记录真实策略考量。`;
+            } else if (votePersonalityType === 'contrarian') {
+                voteStyleHint = `\n【投票风格—差异化表达】若主流追投X，有理由时，reasoning 说明"为什么关注Y而不跟主流"。`;
+            }
+
             return `投票放逐阶段（第${voteDay}天）。
 【存活可投】${voteTargets.join(',')}号(不能投自己)，或选择-1弃票。
 ${intentionReminder}
@@ -2045,9 +2062,9 @@ ${playerRole === '狼人'
 
 ⚠️ targetId = 你想投票【淘汰/出局】的人，不是你"支持"的人！
 ⚠️ 已验证预言家的查杀优先级最高：分票=帮狼人。未验证或有悍跳时综合分析再决定。
-
+${voteStyleHint}
 输出JSON格式:
-{"reasoning":"一句话分析(言行一致投X/听了Y发言改投Y/信息不足弃票)","targetId":数字或-1,"thought":"投票决策思考过程"}`;
+{"reasoning":"${votePersonalityType === 'aggressive' ? '结论先行，一句话直接投X（理由）' : votePersonalityType === 'cautious' ? '分析铺垫再表态（综合A/B后，投X）' : '一句话分析(言行一致投X/听了Y发言改投Y/信息不足弃票)'}","targetId":数字或-1,"thought":"投票决策思考过程"}`;
         }
 
         case PROMPT_ACTIONS.HUNTER_SHOOT: {
