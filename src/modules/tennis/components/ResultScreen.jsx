@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
 import { MOVES, COUNTER_QUIPS } from '../battle/moves';
-import { saveLocalRecord, loadLocalRecords } from '../localBoard';
+import { saveLocalRecord, loadLocalRecords, computeStreakCount } from '../localBoard';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
@@ -33,12 +33,15 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
   const oppQuote = oppQuotePool ? oppQuotePool[rand(0, oppQuotePool.length - 1)] : null;
   const recordedRef = useRef(false);
 
-  // 连胜计算：读取当前游戏保存前的历史记录（effect 尚未运行），加上本局结果
+  // 连胜/连败计算：读取当前游戏保存前的历史记录（effect 尚未运行），加上本局结果
   const winStreak = useMemo(() => {
-    const mine = loadLocalRecords().filter((r) => r.p === p.name);
-    let streak = playerWon ? 1 : 0;
-    for (let i = mine.length - 1; i >= 0 && mine[i].sp > mine[i].so; i--) streak++;
-    return streak;
+    if (!playerWon) return 0;
+    return computeStreakCount(loadLocalRecords(), p.name, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const lossStreak = useMemo(() => {
+    if (playerWon) return 0;
+    return computeStreakCount(loadLocalRecords(), p.name, false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const topMoveEntry = useMemo(() => {
@@ -134,6 +137,13 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           <div style={{ textAlign: 'center', marginTop: 10 }}>
             <span className={`ladder-streak${winStreak >= 5 ? ' streak-gold' : winStreak >= 3 ? ' streak-pulse' : ''}`}>
               {winStreak >= 5 ? '🔥🔥🔥' : winStreak >= 3 ? '🔥🔥' : '🔥'} 本次连胜 {winStreak} 场
+            </span>
+          </div>
+        )}
+        {!playerWon && lossStreak >= 2 && (
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <span className={`loss-streak-badge${lossStreak >= 4 ? ' loss-streak-fire' : ''}`}>
+              {lossStreak >= 4 ? '💪💪' : '💪'} 连败 {lossStreak} 场{lossStreak >= 4 ? '，不倒翁精神！' : lossStreak >= 3 ? '，复仇时刻到了！' : '，换个策略再战！'}
             </span>
           </div>
         )}

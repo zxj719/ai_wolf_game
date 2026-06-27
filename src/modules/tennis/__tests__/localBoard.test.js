@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -75,5 +75,43 @@ describe('findBestChar', () => {
   it('自定义 minPlayed = 1 时单场胜利也可入选', () => {
     const map = { 莹: { played: 1, won: 1 } };
     expect(findBestChar(map, 1)).toBe('莹');
+  });
+});
+
+describe('computeStreakCount', () => {
+  const W = (n = '诚') => ({ p: n, o: 'Elza', sp: 2, so: 0 }); // 胜
+  const L = (n = '诚') => ({ p: n, o: 'Elza', sp: 0, so: 2 }); // 败
+
+  it('无历史记录时当前局本身算 1 连', () => {
+    expect(computeStreakCount([], '诚', true)).toBe(1);
+    expect(computeStreakCount([], '诚', false)).toBe(1);
+  });
+
+  it('连胜：历史末尾 3 胜 + 当前胜 = 4 连胜', () => {
+    const records = [L(), W(), W(), W()];
+    expect(computeStreakCount(records, '诚', true)).toBe(4);
+  });
+
+  it('连败：历史末尾 2 败 + 当前败 = 3 连败', () => {
+    const records = [W(), L(), L()];
+    expect(computeStreakCount(records, '诚', false)).toBe(3);
+  });
+
+  it('连胜被历史中的败局截断', () => {
+    const records = [W(), L(), W(), W()]; // 最近 2 连胜
+    expect(computeStreakCount(records, '诚', true)).toBe(3); // 当前胜 + 历史末 2 胜
+  });
+
+  it('只统计同名玩家的记录，其他玩家不干扰', () => {
+    const records = [L('诚'), L('菲比'), L('菲比')];
+    // 诚只有 1 败在历史，当前再败 = 2
+    expect(computeStreakCount(records, '诚', false)).toBe(2);
+    // 菲比历史末 2 败，当前再败 = 3
+    expect(computeStreakCount(records, '菲比', false)).toBe(3);
+  });
+
+  it('sp === so（平局）视为败局，纳入连败计数', () => {
+    const draw = { p: '诚', o: 'Elza', sp: 1, so: 1 };
+    expect(computeStreakCount([draw], '诚', false)).toBe(2);
   });
 });

@@ -81,6 +81,19 @@ export function findBestChar(charStatsMap, minPlayed = 2) {
   return bestName;
 }
 
+/**
+ * 计算连胜或连败条数（含当前局）。
+ * records 为 loadLocalRecords() 未含本局的历史，本局固定计入 1 作起点。
+ * isWin=true 计算连胜；isWin=false 计算连败（sp <= so 视为败）。
+ */
+export function computeStreakCount(records, playerName, isWin) {
+  const mine = records.filter((r) => r.p === playerName);
+  const pred = isWin ? (r) => r.sp > r.so : (r) => r.sp <= r.so;
+  let streak = 1;
+  for (let i = mine.length - 1; i >= 0 && pred(mine[i]); i--) streak++;
+  return streak;
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>
