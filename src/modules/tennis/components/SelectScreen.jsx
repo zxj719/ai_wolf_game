@@ -118,24 +118,32 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             </div>
           </div>
         )}
-        {dailyBoard && dailyBoard.completions.length > 0 && (
-          <div className="daily-completions">
-            <span className="daily-completions-label">
-              今日出战 · {dailyBoard.completions.length} 位家人
-            </span>
-            <ul className="daily-completions-list">
-              {dailyBoard.completions.slice(0, 7).map((c) => (
-                <li key={c.player_name} className={`dc-entry${c.won ? ' dc-won' : ' dc-lost'}`}>
-                  <span className="dc-player">{CHAR_FACE[c.player_name] ?? ''} {c.player_name}</span>
-                  <span className="dc-arrow">→</span>
-                  <span className="dc-foe">{CHAR_FACE[c.foe_name] ?? ''} {c.foe_name}</span>
-                  <span className="dc-result">{c.won ? '✓ 胜' : '✗ 败'}</span>
-                  {c.duration_s > 0 && <span className="dc-dur">{fmtDuration(c.duration_s)}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {dailyBoard && dailyBoard.completions.length > 0 && (() => {
+          const sliced = dailyBoard.completions.slice(0, 7);
+          const meInList = picked && sliced.some((c) => c.player_name === picked);
+          return (
+            <div className="daily-completions">
+              <span className="daily-completions-label">
+                今日出战 · {dailyBoard.completions.length} 位家人{meInList ? ' · 包括你' : ''}
+              </span>
+              <ul className="daily-completions-list">
+                {sliced.map((c) => {
+                  const isMe = picked && c.player_name === picked;
+                  return (
+                    <li key={c.player_name} className={`dc-entry${c.won ? ' dc-won' : ' dc-lost'}${isMe ? ' dc-me' : ''}`}>
+                      <span className="dc-player">{CHAR_FACE[c.player_name] ?? ''} {c.player_name}</span>
+                      {isMe && <span className="dc-me-badge">你</span>}
+                      <span className="dc-arrow">→</span>
+                      <span className="dc-foe">{CHAR_FACE[c.foe_name] ?? ''} {c.foe_name}</span>
+                      <span className="dc-result">{c.won ? '✓ 胜' : '✗ 败'}</span>
+                      {c.duration_s > 0 && <span className="dc-dur">{fmtDuration(c.duration_s)}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })()}
         {seenCount > 0 && (
           <div className="opp-progress">
             <button
