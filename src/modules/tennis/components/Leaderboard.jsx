@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { sortLocalRecords } from '../localBoard';
+import { CHARS } from '../gameData';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 const rankLabel = (i) => MEDALS[i] ?? i + 1;
@@ -32,6 +33,8 @@ export function Leaderboard({ global, localRecords, isLoggedIn, onLogin, onClear
 }
 
 function GlobalBoard({ global, isLoggedIn, onLogin, onRetry }) {
+  const [charFilter, setCharFilter] = useState(null);
+
   if (global === undefined) {
     return <p className="lb-empty">榜单加载中……</p>;
   }
@@ -49,18 +52,45 @@ function GlobalBoard({ global, isLoggedIn, onLogin, onRetry }) {
   }
 
   const { players = [], recent = [] } = global;
+  const filteredPlayers = charFilter ? players.filter((p) => p.lastCharacter === charFilter) : players;
+  const filteredRecent = charFilter ? recent.filter((m) => m.character === charFilter) : recent;
+  const activeChar = charFilter ? CHARS.find((c) => c.n === charFilter) : null;
 
   return (
     <div>
-      {players.length === 0 ? (
-        <p className="lb-empty">全网还没有战绩 —— 第一个上榜的人，就是第一个传说。</p>
+      <div className="lb-filter-chips">
+        <button
+          type="button"
+          className={`lb-fc${!charFilter ? ' active' : ''}`}
+          onClick={() => setCharFilter(null)}
+        >
+          全部
+        </button>
+        {CHARS.map((c) => (
+          <button
+            key={c.n}
+            type="button"
+            className={`lb-fc${charFilter === c.n ? ' active' : ''}`}
+            onClick={() => setCharFilter(charFilter === c.n ? null : c.n)}
+          >
+            {c.f} {c.n}
+          </button>
+        ))}
+      </div>
+
+      {filteredPlayers.length === 0 ? (
+        <p className="lb-empty">
+          {charFilter
+            ? `还没有以 ${activeChar?.f ?? ''} ${charFilter} 上榜的选手 —— 率先上场创造历史吧！`
+            : '全网还没有战绩 —— 第一个上榜的人，就是第一个传说。'}
+        </p>
       ) : (
         <table className="lb-table">
           <thead>
             <tr><th>#</th><th>选手</th><th>胜 / 场</th><th>胜率</th><th>最快反应</th><th>荣誉</th></tr>
           </thead>
           <tbody>
-            {players.map((p, i) => (
+            {filteredPlayers.map((p, i) => (
               <tr key={p.username} className={i === 0 ? 'top' : ''}>
                 <td className="mono">{rankLabel(i)}</td>
                 <td>{p.lastFace} <b>{p.username}</b>（{p.lastCharacter}）</td>
@@ -78,13 +108,13 @@ function GlobalBoard({ global, isLoggedIn, onLogin, onRetry }) {
         </table>
       )}
 
-      {recent.length > 0 && (
+      {filteredRecent.length > 0 && (
         <table className="lb-table">
           <thead>
             <tr><th>最近战报</th><th>反应</th><th>时间</th></tr>
           </thead>
           <tbody>
-            {recent.map((m, i) => (
+            {filteredRecent.map((m, i) => (
               <tr key={`${m.username}-${m.createdAt}-${i}`}>
                 <td>
                   {m.face} <b>{m.username}</b> {m.setsWon}-{m.setsLost} {m.setsWon > m.setsLost ? '胜' : '负'} {m.opponentFace} {m.opponent}

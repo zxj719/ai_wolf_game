@@ -317,6 +317,12 @@
   border: 1.5px solid rgba(13,59,46,.3); background: transparent; color: var(--card-ink); cursor: pointer;
 }
 .tennis-scope .lb-tab.active { background: var(--court); color: var(--optic); border-color: var(--court); }
+.tennis-scope .lb-filter-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 4px; }
+.tennis-scope .lb-fc {
+  font-size: .75rem; padding: 4px 10px; border-radius: 999px;
+  border: 1.5px solid rgba(13,59,46,.25); background: transparent; color: var(--card-ink); cursor: pointer;
+}
+.tennis-scope .lb-fc.active { background: rgba(217,255,61,.35); border-color: var(--court); font-weight: 600; }
 
 /* toast */
 .tennis-scope .toast {
