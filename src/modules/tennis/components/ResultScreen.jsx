@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
 import { MOVES, COUNTER_QUIPS } from '../battle/moves';
-import { saveLocalRecord, loadLocalRecords, computeStreakCount } from '../localBoard';
+import { saveLocalRecord, loadLocalRecords, computeStreakCount, computeWeeklyChamp } from '../localBoard';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
@@ -42,6 +42,13 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
   const lossStreak = useMemo(() => {
     if (playerWon) return 0;
     return computeStreakCount(loadLocalRecords(), p.name, false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 含当前局的周度最强：把本局虚拟入历史后再算（save effect 异步，useMemo 先跑）
+  const weeklyChampName = useMemo(() => {
+    const preRecords = loadLocalRecords();
+    const curRecord = { p: p.name, pf: p.face, sp: state.setsP, so: state.setsO, ts: Date.now() };
+    return computeWeeklyChamp([...preRecords, curRecord])?.name ?? null;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const topMoveEntry = useMemo(() => {
@@ -145,6 +152,11 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
             <span className={`loss-streak-badge${lossStreak >= 4 ? ' loss-streak-fire' : ''}`}>
               {lossStreak >= 4 ? '💪💪' : '💪'} 连败 {lossStreak} 场{lossStreak >= 4 ? '，不倒翁精神！' : lossStreak >= 3 ? '，复仇时刻到了！' : '，换个策略再战！'}
             </span>
+          </div>
+        )}
+        {playerWon && weeklyChampName === p.name && (
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <span className="weekly-champ-badge">🏅 本周家族最强</span>
           </div>
         )}
         <p className="comment">{ending.c}</p>

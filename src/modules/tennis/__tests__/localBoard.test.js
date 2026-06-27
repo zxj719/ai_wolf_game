@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -113,5 +113,81 @@ describe('computeStreakCount', () => {
   it('sp === so（平局）视为败局，纳入连败计数', () => {
     const draw = { p: '诚', o: 'Elza', sp: 1, so: 1 };
     expect(computeStreakCount([draw], '诚', false)).toBe(2);
+  });
+});
+
+describe('computeWeeklyChamp', () => {
+  const NOW = 1_000_000_000_000; // 固定"当前"时间
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  // 便捷构造器
+  const rec = (p, pf, sp, so, ts) => ({ p, pf, o: 'Elza', of: '🦊', sp, so, ts });
+
+  it('空记录返回 null', () => {
+    expect(computeWeeklyChamp([], { now: NOW })).toBeNull();
+  });
+
+  it('无 ts 字段的旧记录被忽略', () => {
+    const records = [{ p: '诚', pf: '🐯', o: 'Elza', sp: 2, so: 0 }]; // 无 ts
+    expect(computeWeeklyChamp(records, { now: NOW })).toBeNull();
+  });
+
+  it('7 天外的记录被忽略', () => {
+    const records = [rec('诚', '🐯', 2, 0, NOW - WEEK - 1)];
+    expect(computeWeeklyChamp(records, { now: NOW })).toBeNull();
+  });
+
+  it('胜场不足 minWins 时返回 null', () => {
+    const records = [rec('诚', '🐯', 2, 0, NOW - 1000)]; // 1 胜，默认 minWins=2
+    expect(computeWeeklyChamp(records, { now: NOW })).toBeNull();
+  });
+
+  it('单角色满足 minWins 时正确返回', () => {
+    const records = [
+      rec('诚', '🐯', 2, 0, NOW - 1000),
+      rec('诚', '🐯', 2, 1, NOW - 2000),
+    ];
+    const champ = computeWeeklyChamp(records, { now: NOW });
+    expect(champ).toEqual({ name: '诚', face: '🐯', wins: 2, played: 2 });
+  });
+
+  it('返回胜场最多的角色', () => {
+    const records = [
+      rec('诚', '🐯', 2, 0, NOW - 1000),
+      rec('诚', '🐯', 2, 0, NOW - 2000),
+      rec('Elza', '🦊', 2, 0, NOW - 3000),
+      rec('Elza', '🦊', 2, 0, NOW - 4000),
+      rec('Elza', '🦊', 2, 0, NOW - 5000),
+    ];
+    const champ = computeWeeklyChamp(records, { now: NOW });
+    expect(champ?.name).toBe('Elza');
+    expect(champ?.wins).toBe(3);
+  });
+
+  it('胜场相同时出战场次更多者优先', () => {
+    const records = [
+      rec('诚', '🐯', 2, 0, NOW - 1000),
+      rec('诚', '🐯', 2, 0, NOW - 2000),
+      rec('诚', '🐯', 0, 2, NOW - 3000), // 额外出战 1 场，总 played=3
+      rec('菲比', '🌸', 2, 0, NOW - 4000),
+      rec('菲比', '🌸', 2, 0, NOW - 5000), // 同为 2 胜，played=2
+    ];
+    const champ = computeWeeklyChamp(records, { now: NOW });
+    expect(champ?.name).toBe('诚'); // 胜场同，出战更多
+  });
+
+  it('恰好在截止时间边界内的记录被计入', () => {
+    const ts = NOW - WEEK + 1; // 刚好在 7 天内
+    const records = [
+      rec('莹', '🌙', 2, 0, ts),
+      rec('莹', '🌙', 2, 0, ts + 1000),
+    ];
+    const champ = computeWeeklyChamp(records, { now: NOW });
+    expect(champ?.name).toBe('莹');
+  });
+
+  it('自定义 minWins=1 时单场胜利也可入选', () => {
+    const records = [rec('丫', '🐰', 2, 0, NOW - 1000)];
+    const champ = computeWeeklyChamp(records, { now: NOW, minWins: 1 });
+    expect(champ?.name).toBe('丫');
   });
 });

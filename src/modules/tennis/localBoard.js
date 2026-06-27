@@ -29,7 +29,7 @@ export function loadLocalRecords() {
   }
 }
 
-/** 与原版同构的记录：{p, pf, o, of, sp, so, ms, g, d} */
+/** 与原版同构的记录：{p, pf, o, of, sp, so, ms, g, d, ts} */
 export function saveLocalRecord({ player, opp, setsP, setsO }) {
   const rec = {
     p: player.name, pf: player.face,
@@ -39,6 +39,7 @@ export function saveLocalRecord({ player, opp, setsP, setsO }) {
     d: new Date().toLocaleString('zh-CN', {
       month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
     }),
+    ts: Date.now(), // Unix ms，用于周度统计（老记录无此字段，自动落出周窗口）
   };
   const list = loadLocalRecords();
   list.push(rec);
@@ -92,6 +93,31 @@ export function computeStreakCount(records, playerName, isWin) {
   let streak = 1;
   for (let i = mine.length - 1; i >= 0 && pred(mine[i]); i--) streak++;
   return streak;
+}
+
+/**
+ * 统计过去 7 天胜场最多的玩家角色。
+ * 只统计带 ts 字段的记录（R92+ 新增）；旧记录无 ts，自然落出窗口。
+ * 返回 { name, face, wins, played } 或 null（无满足 minWins 的角色时）。
+ * now 参数用于测试中注入时间，生产代码省略即可。
+ */
+export function computeWeeklyChamp(records, { minWins = 2, now = Date.now() } = {}) {
+  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+  const map = {};
+  for (const r of records) {
+    if (!r.ts || r.ts <= cutoff || !r.p) continue;
+    if (!map[r.p]) map[r.p] = { face: r.pf ?? '', wins: 0, played: 0 };
+    map[r.p].played++;
+    if (r.sp > r.so) map[r.p].wins++;
+  }
+  let best = null;
+  for (const [name, stats] of Object.entries(map)) {
+    if (stats.wins < minWins) continue;
+    if (!best || stats.wins > best.wins || (stats.wins === best.wins && stats.played > best.played)) {
+      best = { name, ...stats };
+    }
+  }
+  return best;
 }
 
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */

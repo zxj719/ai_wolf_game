@@ -595,6 +595,8 @@
 }
 .tennis-scope .loss-streak-badge { display: inline-flex; align-items: center; background: rgba(139,92,246,.75); color: #fff; border-radius: 999px; font-family: var(--mono); font-size: .7rem; font-weight: 700; padding: 2px 12px; letter-spacing: .04em; white-space: nowrap; }
 .tennis-scope .loss-streak-badge.loss-streak-fire { animation: lossStreakPulse 1.4s ease-in-out infinite; }
+.tennis-scope .weekly-champ-banner { background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.35); border-radius: 8px; padding: 8px 14px; margin-bottom: 8px; font-size: .88rem; text-align: center; color: #fbbf24; }
+.tennis-scope .weekly-champ-badge { display: inline-flex; align-items: center; background: rgba(251,191,36,.18); border: 1px solid rgba(251,191,36,.45); color: #fbbf24; border-radius: 999px; font-family: var(--mono); font-size: .7rem; font-weight: 700; padding: 2px 12px; letter-spacing: .04em; white-space: nowrap; }
 .tennis-scope .ladder-loot {
   display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 16px;
   font-family: var(--mono); font-size: .9rem; color: var(--card-ink);

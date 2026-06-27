@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { sortLocalRecords } from '../localBoard';
+import { sortLocalRecords, computeWeeklyChamp } from '../localBoard';
 import { CHARS } from '../gameData';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -143,9 +143,15 @@ function LocalBoard({ records, onClearLocal }) {
   const filteredRecords = charFilter ? records.filter((r) => r.p === charFilter) : records;
   const sorted = sortLocalRecords(filteredRecords);
   const activeChar = charFilter ? CHARS.find((c) => c.n === charFilter) : null;
+  const weeklyChamp = computeWeeklyChamp(records);
 
   return (
     <div>
+      {weeklyChamp && (
+        <div className="weekly-champ-banner">
+          🏅 本周家族最强：{weeklyChamp.face} <b>{weeklyChamp.name}</b> · 周内 {weeklyChamp.wins} 胜
+        </div>
+      )}
       <div className="lb-filter-chips">
         <button
           type="button"
