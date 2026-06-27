@@ -156,6 +156,7 @@
 .tennis-scope .dc-dur { font-size: .65rem; color: var(--muted); margin-left: 4px; }
 .tennis-scope .dc-me { background: rgba(251,191,36,.12); outline: 1px solid rgba(251,191,36,.35); }
 .tennis-scope .dc-me-badge { font-size: .6rem; font-weight: 700; background: rgba(251,191,36,.8); color: #1a1a1a; border-radius: 3px; padding: 0 4px; margin-left: 2px; line-height: 1.6; }
+.tennis-scope .dc-fastest-badge { font-size: .6rem; font-weight: 700; background: rgba(59,130,246,.75); color: #fff; border-radius: 3px; padding: 0 4px; margin-left: 2px; line-height: 1.6; }
 .tennis-scope .opp-progress { margin-top: 14px; }
 .tennis-scope .opp-progress-label { display: block; font-size: .75rem; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
 .tennis-scope .opp-progress-bar { height: 5px; background: rgba(13,59,46,.15); border-radius: 4px; overflow: hidden; }

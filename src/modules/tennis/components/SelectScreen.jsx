@@ -121,6 +121,9 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
         {dailyBoard && dailyBoard.completions.length > 0 && (() => {
           const sliced = dailyBoard.completions.slice(0, 7);
           const meInList = picked && sliced.some((c) => c.player_name === picked);
+          const winners = sliced.filter((c) => c.won && c.duration_s > 0);
+          const fastestDur = winners.length > 0 ? Math.min(...winners.map((c) => c.duration_s)) : null;
+          const fastestName = fastestDur !== null ? winners.find((c) => c.duration_s === fastestDur)?.player_name : null;
           return (
             <div className="daily-completions">
               <span className="daily-completions-label">
@@ -129,10 +132,12 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
               <ul className="daily-completions-list">
                 {sliced.map((c) => {
                   const isMe = picked && c.player_name === picked;
+                  const isFastest = fastestName && c.player_name === fastestName && c.won && c.duration_s === fastestDur;
                   return (
                     <li key={c.player_name} className={`dc-entry${c.won ? ' dc-won' : ' dc-lost'}${isMe ? ' dc-me' : ''}`}>
                       <span className="dc-player">{CHAR_FACE[c.player_name] ?? ''} {c.player_name}</span>
                       {isMe && <span className="dc-me-badge">你</span>}
+                      {isFastest && <span className="dc-fastest-badge">⚡ 最速</span>}
                       <span className="dc-arrow">→</span>
                       <span className="dc-foe">{CHAR_FACE[c.foe_name] ?? ''} {c.foe_name}</span>
                       <span className="dc-result">{c.won ? '✓ 胜' : '✗ 败'}</span>
