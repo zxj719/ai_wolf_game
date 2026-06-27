@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-06-27 Round 71] DAY_VOTE 语气风格一致性 — personalityType 影响投票理由表述
+
+- **完成状态**：DAY_VOTE case 新增 `votePersonalityType`（从 `currentPlayer?.personality?.type` 直接读取，无需改调用端）和 `voteStyleHint`（5 种个性类型差异化风格指引）。输出 JSON `reasoning` 字段描述对 aggressive/cautious 差异化。形成 DAY_SPEECH（个性化发言风格）→ DAY_VOTE（个性化投票表述）的跨阶段个性化完整覆盖。
+- **DAY_VOTE 个性化设计原则（R71 新增）**：`voteStyleHint` 调整"如何表达投票决策"，不影响"选谁"的策略框架——策略由角色专属块（wolfsVotingFramework/seerVoteStrategy/hunterVoteStrategy/knightVoteStrategy）覆盖。两层分离：策略层（选谁）+ 表达层（如何说）。
+- **调用端无需修改规则**：`generateUserPrompt` 中 `currentPlayer` 已在所有 case 作用域可用，需要玩家私有状态时直接用 `currentPlayer?.field` 读取，不必通过调用端传参（R5 教训的延伸应用：DAY_VOTE 也适用此模式）。
+- **"有意 fallback"不等于"没有个性化空间"**：守卫/女巫/村民 DAY_VOTE 走通用 fallback（R63 确认），但这只是"策略框架"层面的 fallback——**在相同策略框架内**，仍可通过 `voteStyleHint` 注入表达风格差异化。两者是正交维度，不互斥。
+- **测试**：933/933（+15 new R71 tests）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-26 Round 70] 狼人/预言家/女巫/村民 DAY_SPEECH 发言字数差异化
 
 - **完成状态**：R67（村民）→ R68（预言家/女巫）→ R69（猎人/守卫）→ R70（狼人+预言家+女巫+村民）完成所有 6 主角色 `speechLen` 差异化。`aggressive` 型发言更短促，`cautious` 型发言更详尽，每个角色的字数范围与其个性风格自然匹配，提升可观战性。
