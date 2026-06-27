@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-27 Round 75] 预言家 NIGHT_SEER 夜间查验顺序个性化（seerNightStyle）— NIGHT 侧第三个个性化完成
+
+- **完成状态**：NIGHT_SEER case 新增 `seerNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `seerNightStyle`（7 种个性类型的查验目标选择风格分叉）。aggressive→主动威胁型（直接查最高嫌疑目标，早确认=早带全员集票）；cautious→边缘安全型（查边缘/陌生目标，多元化路径掩护推断主方向）；logical/analytical→推理优化型（按 identity_table confidence 选信息增量最大目标）；cunning→情报迷雾型（故意查确认好人制造查验随机假象）；emotional→直觉导向型（白天强烈直觉感知优先于数据 confidence）；contrarian→反预判型（预判狼人在预判被查目标，选次优但最不被预期的候选）；steady→平衡渐进型（严格按①②③④⑤优先级框架稳步推进）。注入位置：seerHistoryStep 之后、seerNightStrategy（三阶段策略框架）之前，与 R73 守卫、R74 女巫模式完全对称。
+- **NIGHT_SEER block 大小变化**：2872 → 4645 chars（+1773 chars），测试窗口设为 6200（4645 × 1.35）。第三次成功应用"先估算块大小→再设测试窗口"规则（R73 首建、R74 首验证、R75 再次成功应用）——规则已稳定固化。
+- **预言家三阶段个性化覆盖里程碑**：预言家成为第三个三阶段个性化全覆盖角色（DAY_SPEECH R68 + DAY_VOTE R71 + NIGHT_SEER R75）。守卫（R69+R71+R73）、女巫（R68+R71+R74）同样已完成三阶段覆盖。
+- **NIGHT 侧个性化连续成功模式确认**：同一套"historyStep 之后、strategy 之前"注入模式已在 NIGHT_GUARD（R73）、NIGHT_WITCH（R74）、NIGHT_SEER（R75）三个 case 中验证成功，成为 NIGHT 侧个性化标准模板。下次为 NIGHT_WOLF 添加个性化时直接复用此模式。
+- **白熊效应合规设计**：7 种查验风格均为正向指令（"主动威胁型"、"边缘安全型"等），核心描述"什么样的玩家→如何选择目标"，无"不要查"等负向禁词 ✅。
+- **测试**：1019/1019（+20 new R75 tests）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-27 Round 74] 女巫 NIGHT_WITCH 夜间用药策略个性化（witchNightStyle）— NIGHT 侧第二个个性化完成
 
 - **完成状态**：NIGHT_WITCH case 新增 `witchNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `witchNightStyle`（7 种个性类型的用药激进程度分叉）。aggressive→激进出手型（有机会立即行动）；cautious→保守持药型（保留双药到临界）；logical/analytical→推理验证型（quantity化判断再行动）；cunning→博弈伪装型（刻意延迟用毒制造假象）；emotional→直觉感知型（当晚威胁感先于数据）；contrarian→反预判型（预判狼人在预判自己的用药节奏）；steady→平衡节药型（中等阈值稳步出手）。注入位置：witchHistoryStep 之后、Step 1（解药考量）之前，与 R73 守卫模式完全对称。

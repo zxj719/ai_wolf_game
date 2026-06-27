@@ -1717,6 +1717,25 @@ ${wolfHistoryStep}
                  ? '0. 【读取历史查验候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"排队查验优先级"？将其作为今晚查验候选起点（结合新信息重新排序；已死亡目标跳过）'
                  : '0. 【首夜】无历史查验队列——直接按下方策略选择查验目标';
 
+             // R75：预言家夜间查验顺序个性化——不同个性类型对"查验目标选择优先级"的风险偏好不同
+             const seerNightPersonalityType = currentPlayer?.personality?.type || '';
+             let seerNightStyle = '';
+             if (seerNightPersonalityType === 'aggressive') {
+                 seerNightStyle = '\n【你的查验风格】主动威胁型：直接查你认为当前威胁最高的目标——不管概率有多模糊，宁可连续确认高嫌疑目标也不浪费夜晚在"相对安全"的人身上。早确认=早带全员集票，行动优先于信息平衡。';
+             } else if (seerNightPersonalityType === 'cautious') {
+                 seerNightStyle = '\n【你的查验风格】边缘安全型：倾向查验陌生目标或边缘位玩家——建立信息锚点时不主动暴露推断主方向。避免连续只查"热门嫌疑"（狼人会反推你的推断路径），用多元化查验路径掩护你真实的判断方向。';
+             } else if (seerNightPersonalityType === 'logical' || seerNightPersonalityType === 'analytical') {
+                 seerNightStyle = '\n【你的查验风格】推理优化型：从 identity_table 中按 confidence 降序列出未验证的高嫌疑目标，优先选择信息增量最大的候选（confidence 在 60-80、有多轮行为异常记录、与多路汇聚同时成立的目标）。每次查验前估算此次查验能消除多少不确定性，选信息增益最大的那个。';
+             } else if (seerNightPersonalityType === 'cunning') {
+                 seerNightStyle = '\n【你的查验风格】情报迷雾型：有时故意查一个你已高度确信是好人的目标——制造"预言家查验方向是随机的"假象，误导狼人预测你下一步行动。真实高威胁目标在狼人以为你不会查时再查，打对方一个信息差。伪装随机性本身是策略资产。';
+             } else if (seerNightPersonalityType === 'emotional') {
+                 seerNightStyle = '\n【你的查验风格】直觉导向型：白天发言结束后对某个玩家产生了强烈直觉感知，今晚优先查这个人——直觉信号优先于 identity_table 的 confidence 数值。感知强度本身是一种信息，不要被数据框架完全压制直觉判断。';
+             } else if (seerNightPersonalityType === 'contrarian') {
+                 seerNightStyle = '\n【你的查验风格】反预判型：你预判狼人在预判你会查谁——如果某人是"显然该查"的热门目标，反而评估狼人是否会让他们临时伪装得更无辜。选择"次优但最不被预期"的候选有时信息价值更高。狼人最怕你查的，往往不是最热门的那个。';
+             } else if (seerNightPersonalityType === 'steady') {
+                 seerNightStyle = '\n【你的查验风格】平衡渐进型：严格按优先级框架（①悍跳响应→②多路汇聚→③投票节点→④信任链延伸→⑤行为兜底）稳步推进，不跳跃也不偏废任何层级。每轮选取当前"确定性增量最大"的目标，避免过分激进或过分保守地偏离框架。';
+             }
+
              // 动态上下文：检测悍跳者（其他玩家声称是预言家）
              const mySeerChecksCount = (gameState.seerChecks || []).filter(c => c.seerId === currentPlayer?.id).length;
              const counterClaimants = (gameState.claimHistory || [])
@@ -1759,6 +1778,7 @@ ${counterClaimText}
 【查验历史】本局已查验 ${mySeerChecksCount} 人，当前第 ${seerNightLabel} 夜
 ${nightCot}
 ${seerHistoryStep}
+${seerNightStyle}
 ${seerNightStrategy}
 【identity_table 填写指导（夜间查验：记录确认知识与候选优先级）】
 - 已查验玩家：confidence 填 95-100，reason 写"${seerNightLabel}夜查验确认：[狼人/好人角色名]（已公开/待明日报）"——标"待报"提醒自己次日发言必须优先公开
