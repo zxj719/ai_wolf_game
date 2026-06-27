@@ -4,6 +4,15 @@
 
 ---
 
+### [2026-06-27 Round 73] 守卫夜间守护决策个性化（guardNightStyle）— NIGHT 侧首个个性化完成
+
+- **完成状态**：NIGHT_GUARD case 新增 `guardNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取，无需改调用端）和 `guardNightStyle`（7 种个性类型的换守 vs 连守策略分叉）。aggressive→主动探索型；cautious→稳健连守型；logical/analytical→信息挖掘型；cunning→博弈欺骗型；emotional→直觉感知型；contrarian→反预判型；steady→平衡渐进型。注入位置：Step 0（历史读取）之后、Step 1（守护优先级）之前。守卫成为首个三阶段全覆盖角色（DAY_SPEECH R69 + DAY_VOTE R71 + NIGHT R73）。
+- **窗口截断第三次（R68-A / R70 教训重现）**：NIGHT_GUARD block 添加 ~700 chars 个性块后达 3777 chars，初始窗口 3200 导致 T11/T16/T18 失败。调整到 4500 通过。预防命令：每次修改大型 case block 后运行 `node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.NIGHT_GUARD: {'); const b=s.indexOf('case PROMPT_ACTIONS.NIGHT_MAGICIAN:', a); console.log('NIGHT_GUARD size:', b-a)"` 估算尺寸，测试窗口取 estimatedSize * 1.2。
+- **NIGHT 侧个性化路线图（R73 新增）**：守卫 NIGHT 个性化完成后，下一优先序：女巫（是否激进用药/双保策略差异大）→ 预言家（查验顺序是否按 confidence 降序或反直觉选择）→ 狼人（多狼协作时刀口选择风格）。NIGHT 侧个性化的设计维度与 DAY 侧不同——DAY 侧影响"如何表达"，NIGHT 侧影响"如何决策"，两者正交。
+- **测试**：979/979（+20 new R73 tests）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-27 Round 72] 摄梦人/魔术师 DAY_VOTE 读写闭环补完 — 梦票对齐 + 换票对齐
 
 - **完成状态**：摄梦人（dreamweaverVoteStrategy）和魔术师（magicianVoteStrategy）DAY_VOTE 专属策略新增并接入三元链。摄梦人读取"连梦候选" → 梦票对齐（投票出局 > 夜间入梦，节省入梦能力）；魔术师读取"换刀候选" → 换票对齐（投票直接淘汰 > 夜间换刀风险转移）。防御入梦候选（摄梦人需要保护的核心好人）有反向例外处理。DAY_VOTE 全角色读写闭环**首次完整覆盖**（6 专属路径 + 3 有意 fallback）。

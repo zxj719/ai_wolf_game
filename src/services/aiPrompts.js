@@ -1571,6 +1571,25 @@ ${playerRole === '狼人'
             const guardHistoryStep = ctx.dayCount > 1
                 ? '0. 【读取历史守护优先候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"守护优先级：高"或"守护优先级：中"？将其列为今晚守护候选起点（若该目标在禁止连守限制内或已出局，改选次高优先候选）'
                 : '0. 【首夜】无历史守护记录——直接根据场上信息判断守护目标';
+            // R73：守卫夜间守护策略个性化——不同个性类型对"换守 vs 连守"博弈权重不同
+            // 使用 currentPlayer 闭包变量（无需改调用端，R5 教训）
+            const guardNightPersonalityType = currentPlayer?.personality?.type || '';
+            let guardNightStyle = '';
+            if (guardNightPersonalityType === 'aggressive') {
+                guardNightStyle = '\n【你的守护风格】主动探索型：主动频繁换守，让狼人无法摸清你的守护模式。每次换守都可揭示刀口规律（连守同一目标后对方仍死=守错了；对方安全=守成功或狼刀别处）。在 thought 中记录每次换守的推理依据。';
+            } else if (guardNightPersonalityType === 'cautious') {
+                guardNightStyle = '\n【你的守护风格】稳健连守型：判断最有价值目标后倾向连守2-3晚，宁可被平安夜也要防止失守最关键神职。换守仅在有充分新证据时（新神职暴露/明确狼针对信号）执行，不轻易改变守护对象。';
+            } else if (guardNightPersonalityType === 'logical' || guardNightPersonalityType === 'analytical') {
+                guardNightStyle = '\n【你的守护风格】信息挖掘型：把守护结果视为信息来源——守了X后X存活平安夜说明守护生效（或狼未刀X），X死亡说明守错了。在 thought 中系统更新刀口推断，每次守护决策都对之前的推断做一次更新。';
+            } else if (guardNightPersonalityType === 'cunning') {
+                guardNightStyle = '\n【你的守护风格】博弈欺骗型：刻意让守护模式难以预测。有时连守制造规律假象再突然切换，有时完全反预判。在 thought 中推断狼人对你守护习惯的判断，选择最出乎意料的目标。';
+            } else if (guardNightPersonalityType === 'emotional') {
+                guardNightStyle = '\n【你的守护风格】直觉感知型：结合历史守护候选后，依赖对当晚局势的感知判断——谁当晚最危险？谁最需要保护？在 thought 中描述感知来源，再交叉验证历史守护候选的理性依据。';
+            } else if (guardNightPersonalityType === 'contrarian') {
+                guardNightStyle = '\n【你的守护风格】反预判型：若狼人可能预判了你的守护目标（连守规律或场上暗示），选择一个意外目标。在 thought 中推断狼人对你守护模式的预判，选择最出乎意料的守护目标。';
+            } else if (guardNightPersonalityType === 'steady') {
+                guardNightStyle = '\n【你的守护风格】平衡渐进型：有充足理由时坚持连守（连守=持续保护价值高），有新信息（神职暴露/发言变化）时适当换守。既不过于随机（暴露无决策依据）也不过于固定（被狼人预判守护目标）。';
+            }
 
             return `守卫守护选择。
 ${guardHint}${guardSubsequentHint}
@@ -1579,6 +1598,7 @@ ${cannotGuard !== null ? `【禁止连守】不能守${cannotGuard}号(昨夜已
 ${nightCot}
 【守护思维链】
 ${guardHistoryStep}
+${guardNightStyle}
 1. 【守护优先级】已跳身份的预言家 > 重要神职 > 被狼针对的好人
 2. 【禁连守处理】若上方历史优先候选恰好是连守禁止对象，顺延至次高优先候选
 3. 【最终决策】确定今晚守护目标——若切换了历史优先候选目标，在 thought 中说明切换原因
