@@ -1799,6 +1799,25 @@ ${seerNightStrategy}
                  ? '0. 【读取历史毒药候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"毒药优先候选"？将其列为今晚开毒候选起点（若该目标已死或局面改变，重新评估其他高威胁项）'
                  : '0. 【首夜】无历史毒药候选记录——直接根据当前情况判断用药';
 
+             // R74：女巫夜间用药策略个性化——不同个性类型对"激进用药 vs 保守持药"博弈权重不同
+             const witchNightPersonalityType = currentPlayer?.personality?.type || '';
+             let witchNightStyle = '';
+             if (witchNightPersonalityType === 'aggressive') {
+                 witchNightStyle = '\n【你的用药风格】激进出手型：出现机会立即行动——被刀目标若有一定价值即救，发现高可疑目标即开毒。宁可承担用错的损失，也不放过出手时机。早出手=早建立信息确定性，节省后续轮次的不确定性成本。';
+             } else if (witchNightPersonalityType === 'cautious') {
+                 witchNightStyle = '\n【你的用药风格】保守持药型：双药是终极保障——除非局势进入临界（再死一个好人就输），否则倾向保留药物。救药留到神职受刀；毒药等到 confidence≥85 且多轮行为异常同时成立再用。剩余局势越紧张，出手阈值才逐渐降低。';
+             } else if (witchNightPersonalityType === 'logical' || witchNightPersonalityType === 'analytical') {
+                 witchNightStyle = '\n【你的用药风格】推理验证型：从 identity_table 高置信度候选（≥75）提取毒药目标，与当晚被刀信息交叉验证。救药使用前先推断"若不救明天好人是否还占优势"，得到量化判断再行动。每次用药必须在 thought 中写出推理链：X好人Y狼人→结论。';
+             } else if (witchNightPersonalityType === 'cunning') {
+                 witchNightStyle = '\n【你的用药风格】博弈伪装型：药物是战略工具——刻意在有机会时不用毒，制造"女巫保守"的假象；等待狼人放松警惕后，在关键轮次精准出手。被刀时评估救药的身份暴露风险（是否此举会让狼人确认你的位置和资源状态）。';
+             } else if (witchNightPersonalityType === 'emotional') {
+                 witchNightStyle = '\n【你的用药风格】直觉感知型：依赖当晚强烈感知做决策——若有玩家白天让你产生强烈威胁感，今晚可考虑开毒，不必等 identity_table 充分积累。被刀时"感受被刀者是否值得救"先于数据计算。直觉信号优先，但仍然检查临界条件再确认。';
+             } else if (witchNightPersonalityType === 'contrarian') {
+                 witchNightStyle = '\n【你的用药风格】反预判型：你预判狼人在预判你的用药节奏——若被刀目标看似显然值得救，反而评估狼人是否在测试你的解药资源。毒药方面：若某人发言过于完美或行为过于规则，这可能是刻意伪装。在多数人觉得应该出手时保药，在局面安全时果断行动。';
+             } else if (witchNightPersonalityType === 'steady') {
+                 witchNightStyle = '\n【你的用药风格】平衡节药型：解药和毒药都是稀缺资源，稳步积累信息再出手。救药留到真正值得保护的神职受威胁时；毒药等到有充分依据（identity_table≥75 + 多轮发言异常）再开。每轮做"用药/持药"平衡评估，避免过早或过晚消耗资源。';
+             }
+
              return `女巫用药决策。
 ${witchHint}
 【当前情况】${witchInfo}
@@ -1806,6 +1825,7 @@ ${witchHint}
 ${nightCot}
 【用药策略（思维链）】
 ${witchHistoryStep}
+${witchNightStyle}
 1. 解药考量：被刀者是否为关键神职？是否可能是自刀狼？救人收益vs保留价值？
 2. 毒药考量：结合上方历史候选（Step 0），只有高度确信某人是狼且逻辑完全崩坏时才考虑开毒
 3. 风险评估：毒错好人会导致阵营崩盘

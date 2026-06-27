@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-06-27 Round 74] 女巫 NIGHT_WITCH 夜间用药策略个性化（witchNightStyle）— NIGHT 侧第二个个性化完成
+
+- **完成状态**：NIGHT_WITCH case 新增 `witchNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `witchNightStyle`（7 种个性类型的用药激进程度分叉）。aggressive→激进出手型（有机会立即行动）；cautious→保守持药型（保留双药到临界）；logical/analytical→推理验证型（quantity化判断再行动）；cunning→博弈伪装型（刻意延迟用毒制造假象）；emotional→直觉感知型（当晚威胁感先于数据）；contrarian→反预判型（预判狼人在预判自己的用药节奏）；steady→平衡节药型（中等阈值稳步出手）。注入位置：witchHistoryStep 之后、Step 1（解药考量）之前，与 R73 守卫模式完全对称。
+- **NIGHT_WITCH block 大小变化**：2209 → 4023 chars（+1814 chars），测试窗口设为 5200（4023 × 1.3）。这是 R73 "大型 case block 修改后必须估算尺寸"教训的第一次成功预防应用——先估算再设窗口，未发生截断失败。
+- **女巫三阶段覆盖里程碑**：女巫成为第二个三阶段个性化全覆盖角色（DAY_SPEECH R68 + DAY_VOTE R71 + NIGHT_WITCH R74）。NIGHT 侧个性化下一优先：预言家（查验顺序个性化）→ 狼人（首狼刀口选择风格）。
+- **白熊效应合规设计**：7 种用药风格均为正向指令（"激进出手型"、"保守持药型"等），核心描述"什么样的玩家→如何决策"，无"不要用毒"等负向禁词 ✅。
+- **测试**：999/999（+20 new R74 tests）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-27 Round 73] 守卫夜间守护决策个性化（guardNightStyle）— NIGHT 侧首个个性化完成
 
 - **完成状态**：NIGHT_GUARD case 新增 `guardNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取，无需改调用端）和 `guardNightStyle`（7 种个性类型的换守 vs 连守策略分叉）。aggressive→主动探索型；cautious→稳健连守型；logical/analytical→信息挖掘型；cunning→博弈欺骗型；emotional→直觉感知型；contrarian→反预判型；steady→平衡渐进型。注入位置：Step 0（历史读取）之后、Step 1（守护优先级）之前。守卫成为首个三阶段全覆盖角色（DAY_SPEECH R69 + DAY_VOTE R71 + NIGHT R73）。
