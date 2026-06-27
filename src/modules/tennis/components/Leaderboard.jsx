@@ -138,27 +138,58 @@ function GlobalBoard({ global, isLoggedIn, onLogin, onRetry }) {
 }
 
 function LocalBoard({ records, onClearLocal }) {
-  if (!records.length) {
-    return <p className="lb-empty">本机还没有战绩 —— 第一个上场的人，就是第一个传说。</p>;
-  }
-  const sorted = sortLocalRecords(records);
+  const [charFilter, setCharFilter] = useState(null);
+
+  const filteredRecords = charFilter ? records.filter((r) => r.p === charFilter) : records;
+  const sorted = sortLocalRecords(filteredRecords);
+  const activeChar = charFilter ? CHARS.find((c) => c.n === charFilter) : null;
+
   return (
     <div>
-      <table className="lb-table">
-        <thead>
-          <tr><th>#</th><th>战绩</th><th>反应</th><th>时间</th></tr>
-        </thead>
-        <tbody>
-          {sorted.map((r, i) => (
-            <tr key={`${r.p}-${r.d}-${i}`} className={i === 0 ? 'top' : ''}>
-              <td className="mono">{rankLabel(i)}</td>
-              <td>{r.pf} <b>{r.p}</b> {r.sp}-{r.so} {r.sp > r.so ? '胜' : '负'} {r.of} {r.o}</td>
-              <td className="mono">{r.ms}ms·{r.g}级</td>
-              <td className="mono">{r.d}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="lb-filter-chips">
+        <button
+          type="button"
+          className={`lb-fc${!charFilter ? ' active' : ''}`}
+          onClick={() => setCharFilter(null)}
+        >
+          全部
+        </button>
+        {CHARS.map((c) => (
+          <button
+            key={c.n}
+            type="button"
+            className={`lb-fc${charFilter === c.n ? ' active' : ''}`}
+            onClick={() => setCharFilter(charFilter === c.n ? null : c.n)}
+          >
+            {c.f} {c.n}
+          </button>
+        ))}
+      </div>
+
+      {sorted.length === 0 ? (
+        <p className="lb-empty">
+          {charFilter
+            ? `还没有以 ${activeChar?.f ?? ''} ${charFilter} 出战的记录 —— 快来挑战吧！`
+            : '本机还没有战绩 —— 第一个上场的人，就是第一个传说。'}
+        </p>
+      ) : (
+        <table className="lb-table">
+          <thead>
+            <tr><th>#</th><th>战绩</th><th>反应</th><th>时间</th></tr>
+          </thead>
+          <tbody>
+            {sorted.map((r, i) => (
+              <tr key={`${r.p}-${r.d}-${i}`} className={i === 0 ? 'top' : ''}>
+                <td className="mono">{rankLabel(i)}</td>
+                <td>{r.pf} <b>{r.p}</b> {r.sp}-{r.so} {r.sp > r.so ? '胜' : '负'} {r.of} {r.o}</td>
+                <td className="mono">{r.ms}ms·{r.g}级</td>
+                <td className="mono">{r.d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
       {onClearLocal && (
         <div className="lb-actions">
           <button type="button" className="btn ghost" onClick={onClearLocal}>清空本地榜（慎点）</button>
