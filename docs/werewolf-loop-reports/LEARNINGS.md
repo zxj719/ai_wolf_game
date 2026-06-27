@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-06-27 Round 72] 摄梦人/魔术师 DAY_VOTE 读写闭环补完 — 梦票对齐 + 换票对齐
+
+- **完成状态**：摄梦人（dreamweaverVoteStrategy）和魔术师（magicianVoteStrategy）DAY_VOTE 专属策略新增并接入三元链。摄梦人读取"连梦候选" → 梦票对齐（投票出局 > 夜间入梦，节省入梦能力）；魔术师读取"换刀候选" → 换票对齐（投票直接淘汰 > 夜间换刀风险转移）。防御入梦候选（摄梦人需要保护的核心好人）有反向例外处理。DAY_VOTE 全角色读写闭环**首次完整覆盖**（6 专属路径 + 3 有意 fallback）。
+- **同构检测三步法（R72 新增）**：每次在 DAY_VOTE 中为某角色添加专属路径时，立即问"哪些其他角色在 DAY_SPEECH 或 NIGHT_* 中有 identity_table 候选写指导？"。用 `grep -n "连梦候选\|换刀候选\|开枪优先级：高\|高优先刀口\|决斗候选" src/services/aiPrompts.js src/services/rolePrompts/*.js` 列出所有写候选关键词，对比 DAY_VOTE 三元链缺口，发现即修复——不等"自然发现"（R21/R23 教训）。
+- **摄梦人防御候选例外设计原则**：摄梦人 identity_table 有两类写候选——"连梦候选"（进攻目标）和"防御入梦候选"（需要保护的好人）。DAY_VOTE 策略必须区分两类方向：连梦候选 → 投票淘汰；防御入梦候选 → 方向相反，投查杀或进攻候选。这是摄梦人独有的"防御保护"写候选带来的投票反向例外，是策略设计考虑到游戏语义的专属处理。
+- **vote-dream/vote-swap 对齐原则（同 vote-duel/vote-shoot 原则）**：凡是角色有"一次性或有限次技能"（骑士决斗/猎人开枪/摄梦人入梦/魔术师换刀），DAY_SPEECH 积累的技能方向候选**必须**在 DAY_VOTE 中有对应读取框架——投票方向与技能行动方向对齐，能出局就节省技能资源。普适原则：先用投票，再用技能。
+- **测试**：953/953（+20 new R72 tests）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-27 Round 71] DAY_VOTE 语气风格一致性 — personalityType 影响投票理由表述
 
 - **完成状态**：DAY_VOTE case 新增 `votePersonalityType`（从 `currentPlayer?.personality?.type` 直接读取，无需改调用端）和 `voteStyleHint`（5 种个性类型差异化风格指引）。输出 JSON `reasoning` 字段描述对 aggressive/cautious 差异化。形成 DAY_SPEECH（个性化发言风格）→ DAY_VOTE（个性化投票表述）的跨阶段个性化完整覆盖。
