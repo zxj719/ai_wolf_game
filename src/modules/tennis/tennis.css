@@ -888,3 +888,11 @@
 .tennis-scope .opp-tag-rival { background: rgba(248,113,113,.18); color: #f87171; }
 .tennis-scope .opp-wr { display: block; font-size: .55rem; font-family: var(--mono); color: var(--muted); margin-top: 2px; text-align: center; }
 .tennis-scope .opt .opt-hint-hi { color: var(--clay); opacity: 1; font-weight: 600; }
+.tennis-scope .my-daily-stats { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(242,238,224,.12); background: rgba(242,238,224,.04); }
+.tennis-scope .my-daily-stats-win { border-color: rgba(110,231,183,.25); background: rgba(110,231,183,.06); }
+.tennis-scope .my-daily-stats-loss { border-color: rgba(242,238,224,.10); background: rgba(242,238,224,.03); }
+.tennis-scope .my-daily-stats-label { font-size: .72rem; color: var(--muted); font-weight: 600; letter-spacing: .03em; margin-right: 4px; }
+.tennis-scope .my-daily-result { font-family: var(--mono); font-size: 1rem; font-weight: 700; }
+.tennis-scope .my-daily-result.win { color: #6ee7b7; }
+.tennis-scope .my-daily-result.loss { color: rgba(242,238,224,.55); }
+.tennis-scope .my-daily-chip { font-size: .7rem; font-family: var(--mono); background: rgba(242,238,224,.07); border: 1px solid rgba(242,238,224,.12); border-radius: 6px; padding: 2px 7px; color: var(--accent); }

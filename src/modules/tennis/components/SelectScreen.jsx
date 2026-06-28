@@ -3,7 +3,7 @@ import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
 import { loadLocalRecords, computeCharStats, findBestChar } from '../localBoard';
-import { getDailyChallenge, isDailyChallengeCompleted, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
+import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
   const data = map[name];
@@ -45,6 +45,7 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
 
   const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
   const dailyDone = picked ? isDailyChallengeCompleted() : false;
+  const myDailyStats = useMemo(() => (picked ? loadDailyStats(picked) : null), [picked]);
 
   const handleStart = () => {
     if (!picked) {
@@ -149,6 +150,28 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             </div>
           );
         })()}
+        {myDailyStats && (
+          <div className={`my-daily-stats${myDailyStats.won ? ' my-daily-stats-win' : ' my-daily-stats-loss'}`}>
+            <span className="my-daily-stats-label">
+              {myDailyStats.won ? '🏆' : '🎾'} 我的今日得分
+            </span>
+            <span className={`my-daily-result${myDailyStats.won ? ' win' : ' loss'}`}>
+              {myDailyStats.won ? '胜' : '败'} {myDailyStats.setsP}:{myDailyStats.setsO}
+            </span>
+            {myDailyStats.aces > 0 && (
+              <span className="my-daily-chip">ACE ×{myDailyStats.aces}</span>
+            )}
+            {myDailyStats.clutchWins > 0 && (
+              <span className="my-daily-chip">关键分 ×{myDailyStats.clutchWins}</span>
+            )}
+            {myDailyStats.countersWon > 0 && (
+              <span className="my-daily-chip">克制 ×{myDailyStats.countersWon}</span>
+            )}
+            {myDailyStats.avgMultiplier !== null && (
+              <span className="my-daily-chip">操作 {myDailyStats.avgMultiplier}×</span>
+            )}
+          </div>
+        )}
         {seenCount > 0 && (
           <div className="opp-progress">
             <button

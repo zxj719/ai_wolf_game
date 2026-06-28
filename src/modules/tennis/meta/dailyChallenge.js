@@ -59,3 +59,35 @@ export function markDailyChallengeCompleted() {
 }
 
 export const DAILY_BONUS_COINS = 30;
+
+const DAILY_STATS_PREFIX = 'tennis_daily_stats_';
+
+/**
+ * 记录今日一战个人数据（按玩家名分组，支持家庭多人共用浏览器）。
+ * @param {{ playerName, won, setsP, setsO, aces, avgMultiplier, clutchWins, countersWon }} stats
+ */
+export function saveDailyStats({ playerName, won, setsP, setsO, aces, avgMultiplier, clutchWins, countersWon }) {
+  const key = `${DAILY_STATS_PREFIX}${getTodayKey()}`;
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(key)) ?? {}; } catch { /* noop */ }
+  data[playerName] = {
+    won: !!won,
+    setsP: setsP ?? 0,
+    setsO: setsO ?? 0,
+    aces: aces ?? 0,
+    avgMultiplier: avgMultiplier ?? null,
+    clutchWins: clutchWins ?? 0,
+    countersWon: countersWon ?? 0,
+  };
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* 隐私模式等静默 */ }
+}
+
+/** 读取某玩家今日一战数据；无记录返回 null。 */
+export function loadDailyStats(playerName) {
+  if (!playerName) return null;
+  const key = `${DAILY_STATS_PREFIX}${getTodayKey()}`;
+  try {
+    const data = JSON.parse(localStorage.getItem(key)) ?? {};
+    return data[playerName] ?? null;
+  } catch { return null; }
+}

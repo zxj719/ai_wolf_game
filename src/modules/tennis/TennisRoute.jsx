@@ -20,7 +20,7 @@ import { LadderScreen } from './modes/LadderScreen';
 import { AdventureScreen } from './modes/adventure/AdventureScreen';
 import { OnboardingModal, checkOnboardingSeen } from './components/OnboardingModal';
 import { isNovice, incrementNoviceGames, NOVICE_STAT_PENALTY } from './meta/noviceTracker';
-import { getDailyChallenge, markDailyChallengeCompleted, DAILY_BONUS_COINS } from './meta/dailyChallenge';
+import { getDailyChallenge, markDailyChallengeCompleted, saveDailyStats, DAILY_BONUS_COINS } from './meta/dailyChallenge';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -195,6 +195,18 @@ export default function TennisRoute() {
         foeName: state.opp.name,
         won: win,
         durationS: durationS ?? null,
+      });
+      saveDailyStats({
+        playerName: state.player.name,
+        won: win,
+        setsP: score.sets[0],
+        setsO: score.sets[1],
+        aces: matchStats.aces ?? 0,
+        avgMultiplier: matchStats.mgCount > 0
+          ? +((matchStats.mgSum / matchStats.mgCount).toFixed(2))
+          : null,
+        clutchWins: matchStats.clutchWins ?? 0,
+        countersWon: matchStats.countersWon ?? 0,
       });
       if (win) markDailyChallengeCompleted();
       isDailyRef.current = false;
