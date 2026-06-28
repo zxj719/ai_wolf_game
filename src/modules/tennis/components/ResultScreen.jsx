@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
 import { MOVES, COUNTER_QUIPS } from '../battle/moves';
 import { saveLocalRecord, loadLocalRecords, computeStreakCount, computeWeeklyChamp } from '../localBoard';
+import { getPostMatchCommentary } from '../commentary';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
@@ -50,6 +51,18 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
     const curRecord = { p: p.name, pf: p.face, sp: state.setsP, so: state.setsO, ts: Date.now() };
     return computeWeeklyChamp([...preRecords, curRecord])?.name ?? null;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const postComment = useMemo(() => getPostMatchCommentary({
+    playerName: p.name,
+    oppName: o.name,
+    playerFace: p.face,
+    playerWon,
+    setsP: state.setsP,
+    setsO: state.setsO,
+    aces: matchStats?.aces ?? 0,
+    clutchWins: matchStats?.clutchWins ?? 0,
+    countersWon: matchStats?.countersWon ?? 0,
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const topMoveEntry = useMemo(() => {
     if (!matchStats?.moveUsage) return null;
@@ -160,6 +173,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
           </div>
         )}
         <p className="comment">{ending.c}</p>
+        <p className="post-match-comment">{postComment}</p>
         <div style={{ marginTop: 22, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button type="button" className="btn" onClick={() => dispatch({ type: 'REMATCH' })}>
             ⚡ 再战 {state.opp.face} {state.opp.name}

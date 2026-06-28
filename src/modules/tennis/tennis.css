@@ -285,6 +285,7 @@
 .tennis-scope .ending-hero h2 { font-family: var(--display); font-size: clamp(1.5rem, 5vw, 2.3rem); margin: 10px 0 6px; }
 .tennis-scope .ending-hero .score-line { font-family: var(--mono); font-size: 1.2rem; color: var(--clay); font-weight: 700; }
 .tennis-scope .ending-hero .comment { max-width: 520px; margin: 14px auto 0; color: var(--muted); line-height: 1.7; }
+.tennis-scope .ending-hero .post-match-comment { max-width: 520px; margin: 10px auto 0; font-size: .9rem; color: var(--accent); font-style: italic; line-height: 1.6; text-align: center; }
 
 /* 战报面板 */
 .tennis-scope .report { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 2px solid var(--court); border-radius: 14px; overflow: hidden; margin-top: 18px; }
