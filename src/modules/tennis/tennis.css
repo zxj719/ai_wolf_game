@@ -596,6 +596,25 @@
 }
 .tennis-scope .loss-streak-badge { display: inline-flex; align-items: center; background: rgba(139,92,246,.75); color: #fff; border-radius: 999px; font-family: var(--mono); font-size: .7rem; font-weight: 700; padding: 2px 12px; letter-spacing: .04em; white-space: nowrap; }
 .tennis-scope .loss-streak-badge.loss-streak-fire { animation: lossStreakPulse 1.4s ease-in-out infinite; }
+.tennis-scope .select-streak-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: rgba(226,129,79,.13); border: 1px solid rgba(226,129,79,.45);
+  border-radius: 10px; padding: 10px 16px; margin: 12px 0 4px;
+  animation: ssbFadeIn .45s cubic-bezier(.22,.9,.3,1.2) both;
+}
+.tennis-scope .select-streak-banner.ssb-gold {
+  background: rgba(245,180,0,.14); border-color: rgba(245,180,0,.50);
+}
+.tennis-scope .select-streak-banner.ssb-legend {
+  background: rgba(245,180,0,.20); border-color: rgba(245,180,0,.70);
+  box-shadow: 0 0 18px rgba(245,180,0,.30);
+}
+@keyframes ssbFadeIn {
+  from { opacity: 0; transform: translateY(-8px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.tennis-scope .ssb-fire { font-size: 1.3rem; line-height: 1; }
+.tennis-scope .ssb-text { font-family: var(--body-font); font-size: .9rem; color: var(--card-ink); flex: 1; }
 .tennis-scope .weekly-champ-banner { background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.35); border-radius: 8px; padding: 8px 14px; margin-bottom: 8px; font-size: .88rem; text-align: center; color: #fbbf24; }
 .tennis-scope .weekly-champ-badge { display: inline-flex; align-items: center; background: rgba(251,191,36,.18); border: 1px solid rgba(251,191,36,.45); color: #fbbf24; border-radius: 999px; font-family: var(--mono); font-size: .7rem; font-weight: 700; padding: 2px 12px; letter-spacing: .04em; white-space: nowrap; }
 .tennis-scope .ladder-loot {

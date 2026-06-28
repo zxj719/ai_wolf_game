@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -189,5 +189,51 @@ describe('computeWeeklyChamp', () => {
     const records = [rec('丫', '🐰', 2, 0, NOW - 1000)];
     const champ = computeWeeklyChamp(records, { now: NOW, minWins: 1 });
     expect(champ?.name).toBe('丫');
+  });
+});
+
+describe('computeCurrentWinStreak', () => {
+  const mk = (p, sp, so) => ({ p, sp, so });
+
+  it('空记录返回 0', () => {
+    expect(computeCurrentWinStreak([], '诚')).toBe(0);
+  });
+
+  it('玩家无历史记录返回 0', () => {
+    expect(computeCurrentWinStreak([mk('Elza', 2, 1)], '诚')).toBe(0);
+  });
+
+  it('最近一场为败时返回 0', () => {
+    const records = [mk('诚', 2, 1), mk('诚', 1, 2)];
+    expect(computeCurrentWinStreak(records, '诚')).toBe(0);
+  });
+
+  it('单场胜利返回 1', () => {
+    expect(computeCurrentWinStreak([mk('诚', 2, 1)], '诚')).toBe(1);
+  });
+
+  it('连续 3 胜返回 3', () => {
+    const records = [mk('诚', 2, 1), mk('诚', 2, 0), mk('诚', 2, 1)];
+    expect(computeCurrentWinStreak(records, '诚')).toBe(3);
+  });
+
+  it('中间有一败则只计末尾连胜', () => {
+    const records = [mk('诚', 2, 0), mk('诚', 1, 2), mk('诚', 2, 1), mk('诚', 2, 0)];
+    expect(computeCurrentWinStreak(records, '诚')).toBe(2);
+  });
+
+  it('只统计指定玩家，忽略其他玩家记录', () => {
+    const records = [mk('诚', 2, 1), mk('Elza', 1, 2), mk('诚', 2, 0)];
+    expect(computeCurrentWinStreak(records, '诚')).toBe(2);
+  });
+
+  it('连胜 5 场正确返回 5', () => {
+    const records = Array.from({ length: 5 }, () => mk('铁蛋', 2, 1));
+    expect(computeCurrentWinStreak(records, '铁蛋')).toBe(5);
+  });
+
+  it('连胜 10 场正确返回 10', () => {
+    const records = Array.from({ length: 10 }, () => mk('莹', 2, 0));
+    expect(computeCurrentWinStreak(records, '莹')).toBe(10);
   });
 });

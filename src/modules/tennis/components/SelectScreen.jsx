@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -42,6 +42,10 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
   }, [records]);
   const charStatsMap = useMemo(() => computeCharStats(records), [records]);
   const bestChar = useMemo(() => findBestChar(charStatsMap), [charStatsMap]);
+  const currentWinStreak = useMemo(
+    () => (picked ? computeCurrentWinStreak(records, picked) : 0),
+    [picked, records],
+  );
 
   const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
   const dailyDone = picked ? isDailyChallengeCompleted() : false;
@@ -95,6 +99,23 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             );
           })}
         </div>
+        {currentWinStreak >= 3 && (
+          <div className={`select-streak-banner${currentWinStreak >= 10 ? ' ssb-legend' : currentWinStreak >= 5 ? ' ssb-gold' : ''}`}>
+            <span className="ssb-fire">
+              {currentWinStreak >= 10 ? '🔥🔥🔥' : currentWinStreak >= 5 ? '🔥🔥' : '🔥'}
+            </span>
+            <span className="ssb-text">
+              {currentWinStreak >= 10
+                ? `连胜 ${currentWinStreak} 场！家族传奇！再战证明霸主地位！`
+                : currentWinStreak >= 5
+                  ? `连胜 ${currentWinStreak} 场！势不可挡，挑战新对手！`
+                  : `连胜 ${currentWinStreak} 场！状态正热，继续！`}
+            </span>
+            <span className={`ladder-streak${currentWinStreak >= 10 ? ' streak-gold' : ' streak-pulse'}`}>
+              {currentWinStreak} 连胜
+            </span>
+          </div>
+        )}
         {dailyChallenge && (
           <div className={`daily-banner${dailyDone ? ' daily-banner-done' : ''}`}>
             <div className="daily-header">

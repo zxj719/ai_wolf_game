@@ -96,6 +96,21 @@ export function computeStreakCount(records, playerName, isWin) {
 }
 
 /**
+ * 读取历史记录中某玩家的当前连胜数（不含"本局"）。
+ * 用于 SelectScreen：游戏尚未开始，只统计已有记录末尾连续胜场。
+ * 无记录或最近一场为败则返回 0。
+ */
+export function computeCurrentWinStreak(records, playerName) {
+  const mine = records.filter((r) => r.p === playerName);
+  let streak = 0;
+  for (let i = mine.length - 1; i >= 0; i--) {
+    if (mine[i].sp > mine[i].so) streak++;
+    else break;
+  }
+  return streak;
+}
+
+/**
  * 统计过去 7 天胜场最多的玩家角色。
  * 只统计带 ts 字段的记录（R92+ 新增）；旧记录无 ts，自然落出窗口。
  * 返回 { name, face, wins, played } 或 null（无满足 minWins 的角色时）。
