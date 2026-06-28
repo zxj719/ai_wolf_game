@@ -1104,8 +1104,32 @@
 7. ~~**DAY_SPEECH 狼人防守预铺**~~ ✅ Round 66 已完成（wolfSpeechPressureHint + pressuredTeammate 参数链）
 8. ~~**村民 DAY_SPEECH 个性化视角**~~ ✅ Round 67 已完成（personalityLens 7 分支 + roleParams.personalityType）
 9. ~~**神职角色（预言家/女巫）DAY_SPEECH 个性化**~~ ✅ Round 68 已完成（seerPersonalityLens + witchPersonalityLens 各 7 分支）
-10. **实局 smoke test**（68 轮未完成，持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察预言家/女巫/村民 personalityLens 三角色差异化效果（8人局），以及 wolfSpeechPressureHint 触发场景。
-11. **可观战性提升后续**（目标 >8.5）：R68 神职个性化完成后，后续考虑：(a) 发言长度差异化（aggressive 限定 40-50 字，cautious 允许 70-90 字，动态修改字数约束），(b) 守卫/猎人 personalityLens，(c) identity_table confidence 分层发言深度。
-12. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。
-13. **跨阶段感知-执行分裂系统审计**（R66 通用原则衍生）：搜索 aiPrompts.js 中所有"须在…阶段…铺垫/预铺"类语言，逐一确认对应的前置阶段是否有感知信号注入机制。`grep -n "须在.*阶段\|发言阶段已\|需要提前" src/services/aiPrompts.js` 可列出候选。
+10. ~~**摄梦人/魔术师 DAY_SPEECH 个性化**~~ ✅ Round 77 已完成（dwPersonalityLens + magPersonalityLens 各 7 分支 + speechLen 差异化）
+11. **实局 smoke test**（持续优先级）：ECS 不在云端 allowlist；建议用户本地运行一局全 AI 观战，观察摄梦人/魔术师不同性格的发言密度和切入角度差异（8人局）。
+12. **NIGHT_DREAMWEAVER / NIGHT_MAGICIAN 个性化**：为两个特殊角色的夜间选目标决策添加 nightPersonalityStyle（类比 R76 wolfNightStyle）。
+13. **守卫/猎人 NIGHT 个性化**：nightGuardStyle / nightHunterStyle 完成 NIGHT 四连的剩余两角。
+14. **NIGHT_DREAMWEAVER 迁移**（非紧急）：当前 NIGHT_DREAMWEAVER（~80行）内联在 aiPrompts.js；摄梦人日间已独立在 dreamweaver.js。迁移不改变行为，纯架构一致性收益。
+15. **跨阶段感知-执行分裂系统审计**（R66 通用原则衍生）：搜索 aiPrompts.js 中所有"须在…阶段…铺垫/预铺"类语言，逐一确认对应的前置阶段是否有感知信号注入机制。
+
+---
+
+## Round 77 新增教训（2026-06-28）
+
+**教训 R77-A：白熊效应测试必须是首批测试，否则负向词修复后才发现**
+- 魔术师 cautious 分支初稿含 `绝不`（"除非逻辑完全崩盘否则绝不跳身份"），T27 白熊检测失败。
+- 测试文件将白熊效应验证（T27）放在 7 个分支关键词测试之后，导致先写错了内容才被测试捕获。
+- **建议**：白熊效应检测测试应排在所有分支内容验证之前，确保"内容存在"和"内容合规"同时通过。
+- 修复：将 `绝不` 改为正向表述"把身份保留到逻辑真正崩盘的临界点，在此之前韬光养晦"。
+
+**教训 R77-B：关键词匹配测试应使用最短区分性子串**
+- T20 初稿测试 `cautious` 分支包含 `关键时刻`，但修复白熊违规后改为 `关键时机`，导致测试再次失败。
+- 根本原因：测试和实现使用了不同的近义词，不应对语义等价的词汇做精确字符串匹配。
+- 修复：断言改为 `toContain('关键时')`（公共前缀 3 字）——仍有区分性，不锁定具体措辞。
+- **通用规则**：测试关键词时，优先选能区分有/无的最短公共子串，而非锁定完整词组。
+
+**教训 R77-C：特殊角色 personalityLens 设计聚焦点与主角色不同**
+- 主角色（村民/神职）lens 聚焦「分析视角/表达风格」；特殊角色 lens 聚焦「核心博弈决策的时机和方式」。
+- 摄梦人 lens：聚焦「如何在身份未暴露时表达自己的立场」（因摄梦人每晚都在影响场上死讯但不会直说）。
+- 魔术师 lens：聚焦「何时/如何决策揭示逻辑镜像身份」（魔术师的核心博弈就是跳vs不跳这一决策）。
+- **通用规则**：设计 personalityLens 时，先明确"该角色的核心博弈问题是什么"，lens 就是「不同性格的人如何面对这个核心问题」。
 

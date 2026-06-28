@@ -92,11 +92,34 @@ export const getDreamweaverDaySpeechPrompt = (ctx, params) => {
     ? 'Step0: 【读取历史连梦候选与防御目标（D2+适用）】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"连梦候选"标注？将其作为今晚进攻策略的评估起点（结合今日新发言判断是否升级/降级威胁；已死亡目标跳过）。含"防御入梦候选"的玩家是今晚优先入梦的保护对象。'
     : 'Step0: 【首日无历史候选记录】直接从 Step1 开始——今天是第一天，尚无跨轮积累的连梦/防御候选。';
 
+  // R77：摄梦人 DAY_SPEECH 个性化发言风格（personalityLens）
+  const dwPersonalityType = params.personalityType || '';
+  let dreamweaverPersonalityLens = '';
+  if (dwPersonalityType === 'aggressive') {
+    dreamweaverPersonalityLens = '\n【你的发言风格】主动引导型：以积极主张建立场上影响力，勇于推动话题和投票方向；当需要你站出来发声时不退缩——即使在身份未暴露时，也能用有力的逻辑帮好人指明方向。';
+  } else if (dwPersonalityType === 'cautious') {
+    dreamweaverPersonalityLens = '\n【你的发言风格】低调观察型：语气审慎，多倾听少表态，优先在安全边际内发言；避免引起注意，让他人先暴露，你在后排积累判断，到关键时机才精准出手。';
+  } else if (dwPersonalityType === 'logical' || dwPersonalityType === 'analytical') {
+    dreamweaverPersonalityLens = '\n【你的发言风格】推理分析型：以严密逻辑链说话，将昨晚死亡信息纳入分析框架，给出有据可查的推断；每句话都落地在数据或行为证据上，展示高可信度的分析能力。';
+  } else if (dwPersonalityType === 'cunning') {
+    dreamweaverPersonalityLens = '\n【你的发言风格】暗示感知型：话里有话，让特定玩家感到你对他们有所了解；用暗示而非明说制造"你知道更多"的氛围，在不暴露身份的前提下传递信息压力。';
+  } else if (dwPersonalityType === 'emotional') {
+    dreamweaverPersonalityLens = '\n【你的发言风格】直觉感知型：用感受和直觉引导发言（"我感觉X今天有点不对劲"），情感色彩丰富，表达上更感性——让好人感受到你的真诚，同时让狼人难以从逻辑上反驳你。';
+  } else if (dwPersonalityType === 'contrarian') {
+    dreamweaverPersonalityLens = '\n【你的发言风格】反预判型：主动质疑当天主流的票型和分析方向，立场出人意料；在大多数人认为某人安全时提出不同声音，在大多数人怀疑某人时提供反向视角，制造信息搅动。';
+  } else if (dwPersonalityType === 'steady') {
+    dreamweaverPersonalityLens = '\n【你的发言风格】平衡渐进型：稳扎稳打，每句话都有依据，不轻易表态；先听完所有人再发声，言出必有证据，逐步积累信任，在关键时刻用已建立的可信度发力。';
+  }
+  let dreamweaverSpeechLen = '40-70';
+  if (dwPersonalityType === 'aggressive') dreamweaverSpeechLen = '45-75';
+  else if (dwPersonalityType === 'cautious') dreamweaverSpeechLen = '35-60';
+  else if (dwPersonalityType === 'steady') dreamweaverSpeechLen = '40-65';
+
   return `${getBaseContext(ctx)}
 【摄梦人专属任务】白天发言 - 隐藏身份与逻辑输出
 
 ${lastNightInfo}
-
+${dreamweaverPersonalityLens}
 【发言策略三阶段】
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -167,7 +190,7 @@ Step5: 投票倾向
 - 殉情备选目标（预感自己被刀时）：confidence 填 70-90，reason 写"殉情目标候选：[判断理由]，准备拉垫背"
 - **追加不覆盖历史**：每轮在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史积累
 - 已入梦过的玩家：reason 追加"N[X]夜已入梦→[存活/死亡]"（不要覆盖历史记录）
-输出JSON:{\"thought\":\"完整的5步思维链\",\"speech\":\"发言内容(40-80字)\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
+输出JSON:{\"thought\":\"完整的5步思维链\",\"speech\":\"发言内容(${dreamweaverSpeechLen}字)\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
 };
 
 /**

@@ -258,13 +258,36 @@ export const getMagicianDaySpeechPrompt = (ctx, params) => {
     ? 'Step0: 【读取历史换刀候选与保护目标（D2+适用）】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"换刀候选"标注？将其作为今晚交换决策的评估起点（结合今日新发言判断是否升级/降级威胁；已死亡/受整局限制目标跳过）。含"保核目标候选"的玩家是今晚优先保护的关键神职。'
     : 'Step0: 【首日无历史候选记录】直接从 Step1 开始——今天是第一天，尚无跨轮积累的换刀/保护候选。';
 
+  // R77：魔术师 DAY_SPEECH 个性化发言风格（personalityLens）
+  const magPersonalityType = params.personalityType || '';
+  let magicianPersonalityLens = '';
+  if (magPersonalityType === 'aggressive') {
+    magicianPersonalityLens = '\n【你的发言风格】主动修正型：当发现逻辑崩盘时立即主动翻牌，宁可暴露换来场上信息流正确——隐藏身份的价值低于帮好人避免错误决策的价值时，果断出手说明交换。';
+  } else if (magPersonalityType === 'cautious') {
+    magicianPersonalityLens = '\n【你的发言风格】保守隐藏型：将魔术师身份安全视为最高优先，以"普通平民"视角低调发言；把身份保留到逻辑真正崩盘的临界点，在此之前韬光养晦，等待关键时机发挥最大价值。';
+  } else if (magPersonalityType === 'logical' || magPersonalityType === 'analytical') {
+    magicianPersonalityLens = '\n【你的发言风格】推理优化型：量化跳身份vs继续隐藏的收益/风险后再决策；在 thought 中明确推导"如果我暴露，好人获得的信息价值X vs 被狼针对的风险Y"，数据驱动地得出最优选择。';
+  } else if (magPersonalityType === 'cunning') {
+    magicianPersonalityLens = '\n【你的发言风格】博弈欺骗型：善用逻辑镜像表造成的信息差，在发言中故意留下细节误导对手——你可以用"普通分析"语气说出暗藏你真实判断的话，制造信息噪音，让狼人难以推断你的操作。';
+  } else if (magPersonalityType === 'emotional') {
+    magicianPersonalityLens = '\n【你的发言风格】直觉引导型：凭直觉判断今天是否是主动出击的好时机——当你感觉局面已经在走向你预期的方向，就顺势引导；当感觉还不是时机，保持低调等待。情感信号先于复杂计算。';
+  } else if (magPersonalityType === 'contrarian') {
+    magicianPersonalityLens = '\n【你的发言风格】反预判型：预测对手预测你会选择某个路径（保守 or 主动），选择出其不意的相反路径；若场上所有人都觉得逻辑清晰，这可能正是你主动搅局的时机——反之亦然。';
+  } else if (magPersonalityType === 'steady') {
+    magicianPersonalityLens = '\n【你的发言风格】平衡渐进型：逐步有序地释放信息，不急于一次性暴露；先确认局面真正需要你的交换信息后，再有序、分步地提供修正——稳定推进信息流，让好人逐渐对齐到正确逻辑。';
+  }
+  let magicianSpeechLen = '40-70';
+  if (magPersonalityType === 'aggressive') magicianSpeechLen = '50-80';
+  else if (magPersonalityType === 'cautious') magicianSpeechLen = '35-55';
+  else if (magPersonalityType === 'steady') magicianSpeechLen = '40-65';
+
   return `${getBaseContext(ctx)}
 【魔术师专属任务】白天发言 - 逻辑修正与身份隐藏
 
 【你的交换记录】${swapInfo}
 【交换限制状态】${restrictionInfo}
 ${logicMirrorHint}
-
+${magicianPersonalityLens}
 【魔术师发言三阶段策略】
 阶段1 - 前期隐藏期（默认）：
   - 伪装成平民，发言逻辑严密但不过于强势
@@ -316,7 +339,7 @@ Step5: 投票倾向
   【追加示例】上轮 reason="可疑" → 本轮追加为"可疑；换刀候选：白天N2发言带节奏升级，威胁等级：高"
 - 确认神职（保护目标）：confidence 填 75-90，reason 写"保核目标候选：[身份判断理由]，优先下轮保护"（下轮夜间 Step 0 将直接从此读取）
 - 已交换过的目标：reason 追加"N[X]夜已交换（整局限制，不可再换）"（不要覆盖历史）
-输出JSON:{"thought":"完整的5步思维链","speech":"发言内容(40-80字，根据是否跳身份调整)","shouldReveal":true/false,"voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据（基于交换修正后的逻辑）"}}}`;
+输出JSON:{"thought":"完整的5步思维链","speech":"发言内容(${magicianSpeechLen}字，根据是否跳身份调整)","shouldReveal":true/false,"voteIntention":数字或-1,"identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据（基于交换修正后的逻辑）"}}}`;
 };
 
 /**
