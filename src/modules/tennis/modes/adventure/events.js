@@ -173,6 +173,88 @@ export const EVENTS = [
       { label: '收进口袋换钱', reward: { kind: 'coins', amount: 80, flavor: '......你的良心不会痛吗？反正金币到手。' } },
     ],
   },
+
+  // ===== 扩充批（R93 +8 条，池：24 条）=====
+
+  // 小游戏 ×4
+  {
+    id: 'subwayGate', chapter: 1, type: 'minigame', minigame: 'dualTiming', icon: '🚇',
+    title: '地铁闸机冲刺',
+    text: '早高峰车厢人满为患，你在最后一秒钻进闸机——左脚和右手要同时配合。卡准时机进站，和穿越球的双向时机感如出一辙。',
+    rewards: [
+      { kind: 'nothing', flavor: '被闸机夹了肩膀，狼狈极了……' },
+      { kind: 'coins', amount: 30, flavor: '完美穿越！顺手捡到一张交通卡，蹭回了不少余额。' },
+      { kind: 'stat', stat: 'skill', amount: 6, flavor: '如鱼入水！乘客们自动让出一条道——你悟到了穿越球的精髓。' },
+    ],
+  },
+  {
+    id: 'warDrum', chapter: 2, type: 'minigame', minigame: 'rhythmMash', icon: '🥁',
+    title: '擂鼓震山',
+    text: '仙山脚下矗立一面千年战鼓，守门弟子拦住你："连击三百声，山门为你开！"力量的节奏与重炮平击的连贯性，不谋而合。',
+    rewards: [
+      { kind: 'nothing', flavor: '鼓皮完好无损，但你的手腕震麻了。守门弟子客气地送你下山。' },
+      { kind: 'stat', stat: 'sta', amount: 5, flavor: '震天动地！臂力大增。' },
+      { kind: 'stat', stat: 'sta', amount: 10, flavor: '鼓声冲霄汉，山门轰然大开！体能突破新境界。' },
+    ],
+  },
+  {
+    id: 'stationRepair', chapter: 3, type: 'minigame', minigame: 'shrinkSmash', icon: '🔧',
+    title: '导航舱紧急维修',
+    text: '太空站导航舱警报骤响！故障节点持续缩小，击打复位的窗口只有 0.3 秒。这与高压扣杀瞄准落点的道理完全一致——速度与精准缺一不可。',
+    rewards: [
+      { kind: 'nothing', flavor: '按错了按钮，二级警报响了……好在是演习模式。' },
+      { kind: 'coins', amount: 45, flavor: '成功修复！站长发放了一笔维修补贴。' },
+      { kind: 'gear', flavor: '完美复位！站长感激不尽，从装备库取出珍藏装备相赠。' },
+    ],
+  },
+  {
+    id: 'asteroidAlert', chapter: 3, type: 'minigame', minigame: 'directionReact', icon: '🪨',
+    title: '小行星来袭',
+    text: '预警雷达骤然闪红！小行星从左侧还是右侧飞来？快速判断方向、启动姿控推进器——与挑高球的方向预判是同一套本能反应。',
+    rewards: [
+      { kind: 'nothing', flavor: '飞船蹭过了小行星尾焰，幸好宇航服够结实……' },
+      { kind: 'stat', stat: 'mind', amount: 5, flavor: '精准规避！空间感大幅提升。' },
+      { kind: 'energyMax', amount: 8, flavor: '极限变轨成功！超强的应急反应让你的体力上限突破了。' },
+    ],
+  },
+
+  // 剧情二选一 ×4
+  {
+    id: 'strayCafe', chapter: 1, type: 'story', icon: '🐱',
+    title: '流浪猫咖啡馆',
+    text: '训练路上遇到一家猫咪咖啡馆，橘猫趴在窗台打量你。店主探出头："看你训练辛苦，进来歇歇？有自制能量饮料，也有前教练的私藏笔记。"',
+    options: [
+      { label: '喝能量饮料补体力', reward: { kind: 'heal', amount: 45, flavor: '猫猫眯着眼看你喝完，满意地打了个呼噜。体力回来了大半。' } },
+      { label: '翻阅教练私藏笔记', reward: { kind: 'card', flavor: '笔记夹缝里藏着一张前任教练手写的战术卡——如获至宝。' } },
+    ],
+  },
+  {
+    id: 'chessTaoist', chapter: 2, type: 'story', icon: '♟️',
+    title: '仙道残局',
+    text: '山道旁一位老道人对着棋盘发呆。"帮贫道走这最后一子，了结此局——需要冷静与大局观。若破不了，化缘一点也好。"',
+    options: [
+      { label: '沉心破局（心态+8）', reward: { kind: 'stat', stat: 'mind', amount: 8, flavor: '妙手一出，老道人大笑："孺子可教！"心境又上一层。' } },
+      { label: '化缘补体力', reward: { kind: 'heal', amount: 40, flavor: '道人心善，赠了一碗补气药膳。吃完浑身舒坦。' } },
+    ],
+  },
+  {
+    id: 'martialHall', chapter: 2, type: 'story', icon: '🥋',
+    title: '古镇武馆',
+    text: '武馆门口贴着告示："今日对练，胜者赠拍弦一副。"掌门看见你，招手道："看你身手不错，进来切磋？"',
+    options: [
+      { label: '接受对练（技巧+6，体力-10）', reward: { kind: 'stat', stat: 'skill', amount: 6, healDelta: -10, flavor: '拆了二十回合！掌门递上拍弦，手腕有点酸，值得。' } },
+      { label: '婉拒，旁观学习', reward: { kind: 'stat', stat: 'mind', amount: 4, flavor: '在门口看了半场对练，悟出不少心法。' } },
+    ],
+  },
+  {
+    id: 'spaceLetter', chapter: 3, type: 'story', icon: '📬',
+    title: '空间站家书',
+    text: '通讯信道打开，家人的声音传来："你在太空还好吗？"漂浮已久的心一下子落了地。说几句，还是省下频道时间看战术录像？',
+    options: [
+      { label: '和家人聊几句（心态+10）', reward: { kind: 'stat', stat: 'mind', amount: 10, flavor: '挂断后，眼眶有点热。但心定了——为了家人，继续。' } },
+      { label: '把频道时间留给战术录像', reward: { kind: 'card', flavor: '录像里发现了一张陌生战术卡，前辈遗留的心血。' } },
+    ],
+  },
 ];
 
 /** 按章节 + roll 取事件（小游戏与剧情混合池） */
