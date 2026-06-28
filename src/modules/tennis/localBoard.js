@@ -127,3 +127,27 @@ export function sortLocalRecords(list) {
     (b.sp - b.so) - (a.sp - a.so) ||
     a.ms - b.ms);
 }
+
+/** 统计每个角色（以玩家身份 p）的出战次数和胜场数。*/
+export function computeCharStats(records) {
+  const map = {};
+  for (const r of records) {
+    if (!map[r.p]) map[r.p] = { played: 0, won: 0 };
+    map[r.p].played++;
+    if (r.sp > r.so) map[r.p].won++;
+  }
+  return map;
+}
+
+/** 找出胜率最高（至少 1 场）的角色名；并列时取出战最多者。*/
+export function findBestChar(charStatsMap) {
+  let best = null, bestRate = -1, bestPlayed = 0;
+  for (const [name, s] of Object.entries(charStatsMap)) {
+    if (s.played === 0) continue;
+    const rate = s.won / s.played;
+    if (rate > bestRate || (rate === bestRate && s.played > bestPlayed)) {
+      best = name; bestRate = rate; bestPlayed = s.played;
+    }
+  }
+  return best;
+}

@@ -3,7 +3,7 @@ import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
 import { loadLocalRecords, computeCharStats, findBestChar } from '../localBoard';
-import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
+import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
   const data = map[name];
@@ -46,6 +46,10 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
   const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
   const dailyDone = picked ? isDailyChallengeCompleted() : false;
   const myDailyStats = useMemo(() => (picked ? loadDailyStats(picked) : null), [picked]);
+  const myDailyRank = useMemo(
+    () => (picked && dailyBoard ? computeDailyRank(picked, dailyBoard.completions) : null),
+    [picked, dailyBoard],
+  );
 
   const handleStart = () => {
     if (!picked) {
@@ -158,6 +162,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             <span className={`my-daily-result${myDailyStats.won ? ' win' : ' loss'}`}>
               {myDailyStats.won ? '胜' : '败'} {myDailyStats.setsP}:{myDailyStats.setsO}
             </span>
+            {myDailyRank !== null && (
+              <span className={`my-daily-chip my-daily-rank-chip${myDailyRank === 1 ? ' my-daily-rank-first' : ''}`}>
+                {myDailyRank === 1 ? '⚡ 最速' : `第 ${myDailyRank} 快`}
+              </span>
+            )}
             {myDailyStats.aces > 0 && (
               <span className="my-daily-chip">ACE ×{myDailyStats.aces}</span>
             )}

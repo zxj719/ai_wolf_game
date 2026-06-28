@@ -896,3 +896,5 @@
 .tennis-scope .my-daily-result.win { color: #6ee7b7; }
 .tennis-scope .my-daily-result.loss { color: rgba(242,238,224,.55); }
 .tennis-scope .my-daily-chip { font-size: .7rem; font-family: var(--mono); background: rgba(242,238,224,.07); border: 1px solid rgba(242,238,224,.12); border-radius: 6px; padding: 2px 7px; color: var(--accent); }
+.tennis-scope .my-daily-rank-chip { border-color: rgba(250,204,21,.3); color: #fbbf24; }
+.tennis-scope .my-daily-rank-first { background: rgba(250,204,21,.12); border-color: rgba(250,204,21,.5); color: #fde047; font-weight: 700; }
