@@ -26,7 +26,7 @@ const witchFuncBlock = src.slice(witchFuncMarkerIdx, witchFuncMarkerIdx + 4500);
 
 // 守卫 DAY_SPEECH 函数（ROLE_DAY_SPEECH_PROMPTS 中的 '守卫' 条目）
 const guardFuncMarkerIdx = src.lastIndexOf("'守卫': (ctx, params) => {");
-const guardFuncBlock = src.slice(guardFuncMarkerIdx, guardFuncMarkerIdx + 3200);
+const guardFuncBlock = src.slice(guardFuncMarkerIdx, guardFuncMarkerIdx + 5500); // R81: window expanded from 3200 (guard block is now 4182 chars after peaceNightStep addition)
 
 // 找到 return ` 的位置，区分变量声明区（varDecl）和模板字符串区（tmpl）
 const witchReturnIdx = witchFuncBlock.indexOf('return `');

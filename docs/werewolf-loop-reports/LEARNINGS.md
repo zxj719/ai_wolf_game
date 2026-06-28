@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-28 Round 81] 预言家/守卫平安夜推断框架（seerPeaceNightStep + guardPeaceNightStep）— 同构批量完成
+
+- **完成状态**：预言家 DAY_SPEECH 新增 `isPeacefulNightSeer` + `seerPeaceNightStep`（三路径：A=高票存活者已验金水→confidence升至90-100+改查方向；B=高票存活者未验→confidence升15-20+排队查验优先级①；C=票型分散→维持队列）。守卫 DAY_SPEECH 新增 `isPeacefulNightGuard` + `guardPeaceNightStep`（两分支：lastGuardTarget已知→命中推断 confidence升15-25/未中推断维持；lastGuardTarget为null→通用高票推断）。注入位置均为 `${角色DayHistoryStep}\n${角色PeaceNightStep}Step1:`，与 R80 村民完全对称。
+- **平安夜推断级联原则（R81-A）**：发现"某角色平安夜推断缺失"后，应立即审计所有拥有**更强私有信息**的角色是否同样缺失：村民（仅有公开票记录）→ 预言家（+查验历史金水/查杀）→ 守卫（+知道昨夜守了谁）→ 女巫（+知道是否用过救药）。每个角色的推断精度因私有信息不同而递增，应按此顺序逐轮修复，而非只修村民。
+- **Round58 窗口扩展（R81-B）**：守卫 DAY_SPEECH block 从 3338→4182 chars（+844 chars），导致 `round58WitchGuardDaySpeechStep0.test.js` 的 3200 窗口被截断，T18/T19/T20/T21 失败。**每次为某角色添加 ~800+ chars 后，必须立即检查所有引用该角色 block 的已有测试文件的窗口大小**。检测命令：`grep -l "守卫\|'guard'\|guardFuncBlock" src/services/__tests__/*.test.js` 列出引用守卫的测试文件，逐一核查窗口是否仍足够。
+- **守卫平安夜推断的独特价值（R81-C）**：守卫的 `guardPeaceNightStep` 在变量声明阶段直接引用 `lastGuardTarget`（已从 params 解构），将目标号码嵌入推断文本——这是"运行时个性化提示词"的典范：同一个函数为不同的守护目标生成不同的推断文本，而无需任何 LLM 特殊处理。设计原则：凡是角色有"已知的、具体的、数字型的"私有状态，优先将其直接插入推断文本而非泛化描述（"某个目标"→"${lastGuardTarget}号"）。
+- **白熊效应合规（3轮验证）**：R80（村民）+ R81（预言家+守卫）连续三次平安夜推断框架均使用正向描述（"confidence 升"/"维持队列"/"命中推断"），Speech 限制使用正向框定（"思维链中完成；speech 正常发言即可"），无"不要展示"等负向禁词。这是经3轮验证的合规设计模式，可直接复用于女巫平安夜推断。
+- **测试**：1230/1230（+40 new R81 tests + 1 round58 window fix）；build ✅；check-build ✅；pre-existing chatSocket suite failure（missing `ws` package）与本轮无关。
+
+---
+
 ### [2026-06-28 Round 80] 村民平安夜推断框架（peaceNightStep）— 好人侧感知-执行闭合
 
 - **完成状态**：`ROLE_DAY_SPEECH_PROMPTS['村民']` 函数新增条件化变量 `isPeacefulNight`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）和 `peaceNightStep`（空字符串初值，平安夜时赋值为结构化推断步骤）。步骤内容：① 查投票记录 D${prevDay} 中票压最高的存活玩家（最可能被刀但未死）；② 若场上有守卫或女巫，该玩家 identity_table confidence 可降 10-20；③ 若票型分散，维持现有判断。注入位置：`${peaceNightStep}Step1:`，即 Step0（历史积累读取）之后、Step1（当前嫌疑分析）之前。只在 D2+ 平安夜触发，D1 和非平安夜下注入为空字符串，完全向下兼容。
