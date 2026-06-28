@@ -1334,6 +1334,18 @@ Step4: 投票投谁？（结合 Step0 历史候选：高守护优先候选是否
         let villagerSpeechLen = '40-100字';
         if (personalityType === 'aggressive') villagerSpeechLen = '35-55字';
         else if (personalityType === 'cautious') villagerSpeechLen = '60-100字';
+
+        // R80：平安夜推断框架（D2+适用：利用夜间无死亡信息更新 identity_table）
+        const isPeacefulNight = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        let peaceNightStep = '';
+        if (isPeacefulNight) {
+            const prevDay = ctx.dayCount - 1;
+            peaceNightStep = `⭕【平安夜推断（仅在 thought 中分析；speech 只说"平安夜，继续分析局势"即可）】
+- 查【投票记录】D${prevDay}中票压最高的存活玩家——是昨夜最可能被刀但未死的人
+- 若场上有守卫或女巫：该玩家 identity_table confidence 可降 10-20（被狼重点针对=更可能是好人）
+- 若昨日票型分散（无明显高票目标）：平安夜信息量有限，维持现有判断不轻易调整\n`;
+        }
+
         return `${getBaseContext(ctx)}
 【村民专属任务】白天发言 - 主动分析找狼
 
@@ -1351,7 +1363,7 @@ ${personalityLens}
 
 【思维链】
 Step0: 【读取历史推理积累（D2+适用；首日无历史可跳过）】查看【你之前的身份推理表】：confidence ≥ 60 的玩家是多轮积累的高嫌疑对象，confidence ≤ 30 的是信任候选。以历史积累为本轮分析起点，而非每轮从头归零——多轮行为模式比单轮印象更可靠。
-Step1: 基于已有信息，我最怀疑谁？证据是什么？
+${peaceNightStep}Step1: 基于已有信息，我最怀疑谁？证据是什么？
 Step2: 我信任谁？为什么？
 Step3: 我的发言核心观点是什么？（必须明确）
 Step4: 我投谁？（必须和观点一致。如果有查杀信息，投查杀目标！不要弃票——弃票=放弃好人的票权=帮狼人。）

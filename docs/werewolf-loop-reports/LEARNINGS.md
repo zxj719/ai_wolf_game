@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-06-28 Round 80] 村民平安夜推断框架（peaceNightStep）— 好人侧感知-执行闭合
+
+- **完成状态**：`ROLE_DAY_SPEECH_PROMPTS['村民']` 函数新增条件化变量 `isPeacefulNight`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）和 `peaceNightStep`（空字符串初值，平安夜时赋值为结构化推断步骤）。步骤内容：① 查投票记录 D${prevDay} 中票压最高的存活玩家（最可能被刀但未死）；② 若场上有守卫或女巫，该玩家 identity_table confidence 可降 10-20；③ 若票型分散，维持现有判断。注入位置：`${peaceNightStep}Step1:`，即 Step0（历史积累读取）之后、Step1（当前嫌疑分析）之前。只在 D2+ 平安夜触发，D1 和非平安夜下注入为空字符串，完全向下兼容。
+- **感知-执行分裂（新教训 R80-A）**：`ctx.lastNightInfo` 和 `ctx.voteInfo` 中平安夜信息在 D2+ 通过 `getBaseContext` 已注入 base prompt，AI"看得到"但无推断脚手架，是典型感知-执行分裂。修复方式是在 Step0 和 Step1 之间插入条件化步骤。检验原则：**每个"AI 能看到的信息"都应该有对应的"AI 知道怎么用这个信息"的推断步骤**，否则信息对 AI 决策质量贡献为零。
+- **模板端块定位（新教训 R80-B）**：测试定位村民 DAY_SPEECH block 时，正确的结束标记是 `"    '骑士':"` 而非 `"'猎人':"（不存在）`。测试编写前应先用 `src.indexOf()` 验证下一个 key 是什么，不要凭直觉猜测 ROLE_DAY_SPEECH_PROMPTS 中角色排列顺序。
+- **T18 白盒测试设计（新教训 R80-C）**：验证"模板使用变量插值而非硬编码"时，不能用 `expect(block).not.toContain(stepContent)` ——因为 `peaceNightStep` 的赋值语句本身就在同一 block 内，会导致误报。正确做法：找到 `return` 语句的切片，在 return 块内验证 `${peaceNightStep}` 存在且 `⭕` 不存在（因为 ⭕ 只在赋值段，不在 return 段）。
+- **白熊效应合规**：步骤内容无"不要""禁止"等负向禁词；speech 指引用"只说'平安夜，继续分析局势'"正向描述限制范围，不用"不要在 speech 里展示推断过程" ✅。
+- **Block 大小**：村民 DAY_SPEECH 2940 → 3459 chars（+519 chars），测试窗口 3000-5000 chars。
+- **测试**：1179/1179（+20 new R80 tests，T1-T20）；build ✅；check-build ✅；pre-existing chatSocket suite failure（missing `ws` package）与本轮无关。
+
+---
+
 ### [2026-06-28 Round 79] NIGHT_WOLF 次日刀后叙事预案 + DAY_SPEECH Step 0 次日叙事读取 — 新增跨阶段叙事一致性闭环
 
 - **完成状态**：NIGHT_WOLF 新增 Step 4"次日刀后叙事预案"（+386 chars），在刀口决策后规划明天的公开应对，覆盖三种情况：① 今日推过/质疑过→"顺势应对"；② 今日中立或曾站该目标→"补叙细节"；③ 今日明确保过→"引导焦点到第三方"。Wolf DAY_SPEECH Step 0 标题更新为"读取跨轮威胁积累 + 次日叙事预案"，新增读取 identity_table 中含"次日叙事"的注记并按注记执行。identity_table 刀口行写指导更新为追加"次日叙事：[预计应对策略]"。
