@@ -91,3 +91,18 @@ export function loadDailyStats(playerName) {
     return data[playerName] ?? null;
   } catch { return null; }
 }
+
+/**
+ * 在日榜完成名单中计算玩家的速度排名（按 duration_s 升序，仅统计胜者）。
+ * @param {Array<{player_name:string,won:boolean,duration_s:number}>} completions
+ * @param {string} playerName
+ * @returns {number|null} 1-indexed 排名，未上榜或无效输入返回 null
+ */
+export function computeDailyRank(completions, playerName) {
+  if (!completions || !playerName) return null;
+  const sorted = completions
+    .filter((c) => c.won && c.duration_s > 0)
+    .sort((a, b) => a.duration_s - b.duration_s);
+  const idx = sorted.findIndex((c) => c.player_name === playerName);
+  return idx >= 0 ? idx + 1 : null;
+}
