@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-28 Round 79] NIGHT_WOLF 次日刀后叙事预案 + DAY_SPEECH Step 0 次日叙事读取 — 新增跨阶段叙事一致性闭环
+
+- **完成状态**：NIGHT_WOLF 新增 Step 4"次日刀后叙事预案"（+386 chars），在刀口决策后规划明天的公开应对，覆盖三种情况：① 今日推过/质疑过→"顺势应对"；② 今日中立或曾站该目标→"补叙细节"；③ 今日明确保过→"引导焦点到第三方"。Wolf DAY_SPEECH Step 0 标题更新为"读取跨轮威胁积累 + 次日叙事预案"，新增读取 identity_table 中含"次日叙事"的注记并按注记执行。identity_table 刀口行写指导更新为追加"次日叙事：[预计应对策略]"。
+- **新增 Read-Write 闭环（新教训 R79-A）**：这是在"高优先刀口"闭环基础上新增的第二条狼人跨阶段闭环——"次日叙事"。**NIGHT_WOLF（写）→ DAY_SPEECH Step 0（读）→ speech 执行**。两条闭环共存于同一 identity_table 条目中（reason 字段含"高优先刀口：..."和"→已NX夜行刀；次日叙事：..."），各自在不同阶段被读取。设计原则：一个 identity_table reason 字段可以包含多个语义段，用"；"分隔，各段由不同阶段的 Step 0 读取，互不干扰。
+- **竞技依据（Wang 2025，arxiv:2408.17177）**：LLM 狼人最大弱点之一是跨轮行为一致性——AI 在某轮"保了"某好人，次日对其死亡却反应异常，暴露决策模式。次日叙事预案解决了"决策时点（NIGHT）"和"叙事时点（DAY）"之间的信息断层。
+- **白熊效应合规**：Step 4 三个分支均用正向描述（"顺势"/"补叙细节"/"引导到第三方"），无"不要显示怀疑"等负向禁词 ✅。
+- **Block 大小控制（已固化规则的第 5 次应用）**：NIGHT_WOLF 4975→5361 chars，测试窗口 7000；Wolf DAY_SPEECH 5187→5242 chars，测试窗口 7000。
+- **测试**：1159/1159（+20 new R79 tests）；dry-run 27/27；build ✅；check-build ✅。
+
+---
+
 ### [2026-06-28 Round 78] 摄梦人/魔术师 NIGHT 侧个性化（dreamweaverNightStyle + magicianNightStyle）— 全角色三阶段覆盖里程碑
 
 - **完成状态**：NIGHT_DREAMWEAVER（内联于 aiPrompts.js）新增 `dreamweaverNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `dreamweaverNightStyle`（7 种入梦风格分叉）：aggressive→主动进攻型（连梦阈值≥65%即出手）；cautious→谨慎保护型（防御最高优先，≥80%才进攻）；logical/analytical→推理优化型（量化三模式期望收益）；cunning→博弈欺骗型（切换目标制造方向假象）；emotional→直觉感知型（白天发言感受>数值）；contrarian→反预判型（选狼人最不预期候选）；steady→平衡渐进型（防御>进攻>殉情严格框架）。NIGHT_MAGICIAN 通过 `magicianModule.nightAction()` 委托，`currentPlayer` 不在闭包内，需从调用端显式传递 `personalityType`（区别于 NIGHT_DREAMWEAVER 闭包访问模式）。`getMagicianNightActionPrompt` 新增 `personalityType` 解构和 `magicianNightStyle`（7 种换刀风格分叉）。
