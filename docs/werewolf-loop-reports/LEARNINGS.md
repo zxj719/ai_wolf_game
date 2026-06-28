@@ -4,6 +4,25 @@
 
 ---
 
+### [2026-06-28 Round 78] 摄梦人/魔术师 NIGHT 侧个性化（dreamweaverNightStyle + magicianNightStyle）— 全角色三阶段覆盖里程碑
+
+- **完成状态**：NIGHT_DREAMWEAVER（内联于 aiPrompts.js）新增 `dreamweaverNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `dreamweaverNightStyle`（7 种入梦风格分叉）：aggressive→主动进攻型（连梦阈值≥65%即出手）；cautious→谨慎保护型（防御最高优先，≥80%才进攻）；logical/analytical→推理优化型（量化三模式期望收益）；cunning→博弈欺骗型（切换目标制造方向假象）；emotional→直觉感知型（白天发言感受>数值）；contrarian→反预判型（选狼人最不预期候选）；steady→平衡渐进型（防御>进攻>殉情严格框架）。NIGHT_MAGICIAN 通过 `magicianModule.nightAction()` 委托，`currentPlayer` 不在闭包内，需从调用端显式传递 `personalityType`（区别于 NIGHT_DREAMWEAVER 闭包访问模式）。`getMagicianNightActionPrompt` 新增 `personalityType` 解构和 `magicianNightStyle`（7 种换刀风格分叉）。
+- **关键架构差异（新教训 R78-A）**：NIGHT 侧个性化注入有两种模式——①内联模式（NIGHT_GUARD/WITCH/SEER/WOLF/DREAMWEAVER）：`currentPlayer` 在 `generateUserPrompt` 闭包中直接可用，只在 case 内部添加变量声明即可；②委托模式（NIGHT_MAGICIAN）：角色夜间逻辑在独立模块文件（`rolePrompts/magician.js`）中，`currentPlayer` 不在其作用域，**必须**从调用端（aiPrompts.js NIGHT_MAGICIAN case）显式传递 `personalityType: currentPlayer?.personality?.type || ''`。判断依据：看 case 是 `return magicianModule.nightAction({...})` 委托还是内联 `return \`模板字符串\``。
+- **批量同构同轮完成（R58 原则）**：NIGHT_DREAMWEAVER + NIGHT_MAGICIAN 结构完全相同（7 分支 if-else，historyStep 后、Step1 前注入），一轮完成避免两轮上下文重复初始化。与 R77（同轮完成两者 DAY_SPEECH personalityLens）前后呼应。
+- **全角色三阶段里程碑**：R78 完成后，摄梦人（DAY_SPEECH R77 + DAY_VOTE R72 + NIGHT R78）和魔术师（DAY_SPEECH R77 + DAY_VOTE R72 + NIGHT R78）均达到三阶段全覆盖。结合守卫（R69+R71+R73）/ 女巫（R68+R71+R74）/ 预言家（R68+R71+R75）/ 狼人（R66+R61+R76）/ 骑士（DAY_SPEECH+VOTE+夜间不适用），所有有 NIGHT 行动的非平民角色均已三阶段个性化完整覆盖。
+- **identity_table 追加不覆盖（一致性修复）**：T17 失败发现 NIGHT_DREAMWEAVER identity_table 指导缺少 `追加不覆盖历史` 显式条目（其他角色均有，该段仅有 `追加示例`）。补充此行使指导与其他角色一致。教训：写测试时检查每个 identity_table 指导是否包含三要素：①填写规则、②追加示例、③追加不覆盖历史。
+- **测试**：1131/1131（+40 new R78 tests，T1-T20 摄梦人，T21-T40 魔术师）；build ✅；check-build ✅；pre-existing chatSocket suite failure（missing `ws` package）与本轮无关。
+
+---
+
+### [2026-06-27 Round 77] 摄梦人/魔术师 DAY_SPEECH personalityLens（R77）— 同构批量完成
+
+- **完成状态**：`dreamweaver.js` 的 `getDreamweaverDaySpeechPrompt` 和 `magician.js` 的 `getMagicianDaySpeechPrompt` 各新增 personalityType 参数读取和 7 分支 personalityLens（dreamweaverPersonalityLens / magicianPersonalityLens），字数范围联动调整（aggressive 偏长、cautious 偏短）。注入位置与其他角色 DAY_SPEECH 完全对称（发言策略开头部分）。
+- **DAY_SPEECH 全角色个性化完成里程碑**：R77 后，所有非平民神职角色（预言家/守卫/女巫/猎人/骑士/摄梦人/魔术师）和狼人的 DAY_SPEECH 均有 personalityLens。
+- **测试**：1048/1048（+40 new R77 tests，T1-T20 摄梦人，T21-T40 魔术师）；build ✅；check-build ✅；干跑 25/25 ✅。
+
+---
+
 ### [2026-06-27 Round 76] 狼人 NIGHT_WOLF 刀口选择风格个性化（wolfNightStyle）— NIGHT 侧四连完成里程碑
 
 - **完成状态**：NIGHT_WOLF case 新增 `wolfNightPersonalityType`（从 `currentPlayer?.personality?.type` 直接读取）和 `wolfNightStyle`（7 种个性类型的刀口选择风格分叉）。aggressive→主动锁刀型（直刀最高 confidence 威胁目标，不因守护风险回避）；cautious→保守规避型（刀"最安全"目标，守护概率>40%放弃）；logical/analytical→推理优化型（量化期望价值=威胁等级×(1-被守护概率)，选最高）；cunning→博弈迷雾型（偶尔刀次优目标制造刀口方向假象）；emotional→直觉感知型（白天最敌对/活跃玩家优先，个人威胁感知先于数据）；contrarian→反预判型（选守卫最不可能守护的次优目标，让守护资源浪费）；steady→平衡渐进型（严格按角色优先级框架保持目标连续性，不随意换刀）。注入位置：wolfHistoryStep 之后、1.【角色推断】之前，与 R73/R74/R75 守卫/女巫/预言家模式完全对称。

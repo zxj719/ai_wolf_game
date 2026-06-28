@@ -2,6 +2,25 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-28] 狼人杀 Round 78 — 摄梦人/魔术师 NIGHT 侧入梦/换刀决策风格个性化
+
+### 新功能
+- **摄梦人夜间入梦决策风格**：NIGHT_DREAMWEAVER case 新增 `dreamweaverNightStyle`（7 种入梦风格）：aggressive→主动进攻型；cautious→谨慎保护型；logical/analytical→推理优化型；cunning→博弈欺骗型；emotional→直觉感知型；contrarian→反预判型；steady→平衡渐进型
+- **魔术师夜间换刀决策风格**：`getMagicianNightActionPrompt` 新增 `magicianNightStyle`（7 种换刀风格）：aggressive→主动换刀型；cautious→保守自保型；logical/analytical→推理计算型；cunning→博弈欺骗型；emotional→直觉感知型；contrarian→反预判型；steady→平衡稳健型
+- **全角色三阶段个性化里程碑**：所有有 NIGHT 行动的神职角色均已完成 DAY_SPEECH + DAY_VOTE + NIGHT 三阶段个性化覆盖
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/services/aiPrompts.js` | 修改 | NIGHT_DREAMWEAVER：7 分支 dreamweaverNightStyle + identity_table 追加不覆盖补充；NIGHT_MAGICIAN：personalityType 参数传递 |
+| `src/services/rolePrompts/magician.js` | 修改 | `getMagicianNightActionPrompt`：personalityType 参数解构 + 7 分支 magicianNightStyle |
+| `src/services/__tests__/round78DreamweaverMagicianNightPersonality.test.js` | 新建 | 40 项测试（T1-T20 摄梦人，T21-T40 魔术师） |
+
+### 技术细节
+- NIGHT_DREAMWEAVER 为内联模式（`currentPlayer` 在闭包中直接可用），NIGHT_MAGICIAN 为委托模式（需从调用端显式传递 `personalityType`）
+- 注入位置：`${角色HistoryStep}` 之后、思维链 Step1 之前（与 R73-R76 守卫/女巫/预言家/狼人完全对称）
+- 所有 7 种风格均为正向描述（无白熊效应负向禁词）
+
 ## [2026-06-26] 狼人杀 Round 69 — 猎人/守卫 DAY_SPEECH personalityLens + 发言字数差异化
 
 ### 新功能

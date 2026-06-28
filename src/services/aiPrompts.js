@@ -1641,6 +1641,7 @@ ${guardNightStyle}
                 knownGods,
                 suspectedWolves,
                 hasRevealed: currentPlayer?.hasRevealed,  // 身份已公开时优先级 C 提升为 A
+                personalityType: currentPlayer?.personality?.type || '',  // R78: 夜间换刀决策风格个性化
             });
 
         case PROMPT_ACTIONS.NIGHT_WOLF: {
@@ -1927,6 +1928,25 @@ ${witchNightStyle}
                  ? '0. 【读取历史连梦候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"连梦候选"？将其列为今晚进攻模式入梦候选起点（确信度≥75% 才执行连梦击杀；若已死亡则跳过，改选下一高嫌疑目标）'
                  : '0. 【首夜】无历史连梦候选记录——直接按当前局势选择入梦目标';
 
+             // R78: NIGHT_DREAMWEAVER 入梦决策风格个性化（dreamweaverNightStyle）
+             const dreamweaverNightPersonalityType = currentPlayer?.personality?.type || '';
+             let dreamweaverNightStyle = '';
+             if (dreamweaverNightPersonalityType === 'aggressive') {
+                 dreamweaverNightStyle = '\n【你的入梦风格】主动进攻型：优先选择进攻模式，连梦阈值≥65%即可出手；遇到高嫌疑目标果断启动连梦计划，不因守护风险或不确定性而推迟入梦进攻时机。';
+             } else if (dreamweaverNightPersonalityType === 'cautious') {
+                 dreamweaverNightStyle = '\n【你的入梦风格】谨慎保护型：防御模式最高优先，以保护核心好人为第一目标；启动连梦进攻的阈值需达≥85%高确信度，敏感时刻宁可换梦也不冒险连梦。';
+             } else if (dreamweaverNightPersonalityType === 'logical' || dreamweaverNightPersonalityType === 'analytical') {
+                 dreamweaverNightStyle = '\n【你的入梦风格】推理优化型：量化三种决策模式的期望收益——防御=保护好人价值×成功率；进攻=连梦出狼概率×威胁价值；殉情=垫背价值×触发概率。选择期望收益最高的模式执行。';
+             } else if (dreamweaverNightPersonalityType === 'cunning') {
+                 dreamweaverNightStyle = '\n【你的入梦风格】博弈欺骗型：刻意在不同入梦目标之间切换，制造"你在追踪谁"的不确定性；让狼人无法判断你正在建立哪条连梦链，保留最大博弈灵活性，在最有价值时机出手。';
+             } else if (dreamweaverNightPersonalityType === 'emotional') {
+                 dreamweaverNightStyle = '\n【你的入梦风格】直觉感知型：凭昨日白天发言的直觉感受选择入梦目标——某人发言时的"不适感"或"可疑气息"优先于 identity_table 中的 confidence 数值，情感信号先于数据分析。';
+             } else if (dreamweaverNightPersonalityType === 'contrarian') {
+                 dreamweaverNightStyle = '\n【你的入梦风格】反预判型：预判狼人已预判了你的入梦目标，有意选择狼人最不预期的候选；用出人意料的选择同时保护真实目标并制造入梦方向迷雾，让狼人的预判成本最大化。';
+             } else if (dreamweaverNightPersonalityType === 'steady') {
+                 dreamweaverNightStyle = '\n【你的入梦风格】平衡渐进型：严格按防御>进攻>殉情优先级框架执行，保持入梦目标的连续性；只在有充分新证据时才切换目标，避免频繁换梦暴露决策模式。';
+             }
+
              return `摄梦人入梦决策。
 ${dwWarning}${dwRevealedAlert}
 【入梦历史】${dwHistoryText}
@@ -1943,6 +1963,7 @@ ${dwStrategyHints.join('\n')}
 ${nightCot}
 【思维链】
 ${dreamweaverHistoryStep}
+${dreamweaverNightStyle}
 Step1: 场上谁是核心好人？谁是狼头？
 Step2: 我昨晚梦了谁？今晚是否需要换目标？
 Step3: 狼人今晚会刀我吗？我是否暴露？
@@ -1955,6 +1976,7 @@ Step5: 确定入梦目标
 - 已连梦致死目标：reason 末尾追加"→${dreamweaverNightLabel}夜连梦出局确认"，标记执行状态
 - 防御保护好人：confidence 填 55-75，reason 写"防御入梦候选：[判断为真预/关键神职]，绝不连梦"
 - 殉情目标（身份暴露时）：confidence 填 75-95，reason 写"殉情目标候选：[判断理由]，准备拉垫背"
+- **追加不覆盖历史**：每轮在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史积累
 输出JSON:{"dreamTarget":数字(必选，不能为null不能为自己),"dreamMode":"defense/offense/sacrifice","dreamReason":"入梦理由(20-40字)","isConsecutiveDream":true/false,"confidence":0-100,"thought":"思考过程","identity_table":{"玩家号":{"suspect":"角色","confidence":0-100,"reason":"依据"}}}`;
         }
 

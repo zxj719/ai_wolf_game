@@ -91,6 +91,7 @@ export const getMagicianNightActionPrompt = (params) => {
     knownGods,
     suspectedWolves,
     hasRevealed,  // R46 Bug 修复：身份已公开时自保优先级跃升为最高（R22 补传但未消费）
+    personalityType,  // R78: 夜间换刀决策风格个性化
   } = params;
 
   // R43 读写闭环（同 R38-R41 NIGHT_WOLF/WITCH/GUARD/SEER 模式）
@@ -98,6 +99,25 @@ export const getMagicianNightActionPrompt = (params) => {
   const magicianHistoryStep = dayCount > 1
     ? '0. 【读取历史换刀候选与保护目标】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"换刀候选"或"保核目标候选"？作为今晚交换决策的起点（若该目标已死亡或受整局/连续限制不可换，跳过，改选其他目标）'
     : '0. 【首夜】无历史换刀/保护候选记录——直接根据当前局势选择交换目标';
+
+  // R78: NIGHT_MAGICIAN 换刀决策风格个性化（magicianNightStyle）
+  const magicianNightPersonalityType = personalityType || '';
+  let magicianNightStyle = '';
+  if (magicianNightPersonalityType === 'aggressive') {
+    magicianNightStyle = '\n【你的换刀风格】主动换刀型：当有明显刀口目标时立即行动，优先执行B（换刀引导狼刀狼）；高收益交换机会不因博弈层级过多而拖延，果断锁定最优方案出手。';
+  } else if (magicianNightPersonalityType === 'cautious') {
+    magicianNightStyle = '\n【你的换刀风格】保守自保型：优先执行C（自保躲刀），换刀阈值提升到≥80%高确信度才出手；身份安全高于换刀收益，只在非常确信目标价值和成功率时才冒身份暴露风险。';
+  } else if (magicianNightPersonalityType === 'logical' || magicianNightPersonalityType === 'analytical') {
+    magicianNightStyle = '\n【你的换刀风格】推理计算型：在 thought 中量化每种交换方案的期望价值（成功概率×收益—风险），选择期望最高的方案；明确推导"交换A-B vs 交换C-D vs 不交换"的期望对比后决策。';
+  } else if (magicianNightPersonalityType === 'cunning') {
+    magicianNightStyle = '\n【你的换刀风格】博弈欺骗型：在高博弈层级中决策，主动预判狼人是否预判了你的交换；选择对手最不预期的路径，用交换的不可预测性最大化信息差优势。';
+  } else if (magicianNightPersonalityType === 'emotional') {
+    magicianNightStyle = '\n【你的换刀风格】直觉感知型：凭白天发言的"感受"判断今晚狼人的刀口目标——某人发言时的可疑气息和攻击倾向优先于逻辑计算，情感信号先于期望价值分析。';
+  } else if (magicianNightPersonalityType === 'contrarian') {
+    magicianNightStyle = '\n【你的换刀风格】反预判型：预测狼人已预判你会保护最高优先目标，偏向保护次优目标或自保；用出人意料的选择同时保护真实目标并让狼人的预判落空。';
+  } else if (magicianNightPersonalityType === 'steady') {
+    magicianNightStyle = '\n【你的换刀风格】平衡稳健型：严格按优先级A（保核）>B（换刀）>C（自保）框架逐步决策；不因一次博弈层级分析而跳跃优先级，稳定积累换刀优势，保持策略连贯性。';
+  }
 
   // 构建交换限制提示
   const restrictionHints = [];
@@ -185,6 +205,7 @@ ${strategyHints.join('\n')}
 
 【博弈思维链（必须按此顺序思考）】
 ${magicianHistoryStep}
+${magicianNightStyle}
 Step 1: 当前局势分析
   - 谁是明神（已暴露的神职）？
   - 谁是狼嫌疑人？
