@@ -1173,6 +1173,26 @@ Step4: 绝不能投金水！voteIntention 必须指向狼人或最可疑的人
         if (witchPersonalityType === 'aggressive') witchSpeechLen = '35-55字';
         else if (witchPersonalityType === 'cautious') witchSpeechLen = '50-80字';
 
+        // R82：平安夜推断框架（女巫专属：结合救药使用状态推断昨夜平安夜来源）
+        const isPeacefulNightWitch = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        let witchPeaceNightStep = '';
+        if (isPeacefulNightWitch) {
+            const prevDay = ctx.dayCount - 1;
+            if (!hasWitchSave && witchHistory?.savedIds?.length > 0) {
+                const lastSaved = witchHistory.savedIds[witchHistory.savedIds.length - 1];
+                witchPeaceNightStep = `⭕【女巫平安夜推断（thought 中完成；speech 按普通村民发言，不提药水细节）】
+- 你的解药已使用，${lastSaved}号是你最近救过的玩家（savedIds 末位）
+- 平安夜推断路径A（解药救中）：若昨夜你救了被刀目标 → ${lastSaved}号确认为狼重点针对的关键好人
+- 将${lastSaved}号 identity_table confidence 升 20-30，reason 追加"D${prevDay}平安夜推断：疑似解药救成活（狼刀目标确认）"
+- 评估补充：D${prevDay} 高票存活者是否另有其人？若与 ${lastSaved}号不同，可能存在双重保护（解药+守卫协同）\n`;
+            } else if (hasWitchSave) {
+                witchPeaceNightStep = `⭕【女巫平安夜推断（thought 中完成；speech 按普通村民发言）】
+- 你解药未动，昨夜平安夜不是你的行动造成的 → 最可能原因：守卫守中了狼刀目标
+- 查 D${prevDay} 投票记录票压最高的存活玩家——最可能是守卫守护目标，identity_table confidence 降 10-15（好人可能性升）
+- 你解药仍可用：今晚评估用药节奏；若连续出现平安夜，可推断守卫正在连守同一目标\n`;
+            }
+        }
+
         return `${getBaseContext(ctx)}
 【女巫专属任务】白天发言 - 隐藏身份/关键时刻跳
 
@@ -1192,7 +1212,7 @@ ${poisonedInfo ? `你确实毒过: ${poisonedInfo}。` : ''}
 ${witchPersonalityLens}
 【思维链】
 ${witchDayHistoryStep}
-Step1: 我需要跳身份吗？跳身份的收益是什么？
+${witchPeaceNightStep}Step1: 我需要跳身份吗？跳身份的收益是什么？
 Step2: 如果不跳，我应该像平民一样说什么？
 Step3: 我的投票应该投谁？（结合 Step0 历史候选：高威胁毒药候选是否应该在投票中被集中压制？）
 

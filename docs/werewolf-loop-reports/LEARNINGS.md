@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-28 Round 82] 女巫平安夜推断框架（witchPeaceNightStep）— 感知-执行分裂修复
+
+- **完成状态**：女巫 DAY_SPEECH 新增 `isPeacefulNightWitch`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）和 `witchPeaceNightStep`（两分支：路径A=解药已用且savedIds非空→确认lastSaved为狼刀目标，confidence升20-30；路径B=解药未用→推断守卫守中高票存活者，confidence降10-15）。注入位置 `${witchPeaceNightStep}Step1:`，在 `${witchDayHistoryStep}` 之后、Step1 之前（不覆盖 R58 读写闭环的 Step0）。
+- **女巫推断精度级联（R82 总结）**：平安夜推断级联按私有信息精度排序：村民（仅票记录）→ 预言家（+查验历史）→ 守卫（+知道守了谁）→ 女巫（+知道是否用过解药）。女巫的关键优势：能直接判断平安夜来源（自己行动 vs 守卫行动），无需间接推断。至此平安夜推断级联四角色全部完成（R80 村民 → R81 预言家+守卫 → R82 女巫）。
+- **窗口大小教训（R82-A）**：R81 全功能版本的女巫函数约 6000 chars；R82 新增约 2000 chars，总计约 8050 chars。测试窗口必须从旧版本的 3000 扩展到 10000。**每轮在复杂角色函数中新增代码后，必须重新计算函数字符数，确保测试窗口 ≥ 函数总大小 × 1.2**。计算命令：`awk '/函数Marker/{start=NR} start{chars+=length($0)+1} /下一角色/{if(start && NR>start){print chars; exit}}' src/services/aiPrompts.js`。
+- **插入位置设计（R82-B）**：witchPeaceNightStep 插入在 `witchSpeechLen` 之后、`return` 之前。这是本轮所有平安夜推断变量的一致位置——紧邻 return 前，避免干扰已有的历史读写变量（witchDayHistoryStep、personalityLens 等）。
+- **白熊效应合规**：路径A/B 均使用正向描述（"confidence 升 20-30"、"按普通村民发言"），无负向禁词 ✅
+- **测试**：1259/1259（+20 new R82 tests T1-T20，窗口 10000 chars；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-28 Round 81] 预言家/守卫平安夜推断框架（seerPeaceNightStep + guardPeaceNightStep）— 同构批量完成
 
 - **完成状态**：预言家 DAY_SPEECH 新增 `isPeacefulNightSeer` + `seerPeaceNightStep`（三路径：A=高票存活者已验金水→confidence升至90-100+改查方向；B=高票存活者未验→confidence升15-20+排队查验优先级①；C=票型分散→维持队列）。守卫 DAY_SPEECH 新增 `isPeacefulNightGuard` + `guardPeaceNightStep`（两分支：lastGuardTarget已知→命中推断 confidence升15-25/未中推断维持；lastGuardTarget为null→通用高票推断）。注入位置均为 `${角色DayHistoryStep}\n${角色PeaceNightStep}Step1:`，与 R80 村民完全对称。
