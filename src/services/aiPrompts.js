@@ -1749,13 +1749,26 @@ ${guardNightStyle}
              const wolfNightLabel = `N${ctx.dayCount}`;
              // R47：N2+注入上轮夜间结果，用于刀口执行结果核查（女巫资源推断）
              const wolfLastNightBlock = ctx.dayCount > 1 ? `\n【上轮夜间结果】${ctx.lastNightInfo}` : '';
+
+             // R84: NIGHT_WOLF 平安夜换刀决策框架 — 狼人直接知晓刀口目标，两路径推断守卫/女巫来源，优于好人侧票压代理推断
+             const isNightPeacefulWolf = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+             const wolfNightPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+             const wolfNightPeaceStep = isNightPeacefulWolf
+                 ? `· 若平安夜 → ⭕【换刀决策框架（thought 中完成）】
+      ① 查 identity_table 中含"→已N${wolfNightPrevDay}夜行刀"的条目，确认昨夜刀口目标ID
+      ② 查系统提示游戏时间线 D${wolfNightPrevDay} 投票记录，分析刀口目标昨日票压：
+         路径A：刀口目标昨日票压高（≥2票指向TA）→ 守卫与狼判断对齐，连守概率高 → 今晚换刀（次优目标，连守目标命中率极低）
+         路径B：刀口目标昨日票压低或无票压 → 守卫守了第三方，女巫消耗了救药 → 维持今晚高优先，女巫无救药覆盖
+      ③ 更新 identity_table：在刀口目标 reason 末尾追加"N${wolfNightPrevDay}平安夜：[A换刀/B维持]"`
+                 : '· 若平安夜 → 守卫可能守住/女巫救了，重新评估优先目标';
+
              const wolfHistoryStep = ctx.dayCount > 1
                  ? `0. 【读取历史刀口 + 核查执行结果】
    a. 从【你之前的身份推理表】中找 reason 含"高优先刀口"的玩家，列为今晚候选起点
    b. 交叉比对上方【上轮夜间结果】：
       · 若刀口目标在死亡列表 → 刀成功，延续或重选高优先目标
       · 若刀口目标存活（不在死亡列表）→ 女巫救了（女巫只剩毒药），将女巫优先级上调
-      · 若平安夜 → 守卫可能守住/女巫救了，重新评估优先目标`
+      ${wolfNightPeaceStep}`
                  : '0. 【首夜】无历史刀口记录——直接进行角色推断';
 
              // R76：NIGHT_WOLF 刀口选择风格个性化（wolfNightStyle）

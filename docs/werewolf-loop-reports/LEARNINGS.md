@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-29 Round 84] NIGHT_WOLF 平安夜换刀决策框架（wolfNightPeaceStep）— DAY→NIGHT 平安夜响应闭环完成
+
+- **完成状态**：NIGHT_WOLF wolfHistoryStep 的"若平安夜"单行通用指导（"守卫可能守住/女巫救了，重新评估优先目标"）升级为三步两路径换刀决策框架（wolfNightPeaceStep）：① 查 identity_table "→已NX夜行刀"条目确认刀口ID；② 用刀口目标票压推断守卫/女巫来源（路径A=票压高→守卫守住→今晚换刀；路径B=票压低→女巫救了→维持高优先）；③ identity_table 追加"NX平安夜：[A换刀/B维持]"。与 R83 的 DAY_SPEECH wolfPeaceNightStep 形成完整平安夜 DAY→NIGHT 闭环。
+- **狼人 NIGHT 侧独特优势（R84-A）**：狼人在 NIGHT 侧直接知道刀口目标（identity_table 中 `→已NX夜行刀` 标记），因此平安夜推断只需一步（用票压判断守卫/女巫来源），而好人侧需要两步（先用票压推断刀口是谁，再推断守卫/女巫）。**设计原则：角色的推断框架精度应随其私有信息维度而设计，不要套用通用模板**——狼人 NIGHT 侧的推断链比好人 DAY 侧更短、更直接。
+- **"预计算条件变量→template 插值"模式第 5 次应用（R84-B）**：R80（peaceNightStep）→ R81（seerPeaceNightStep/guardPeaceNightStep）→ R82（witchPeaceNightStep）→ R83（wolfPeaceNightStep）→ R84（wolfNightPeaceStep），连续 5 轮同构应用，模式已完全固化：① 声明 `isXxx = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`；② 声明 `xxxPeaceStep = isXxx ? '...' : '原始 fallback'`；③ 在 template 中用 `${xxxPeaceStep}` 替换硬编码文本；④ 测试：静态断言 + 生成断言各 10 项。
+- **wolfHistoryStep 改动安全性（R84-C）**：wolfNightPeaceStep 必须在 wolfHistoryStep 之前声明（JavaScript 时序约束）；wolfHistoryStep 第3分支的原始文本改为 `${wolfNightPeaceStep}`，非平安夜时 fallback 返回原始文本，向下兼容。**验证清单：① 声明顺序正确 ② fallback 保留原文本 ③ R76（7000 char 窗口）未截断 ④ R79（动态切片）不受影响**。
+- **白熊效应合规（第 5 次验证）**：wolfNightPeaceStep 两路径均使用正向描述（"今晚换刀"/"维持今晚高优先"），thought 约束用"thought 中完成"正向限定，无负向禁词 ✅。
+- **测试**：1319/1319（+20 new R84 tests T1-T20；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-29 Round 83] 狼人 DAY_SPEECH 平安夜战术推断（wolfPeaceNightStep）— 好/狼两侧感知对称完成
 
 - **完成状态**：狼人 DAY_SPEECH 新增 `isPeacefulNightWolf`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）和 `wolfPeaceNightStep`（两路径：路径A=高票存活者=刀口目标→连守概率高，强烈建议换刀；路径B=高票存活者≠刀口目标→女巫可能救了，维持高优先）。注入位置 `${wolfPeaceNightStep}Step1 局势评估`，在 Step0（次日叙事预案读取）文本末尾之后插入，与 R80-R82 好人侧完全对称。
