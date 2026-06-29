@@ -172,7 +172,8 @@ describe('R54: 回归测试（预言家/女巫/守卫等分支未受影响）', 
     });
 
     test('T24: 村民 DAY_SPEECH 输出 JSON schema 未变（含 identity_table）', () => {
-        const villagerSeg = src.slice(villagerStart, villagerStart + 4000);
+        // 窗口已从 4000 升至 5000（R88 新增 isConsecutivePeacefulVillager + consecutivePeaceHintVillager 变量块，identity_table 移至 ~4057 处）
+        const villagerSeg = src.slice(villagerStart, villagerStart + 5000);
         expect(villagerSeg).toContain('"identity_table"');
         expect(villagerSeg).toContain('"voteIntention"');
     });

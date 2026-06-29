@@ -992,10 +992,23 @@ const ROLE_DAY_SPEECH_PROMPTS = {
         else if (wolfPersonalityType === 'cautious') wolfSpeechLen = '60-100字';
         // R83：狼人平安夜战术推断（DAY_SPEECH 侧，补完平安夜感知好/狼两侧对称）
         const isPeacefulNightWolf = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        // R88：两连平安夜二阶战术推断检测（D3+适用）
+        const isConsecutivePeacefulWolf = ctx.dayCount >= 3 && isPeacefulNightWolf &&
+            ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
         let wolfPeaceNightStep = '';
         if (isPeacefulNightWolf) {
             const prevDay = ctx.dayCount - 1;
-            wolfPeaceNightStep = `⭕【狼人平安夜战术推断（thought 中完成；speech 参照 Step0 次日叙事预案自然应对）】
+            const prevPrevDay = ctx.dayCount - 2;
+            const consecutivePeaceHintWolf = isConsecutivePeacefulWolf
+                ? `⭕【狼人两连平安夜二阶战术推断（thought 中完成；speech 按 Step0 叙事预案自然应对）】
+- 连续两夜平安夜（N${prevPrevDay}/N${prevDay}）→ 好人防御资源持续有效拦截，高危局面
+- 查 identity_table 中"→已N${prevPrevDay}夜行刀"和"→已N${prevDay}夜行刀"标记：
+  · 两夜刀口相同 → 守卫极大概率在连守该目标，下夜刀成功率极低 → 必须换刀，优先选守卫预测盲区的次优目标
+  · 两夜刀口不同 → 守卫或女巫分别覆盖了两个目标，好人防御资源分散但有效 → 分析两名保护目标哪位对好人更关键
+- 资源损耗评估：若两夜均推断为守卫拦截（非女巫），女巫解药资源仍完整 → 今夜刀口须同时规避守卫连守预测和女巫可能救护的目标
+- identity_table 更新：守卫/女巫玩家 reason 追加"N${prevPrevDay}+N${prevDay}两连平安夜：防御有效（优先级上调）"\n`
+                : '';
+            wolfPeaceNightStep = `${consecutivePeaceHintWolf}⭕【狼人平安夜战术推断（thought 中完成；speech 参照 Step0 次日叙事预案自然应对）】
 - 昨夜平安夜 → 你的刀被守/救了：刀口目标存活，今天是重新评估的起点
 - 守护来源推断：查 D${prevDay} 投票记录票压最高的存活玩家（最可能被刀但仍活=最可能被守护）
   · 高票存活者 = 昨夜刀口目标 → 守卫与狼判断一致（守了高价值好人），连守概率高 → 下夜强烈建议换刀（连守目标刀成功率极低）
@@ -1399,10 +1412,22 @@ Step4: 投票投谁？（结合 Step0 历史候选：高守护优先候选是否
 
         // R80：平安夜推断框架（D2+适用：利用夜间无死亡信息更新 identity_table）
         const isPeacefulNight = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        // R88：两连平安夜二阶推断检测（D3+适用）
+        const isConsecutivePeacefulVillager = ctx.dayCount >= 3 && isPeacefulNight &&
+            ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
         let peaceNightStep = '';
         if (isPeacefulNight) {
             const prevDay = ctx.dayCount - 1;
-            peaceNightStep = `⭕【平安夜推断（仅在 thought 中分析；speech 只说"平安夜，继续分析局势"即可）】
+            const prevPrevDay = ctx.dayCount - 2;
+            const consecutivePeaceHintVillager = isConsecutivePeacefulVillager
+                ? `⭕【两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 只说"连续平安夜，持续分析局势"）】
+- 连续两夜平安夜 → 守卫极可能在连守同一目标，或好人防御资源持续有效拦截
+- 比对 D${prevPrevDay} 和 D${prevDay} 投票记录中票压最高的存活玩家：
+  · 两夜高票存活者相同 → 同一目标被重点保护，identity_table 该玩家 confidence 降 25-35（核心好人，被狼持续针对）
+  · 两夜高票存活者不同 → 守卫可能在轮换目标；对两名玩家各降 confidence 12-18
+- 女巫资源状态：连续两夜平安夜若女巫仍在场，她可能已消耗解药一次（或守卫连续拦截无需用药）\n`
+                : '';
+            peaceNightStep = `${consecutivePeaceHintVillager}⭕【平安夜推断（仅在 thought 中分析；speech 只说"平安夜，继续分析局势"即可）】
 - 查【投票记录】D${prevDay}中票压最高的存活玩家——是昨夜最可能被刀但未死的人
 - 若场上有守卫或女巫：该玩家 identity_table confidence 可降 10-20（被狼重点针对=更可能是好人）
 - 若昨日票型分散（无明显高票目标）：平安夜信息量有限，维持现有判断不轻易调整\n`;

@@ -214,7 +214,8 @@ test('T26: 狼人 DAY_SPEECH Step 0 仍存在（R55 回归，搜索"高优先刀
     // R55: 狼人 Step 0 是内联实现（无独立变量名），用关键词搜索
     const wolfFuncIdx = src.indexOf("'狼人': (ctx, params) => {");
     expect(wolfFuncIdx).toBeGreaterThan(-1);
-    const wolfBlock = src.slice(wolfFuncIdx, wolfFuncIdx + 5000);
+    // 窗口已从 5000 升至 6500（R88 新增 isConsecutivePeacefulWolf + consecutivePeaceHintWolf 变量块，高优先刀口 移至 ~5804 处）
+    const wolfBlock = src.slice(wolfFuncIdx, wolfFuncIdx + 6500);
     expect(wolfBlock).toContain('高优先刀口');
 });
 

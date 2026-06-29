@@ -50,7 +50,8 @@ describe('R80 村民平安夜推断框架 — 变量声明', () => {
     test('T5: isPeacefulNight 为 true 时 peaceNightStep 被赋值（条件块）', () => {
         expect(villagerBlock).toContain('if (isPeacefulNight)');
         const ifPos = villagerBlock.indexOf('if (isPeacefulNight)');
-        const afterIf = villagerBlock.slice(ifPos, ifPos + 300);
+        // 窗口已从 300 升至 700（R88 在 if 块内新增 prevPrevDay + consecutivePeaceHintVillager 变量，peaceNightStep = 移至 ~601 处）
+        const afterIf = villagerBlock.slice(ifPos, ifPos + 700);
         expect(afterIf).toContain('peaceNightStep =');
     });
 });

@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-29 Round 88] 连续平安夜二阶推断（isConsecutivePeacefulX + consecutivePeaceHintX，村民+狼人双侧）
+
+- **完成状态**：`aiPrompts.js` 村民/狼人 DAY_SPEECH 各新增两个变量：① `isConsecutivePeacefulX`（D3+ 检测：`ctx.dayCount >= 3 && isPeacefulNightX && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `consecutivePeaceHintX`（三元表达式：两连情况下注入差异化推断步骤，否则为空字符串）。注入方式：在 `if (isPeacefulNightX)` 块内，将 `consecutivePeaceHintX` 前置拼接到原 `xPeaceNightStep` 赋值头部（`${consecutivePeaceHintX}⭕【原始内容...】`）。
+- **fullGameTimeline 作为历史检测工具（R88-A）**：`ctx.fullGameTimeline` 已由 `prepareGameContext()` 构建为 `N1:平安夜 → N2:5号死亡 → ...` 格式字符串，可用模板字符串 `\`N${n}:平安夜\`` 精确检测任意夜次平安夜状态。**设计原则：检测多夜历史模式不需要解析时间线数组或引入新字段——`fullGameTimeline` 字符串格式已包含所需信息，includes 匹配足够精确**。
+- **"前置注入"模式 vs "else 分支"（R88-B）**：两连推断使用三元表达式前置注入（两连时非空，否则为空字符串），而非 `if (isConsecutive) { ... } else { 原始 }`。**根因：R80 T17 测试在 `if (isPeacefulNight)` 之后 500 字符内检查无 `} else {`；else 分支会触发此测试失败。三元表达式前置注入模式天然避开此陷阱，同时保留原始推断内容完整**。今后凡需在"已有条件块"内扩展功能，优先考虑"额外变量三元表达式前置/追加"而非 if-else 分支。
+- **测试窗口同步更新（R88-C）**：R88 代码增量（wolf +730 chars，villager +590 chars）导致 4 个预存在测试的切片偏移失效：round80 T5（300→700），round54 T24（4000→5000），round58 T26（5000→6500），round70 getWolfBlock（6500→7500）。**记录规律：每当 aiPrompts.js 的 wolf/villager 函数体增长超过 400 chars，下游的切片窗口测试通常需要同步更新。建议在每次大幅增长后，用 python3 计算实际偏移量（`src.index(keyword, blockStart) - blockStart`），直接确认窗口是否仍覆盖目标关键词**。
+- **白熊效应合规（第 9 次验证）**：村民/狼人两连推断均使用正向行为描述，无负向禁词 ✅（T10/T20 测试覆盖）。
+- **测试**：1426/1426（+20 new R88 tests T1-T20，+5 修复旧测试窗口；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-29 Round 87] 骑士 DAY_SPEECH personalityLens 双阶段个性化（knightPersonalityLens + knightSpeechLen）
 
 - **完成状态**：`knight.js` 的 `getKnightDaySpeechPrompt` 新增 `knightPersonalityType`（从 `params.personalityType` 读取）、`knightPersonalityLens`（7 种类型 × 2 阶段三元表达式）和 `knightSpeechLen`（aggressive 35-55字/post-duel 30-55字，cautious 55-90字，默认 40-80字）。注入位置：【决斗禁忌】之后、【思维链】之前。输出 JSON 字数由硬编码"40-80字"改为 `${knightSpeechLen}` 插值。

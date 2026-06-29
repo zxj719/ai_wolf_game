@@ -18,7 +18,8 @@ function getWolfBlock() {
     // Use lastIndexOf to avoid ROLE_STRATEGY_PROMPTS '狼人' entry
     const start = src.lastIndexOf("'狼人': (ctx, params) =>");
     if (start === -1) throw new Error('狼人 DAY_SPEECH 函数未找到');
-    return src.slice(start, start + 6500);
+    // 窗口已从 6500 升至 7500（R88 新增 isConsecutivePeacefulWolf + consecutivePeaceHintWolf 变量块，${wolfSpeechLen} 移至 ~6636 处）
+    return src.slice(start, start + 7500);
 }
 
 function getSeerBlock() {
