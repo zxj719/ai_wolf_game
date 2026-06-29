@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -394,5 +394,45 @@ describe('computeCurrentWinStreak', () => {
   it('连胜 10 场正确返回 10', () => {
     const records = Array.from({ length: 10 }, () => mk('莹', 2, 0));
     expect(computeCurrentWinStreak(records, '莹')).toBe(10);
+  });
+});
+
+describe('computeOppLastBattleTs', () => {
+  const mk = (p, o, ts) => ({ p, o, sp: 2, so: 1, ts });
+
+  it('空记录返回 null', () => {
+    expect(computeOppLastBattleTs([], '诚', 'Elza')).toBeNull();
+  });
+
+  it('玩家名不匹配返回 null', () => {
+    expect(computeOppLastBattleTs([mk('Elza', 'Elza', 1000)], '诚', 'Elza')).toBeNull();
+  });
+
+  it('对手名不匹配返回 null', () => {
+    expect(computeOppLastBattleTs([mk('诚', 'Ross', 1000)], '诚', 'Elza')).toBeNull();
+  });
+
+  it('单条记录有 ts 时返回该 ts', () => {
+    expect(computeOppLastBattleTs([mk('诚', 'Elza', 99999)], '诚', 'Elza')).toBe(99999);
+  });
+
+  it('多条记录返回最后一条的 ts', () => {
+    const records = [mk('诚', 'Elza', 100), mk('诚', 'Elza', 200), mk('诚', 'Elza', 300)];
+    expect(computeOppLastBattleTs(records, '诚', 'Elza')).toBe(300);
+  });
+
+  it('最后一条记录缺少 ts 字段时返回 null', () => {
+    const records = [mk('诚', 'Elza', 100), { p: '诚', o: 'Elza', sp: 2, so: 1 }];
+    expect(computeOppLastBattleTs(records, '诚', 'Elza')).toBeNull();
+  });
+
+  it('混入其他玩家/对手记录不影响结果', () => {
+    const records = [
+      mk('诚', 'Ross', 500),   // 对手不符
+      mk('Elza', 'Elza', 600), // 玩家不符
+      mk('诚', 'Elza', 400),
+      mk('诚', 'Elza', 700),
+    ];
+    expect(computeOppLastBattleTs(records, '诚', 'Elza')).toBe(700);
   });
 });

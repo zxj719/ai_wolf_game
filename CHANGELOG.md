@@ -2,6 +2,24 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-06-29] 网球 Round 101 — 对手「上次对战」相对时间标签
+
+### 新功能
+- **opp-last-date 标签**：对手历史面板（opp-history-chip）在玩家选定身份后，显示该玩家最后一次对战每位对手的相对时间（今日 / 昨日 / N天前），利用现有 `ts` 字段，无需改动记录结构。激活「好久没打 ta 了」的复玩心理触发。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/tennis/localBoard.js` | 修改 | 新增 `computeOppLastBattleTs` 函数（双维度过滤，取末尾记录的 ts） |
+| `src/modules/tennis/__tests__/localBoard.test.js` | 修改 | 导入新函数 + 新增 7 个测试用例 |
+| `src/modules/tennis/components/SelectScreen.jsx` | 修改 | 导入新函数，新增 `oppLastBattleMap` useMemo + opp chip 相对时间渲染 |
+| `src/modules/tennis/tennis.css` | 修改 | 新增 `.opp-last-date` 样式（.48rem 极淡灰，辅助信息视觉层级） |
+| `docs/tennis-loop-reports/2026-06-29-1200.md` | 新建 | R101 评估报告 |
+
+### 技术细节
+- `computeOppLastBattleTs` 返回最后一条匹配记录的 `ts ?? null`，兼容无 ts 的旧记录（R92 前写入的数据无 ts 字段，此时不显示标签）
+- 相对时间计算在 JSX 内联 IIFE 中完成，`Date.now()` 在渲染时调用，无需额外 state
+
 ## [2026-06-28] 狼人杀 Round 78 — 摄梦人/魔术师 NIGHT 侧入梦/换刀决策风格个性化
 
 ### 新功能

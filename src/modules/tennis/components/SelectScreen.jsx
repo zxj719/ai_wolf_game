@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -69,6 +69,15 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     for (const c of CHARS) {
       const streak = computeOppWinStreak(records, picked, c.n);
       if (streak >= 2) map[c.n] = streak;
+    }
+    return map;
+  }, [records, picked]);
+  const oppLastBattleMap = useMemo(() => {
+    if (!picked) return {};
+    const map = {};
+    for (const c of CHARS) {
+      const ts = computeOppLastBattleTs(records, picked, c.n);
+      if (ts !== null) map[c.n] = ts;
     }
     return map;
   }, [records, picked]);
@@ -279,6 +288,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                               🔥{oppStreakMap[c.n]}连
                             </span>
                           )}
+                          {oppLastBattleMap[c.n] != null && (() => {
+                            const diffDays = Math.floor((Date.now() - oppLastBattleMap[c.n]) / 86400000);
+                            const label = diffDays === 0 ? '今日' : diffDays === 1 ? '昨日' : `${diffDays}天前`;
+                            return <span className="opp-last-date">{label}</span>;
+                          })()}
                         </>
                       ) : (
                         <span className="opp-history-badge opp-history-new">NEW</span>

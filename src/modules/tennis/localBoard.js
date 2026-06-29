@@ -172,6 +172,16 @@ export function computeWeeklyChamp(records, { minWins = 2, now = Date.now() } = 
   return best;
 }
 
+/**
+ * 返回某玩家对某对手最近一场对战的 Unix 时间戳（ts 字段）。
+ * 无记录或最近一条记录缺少 ts 字段时返回 null。
+ */
+export function computeOppLastBattleTs(records, playerName, oppName) {
+  const mine = records.filter((r) => r.p === playerName && r.o === oppName);
+  if (mine.length === 0) return null;
+  return mine[mine.length - 1].ts ?? null;
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>
