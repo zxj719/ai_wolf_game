@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-29 Round 86] 骑士延迟决斗补救策略（knightHistoryStep 三路径 + 续战搜索框架）
+
+- **完成状态**：`knight.js` 的 `knightHistoryStep` 从 4 行升级为三步三路径框架：① 三路径分类（路径A=候选存活/路径B=候选被投票出局/路径C=候选被狼夜杀）→ B/C 触发续战搜索；② 续战搜索按优先级A>B>C 扫描替补候选，`${thresholdA}`/`${thresholdB}` 动态阈值插值；③ 历史约束说明不变。identity_table 写指导新增路径B/C 关键词（"→已投票出局（好人方向一致）"/"→已被狼击杀（铁好人确认）"/"→重启决斗候选：[优先级A/B/C]，[新依据]"）。
+- **感知-执行分裂修复（R86-A）**：旧版 `knightHistoryStep` 只说"已出局则跳过"，是一个空操作——骑士知道候选不在了，但无任何替补框架。与 R61（狼人 DAY_VOTE）/ R62（猎人 DAY_VOTE）/ R63（骑士 DAY_VOTE）的感知-执行分裂完全同构，只是发生在 DAY_SPEECH Step 0 层面。**修复原则：凡是"识别到 X 已发生"的感知步骤之后缺少"发生后做什么"的执行路径，都是感知-执行分裂，必须添加对应的执行路径**。
+- **动态阈值整合（R86-B）**：续战搜索中使用 `${thresholdA}` / `${thresholdB}` 插值（R51 已声明在 `knightHistoryStep` 之前），残局时自动降低决斗阈值（50%/40%）。**变量依赖顺序原则**：新变量引用其他变量时，必须确认被引用变量在当前变量之前声明——`thresholdA`/`thresholdB` 在 R51 的函数体顶部声明，远早于 `knightHistoryStep`，安全。
+- **路径B 信息价值（R86-C）**：候选被群体投票出局（路径B）不仅是"候选消失"，更是"好人阵营方向一致"的正反馈信号——骑士应将此信息用于提升全局判断的 confidence，而非仅仅标注"已出局"。**设计原则：identity_table 中每个"状态变化"都应携带语义——"出局原因"是有价值的二级信息，不要只记录状态，要记录原因**。
+- **白熊效应合规（第 7 次验证）**：三路径均使用正向描述（"好人阵营已消灭"/"目标已确认为好人"/"触发续战搜索"），无负向禁词 ✅。
+- **测试**：1375/1375（+20 new R86 tests T1-T20；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-29 Round 85] NIGHT_GUARD 守卫平安夜守护来源推断框架（guardNightPeaceStep）— NIGHT 侧守卫/狼人平安夜推断对称完成
 
 - **完成状态**：NIGHT_GUARD 新增 `isNightPeacefulGuard`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）、`guardNightPrevDay`（`ctx.dayCount > 1 ? ctx.dayCount - 1 : 0`）和 `guardNightPeaceStep`（三步两路径：① 查 identity_table 含"N${prevDay}夜守护"玩家确认守护目标；② 用守护目标票压推断路径A=票压高→成功拦截狼刀→连守+confidence升15-25；路径B=票压低→狼刀在别处→切换次高候选；③ identity_table 追加"N${prevDay}平安夜：[A连守/B换守]"）。注入位置：`${guardNightStyle}` 之后、`1. 【守护优先级】` 之前，与 R84 wolfNightPeaceStep 结构完全对称。
