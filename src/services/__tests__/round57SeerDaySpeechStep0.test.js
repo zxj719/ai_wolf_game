@@ -171,8 +171,9 @@ describe('R57: 回归验证（关联 Step0 系统未受影响）', () => {
     test('T23: 狼人 DAY_SPEECH Step 0 仍存在（R55 回归）', () => {
         const wolfFnMarker = "'狼人': (ctx, params) => {";
         const wolfFnStart = aiPromptsSrc.indexOf(wolfFnMarker, roleDaySpeechStart);
-        // 狼人 Step 0 直接内联于模板字符串（不使用独立变量），窗口 4500
-        const wolfBlock = aiPromptsSrc.slice(wolfFnStart, wolfFnStart + 4500);
+        // 狼人 Step 0 直接内联于模板字符串（不使用独立变量）
+        // 窗口已从 4500 升至 6000（R83 新增 wolfPeaceNightStep 变量块使 Step0 移至 ~4978 处）
+        const wolfBlock = aiPromptsSrc.slice(wolfFnStart, wolfFnStart + 6000);
         expect(wolfBlock).toContain('高优先刀口');
     });
 

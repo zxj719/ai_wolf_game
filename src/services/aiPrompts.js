@@ -990,6 +990,19 @@ const ROLE_DAY_SPEECH_PROMPTS = {
         let wolfSpeechLen = '40-100字';
         if (wolfPersonalityType === 'aggressive') wolfSpeechLen = '35-55字';
         else if (wolfPersonalityType === 'cautious') wolfSpeechLen = '60-100字';
+        // R83：狼人平安夜战术推断（DAY_SPEECH 侧，补完平安夜感知好/狼两侧对称）
+        const isPeacefulNightWolf = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        let wolfPeaceNightStep = '';
+        if (isPeacefulNightWolf) {
+            const prevDay = ctx.dayCount - 1;
+            wolfPeaceNightStep = `⭕【狼人平安夜战术推断（thought 中完成；speech 参照 Step0 次日叙事预案自然应对）】
+- 昨夜平安夜 → 你的刀被守/救了：刀口目标存活，今天是重新评估的起点
+- 守护来源推断：查 D${prevDay} 投票记录票压最高的存活玩家（最可能被刀但仍活=最可能被守护）
+  · 高票存活者 = 昨夜刀口目标 → 守卫与狼判断一致（守了高价值好人），连守概率高 → 下夜强烈建议换刀（连守目标刀成功率极低）
+  · 高票存活者 ≠ 昨夜刀口目标 → 守卫守了第三人，女巫可能救了刀口目标 → 女巫救药资源已消耗；刀口目标下夜维持高优先（无守护覆盖）
+- 资源模型更新：若能定位守卫/女巫玩家，在 identity_table 其 reason 中追加"D${prevDay}平安夜：守护推断"或"D${prevDay}平安夜：救药推断"
+- speech 层面：Step0 已读取次日叙事预案，今天 speech 按预案自然应对，无需额外规划\n`;
+        }
         return `${getBaseContext(ctx)}
 【狼人专属任务】白天发言 — 最大化狼队胜率
 ${wolfTeammatesHint}${wolfSpeechPressureHint}
@@ -1014,7 +1027,7 @@ ${wolfTeammatesHint}${wolfSpeechPressureHint}
 
 【思维框架（在 thought 中完成，不要写进 speech）】
 Step0: 【读取跨轮威胁积累 + 次日叙事预案（D2+适用；首日无历史可跳过）】查看【你之前的身份推理表】：① reason 含"高优先刀口"的玩家是你跨轮积累的高威胁好人，以此为 Step2 威胁识别的起点——评估他们今天的言行是否改变了威胁等级；② 找含"次日叙事"注记的玩家——这是昨夜预规划的今日公开应对策略，今天的 speech 按注记执行（顺势/补叙细节/引导→X号），保持夜间决策与白天叙事的无缝衔接，避免言行矛盾暴露身份。
-Step1 局势评估：存活狼人/好人比？距离胜利条件多远？局势紧迫程度？
+${wolfPeaceNightStep}Step1 局势评估：存活狼人/好人比？距离胜利条件多远？局势紧迫程度？
 Step2 威胁识别：谁对狼队威胁最大？谁掌握了危险的信息？谁在建立公信力？
 Step3 行动空间：我这次发言可以做什么？（分析、站边、质疑、声明身份、报告信息……）每种行动的预期收益和暴露风险各是多少？
 Step4 最优行动：选择 收益/风险 比最高的行动执行

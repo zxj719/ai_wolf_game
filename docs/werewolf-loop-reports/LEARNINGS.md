@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-29 Round 83] 狼人 DAY_SPEECH 平安夜战术推断（wolfPeaceNightStep）— 好/狼两侧感知对称完成
+
+- **完成状态**：狼人 DAY_SPEECH 新增 `isPeacefulNightWolf`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）和 `wolfPeaceNightStep`（两路径：路径A=高票存活者=刀口目标→连守概率高，强烈建议换刀；路径B=高票存活者≠刀口目标→女巫可能救了，维持高优先）。注入位置 `${wolfPeaceNightStep}Step1 局势评估`，在 Step0（次日叙事预案读取）文本末尾之后插入，与 R80-R82 好人侧完全对称。
+- **平安夜感知对称里程碑（R83 总结）**：好人侧（村民R80/预言家R81/守卫R81/女巫R82）+ 狼人侧（R83）全部完成。每个角色依据其私有信息精度提供不同层次的平安夜推断，双侧均可利用平安夜公开信息更新各自的战术评估。
+- **窗口截断（新教训 R83-A）**：R83 在 `wolfSpeechLen` 赋值后新增约 760 chars 变量块，使 wolf Step0 内容从约 4169 移至 4911，超出 `round57SeerDaySpeechStep0.test.js` T23 的 4500 窗口。**修改 wolf DAY_SPEECH 变量声明区（`wolfSpeechLen` 之后、`return` 之前）时，必须检查所有以固定偏移搜索 wolf 模板内容的测试**。检测命令：`grep -rn "wolfFnStart\|wolf.*slice" src/services/__tests__/*.test.js`。窗口已修复至 6000。
+- **狼人视角的平安夜推断独特性**：狼人知道自己的刀口目标，因此推断优先级更直接——无需用高票存活者推断"刀口"（已知），只需用高票存活者判断"是守卫守的还是女巫救的"——这是好人侧村民/守卫/女巫无法做到的（他们不知道狼人刀口是谁）。
+- **白熊效应合规**：路径A/B 均使用正向描述（"连守概率高/换刀"、"维持高优先"），speech 约束用"参照次日叙事预案自然应对"正向限定，无负向禁词 ✅
+- **测试**：1289/1289（+20 new R83 tests T1-T20；+1 round57 窗口修复；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-28 Round 82] 女巫平安夜推断框架（witchPeaceNightStep）— 感知-执行分裂修复
 
 - **完成状态**：女巫 DAY_SPEECH 新增 `isPeacefulNightWitch`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）和 `witchPeaceNightStep`（两分支：路径A=解药已用且savedIds非空→确认lastSaved为狼刀目标，confidence升20-30；路径B=解药未用→推断守卫守中高票存活者，confidence降10-15）。注入位置 `${witchPeaceNightStep}Step1:`，在 `${witchDayHistoryStep}` 之后、Step1 之前（不覆盖 R58 读写闭环的 Step0）。
