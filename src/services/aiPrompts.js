@@ -1665,6 +1665,20 @@ ${playerRole === '狼人'
                 guardNightStyle = '\n【你的守护风格】平衡渐进型：有充足理由时坚持连守（连守=持续保护价值高），有新信息（神职暴露/发言变化）时适当换守。既不过于随机（暴露无决策依据）也不过于固定（被狼人预判守护目标）。';
             }
 
+            // R85: NIGHT_GUARD 平安夜守护来源推断框架 — 守卫直接知道守了谁，用票压推断是否真的拦截了狼刀
+            // 对称于 R84 wolfNightPeaceStep（狼用 identity_table 查刀口→票压推断来源；守卫用同样逻辑推断守护效果）
+            const isNightPeacefulGuard = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+            const guardNightPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+            const guardNightPeaceStep = isNightPeacefulGuard
+                ? `⭕【守卫平安夜守护来源推断（thought 中完成）】
+  ① 查 identity_table 中含"N${guardNightPrevDay}夜守护"的玩家，确认昨夜守护目标ID
+  ② 查系统提示游戏时间线 D${guardNightPrevDay} 投票记录，分析守护目标昨日票压：
+     路径A：守护目标昨日票压高（≥2票指向TA）→ 守卫判断与全场一致，成功拦截狼刀可能性高 → 今晚连守（连守高价值目标）；identity_table 将其 confidence 升15-25
+     路径B：守护目标昨日票压低或无票压 → 狼人刀口在别处（女巫可能救了真正的刀口目标）→ 今晚切换至 identity_table 次高优先候选；女巫救药资源可能已消耗
+  ③ 更新 identity_table：在守护目标 reason 末尾追加"N${guardNightPrevDay}平安夜：[A连守/B换守]"
+`
+                : '';
+
             return `守卫守护选择。
 ${guardHint}${guardSubsequentHint}
 【存活玩家】${aliveStr}
@@ -1673,7 +1687,7 @@ ${nightCot}
 【守护思维链】
 ${guardHistoryStep}
 ${guardNightStyle}
-1. 【守护优先级】已跳身份的预言家 > 重要神职 > 被狼针对的好人
+${guardNightPeaceStep}1. 【守护优先级】已跳身份的预言家 > 重要神职 > 被狼针对的好人
 2. 【禁连守处理】若上方历史优先候选恰好是连守禁止对象，顺延至次高优先候选
 3. 【最终决策】确定今晚守护目标——若切换了历史优先候选目标，在 thought 中说明切换原因
 【identity_table 填写指导（守卫夜间：守护历史跨轮追加，辅助连贯策略）】

@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-06-29 Round 85] NIGHT_GUARD 守卫平安夜守护来源推断框架（guardNightPeaceStep）— NIGHT 侧守卫/狼人平安夜推断对称完成
+
+- **完成状态**：NIGHT_GUARD 新增 `isNightPeacefulGuard`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）、`guardNightPrevDay`（`ctx.dayCount > 1 ? ctx.dayCount - 1 : 0`）和 `guardNightPeaceStep`（三步两路径：① 查 identity_table 含"N${prevDay}夜守护"玩家确认守护目标；② 用守护目标票压推断路径A=票压高→成功拦截狼刀→连守+confidence升15-25；路径B=票压低→狼刀在别处→切换次高候选；③ identity_table 追加"N${prevDay}平安夜：[A连守/B换守]"）。注入位置：`${guardNightStyle}` 之后、`1. 【守护优先级】` 之前，与 R84 wolfNightPeaceStep 结构完全对称。
+- **守卫/狼人 NIGHT 侧平安夜推断对称里程碑（R85 总结）**：狼人（R84 wolfNightPeaceStep）知道刀口目标，用票压推断"守卫守住 vs 女巫救了"；守卫（R85 guardNightPeaceStep）知道守护目标，用票压推断"成功拦截 vs 守错方向"。两者互为镜像，利用相同公开信息（票压），从各自私有信息（刀口/守护目标）出发，得出对称决策（换刀/维持 vs 连守/切换）。**平安夜框架至此真正完整**：好人 DAY（R80-R82）+ 狼人 DAY（R83）+ 狼人 NIGHT（R84）+ 守卫 NIGHT（R85）。
+- **"预计算条件变量→template 插值"模式第 6 次应用（R85-A）**：R80（peaceNightStep）→R81（seerPeaceNightStep/guardPeaceNightStep）→R82（witchPeaceNightStep）→R83（wolfPeaceNightStep）→R84（wolfNightPeaceStep）→R85（guardNightPeaceStep），连续 6 轮同构，模式已完全固化并可直接用于下一轮连续平安夜二阶推断。
+- **守卫 NIGHT 侧独特推断价值（R85-B）**：守卫不需要推断"昨夜刀口是谁"（她不知道）；她只需用票压推断"她守的人是不是狼人的目标"。这比好人 DAY 侧（需要先推断刀口是谁）更直接，但比狼人 NIGHT 侧（直接从 identity_table 读刀口）精度低一级。**设计层级：各角色推断精度 = 私有信息维度（狼人 NIGHT > 守卫 NIGHT > 好人 DAY）**，提示词框架应精确匹配此层级，不能套用统一模板。
+- **R73 窗口更新（R85-C）**：NIGHT_GUARD 块从 3777 → 4650 chars（+873 chars），R73 测试窗口从 4500 → 5500。规则（R73 首建、R74/R75/R76/R78 连续应用）第 6 次验证：每次为 NIGHT_* 块添加 800+ chars 后，必须立即检查引用该块的已有测试窗口。
+- **白熊效应合规（第 6 次验证）**：路径A/B 均使用正向描述，思维链约束用"thought 中完成"正向限定，无负向禁词 ✅。
+- **测试**：1348/1348（+20 new R85 tests T1-T20；R73 窗口修复；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-29 Round 84] NIGHT_WOLF 平安夜换刀决策框架（wolfNightPeaceStep）— DAY→NIGHT 平安夜响应闭环完成
 
 - **完成状态**：NIGHT_WOLF wolfHistoryStep 的"若平安夜"单行通用指导（"守卫可能守住/女巫救了，重新评估优先目标"）升级为三步两路径换刀决策框架（wolfNightPeaceStep）：① 查 identity_table "→已NX夜行刀"条目确认刀口ID；② 用刀口目标票压推断守卫/女巫来源（路径A=票压高→守卫守住→今晚换刀；路径B=票压低→女巫救了→维持高优先）；③ identity_table 追加"NX平安夜：[A换刀/B维持]"。与 R83 的 DAY_SPEECH wolfPeaceNightStep 形成完整平安夜 DAY→NIGHT 闭环。
