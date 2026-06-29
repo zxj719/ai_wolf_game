@@ -28,4 +28,23 @@ describe('mergeProgress（本地/云端合并）', () => {
     expect(mergeProgress(null, a)).toEqual(a);
     expect(mergeProgress(null, null)).toEqual(EMPTY_PROGRESS);
   });
+
+  it('allFamilyChampAt 双方均有时取早者（首次达成日期保留）', () => {
+    const a = { ...EMPTY_PROGRESS, allFamilyChampAt: 1000 };
+    const b = { ...EMPTY_PROGRESS, allFamilyChampAt: 2000 };
+    expect(mergeProgress(a, b).allFamilyChampAt).toBe(1000);
+    expect(mergeProgress(b, a).allFamilyChampAt).toBe(1000);
+  });
+
+  it('allFamilyChampAt 一方 null 时取非 null 值', () => {
+    const a = { ...EMPTY_PROGRESS, allFamilyChampAt: 5000 };
+    const b = { ...EMPTY_PROGRESS, allFamilyChampAt: null };
+    expect(mergeProgress(a, b).allFamilyChampAt).toBe(5000);
+    expect(mergeProgress(b, a).allFamilyChampAt).toBe(5000);
+  });
+
+  it('allFamilyChampAt 双方均为 null 时结果也是 null', () => {
+    const m = mergeProgress({ ...EMPTY_PROGRESS }, { ...EMPTY_PROGRESS });
+    expect(m.allFamilyChampAt).toBeNull();
+  });
 });

@@ -20,6 +20,7 @@ export const EMPTY_PROGRESS = {
   ownedCards: [],          // 永久卡牌收藏（上限 10，组进每次出战牌库）
   championships: 0,
   adventureClears: 0,
+  allFamilyChampAt: null,  // 首次「全家制霸」达成时间戳（ms），取早者保留
 };
 
 const tier = (r) => RARITIES.indexOf(r);
@@ -44,6 +45,9 @@ export function mergeProgress(a, b) {
     ownedCards: aCards.length >= bCards.length ? aCards : bCards,   // 收藏取多的一份
     championships: Math.max(a.championships ?? 0, b.championships ?? 0),
     adventureClears: Math.max(a.adventureClears ?? 0, b.adventureClears ?? 0),
+    allFamilyChampAt: (a.allFamilyChampAt != null && b.allFamilyChampAt != null)
+      ? Math.min(a.allFamilyChampAt, b.allFamilyChampAt)
+      : (a.allFamilyChampAt ?? b.allFamilyChampAt ?? null),
   };
 }
 

@@ -83,6 +83,10 @@ export default function TennisRoute() {
     getTennisLeaderboard().then(setGlobalBoard);
   }, []);
 
+  const onFamilyChamp = useCallback((ts) => {
+    updateProgress({ ...progress, allFamilyChampAt: ts });
+  }, [progress, updateProgress]);
+
   useEffect(() => {
     // 字体注入幂等：离开页面不移除（浏览器缓存，无副作用）
     if (!document.getElementById(FONT_LINK_ID)) {
@@ -255,7 +259,16 @@ export default function TennisRoute() {
         </header>
 
         {state.screen === 'select' && (
-          <SelectScreen onStart={onStart} onStartDaily={onStartDaily} toast={toast} boardProps={boardProps} equipment={progress.equipment} dailyBoard={dailyBoard} />
+          <SelectScreen
+            onStart={onStart}
+            onStartDaily={onStartDaily}
+            toast={toast}
+            boardProps={boardProps}
+            equipment={progress.equipment}
+            dailyBoard={dailyBoard}
+            familyChampAt={progress.allFamilyChampAt ?? null}
+            onFamilyChamp={onFamilyChamp}
+          />
         )}
         {state.screen === 'mode' && (
           <section className="screen">

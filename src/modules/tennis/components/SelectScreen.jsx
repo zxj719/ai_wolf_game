@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
@@ -23,8 +23,13 @@ function fmtDuration(s) {
   return m > 0 ? `${m}分${sec}秒` : `${sec}秒`;
 }
 
+function fmtChampDate(ts) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
 /** ① 报名处：选身份 + 双榜 */
-export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipment = {}, dailyBoard = null }) {
+export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipment = {}, dailyBoard = null, familyChampAt = null, onFamilyChamp }) {
   const [picked, setPicked] = useState('');
   const [showOppHistory, setShowOppHistory] = useState(false);
   const records = useMemo(() => loadLocalRecords(), []);
@@ -90,6 +95,12 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     }
     return map;
   }, [records, picked]);
+
+  useEffect(() => {
+    if (seenCount === totalOpps && !familyChampAt && onFamilyChamp) {
+      onFamilyChamp(Date.now());
+    }
+  }, [seenCount, totalOpps, familyChampAt, onFamilyChamp]);
 
   const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
   const dailyDone = picked ? isDailyChallengeCompleted() : false;
@@ -270,6 +281,13 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             <div className="opp-progress-bar">
               <div className="opp-progress-fill" style={{ width: `${(seenCount / totalOpps) * 100}%` }} />
             </div>
+            {familyChampAt && seenCount === totalOpps && (
+              <div className="family-champ-badge" role="status" aria-label="全家制霸成就">
+                <span className="fcb-icon">🏆</span>
+                <span className="fcb-title">全家制霸！</span>
+                <span className="fcb-date">首次达成：{fmtChampDate(familyChampAt)}</span>
+              </div>
+            )}
             {showOppHistory && (
               <div className="opp-history-panel">
                 {CHARS.map((c) => {
