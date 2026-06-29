@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -189,6 +189,54 @@ describe('computeWeeklyChamp', () => {
     const records = [rec('丫', '🐰', 2, 0, NOW - 1000)];
     const champ = computeWeeklyChamp(records, { now: NOW, minWins: 1 });
     expect(champ?.name).toBe('丫');
+  });
+});
+
+describe('computeRecentResults', () => {
+  const mk = (p, sp, so) => ({ p, sp, so });
+
+  it('空记录返回 []', () => {
+    expect(computeRecentResults([], '诚')).toEqual([]);
+  });
+
+  it('玩家无历史记录返回 []', () => {
+    expect(computeRecentResults([mk('Elza', 2, 1)], '诚')).toEqual([]);
+  });
+
+  it('单场胜利返回 [true]', () => {
+    expect(computeRecentResults([mk('诚', 2, 1)], '诚')).toEqual([true]);
+  });
+
+  it('单场失败返回 [false]', () => {
+    expect(computeRecentResults([mk('诚', 0, 2)], '诚')).toEqual([false]);
+  });
+
+  it('3 场记录全返回（旧→新顺序）', () => {
+    const records = [mk('诚', 2, 0), mk('诚', 1, 2), mk('诚', 2, 1)];
+    expect(computeRecentResults(records, '诚')).toEqual([true, false, true]);
+  });
+
+  it('记录超过 n=3 时只返回最近 3 条', () => {
+    const records = [mk('诚', 2, 0), mk('诚', 2, 0), mk('诚', 0, 2), mk('诚', 2, 1), mk('诚', 0, 2)];
+    expect(computeRecentResults(records, '诚')).toEqual([false, true, false]);
+  });
+
+  it('自定义 n=1 时只返回最后 1 条', () => {
+    const records = [mk('诚', 2, 0), mk('诚', 0, 2)];
+    expect(computeRecentResults(records, '诚', 1)).toEqual([false]);
+  });
+
+  it('n=0 时返回 []', () => {
+    expect(computeRecentResults([mk('诚', 2, 0)], '诚', 0)).toEqual([]);
+  });
+
+  it('只统计指定玩家，忽略其他玩家记录', () => {
+    const records = [mk('诚', 0, 2), mk('Elza', 2, 0), mk('诚', 2, 1)];
+    expect(computeRecentResults(records, '诚')).toEqual([false, true]);
+  });
+
+  it('sp === so 视为败局返回 false', () => {
+    expect(computeRecentResults([{ p: '丫', sp: 1, so: 1 }], '丫')).toEqual([false]);
   });
 });
 

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -46,6 +46,14 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     () => (picked ? computeCurrentWinStreak(records, picked) : 0),
     [picked, records],
   );
+  const recentResultsMap = useMemo(() => {
+    const map = {};
+    for (const c of CHARS) {
+      const res = computeRecentResults(records, c.n);
+      if (res.length > 0) map[c.n] = res;
+    }
+    return map;
+  }, [records]);
 
   const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
   const dailyDone = picked ? isDailyChallengeCompleted() : false;
@@ -94,6 +102,13 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                 )}
                 {cs && (
                   <span className="char-stat">出战 {cs.played} · 赢 {cs.won}</span>
+                )}
+                {recentResultsMap[c.n] && (
+                  <span className="char-trend" aria-label={`近${recentResultsMap[c.n].length}局`}>
+                    {recentResultsMap[c.n].map((won, i) => (
+                      <span key={i} className={`ct-dot${won ? ' ct-w' : ' ct-l'}`} />
+                    ))}
+                  </span>
                 )}
               </div>
             );

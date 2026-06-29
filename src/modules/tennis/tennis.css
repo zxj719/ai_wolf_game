@@ -917,3 +917,9 @@
 .tennis-scope .my-daily-chip { font-size: .7rem; font-family: var(--mono); background: rgba(242,238,224,.07); border: 1px solid rgba(242,238,224,.12); border-radius: 6px; padding: 2px 7px; color: var(--accent); }
 .tennis-scope .my-daily-rank-chip { border-color: rgba(250,204,21,.3); color: #fbbf24; }
 .tennis-scope .my-daily-rank-first { background: rgba(250,204,21,.12); border-color: rgba(250,204,21,.5); color: #fde047; font-weight: 700; }
+
+/* ===== 角色近 3 局走势点 (SelectScreen roster) ===== */
+.tennis-scope .roster .chip .char-trend { display: flex; justify-content: center; gap: 3px; margin-top: 5px; }
+.tennis-scope .roster .chip .ct-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.tennis-scope .roster .chip .ct-w { background: #4caf76; }
+.tennis-scope .roster .chip .ct-l { background: rgba(248,113,113,.55); }
