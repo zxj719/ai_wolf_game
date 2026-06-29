@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -293,6 +293,61 @@ describe('computeOppRecentResults', () => {
   it('n=1 时只返回最后 1 条', () => {
     const records = [mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 0, 2)];
     expect(computeOppRecentResults(records, '诚', 'Elza', 1)).toEqual([false]);
+  });
+});
+
+describe('computeOppWinStreak', () => {
+  const mk = (p, o, sp, so) => ({ p, o, sp, so });
+
+  it('空记录返回 0', () => {
+    expect(computeOppWinStreak([], '诚', 'Elza')).toBe(0);
+  });
+
+  it('玩家名不匹配返回 0', () => {
+    expect(computeOppWinStreak([mk('Elza', '诚', 2, 1)], '诚', '诚')).toBe(0);
+  });
+
+  it('对手名不匹配返回 0', () => {
+    expect(computeOppWinStreak([mk('诚', 'Ross', 2, 1)], '诚', 'Elza')).toBe(0);
+  });
+
+  it('最近一场为败时返回 0', () => {
+    const records = [mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 0, 2)];
+    expect(computeOppWinStreak(records, '诚', 'Elza')).toBe(0);
+  });
+
+  it('单场胜利返回 1', () => {
+    expect(computeOppWinStreak([mk('诚', 'Elza', 2, 1)], '诚', 'Elza')).toBe(1);
+  });
+
+  it('连续 3 胜返回 3', () => {
+    const records = [mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 2, 1), mk('诚', 'Elza', 2, 0)];
+    expect(computeOppWinStreak(records, '诚', 'Elza')).toBe(3);
+  });
+
+  it('中间有一败，只计末尾连胜', () => {
+    const records = [
+      mk('诚', 'Elza', 2, 0),
+      mk('诚', 'Elza', 0, 2),
+      mk('诚', 'Elza', 2, 1),
+      mk('诚', 'Elza', 2, 0),
+    ];
+    expect(computeOppWinStreak(records, '诚', 'Elza')).toBe(2);
+  });
+
+  it('其他玩家或对手记录不干扰结果', () => {
+    const records = [
+      mk('诚', 'Ross', 2, 0),   // 对手不符
+      mk('Elza', 'Elza', 2, 0), // 玩家不符
+      mk('诚', 'Elza', 2, 1),
+      mk('诚', 'Elza', 2, 0),
+    ];
+    expect(computeOppWinStreak(records, '诚', 'Elza')).toBe(2);
+  });
+
+  it('sp === so（平局）截断连胜返回 0', () => {
+    const records = [mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 1, 1)];
+    expect(computeOppWinStreak(records, '诚', 'Elza')).toBe(0);
   });
 });
 

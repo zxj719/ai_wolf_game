@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -60,6 +60,15 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     for (const c of CHARS) {
       const res = computeOppRecentResults(records, picked, c.n);
       if (res.length > 0) map[c.n] = res;
+    }
+    return map;
+  }, [records, picked]);
+  const oppStreakMap = useMemo(() => {
+    if (!picked) return {};
+    const map = {};
+    for (const c of CHARS) {
+      const streak = computeOppWinStreak(records, picked, c.n);
+      if (streak >= 2) map[c.n] = streak;
     }
     return map;
   }, [records, picked]);
@@ -263,6 +272,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                               {oppTrendMap[c.n].map((won, i) => (
                                 <span key={i} className={`ot-dot${won ? ' ot-w' : ' ot-l'}`} />
                               ))}
+                            </span>
+                          )}
+                          {oppStreakMap[c.n] && (
+                            <span className="opp-streak-badge" aria-label={`对该对手连胜${oppStreakMap[c.n]}场`}>
+                              🔥{oppStreakMap[c.n]}连
                             </span>
                           )}
                         </>

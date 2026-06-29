@@ -118,6 +118,21 @@ export function computeOppRecentResults(records, playerName, oppName, n = 3) {
 }
 
 /**
+ * 返回某玩家对某对手末尾连胜数（不含"本局"）。
+ * 末尾为败或无记录则返回 0。
+ * 例：[W,L,W,W] → 2；[W,W,L] → 0
+ */
+export function computeOppWinStreak(records, playerName, oppName) {
+  const mine = records.filter((r) => r.p === playerName && r.o === oppName);
+  let streak = 0;
+  for (let i = mine.length - 1; i >= 0; i--) {
+    if (mine[i].sp > mine[i].so) streak++;
+    else break;
+  }
+  return streak;
+}
+
+/**
  * 读取历史记录中某玩家的当前连胜数（不含"本局"）。
  * 用于 SelectScreen：游戏尚未开始，只统计已有记录末尾连续胜场。
  * 无记录或最近一场为败则返回 0。
