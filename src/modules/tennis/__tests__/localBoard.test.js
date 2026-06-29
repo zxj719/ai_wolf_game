@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -237,6 +237,62 @@ describe('computeRecentResults', () => {
 
   it('sp === so 视为败局返回 false', () => {
     expect(computeRecentResults([{ p: '丫', sp: 1, so: 1 }], '丫')).toEqual([false]);
+  });
+});
+
+describe('computeOppRecentResults', () => {
+  const mk = (p, o, sp, so) => ({ p, o, sp, so });
+
+  it('空记录返回 []', () => {
+    expect(computeOppRecentResults([], '诚', 'Elza')).toEqual([]);
+  });
+
+  it('玩家名不匹配时返回 []', () => {
+    expect(computeOppRecentResults([mk('Elza', '诚', 2, 1)], '诚', '诚')).toEqual([]);
+  });
+
+  it('对手名不匹配时返回 []', () => {
+    expect(computeOppRecentResults([mk('诚', 'Ross', 2, 1)], '诚', 'Elza')).toEqual([]);
+  });
+
+  it('单场对 Elza 胜返回 [true]', () => {
+    expect(computeOppRecentResults([mk('诚', 'Elza', 2, 1)], '诚', 'Elza')).toEqual([true]);
+  });
+
+  it('单场对 Elza 败返回 [false]', () => {
+    expect(computeOppRecentResults([mk('诚', 'Elza', 0, 2)], '诚', 'Elza')).toEqual([false]);
+  });
+
+  it('3 场对同一对手（旧→新顺序）', () => {
+    const records = [mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 1, 2), mk('诚', 'Elza', 2, 1)];
+    expect(computeOppRecentResults(records, '诚', 'Elza')).toEqual([true, false, true]);
+  });
+
+  it('超 3 场只返回最近 3 条', () => {
+    const records = [
+      mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 2, 0),
+      mk('诚', 'Elza', 0, 2), mk('诚', 'Elza', 2, 1), mk('诚', 'Elza', 0, 2),
+    ];
+    expect(computeOppRecentResults(records, '诚', 'Elza')).toEqual([false, true, false]);
+  });
+
+  it('混杂其他玩家/对手记录时只统计指定组合', () => {
+    const records = [
+      mk('诚', 'Elza', 2, 0),
+      mk('Elza', 'Elza', 2, 0), // 玩家不符
+      mk('诚', 'Ross', 2, 0),   // 对手不符
+      mk('诚', 'Elza', 0, 2),
+    ];
+    expect(computeOppRecentResults(records, '诚', 'Elza')).toEqual([true, false]);
+  });
+
+  it('n=0 时立即返回 []', () => {
+    expect(computeOppRecentResults([mk('诚', 'Elza', 2, 0)], '诚', 'Elza', 0)).toEqual([]);
+  });
+
+  it('n=1 时只返回最后 1 条', () => {
+    const records = [mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 0, 2)];
+    expect(computeOppRecentResults(records, '诚', 'Elza', 1)).toEqual([false]);
   });
 });
 

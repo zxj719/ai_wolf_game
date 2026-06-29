@@ -923,3 +923,9 @@
 .tennis-scope .roster .chip .ct-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .tennis-scope .roster .chip .ct-w { background: #4caf76; }
 .tennis-scope .roster .chip .ct-l { background: rgba(248,113,113,.55); }
+
+/* ===== 对手走势点 (opp-history-chip) ===== */
+.tennis-scope .opp-trend { display: flex; justify-content: center; gap: 3px; margin-top: 4px; }
+.tennis-scope .ot-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.tennis-scope .ot-w { background: #4caf76; }
+.tennis-scope .ot-l { background: rgba(248,113,113,.55); }

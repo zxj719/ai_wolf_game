@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -54,6 +54,15 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     }
     return map;
   }, [records]);
+  const oppTrendMap = useMemo(() => {
+    if (!picked) return {};
+    const map = {};
+    for (const c of CHARS) {
+      const res = computeOppRecentResults(records, picked, c.n);
+      if (res.length > 0) map[c.n] = res;
+    }
+    return map;
+  }, [records, picked]);
 
   const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
   const dailyDone = picked ? isDailyChallengeCompleted() : false;
@@ -248,6 +257,13 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                           {tag && <span className={`opp-tag ${tag.cls}`}>{tag.label}</span>}
                           {oppWinRateMap[c.n] && (
                             <span className="opp-wr">{oppWinRateMap[c.n].wins}/{oppWinRateMap[c.n].total}</span>
+                          )}
+                          {oppTrendMap[c.n] && (
+                            <span className="opp-trend" aria-label={`近${oppTrendMap[c.n].length}局对战`}>
+                              {oppTrendMap[c.n].map((won, i) => (
+                                <span key={i} className={`ot-dot${won ? ' ot-w' : ' ot-l'}`} />
+                              ))}
+                            </span>
                           )}
                         </>
                       ) : (

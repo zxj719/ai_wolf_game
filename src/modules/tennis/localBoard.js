@@ -107,6 +107,17 @@ export function computeRecentResults(records, playerName, n = 3) {
 }
 
 /**
+ * 返回某玩家对某对手最近 n 场的胜负序列（双维度过滤）。
+ * 数组顺序：旧 → 新（下标 0 最早，末尾最新）。
+ * 记录不足 n 条时返回实际可用数量。
+ */
+export function computeOppRecentResults(records, playerName, oppName, n = 3) {
+  if (n <= 0) return [];
+  const mine = records.filter((r) => r.p === playerName && r.o === oppName);
+  return mine.slice(-n).map((r) => r.sp > r.so);
+}
+
+/**
  * 读取历史记录中某玩家的当前连胜数（不含"本局"）。
  * 用于 SelectScreen：游戏尚未开始，只统计已有记录末尾连续胜场。
  * 无记录或最近一场为败则返回 0。
