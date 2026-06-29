@@ -70,6 +70,42 @@ export const buildKnightPersonaPrompt = (player, existingRoles, gameSetup) => {
 export const getKnightDaySpeechPrompt = (ctx, params) => {
   const { hasUsedDuel, aliveCount: aliveNow = 8 } = params;
 
+  // R87：骑士 DAY_SPEECH 个性化发言风格（pre-duel 隐藏期 + post-duel 领袖期双阶段）
+  const knightPersonalityType = params.personalityType || '';
+  let knightPersonalityLens = '';
+  if (knightPersonalityType === 'logical' || knightPersonalityType === 'analytical') {
+    knightPersonalityLens = hasUsedDuel
+      ? '\n【你的领袖风格】数据驱动型：决斗验证了物理证据，以"决斗确认A是X类 → 推导Y是Z类"逻辑链带动好人推理；用"因为...所以..."句式构建可追溯的判断体系，让全场跟随你的逻辑落票。'
+      : '\n【你的发言风格】推理积累型：用"命题→证据→置信度"框架在 thought 中量化每位玩家的决斗适配性；发言时以纯逻辑村民形象呈现，不透露决斗目标，让推理链本身成为身份掩护。';
+  } else if (knightPersonalityType === 'aggressive') {
+    knightPersonalityLens = hasUsedDuel
+      ? '\n【你的领袖风格】快速主导型：身份已公开，发言简短有力，直接宣告投票方向——"今天必须出局X号"；不做过多铺垫，用行动可信度压制异议，推动好人快速集票。'
+      : '\n【你的发言风格】速攻伺机型：一旦把握度达到决斗下限即刻准备翻牌，不等待额外确认；发言简短有力，直指可疑目标，攻击性好人姿态为后续翻牌建立舆论基础。';
+  } else if (knightPersonalityType === 'emotional') {
+    knightPersonalityLens = hasUsedDuel
+      ? '\n【你的领袖风格】感染共情型：分享决斗时的心理过程（"当时我知道这是最后机会"），用真实感染好人紧跟判断；情感化叙事让决斗验证更具说服力，凝聚团队信任。'
+      : '\n【你的发言风格】直觉信号型：以"我总觉得X号有什么不对"等直觉式表达补充逻辑分析，感性信号感染好人方向；在 thought 中同时维持理性决斗评估，发言情感化掩护骑士视角。';
+  } else if (knightPersonalityType === 'contrarian') {
+    knightPersonalityLens = hasUsedDuel
+      ? '\n【你的领袖风格】独立判断型：身份已明，不随大流落票；当好人追杀某目标时，补充漏网的次级威胁分析，防止节奏被操控——"除了X，别忘了Y的问题还没解决"。'
+      : '\n【你的发言风格】反预判型：当多数指向X时主动质疑"为什么不考虑Y悍跳"，保留独立分析价值；差异化立场减少你被固定针对的风险，同时在 thought 中按三级优先级框架评估真实决斗目标。';
+  } else if (knightPersonalityType === 'cunning') {
+    knightPersonalityLens = hasUsedDuel
+      ? '\n【你的领袖风格】战略释放型：以领袖身份战略性分配调查方向，保留部分判断制造心理压力——"我已经有目标了，但我需要再确认一件事"；用不确定性威慑狼方，在最高价值时刻落票。'
+      : '\n【你的发言风格】伏击谋略型：在发言中埋设"中性引导"让可疑目标自我暴露——多提问少表态，在最高价值时刻翻牌；发言目的是触发对方暴露，而非直接展示决斗意图。';
+  } else if (knightPersonalityType === 'cautious') {
+    knightPersonalityLens = hasUsedDuel
+      ? '\n【你的领袖风格】严谨指挥型：详细说明决斗逻辑链，让好人完全理解决斗价值后再带票；宁可多解释也要确保全场共识，谨慎选择后续投票目标。'
+      : '\n【你的发言风格】充分准备型：严格按三级优先级框架，只在达到优先级A阈值时才考虑翻牌；发言多倾听少指名，积累证据链直到置信度真正成熟，不做草率决斗。';
+  } else if (knightPersonalityType === 'steady') {
+    knightPersonalityLens = hasUsedDuel
+      ? '\n【你的领袖风格】协调渐进型：以稳健协调者而非独裁者形象带领好人——先肯定合理发言再提出方向补充，平衡各角色的配合，带动全场有序落票，防止好人阵营内部分裂。'
+      : '\n【你的发言风格】稳健蓄势型：先肯定场上共识再提出对可疑目标的判断，保持高可信度为后续翻牌铺垫；节奏稳，不轻易暴露目标，但有明确信号时果断出手。';
+  }
+  let knightSpeechLen = '40-80字';
+  if (knightPersonalityType === 'aggressive') knightSpeechLen = hasUsedDuel ? '30-55字' : '35-55字';
+  else if (knightPersonalityType === 'cautious') knightSpeechLen = '55-90字';
+
   // R51: endgame dynamic thresholds — aliveNow passed from aiPrompts.js with intent "骑士终局决斗阈值用"
   const isEndgame = aliveNow <= 5;
   const thresholdA = isEndgame ? 50 : 70;
@@ -147,7 +183,7 @@ ${duelStatus}${endgameNote}
 ✗ 严禁决斗你怀疑是神职的玩家（除非确定是假跳）
 ✗ 严禁在第一天就暴露身份（除非必要）
 ✗ 严禁决斗投票倾向与你一致的玩家
-
+${knightPersonalityLens}
 【思维链（必须完成）】
 ${knightHistoryStep}
 Step1: 场上局势分析
@@ -200,7 +236,7 @@ Step5: 投票倾向（如果未决斗）
 - 候选已出局更新：追加"→已投票出局（好人方向一致）"（路径B）或"→已被狼击杀（铁好人确认）"（路径C）；新候选找到后追加"→重启决斗候选：[优先级A/B/C]，[新依据]"
 - **追加不覆盖历史**：每轮在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史积累
 
-输出JSON:{\"thought\":\"完整的6步思维链（含Step0读历史）\",\"speech\":\"发言内容(40-80字)\",\"shouldDuel\":true/false,\"duelTarget\":数字或null,\"duelReason\":\"决斗理由（如果shouldDuel=true）\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
+输出JSON:{\"thought\":\"完整的6步思维链（含Step0读历史）\",\"speech\":\"发言内容(${knightSpeechLen})\",\"shouldDuel\":true/false,\"duelTarget\":数字或null,\"duelReason\":\"决斗理由（如果shouldDuel=true）\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;
 };
 
 /**

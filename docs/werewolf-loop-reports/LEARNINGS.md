@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-29 Round 87] 骑士 DAY_SPEECH personalityLens 双阶段个性化（knightPersonalityLens + knightSpeechLen）
+
+- **完成状态**：`knight.js` 的 `getKnightDaySpeechPrompt` 新增 `knightPersonalityType`（从 `params.personalityType` 读取）、`knightPersonalityLens`（7 种类型 × 2 阶段三元表达式）和 `knightSpeechLen`（aggressive 35-55字/post-duel 30-55字，cautious 55-90字，默认 40-80字）。注入位置：【决斗禁忌】之后、【思维链】之前。输出 JSON 字数由硬编码"40-80字"改为 `${knightSpeechLen}` 插值。
+- **里程碑声明 vs 实际状态差距（R87-A）**：R77 LEARNINGS 声称"DAY_SPEECH 全角色个性化完成里程碑"，但 `knight.js` 实际无任何 personalityLens 实现。**根因：R77 在 aiPrompts.js 中内联完成了摄梦人/魔术师的 lens，同时声称"骑士"也覆盖了——但骑士的 DAY_SPEECH 委托给 `getRoleModule('骑士').daySpeech(ctx, params)`，需要在 `knight.js` 模块文件中实现，而非在 aiPrompts.js 中内联**。今后声称"全角色覆盖"前，必须逐文件验证：用 `grep -l "personalityLens" src/services/rolePrompts/*.js` 确认所有委托模式的角色均已在其模块内实现。
+- **骑士 personalityLens 独特设计维度（R87-B）**：骑士是所有神职角色中唯一需要"双阶段分支"的 personalityLens——其他角色（猎人=伪装/守卫=伪装/预言家=报验）只有一种发言模式，但骑士有 pre-duel（隐藏积累证据）和 post-duel（领袖指挥）两种截然不同的模式。**设计原则：当角色有离散的状态切换（而非连续的风格差异），personalityLens 必须为每个状态各提供一套行为指令；用 `hasUsedDuel ? '领袖模式' : '隐藏模式'` 三元表达式在同一分支内处理，避免引入两倍变量**。
+- **测试 T1 重复 require 陷阱（R87-C）**：测试文件顶层有 `import { getKnightDaySpeechPrompt }` ESM 导入，T1 内部又写了 `require('../rolePrompts/knight.js')` 的 CJS 动态导入——后者触发 vitest 的 CJS→ESM 解析尝试，因 knight.js 使用 ESM `import` 语法失败。**修复原则：当测试文件已顶层 import 模块时，函数级测试直接使用 import 的引用；文件内容测试（源码字符串检查）始终用 `require('fs').readFileSync()`，不要再次 require 模块**。
+- **白熊效应合规（第 8 次验证）**：14 种（7 类型 × 2 阶段）lens 文本均使用正向描述，无负向禁词 ✅。
+- **测试**：1403/1403（+20 new R87 tests T1-T20；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-29 Round 86] 骑士延迟决斗补救策略（knightHistoryStep 三路径 + 续战搜索框架）
 
 - **完成状态**：`knight.js` 的 `knightHistoryStep` 从 4 行升级为三步三路径框架：① 三路径分类（路径A=候选存活/路径B=候选被投票出局/路径C=候选被狼夜杀）→ B/C 触发续战搜索；② 续战搜索按优先级A>B>C 扫描替补候选，`${thresholdA}`/`${thresholdB}` 动态阈值插值；③ 历史约束说明不变。identity_table 写指导新增路径B/C 关键词（"→已投票出局（好人方向一致）"/"→已被狼击杀（铁好人确认）"/"→重启决斗候选：[优先级A/B/C]，[新依据]"）。
