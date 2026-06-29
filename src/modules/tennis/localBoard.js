@@ -173,6 +173,21 @@ export function computeWeeklyChamp(records, { minWins = 2, now = Date.now() } = 
 }
 
 /**
+ * 返回某玩家对某对手历史最长连胜数（不含"本局"）。
+ * 扫描全部历史记录，返回任意时段的最大连续胜场数。
+ * 无记录或从未赢过时返回 0。
+ */
+export function computeOppBestWinStreak(records, playerName, oppName) {
+  const mine = records.filter((r) => r.p === playerName && r.o === oppName);
+  let best = 0, cur = 0;
+  for (const r of mine) {
+    if (r.sp > r.so) { cur++; if (cur > best) best = cur; }
+    else cur = 0;
+  }
+  return best;
+}
+
+/**
  * 返回某玩家对某对手最近一场对战的 Unix 时间戳（ts 字段）。
  * 无记录或最近一条记录缺少 ts 字段时返回 null。
  */

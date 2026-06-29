@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -78,6 +78,15 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     for (const c of CHARS) {
       const ts = computeOppLastBattleTs(records, picked, c.n);
       if (ts !== null) map[c.n] = ts;
+    }
+    return map;
+  }, [records, picked]);
+  const oppBestStreakMap = useMemo(() => {
+    if (!picked) return {};
+    const map = {};
+    for (const c of CHARS) {
+      const best = computeOppBestWinStreak(records, picked, c.n);
+      if (best >= 2) map[c.n] = best;
     }
     return map;
   }, [records, picked]);
@@ -286,6 +295,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                           {oppStreakMap[c.n] && (
                             <span className="opp-streak-badge" aria-label={`对该对手连胜${oppStreakMap[c.n]}场`}>
                               🔥{oppStreakMap[c.n]}连
+                            </span>
+                          )}
+                          {oppBestStreakMap[c.n] >= 2 && oppBestStreakMap[c.n] > (oppStreakMap[c.n] ?? 0) && (
+                            <span className="opp-best-streak" aria-label={`历史最高连胜${oppBestStreakMap[c.n]}场`}>
+                              最高 {oppBestStreakMap[c.n]}连
                             </span>
                           )}
                           {oppLastBattleMap[c.n] != null && (() => {
