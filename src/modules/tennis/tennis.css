@@ -950,3 +950,19 @@
 .tennis-scope .fcb-icon  { font-size: 1.35rem; flex-shrink: 0; }
 .tennis-scope .fcb-title { font-size: .88rem; font-weight: 700; color: rgb(251,191,36); letter-spacing: .05em; font-family: var(--display); }
 .tennis-scope .fcb-date  { font-size: .72rem; color: rgba(251,191,36,.65); margin-left: auto; font-family: var(--mono); white-space: nowrap; }
+/* 复仇提示横幅 */
+.tennis-scope .revenge-banner {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 12px; padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(239,68,68,.10);
+  border: 1.5px solid rgba(239,68,68,.30);
+  animation: revenge-pulse 3.5s ease-in-out infinite;
+}
+@keyframes revenge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.18); }
+  50%       { box-shadow: 0 0 7px 2px rgba(239,68,68,.08); }
+}
+.tennis-scope .revenge-icon { font-size: 1.2rem; flex-shrink: 0; }
+.tennis-scope .revenge-text { font-size: .85rem; color: rgb(252,165,165); line-height: 1.4; }
+.tennis-scope .revenge-text strong { color: rgb(248,113,113); font-weight: 700; }

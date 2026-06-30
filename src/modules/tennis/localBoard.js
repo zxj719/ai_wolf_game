@@ -217,6 +217,29 @@ export function sortOppChars(chars, seenOpps, oppWinRateMap) {
   return [...chars].sort((a, b) => getPriority(a) - getPriority(b));
 }
 
+/**
+ * 在最近 maxDays 天内，找出玩家最近一次败给某对手且此后未复仇的记录。
+ * 只统计带 ts 字段的记录（R92+ 新增）；旧记录无 ts，当作超出时间窗口处理。
+ * 返回 { name, face, daysAgo } 或 null（无此类记录）。
+ */
+export function findRevengeOpportunity(records, playerName, maxDays = 7) {
+  const mine = records.filter((r) => r.p === playerName);
+  const cutoff = Date.now() - maxDays * 86400000;
+  for (let i = mine.length - 1; i >= 0; i--) {
+    const r = mine[i];
+    if (!r.ts || r.ts < cutoff) break; // 超出时间窗口则停止
+    if (r.sp > r.so) continue; // 这局是赢，继续向前找输的
+    const oppName = r.o;
+    const beatenSince = mine.slice(i + 1).some(
+      (lr) => lr.o === oppName && lr.sp > lr.so,
+    );
+    if (!beatenSince) {
+      return { name: oppName, face: r.of ?? '', daysAgo: Math.floor((Date.now() - r.ts) / 86400000) };
+    }
+  }
+  return null;
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>

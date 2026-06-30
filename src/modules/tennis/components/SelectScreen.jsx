@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -100,6 +100,14 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     () => sortOppChars(CHARS, seenOpps, oppWinRateMap),
     [seenOpps, oppWinRateMap],
   );
+
+  const revengeOpp = useMemo(() => {
+    if (!picked) return null;
+    const result = findRevengeOpportunity(records, picked);
+    // 若复仇目标与今日一战相同，避免重复展示
+    if (result && dailyChallenge && result.name === dailyChallenge.foe.n) return null;
+    return result;
+  }, [records, picked, dailyChallenge]);
 
   useEffect(() => {
     if (seenCount === totalOpps && !familyChampAt && onFamilyChamp) {
@@ -267,6 +275,16 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             {myDailyStats.avgMultiplier !== null && (
               <span className="my-daily-chip">操作 {myDailyStats.avgMultiplier}×</span>
             )}
+          </div>
+        )}
+        {revengeOpp && (
+          <div className="revenge-banner" role="status">
+            <span className="revenge-icon">😤</span>
+            <span className="revenge-text">
+              {revengeOpp.face} <strong>{revengeOpp.name}</strong> 还欠你一局！
+              {revengeOpp.daysAgo === 0 ? '今天' : revengeOpp.daysAgo === 1 ? '昨天' : `${revengeOpp.daysAgo}天前`}
+              输的，该复仇了！
+            </span>
           </div>
         )}
         {seenCount > 0 && (

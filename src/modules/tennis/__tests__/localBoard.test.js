@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -560,5 +560,77 @@ describe('sortOppChars', () => {
     };
     sortOppChars(chars, seen, map);
     expect(chars.map((c) => c.n)).toEqual(['A', 'B', 'C']); // 原数组未变
+  });
+});
+
+describe('findRevengeOpportunity', () => {
+  const DAY = 86400000;
+
+  it('无记录返回 null', () => {
+    expect(findRevengeOpportunity([], '诚')).toBeNull();
+  });
+
+  it('只有胜场返回 null', () => {
+    const recent = Date.now();
+    const records = [
+      { p: '诚', o: 'Elza', of: '🦊', sp: 2, so: 1, ts: recent - DAY },
+    ];
+    expect(findRevengeOpportunity(records, '诚')).toBeNull();
+  });
+
+  it('7天内败给对手且未复仇，返回该对手', () => {
+    const recent = Date.now();
+    const records = [
+      { p: '诚', o: 'Elza', of: '🦊', sp: 1, so: 2, ts: recent - 2 * DAY },
+    ];
+    const result = findRevengeOpportunity(records, '诚');
+    expect(result).not.toBeNull();
+    expect(result.name).toBe('Elza');
+    expect(result.face).toBe('🦊');
+    expect(result.daysAgo).toBe(2);
+  });
+
+  it('败后已复仇（有后续胜场）返回 null', () => {
+    const recent = Date.now();
+    const records = [
+      { p: '诚', o: 'Elza', of: '🦊', sp: 1, so: 2, ts: recent - 3 * DAY },
+      { p: '诚', o: 'Elza', of: '🦊', sp: 2, so: 0, ts: recent - 1 * DAY }, // 后来赢了
+    ];
+    expect(findRevengeOpportunity(records, '诚')).toBeNull();
+  });
+
+  it('超过 maxDays 的败绩忽略', () => {
+    const recent = Date.now();
+    const records = [
+      { p: '诚', o: 'Elza', of: '🦊', sp: 1, so: 2, ts: recent - 100 * DAY },
+    ];
+    expect(findRevengeOpportunity(records, '诚', 7)).toBeNull();
+  });
+
+  it('无 ts 字段的记录忽略（当作超出窗口）', () => {
+    const records = [
+      { p: '诚', o: 'Elza', of: '🦊', sp: 1, so: 2 }, // 无 ts
+    ];
+    expect(findRevengeOpportunity(records, '诚')).toBeNull();
+  });
+
+  it('返回最近（最新）一条未复仇的败绩', () => {
+    const recent = Date.now();
+    const records = [
+      { p: '诚', o: '菲比', of: '🌸', sp: 1, so: 2, ts: recent - 5 * DAY },
+      { p: '诚', o: '铁蛋', of: '🤖', sp: 0, so: 2, ts: recent - 2 * DAY },
+    ];
+    const result = findRevengeOpportunity(records, '诚');
+    expect(result).not.toBeNull();
+    expect(result.name).toBe('铁蛋');
+  });
+
+  it('其他玩家的记录不干扰', () => {
+    const recent = Date.now();
+    const records = [
+      { p: 'Elza', o: '诚', of: '🐯', sp: 1, so: 2, ts: recent - DAY }, // Elza 打输
+      { p: '诚', o: 'Elza', of: '🦊', sp: 2, so: 1, ts: recent - DAY }, // 诚打赢
+    ];
+    expect(findRevengeOpportunity(records, '诚')).toBeNull(); // 诚没有未复仇败绩
   });
 });
