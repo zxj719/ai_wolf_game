@@ -153,6 +153,9 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
         <span className="trophy">{ending.icon}</span>
         <h2>{ending.title}</h2>
         <div className="score-line">大比分 {state.setsP} : {state.setsO}（{state.setHistory.join(' / ')}）</div>
+        <div className="opp-stats-hint">
+          {o.face} {o.name} 属性：体力 {o.sta} · 技巧 {o.skill} · 心态 {o.mind}
+        </div>
         {playerWon && winStreak >= 2 && (
           <div style={{ textAlign: 'center', marginTop: 10 }}>
             <span className={`ladder-streak${winStreak >= 5 ? ' streak-gold' : winStreak >= 3 ? ' streak-pulse' : ''}`}>
