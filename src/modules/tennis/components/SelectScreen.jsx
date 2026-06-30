@@ -313,6 +313,9 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             )}
             {showOppHistory && (
               <div className="opp-history-panel">
+                <div className="opp-sort-hint" aria-label="对手排序说明">
+                  按胜率排序：<span className="osp-recommend">推荐</span> · <span className="osp-neutral">中立</span> · <span className="osp-rival">劲敌</span> · <span className="osp-new">NEW</span>
+                </div>
                 {sortedOppChars.map((c) => {
                   const tag = seenOpps.has(c.n) ? getOppTag(c.n, oppWinRateMap) : null;
                   return (
