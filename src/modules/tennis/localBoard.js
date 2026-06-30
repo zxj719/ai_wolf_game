@@ -197,6 +197,26 @@ export function computeOppLastBattleTs(records, playerName, oppName) {
   return mine[mine.length - 1].ts ?? null;
 }
 
+/**
+ * 对对手卡片列表按「推荐→中立→劲敌→NEW」四档排序（稳定，不改变原数组）。
+ * 推荐（胜率≥60%）> 中立（35%≤胜率<60%）> 劲敌（胜率<35%）> NEW（未见过/无数据）
+ * @param {Array} chars - 角色数组，每项需有 .n 字段
+ * @param {Set} seenOpps - 已对战过的对手名称集合
+ * @param {Object} oppWinRateMap - { [name]: { wins: number, total: number } }
+ */
+export function sortOppChars(chars, seenOpps, oppWinRateMap) {
+  const getPriority = (c) => {
+    if (!seenOpps.has(c.n)) return 3;
+    const data = oppWinRateMap[c.n];
+    if (!data || data.total === 0) return 3;
+    const rate = data.wins / data.total;
+    if (rate >= 0.6) return 0;
+    if (rate < 0.35) return 2;
+    return 1;
+  };
+  return [...chars].sort((a, b) => getPriority(a) - getPriority(b));
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>

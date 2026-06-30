@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -95,6 +95,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     }
     return map;
   }, [records, picked]);
+
+  const sortedOppChars = useMemo(
+    () => sortOppChars(CHARS, seenOpps, oppWinRateMap),
+    [seenOpps, oppWinRateMap],
+  );
 
   useEffect(() => {
     if (seenCount === totalOpps && !familyChampAt && onFamilyChamp) {
@@ -290,7 +295,7 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             )}
             {showOppHistory && (
               <div className="opp-history-panel">
-                {CHARS.map((c) => {
+                {sortedOppChars.map((c) => {
                   const tag = seenOpps.has(c.n) ? getOppTag(c.n, oppWinRateMap) : null;
                   return (
                     <div key={c.n} className={`opp-history-chip${seenOpps.has(c.n) ? ' seen' : ' unseen'}`}>

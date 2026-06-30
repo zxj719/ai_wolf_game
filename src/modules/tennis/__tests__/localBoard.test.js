@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak } from '../localBoard';
+import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -480,5 +480,85 @@ describe('computeOppBestWinStreak', () => {
       mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 2, 0), mk('诚', 'Elza', 0, 2),
     ];
     expect(computeOppBestWinStreak(records, '诚', 'Elza')).toBe(2);
+  });
+});
+
+describe('sortOppChars', () => {
+  const A = { n: 'A' };
+  const B = { n: 'B' };
+  const C = { n: 'C' };
+  const D = { n: 'D' };
+
+  it('空数组返回空数组', () => {
+    expect(sortOppChars([], new Set(), {})).toEqual([]);
+  });
+
+  it('全部未见时保持原始顺序', () => {
+    const result = sortOppChars([A, B, C], new Set(), {});
+    expect(result.map((c) => c.n)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('推荐（胜率≥60%）置顶', () => {
+    const seen = new Set(['A', 'B', 'C']);
+    const map = {
+      A: { wins: 2, total: 10 }, // 20% - 劲敌 priority=2
+      B: { wins: 7, total: 10 }, // 70% - 推荐 priority=0
+      C: { wins: 5, total: 10 }, // 50% - 中立 priority=1
+    };
+    const result = sortOppChars([A, B, C], seen, map);
+    expect(result.map((c) => c.n)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('NEW 排在已见的劲敌之后', () => {
+    const seen = new Set(['B']); // A 是 NEW
+    const map = { B: { wins: 2, total: 10 } }; // 20% - 劲敌 priority=2
+    const result = sortOppChars([A, B], seen, map);
+    expect(result[0].n).toBe('B'); // 劲敌 priority=2 先于 NEW priority=3
+    expect(result[1].n).toBe('A');
+  });
+
+  it('四档完整顺序：推荐→中立→劲敌→NEW', () => {
+    const seen = new Set(['A', 'B', 'C']); // D 是 NEW
+    const map = {
+      A: { wins: 3, total: 10 }, // 30% - 劲敌
+      B: { wins: 7, total: 10 }, // 70% - 推荐
+      C: { wins: 5, total: 10 }, // 50% - 中立
+    };
+    const result = sortOppChars([A, B, C, D], seen, map);
+    expect(result.map((c) => c.n)).toEqual(['B', 'C', 'A', 'D']);
+  });
+
+  it('同优先级内保持原始顺序（稳定排序）', () => {
+    const seen = new Set(['A', 'B', 'C']);
+    const map = {
+      A: { wins: 7, total: 10 }, // 推荐
+      B: { wins: 8, total: 10 }, // 推荐
+      C: { wins: 6, total: 10 }, // 推荐
+    };
+    const result = sortOppChars([A, B, C], seen, map);
+    expect(result.map((c) => c.n)).toEqual(['A', 'B', 'C']); // 原始顺序
+  });
+
+  it('seen 但 oppWinRateMap 无数据（total=0）当 NEW 处理', () => {
+    const seen = new Set(['A', 'B']);
+    const map = {
+      A: { wins: 7, total: 10 }, // 推荐
+      B: { wins: 0, total: 0 }, // total=0 → priority=3
+    };
+    const result = sortOppChars([B, A], seen, map);
+    expect(result[0].n).toBe('A'); // 推荐优先
+    expect(result[1].n).toBe('B');
+  });
+
+  it('不改变原始 chars 数组', () => {
+    const chars = [A, B, C];
+    const seen = new Set(['A', 'B', 'C']);
+    const map = {
+      A: { wins: 2, total: 10 },
+      B: { wins: 8, total: 10 },
+      C: { wins: 5, total: 10 },
+    };
+    sortOppChars(chars, seen, map);
+    expect(chars.map((c) => c.n)).toEqual(['A', 'B', 'C']); // 原数组未变
   });
 });
