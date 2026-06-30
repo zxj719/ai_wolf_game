@@ -1124,10 +1124,24 @@ Step C - 用心路历程收口：解释你"为什么验这个人"（信息链决
 
         // R81：平安夜推断框架（预言家专属：结合查验记录精确推断守护对象/刀口目标）
         const isPeacefulNightSeer = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        // R90：两连平安夜二阶推断（预言家专属：结合查验历史精确定位双夜刀口目标）
+        const isConsecutivePeacefulSeer = ctx.dayCount >= 3 && isPeacefulNightSeer && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
         let seerPeaceNightStep = '';
         if (isPeacefulNightSeer) {
             const prevDay = ctx.dayCount - 1;
-            seerPeaceNightStep = `⭕【预言家平安夜推断（thought 中完成；speech 正常报验即可）】
+            const prevPrevDay = ctx.dayCount - 2;
+            const consecutivePeaceHintSeer = isConsecutivePeacefulSeer
+                ? `⭕【预言家两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 正常报验即可）】
+- 连续两夜平安夜 → 好人防御资源两次有效拦截，预言家视角信息价值放大
+- 查 D${prevPrevDay} 和 D${prevDay} 投票记录中票压最高的存活玩家（两夜各一人）：
+  · 两夜高票存活者相同 → 该玩家被狼两次针对，防御两次救护；若已验为金水：confidence 升至 95-100，今天重点警告保护+切换查验方向；若未验：列为今夜查验最高优先级（追加"排队查验优先级：①（紧急，两夜被针对）"）
+  · 两夜高票存活者不同 → 狼队两轮各刀不同目标；对两人分别分析：已验者优先保护，未验者均升至查验优先级②；守卫可能在轮换守护
+- 查验记录交叉验证：
+  · 已验金水目标出现在两夜高票存活者 → 强化金水保护意愿（狼持续追杀确认好人=高度忌惮该目标）
+  · 已验查杀目标出现在高票存活者名单 → 矛盾预警：重新评估查验结论或该目标是陷阱（狼队不会针对自己人）
+- identity_table 更新：守卫/女巫玩家 reason 追加"N${prevPrevDay}+N${prevDay}两连平安夜：预言家视角防御有效（信任度上调）"\n`
+                : '';
+            seerPeaceNightStep = `${consecutivePeaceHintSeer}⭕【预言家平安夜推断（thought 中完成；speech 正常报验即可）】
 - 查 D${prevDay} 投票记录中票压最高的存活玩家——昨夜最可能被狼刀但未死
 - 路径A：该玩家已被我验为金水 → 狼明知他是好人仍刀他=核心好人；守卫/女巫保住了他；identity_table confidence 升至 90-100；今夜查验转向未知可疑目标
 - 路径B：该玩家尚未被我查验过 → 狼选刀他=他对狼有威胁=更可能是关键好人角色；identity_table confidence 升 15-20，追加"排队查验优先级：①（今夜优先验）"

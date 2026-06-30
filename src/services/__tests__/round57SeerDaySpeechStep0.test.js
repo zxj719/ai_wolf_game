@@ -37,8 +37,8 @@ const roleDaySpeechStart = src.indexOf('ROLE_DAY_SPEECH_PROMPTS');
 const seerFnMarker = "'预言家': (ctx, params) => {";
 const seerFnStart = src.indexOf(seerFnMarker, roleDaySpeechStart);
 
-// 窗口：预言家 DAY_SPEECH 约 5000 chars（R68 新增 seerPersonalityLens ~1500 chars）→ 窗口 6000（含余量）
-const seerBlock = src.slice(seerFnStart, seerFnStart + 6000);
+// 窗口：预言家 DAY_SPEECH 约 7000 chars（R90 新增 consecutivePeaceHintSeer ~1000 chars）→ 窗口 8000（含余量）
+const seerBlock = src.slice(seerFnStart, seerFnStart + 8000);
 
 // 变量声明区（seerDayHistoryStep 在 return 之前）
 const returnIdx = seerBlock.indexOf('return `');

@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-30 Round 90] 预言家两连平安夜二阶推断框架（isConsecutivePeacefulSeer + consecutivePeaceHintSeer）
+
+- **完成状态**：`aiPrompts.js` 预言家 DAY_SPEECH 新增两个变量：① `isConsecutivePeacefulSeer`（D3+ 检测：`ctx.dayCount >= 3 && isPeacefulNightSeer && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `consecutivePeaceHintSeer`（三元表达式：两连情况下注入差异化二阶推断步骤，否则为空字符串）。注入方式：在 `if (isPeacefulNightSeer)` 块内，`consecutivePeaceHintSeer` 以 prepend 方式注入到原 `seerPeaceNightStep` 赋值头部（``${consecutivePeaceHintSeer}⭕【预言家平安夜推断...】``）。
+- **预言家两连推断的独特优势（R90-A）**：与村民/狼人（R88）的两连推断相比，预言家的二阶推断多了一层**查验记录交叉验证**：若两夜高票存活者与已验金水玩家重叠，说明狼人持续追杀已确认好人（忌惮程度极高）；若已验查杀目标出现在存活者名单，则触发矛盾预警（狼不会针对自己人）。**设计原则：每个角色的两连推断应基于其私有信息维度定制——预言家独有"查验结论"实证，使其能进行二级矛盾检测，是与通用村民推断的核心区别**。
+- **三元表达式前置注入模式第 11 次应用（R90-B）**：R80-R90 连续 11 轮同构，模式已完全固化：① 在 `if (isPeacefulNightX)` 块内声明 `const consecutivePeaceHintX = isConsecutivePeacefulX ? '...' : ''`；② 在同一块内，`xPeaceNightStep = \`${consecutivePeaceHintX}⭕【原始内容...\`` 前置拼接；③ 无需修改 return 模板或 if-else 结构。此模式是"条件步骤扩展"的标准手法，下一轮如需扩展守卫/女巫/骑士的两连推断，可直接套用。
+- **测试窗口级联更新（R90-C）**：为 `if (isPeacefulNightSeer)` 块内新增 `consecutivePeaceHintSeer`（~880 chars）后，同一块内的所有 `ifSection` 切片均需更新：R81 T5（600→1100），T6（600→1100），T7（600→1200），T8（700→1300），T9（700→1400），T14（200→350），T18（200→350），T19（700→1600）。**精确更新规则：当 if-block 内部首部插入 N 字符，block 内所有后续内容的位置偏移 +N；以实际字符位置（`src.index(keyword, ifStart) - ifStart`）计算确认新窗口大小，而非估算**。同时 R57（预言家 DAY_SPEECH 函数整窗口）从 6000→8000 以覆盖 return 后的 thinkBlock/writeGuideBlock。
+- **白熊效应合规（第 11 次验证）**：两连推断步骤均使用正向行为描述（"confidence 升至 95-100"/"强化金水保护意愿"/"信任度上调"），无负向禁词 ✅（R90 T16 测试覆盖）。
+- **测试**：1482/1482（+20 new R90 tests T1-T20；+8 修复 R81 旧测试窗口；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-30 Round 89] 骑士领袖期专属 Step0.5（post-duel 全场引导规划——感知-执行分裂第 N+1 次修复）
 
 - **完成状态**：`knight.js` `getKnightDaySpeechPrompt` 新增 `knightLeaderStep`（三元表达式：`hasUsedDuel ? \`Step0.5: 【领袖期战略规划...】\` : ''`）。三步内容：① 读取 identity_table 中"已决斗出局"玩家确认实证锚点 + 连锁推断（同立场玩家 confidence 下调 15-25；金水玩家下调 40-50）；② 三选一战略框架（集火型/调查型/保护型）；③ identity_table 追加 `D${ctx.dayCount}领袖指令` 格式标记。注入位置：`${knightHistoryStep}` 之后、`Step1:` 之前。identity_table 写指导新增"领袖期核心目标"条目。
