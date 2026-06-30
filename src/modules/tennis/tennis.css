@@ -880,6 +880,7 @@
 .tennis-scope .char-quote-text { font-size: 1.05rem; color: var(--card-ink); line-height: 1.65; margin: 0; font-style: italic; }
 .tennis-scope .last-match-hint { font-size: .78rem; font-family: var(--mono); color: var(--muted); margin: 8px 0 14px; padding: 6px 12px; background: rgba(13,59,46,.07); border-radius: 8px; border-left: 3px solid var(--clay); }
 .tennis-scope .prep-strategy-hint { font-size: .78rem; font-family: var(--mono); color: var(--clay); margin: 0 0 14px; padding: 6px 12px; background: rgba(217,119,6,.08); border-radius: 8px; border-left: 3px solid rgba(217,119,6,.5); }
+.tennis-scope .next-prep-hint { font-size: .78rem; font-family: var(--mono); color: var(--clay); margin: 12px 0 0; padding: 6px 12px; background: rgba(217,119,6,.08); border-radius: 8px; border-left: 3px solid rgba(217,119,6,.5); }
 .tennis-scope .adv-node-desc { display: block; margin-top: 4px; font-size: .75rem; color: var(--muted); font-family: var(--mono); }
 .tennis-scope .match-stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px 8px; margin-top: 14px; }
 .tennis-scope .ms-item { display: flex; flex-direction: column; align-items: center; background: rgba(13,59,46,.06); border-radius: 10px; padding: 10px 6px 8px; }

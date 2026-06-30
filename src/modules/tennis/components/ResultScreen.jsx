@@ -116,6 +116,14 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
     return `${o.name} 本局偏爱${top1.name}，提前读招可增加克制得分`;
   }, [topOppMoves, o.name]);
 
+  const nextPrepHint = useMemo(() => {
+    const { sta, skill, mind, name } = o;
+    const dominant = sta >= skill && sta >= mind ? '体力' : skill >= mind ? '技巧' : '心态';
+    const val = dominant === '体力' ? sta : dominant === '技巧' ? skill : mind;
+    const adviceAttr = dominant === '体力' ? '技巧或心态' : dominant === '技巧' ? '体力或心态' : '体力或技巧';
+    return `${name} 今日${dominant}见长（${val}），下次备战可优先加点${adviceAttr}`;
+  }, [o]);
+
   useEffect(() => {
     // StrictMode 下 effect 会跑两次，ref 去重避免一局记两条
     if (recordedRef.current) return;
@@ -257,6 +265,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
               {nextAdvice && <p className="next-advice">💡 {nextAdvice}</p>}
             </div>
           )}
+          <p className="next-prep-hint">🏋️ {nextPrepHint}</p>
         </div>
       )}
 
