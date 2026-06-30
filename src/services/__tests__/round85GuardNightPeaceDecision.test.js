@@ -32,8 +32,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getNightGuardBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.NIGHT_GUARD: {');
     if (start === -1) throw new Error('NIGHT_GUARD case 未找到');
-    // NIGHT_GUARD case R85 后约 4450 chars，用 5500 留余量
-    return src.slice(start, start + 5500);
+    // NIGHT_GUARD case R85 后约 4650 chars，R94 后约 5810 chars，用 6500 留余量
+    return src.slice(start, start + 6500);
 }
 
 const block = getNightGuardBlock();
@@ -174,12 +174,12 @@ test('T18: 白熊效应合规：路径A/B 描述为正向策略，无负向禁�
     expect(pathsContent).not.toContain('绝对不');
 });
 
-test('T19: NIGHT_GUARD block 总大小 < 5000 chars（窗口安全验证）', () => {
+test('T19: NIGHT_GUARD block 总大小 < 6500 chars（窗口安全验证，R94 后约 5810 chars）', () => {
     const start = src.indexOf('case PROMPT_ACTIONS.NIGHT_GUARD: {');
     const end = src.indexOf('case PROMPT_ACTIONS.NIGHT_MAGICIAN:', start);
     const blockSize = end - start;
-    // 确保 5500 窗口足够
-    expect(blockSize).toBeLessThan(5000);
+    // R94 后约 5810 chars，确保 6500 窗口足够
+    expect(blockSize).toBeLessThan(6500);
 });
 
 test('T20: 回归 —— R73 guardNightStyle 7种风格仍然存在', () => {

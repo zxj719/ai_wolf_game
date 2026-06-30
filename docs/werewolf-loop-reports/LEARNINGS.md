@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-30 Round 94] NIGHT_GUARD 两连平安夜 NIGHT 侧二阶推断（isConsecutivePeacefulNightGuard + consecutivePeaceNightHintGuard）— 守卫四象限推断矩阵闭合
+
+- **完成状态**：`aiPrompts.js` NIGHT_GUARD case 新增四个变量：① `isConsecutivePeacefulNightGuard`（`ctx.dayCount >= 3 && isNightPeacefulGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `guardNightPrevPrevDay`（`ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0`）；③ `prevPrevNightGuardTarget`（`gameState.guardHistory?.find(g => g.night === guardNightPrevPrevDay)?.targetId ?? null`，零间接推断）；④ `consecutivePeaceNightHintGuard`（三元表达式，激活时路径A=连守同一目标 confidence 升 25-35 换守；路径B=两夜目标不同分别评估各夜命中概率）。注入方式：`guardNightPeaceStep = \`${consecutivePeaceNightHintGuard}⭕【守卫平安夜守护来源推断...\`` 前置拼接（R85 内容完整保留）。
+- **守卫四象限推断矩阵闭合（R94-A）**：DAY 单夜（R81）→ DAY 两连（R91）→ NIGHT 单夜（R85）→ NIGHT 两连（R94）四象限全部完成。守卫平安夜推断在所有四个场景下均有明确脚手架：**每个"角色×时机×规模"组合都应该有独立的推断步骤，四象限缺一不可**。
+- **NIGHT 侧 gameState 直接访问（R94-B）**：NIGHT_GUARD case 在 `generateUserPrompt(actionType, gameState, params)` 的 switch 作用域内，`gameState` 直接可用（非 DAY_SPEECH 的 `params` 传递路径）。因此 `gameState.guardHistory?.find(...)` 是合法的零间接推断访问方式。**区分规则：switch case 内声明的变量可以访问 `gameState`（外层函数参数）；DAY_SPEECH 中通过 `ROLE_DAY_SPEECH_PROMPTS['守卫']` 委托的函数只能访问 `(ctx, params)`，guardHistory 必须经由 params 传入**。
+- **NIGHT_GUARD 窗口更新规律（R94-C，第 3 次应用）**：R94 新增约 1530 chars（block 4650→6181），触发 round73 和 round85 的 `getNightGuardBlock()` 5500→6500 扩展，以及 round85 T19 blockSize 上限 5000→6500。**标准检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.NIGHT_GUARD: {'); const b=s.indexOf('case PROMPT_ACTIONS.NIGHT_MAGICIAN:',a); console.log('NIGHT_GUARD size:',b-a)"`；若超过当前窗口大小，立即更新 round73+round85 的窗口值**。
+- **白熊效应合规（第 15 次验证）**：路径A/B 均使用正向描述（"拦截可信度极高"/"confidence 升 25-35"/"分别用两天票压评估命中概率"），无负向禁词 ✅（T17 测试覆盖）。
+- **测试**：1562/1562（+20 new R94 tests T1-T20；+round73 窗口 5500→6500；+round85 窗口 5500→6500 + T19 上限更新；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-30 Round 93] 骑士 DAY→DAY 领袖指令读取闭环（knightLeaderReadHint，Step0 ④）— 感知-执行分裂修复
 
 - **完成状态**：`knight.js` 的 `getKnightDaySpeechPrompt` 在 `knightHistoryStep` 之前新增 `knightLeaderReadHint`（条件：`hasUsedDuel && ctx.dayCount > 1`），激活时为 ④ 子步骤：查 `D${ctx.dayCount - 1}领袖指令` 字样条目，三路径读取（路径A=集火型续战/路径B=调查型整合/路径C=保护型续期），并要求 thought 中明确今日战略切换决策。修改 `knightHistoryStep` 在 ③ 末尾追加 `\n${knightLeaderReadHint}`，使 ④ 成为 Step0 的第四子步骤。identity_table write（R89 Step0.5 ③）与 read（R93 Step0 ④）精确对应：写端 `D${dayCount}领袖指令` vs 读端 `D${dayCount - 1}领袖指令`。

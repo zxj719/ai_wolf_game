@@ -1738,8 +1738,26 @@ ${playerRole === '狼人'
             // 对称于 R84 wolfNightPeaceStep（狼用 identity_table 查刀口→票压推断来源；守卫用同样逻辑推断守护效果）
             const isNightPeacefulGuard = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
             const guardNightPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+            // R94: NIGHT 侧两连平安夜二阶推断（对称 DAY 侧 R91；守卫直接持有两夜守护记录，精度最高：零间接推断）
+            const isConsecutivePeacefulNightGuard = ctx.dayCount >= 3 && isNightPeacefulGuard &&
+                ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+            const guardNightPrevPrevDay = ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0;
+            const prevPrevNightGuardTarget = isConsecutivePeacefulNightGuard
+                ? (gameState.guardHistory?.find(g => g.night === guardNightPrevPrevDay)?.targetId ?? null)
+                : null;
+            const consecutivePeaceNightHintGuard = (isConsecutivePeacefulNightGuard && cannotGuard !== null)
+                ? `⭕【守卫两连平安夜 NIGHT 二阶推断（N${guardNightPrevPrevDay}+N${guardNightPrevDay}均平安；thought 中完成）】
+- 连续两夜平安夜 → 守卫持有 N${guardNightPrevPrevDay} 和 N${guardNightPrevDay} 两夜守护记录（零间接推断，精度最高）
+- 查守护记录：N${guardNightPrevPrevDay}夜守了${prevPrevNightGuardTarget !== null ? prevPrevNightGuardTarget + '号' : '无（空守）'}，N${guardNightPrevDay}夜守了${cannotGuard}号
+- 路径A - 连守同一目标（两夜均守${cannotGuard}号）：两次平安夜同目标=拦截可信度极高；
+  ${cannotGuard}号 identity_table confidence 升 25-35；今晚换守打破规律，切换至次高优先候选
+- 路径B - 两夜目标不同（N${guardNightPrevPrevDay}守${prevPrevNightGuardTarget !== null ? prevPrevNightGuardTarget + '号' : '无'}，N${guardNightPrevDay}守${cannotGuard}号）：
+  · 分别用两天票压评估各夜命中概率（高票存活者恰是守护目标→该夜命中，confidence 升 15-20）
+  · 综合两夜分析，今晚优先未守过的次高 confidence 候选
+- identity_table 追加：命中目标 reason 加"N${guardNightPrevPrevDay}+N${guardNightPrevDay}两连平安夜：[路径A连守/路径B轮守]"\n`
+                : '';
             const guardNightPeaceStep = isNightPeacefulGuard
-                ? `⭕【守卫平安夜守护来源推断（thought 中完成）】
+                ? `${consecutivePeaceNightHintGuard}⭕【守卫平安夜守护来源推断（thought 中完成）】
   ① 查 identity_table 中含"N${guardNightPrevDay}夜守护"的玩家，确认昨夜守护目标ID
   ② 查系统提示游戏时间线 D${guardNightPrevDay} 投票记录，分析守护目标昨日票压：
      路径A：守护目标昨日票压高（≥2票指向TA）→ 守卫判断与全场一致，成功拦截狼刀可能性高 → 今晚连守（连守高价值目标）；identity_table 将其 confidence 升15-25

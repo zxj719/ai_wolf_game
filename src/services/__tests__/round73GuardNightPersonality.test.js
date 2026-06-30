@@ -31,8 +31,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getNightGuardBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.NIGHT_GUARD: {');
     if (start === -1) throw new Error('NIGHT_GUARD case 未找到');
-    // NIGHT_GUARD case 约 4450 chars（R85 新增 guardNightPeaceStep ~650 chars），用 5500 留余量
-    return src.slice(start, start + 5500);
+    // NIGHT_GUARD case 约 4650 chars（R85 +650、R94 +1160），用 6500 留余量
+    return src.slice(start, start + 6500);
 }
 
 // ═══════════════════════════════════════════════════════
