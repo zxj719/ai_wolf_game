@@ -24,7 +24,8 @@ function getHunterBlock() {
 function getGuardBlock() {
     const start = src.indexOf("'守卫': (ctx, params) =>");
     if (start === -1) throw new Error('守卫函数未找到');
-    return src.slice(start, start + 4500);
+    // R91: window expanded from 4500 (guard block is now 5471 chars; template starts at ~4264)
+    return src.slice(start, start + 6000);
 }
 
 // ═══════════════════════════════════════════════════════

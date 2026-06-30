@@ -1356,11 +1356,27 @@ voteDecided=true=已决定；false=投票阶段再思考`;
 
         // R81：平安夜推断框架（守卫专属：已知昨夜守护对象，推断是否命中狼刀目标）
         const isPeacefulNightGuard = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        // R91：两连平安夜二阶推断（守卫独有：guardHistory 直接提供 N-2 守护目标，无需间接推断）
+        const isConsecutivePeacefulGuard = ctx.dayCount >= 3 && isPeacefulNightGuard &&
+            ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
         let guardPeaceNightStep = '';
         if (isPeacefulNightGuard) {
             const prevDay = ctx.dayCount - 1;
+            const prevPrevDay = ctx.dayCount - 2;
+            const prevPrevNightGuardTarget = guardHistory?.find(g => g.night === ctx.dayCount - 2)?.targetId ?? null;
+            const consecutivePeaceHintGuard = isConsecutivePeacefulGuard && lastGuardTarget !== null
+                ? `⭕【守卫两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 按普通村民发言）】
+- 连续两夜平安夜 → 守卫守护记录可精确分析两夜防御效果（守卫独有：知道自己守了谁）
+- 查守护记录：N${prevPrevDay}夜守了${prevPrevNightGuardTarget !== null ? prevPrevNightGuardTarget + '号' : '无（空守）'}，N${prevDay}夜守了${lastGuardTarget}号
+- 路径A - 连守同一目标（两夜均守${lastGuardTarget}号）：两次平安夜同目标=命中可信度极高；
+  ${lastGuardTarget}号 identity_table confidence 升 25-35；今晚应换守打破规律防被预判
+- 路径B - 守护目标不同（N${prevPrevDay}≠N${prevDay}）：守卫在轮换；按投票记录分别评估两夜命中可能：
+  · 若 D${prevPrevDay} 高票存活者恰是 N${prevPrevDay} 守护目标 → 该目标 confidence 升 15-20
+  · 若 D${prevDay} 高票存活者恰是 N${prevDay} 守护目标${lastGuardTarget}号 → ${lastGuardTarget}号 confidence 升 15-20
+- identity_table 追加：命中目标 reason 加"N${prevPrevDay}+N${prevDay}两连平安夜：守护命中分析（[路径A连守/路径B轮守]）"\n`
+                : '';
             if (lastGuardTarget !== null) {
-                guardPeaceNightStep = `⭕【守卫平安夜推断（thought 中完成；speech 按普通村民发言，不提守护细节）】
+                guardPeaceNightStep = `${consecutivePeaceHintGuard}⭕【守卫平安夜推断（thought 中完成；speech 按普通村民发言，不提守护细节）】
 - 昨夜我守了${lastGuardTarget}号，平安夜表明无人死亡
 - 命中推断：若狼刀了${lastGuardTarget}号 → 守护成功，${lastGuardTarget}号 identity_table confidence 升 15-25（狼重点针对=高价值好人）
 - 未中推断：若狼刀了其他人被女巫救活 → 维持${lastGuardTarget}号当前 confidence 判断

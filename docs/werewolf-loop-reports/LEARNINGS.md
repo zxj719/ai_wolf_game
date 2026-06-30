@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-30 Round 91] 守卫两连平安夜二阶推断（isConsecutivePeacefulGuard + consecutivePeaceHintGuard）
+
+- **完成状态**：`aiPrompts.js` 守卫 DAY_SPEECH 新增两个变量：① `isConsecutivePeacefulGuard`（外层：`ctx.dayCount >= 3 && isPeacefulNightGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② if 块内三项：`prevPrevDay`（ctx.dayCount-2），`prevPrevNightGuardTarget`（`guardHistory?.find(g => g.night === ctx.dayCount - 2)?.targetId ?? null`），`consecutivePeaceHintGuard`（三元表达式前置注入，两连时输出路径A/B差异推断，否则为空字符串）。注入方式：`guardPeaceNightStep = \`${consecutivePeaceHintGuard}⭕【守卫平安夜推断...` 前置拼接，原 R81 内容完整保留。
+- **守卫两连推断精度优势（R91-A）**：守卫的 `guardHistory` 数组直接记录了每夜守护目标，因此 `prevPrevNightGuardTarget = guardHistory.find(g => g.night === dayCount - 2)?.targetId` 是**零间接推断**（确定性读取）。村民（R88）需要用票压两层推断刀口；预言家（R90）需要交叉验证。守卫的"路径A=连守同一目标/路径B=轮换目标"判断完全确定。**设计原则：角色推断框架的实现方式应精确匹配其私有信息的获取方式——有历史记录的用 find() 直接读取，没有的才用票压间接推断**。
+- **多轮测试窗口级联更新规律（R91-B，第 12 次应用）**：`consecutivePeaceHintGuard` block（~1100 chars）推移了 `if (isPeacefulNightGuard)` 内部所有后续内容的位置，导致 round81 T24-T38 共 8 个测试窗口失效。更重要的发现：**守卫 var block 从 ~3000 增长到 4264（return 移到 4264 处），导致 round69 的 4500 窗口无法覆盖 return 模板中的 `${guardPersonalityLens}` 和 `${guardSpeechLen}`**。新规则：每次守卫 var block 增长超过 600 chars，必须检查 round69（原地测 4500 窗口含 return 模板？还是只测 var block？）——实际上 round69 用 `start + 4500` 硬窗口涵盖了 return 模板，因此 var block 增长会把 return 模板内容挤出窗口。
+- **"函数 var block 超过 window - template_start 才截断 return 内容"通用规则**：若一个测试用 `src.slice(start, start + N)` 检查函数，且 N 大于 var block 但小于总块大小，那么 N - varBlockSize 就是能被覆盖的 return 模板长度。round69 window=4500，var block=4264，可覆盖模板 4500-4264=236 chars。原来 4500 window 足够（var block 旧值~2800，可覆盖模板 1700 chars），R91 后 var block 4264 使模板覆盖降至 236，远不够覆盖 `${guardPersonalityLens}`。**预防命令：每当增加守卫 var block 代码时，计算 `returnStart - guardStart`，若超过 `guardWindow - 500`，立即扩大 guardWindow**。
+- **白熊效应合规（第 12 次验证）**：路径A/B 均使用正向行为描述（"连守成功率极高"/"今晚应换守打破规律"/"按投票记录分别评估"），无负向禁词 ✅（T19 测试覆盖）。
+- **测试**：1502/1502（+20 new R91 tests T1-T20；+round81 T24-T38 窗口修复；+round69/round58 guard window 升级；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-30 Round 90] 预言家两连平安夜二阶推断框架（isConsecutivePeacefulSeer + consecutivePeaceHintSeer）
 
 - **完成状态**：`aiPrompts.js` 预言家 DAY_SPEECH 新增两个变量：① `isConsecutivePeacefulSeer`（D3+ 检测：`ctx.dayCount >= 3 && isPeacefulNightSeer && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `consecutivePeaceHintSeer`（三元表达式：两连情况下注入差异化二阶推断步骤，否则为空字符串）。注入方式：在 `if (isPeacefulNightSeer)` 块内，`consecutivePeaceHintSeer` 以 prepend 方式注入到原 `seerPeaceNightStep` 赋值头部（``${consecutivePeaceHintSeer}⭕【预言家平安夜推断...】``）。
