@@ -133,6 +133,20 @@ export const getKnightDaySpeechPrompt = (ctx, params) => {
     ? '【已使用决斗】你已经使用过决斗技能，现在作为已知骑士身份指挥全场'
     : '【未使用决斗】你的决斗技能尚未使用，保持低调观察';
 
+  // R89：骑士领袖期专属 Step0.5（post-duel 全场引导规划——感知-执行分裂修复）
+  const knightLeaderStep = hasUsedDuel
+    ? `Step0.5: 【领袖期战略规划（thought 中完成）】
+   ① 查 identity_table 中含"已决斗出局"的玩家，确认决斗验证信息：
+      - 被决斗者角色（狼人确认）→ 好人阵营获得该轮第一块实证锚点
+      - 查看与被决斗狼人发言立场一致的玩家（D${ctx.dayCount}前），其 confidence 下调 15-25
+      - 若被决斗狼人给出过"金水"，该金水玩家 confidence 立即下调 40-50（两人成组验证）
+   ② 规划今日引导战略（三选一）：
+      战略A（集火型）：场上有高嫌疑狼人目标 → 利用领袖公信力带全场集票
+      战略B（调查型）：狼人团队构成不清晰 → 引导好人发言交叉验证，收集更多信息
+      战略C（保护型）：关键好人或真预言家处于危险 → 优先确保神职安全
+   ③ identity_table 在本轮 Step4 推断完成后追加"D${ctx.dayCount}领袖指令：[战略A/B/C]，[本轮核心目标玩家号]"\n`
+    : '';
+
   return `${getBaseContext(ctx)}
 【骑士专属任务】白天发言 - 正义裁决与逻辑验证
 
@@ -186,7 +200,7 @@ ${duelStatus}${endgameNote}
 ${knightPersonalityLens}
 【思维链（必须完成）】
 ${knightHistoryStep}
-Step1: 场上局势分析
+${knightLeaderStep}Step1: 场上局势分析
   - 是"双预言家对跳"还是"单边预言家"？
   - 哪些玩家声称是预言家？
   - 他们的验人逻辑是否合理？
@@ -234,6 +248,7 @@ Step5: 投票倾向（如果未决斗）
 - 行为中立玩家：正常记录推断，不加"决斗候选"标签
 - 已决斗出局目标：reason 追加"→已决斗出局"
 - 候选已出局更新：追加"→已投票出局（好人方向一致）"（路径B）或"→已被狼击杀（铁好人确认）"（路径C）；新候选找到后追加"→重启决斗候选：[优先级A/B/C]，[新依据]"
+- 领袖期核心目标（Step0.5 执行后）：在本轮核心目标玩家的 reason 追加"D${ctx.dayCount}领袖指令：[战略A/B/C]，[说明]"（供下轮阅读领袖行动历史）
 - **追加不覆盖历史**：每轮在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史积累
 
 输出JSON:{\"thought\":\"完整的6步思维链（含Step0读历史）\",\"speech\":\"发言内容(${knightSpeechLen})\",\"shouldDuel\":true/false,\"duelTarget\":数字或null,\"duelReason\":\"决斗理由（如果shouldDuel=true）\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;

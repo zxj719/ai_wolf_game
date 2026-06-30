@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-30 Round 89] 骑士领袖期专属 Step0.5（post-duel 全场引导规划——感知-执行分裂第 N+1 次修复）
+
+- **完成状态**：`knight.js` `getKnightDaySpeechPrompt` 新增 `knightLeaderStep`（三元表达式：`hasUsedDuel ? \`Step0.5: 【领袖期战略规划...】\` : ''`）。三步内容：① 读取 identity_table 中"已决斗出局"玩家确认实证锚点 + 连锁推断（同立场玩家 confidence 下调 15-25；金水玩家下调 40-50）；② 三选一战略框架（集火型/调查型/保护型）；③ identity_table 追加 `D${ctx.dayCount}领袖指令` 格式标记。注入位置：`${knightHistoryStep}` 之后、`Step1:` 之前。identity_table 写指导新增"领袖期核心目标"条目。
+- **感知-执行分裂识别范式（R89-A）**：骑士决斗成功后 AI 能看到 identity_table 中的"已决斗出局"条目（感知），但思维链 Step1 仍从通用"场上局势分析"开始——信息存在但无推断脚手架，是 R80-A / R86-A 同类问题的 post-duel 变体。**识别信号：若一个角色拥有"第一性实证"（物理验证级别的确认信息），但下一个思维链步骤是通用分析而非专门读取该实证并推导连锁逻辑——则存在感知-执行分裂，应插入专属 Step**。
+- **"Step0.5:" 区分技巧（R89-B）**：identity_table 写指导中有静态文本 "Step0.5 执行后"（无冒号），而 knightLeaderStep 块头为 `` `Step0.5: 【` ``（有冒号）。测试 `not.toContain('Step0.5')` 会因 id_table 静态文本误失败；正确做法是 `not.toContain('Step0.5:')` 带冒号区分。**通用规则：当语义片段在函数体中多处出现（激活态 vs 静态说明），找"激活态独有的 suffix/wrapper"（如带冒号、双引号包裹）作为测试 needle，而非整个词**。
+- **三元表达式前置注入模式（第 10 次应用）**：R80-R88 连续 9 轮同构，R89 继续沿用：声明 `const X = condition ? '内容' : ''`，在 return 模板中 `${X}` 占位替换。这是 knight.js 委托模式下的标准扩展方式，不需要改调用端。
+- **白熊效应合规（第 10 次验证）**：Step0.5 三步均使用正向描述（"实证锚点"/"confidence 下调"/"集火型/调查型/保护型"），无负向禁词 ✅（T19/T20 测试覆盖）。
+- **测试**：1454/1454（+20 new R89 tests T1-T20；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-29 Round 88] 连续平安夜二阶推断（isConsecutivePeacefulX + consecutivePeaceHintX，村民+狼人双侧）
 
 - **完成状态**：`aiPrompts.js` 村民/狼人 DAY_SPEECH 各新增两个变量：① `isConsecutivePeacefulX`（D3+ 检测：`ctx.dayCount >= 3 && isPeacefulNightX && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `consecutivePeaceHintX`（三元表达式：两连情况下注入差异化推断步骤，否则为空字符串）。注入方式：在 `if (isPeacefulNightX)` 块内，将 `consecutivePeaceHintX` 前置拼接到原 `xPeaceNightStep` 赋值头部（`${consecutivePeaceHintX}⭕【原始内容...】`）。
