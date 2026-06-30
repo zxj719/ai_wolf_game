@@ -58,6 +58,16 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
     return `上次你面对 ${last.of} ${last.o}——${won ? '你赢了 🎉' : '你输了 😤'}`;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const oppStrategyHint = useMemo(() => {
+    if (state.prepRound !== 0 || !state.opp) return null;
+    const { sta, skill, mind, name, face } = state.opp;
+    let dominant, advice;
+    if (sta >= skill && sta >= mind) { dominant = '体力'; advice = '技巧或心态'; }
+    else if (skill >= mind) { dominant = '技巧'; advice = '体力或心态'; }
+    else { dominant = '心态'; advice = '体力或技巧'; }
+    return `💡 球探速报：${face}${name} 今天${dominant}见长，备战可侧重强化${advice}`;
+  }, [state.prepRound, state.opp]);
+
   const onPick = (i) => {
     if (locked) return;
     setLocked(true);
@@ -77,6 +87,9 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
         <p className="hint">{round.desc}</p>
         {lastMatchHint && (
           <p className="last-match-hint">{lastMatchHint}</p>
+        )}
+        {oppStrategyHint && (
+          <p className="prep-strategy-hint">{oppStrategyHint}</p>
         )}
         {preMatchQuote && (
           <div className="char-quote-card">
