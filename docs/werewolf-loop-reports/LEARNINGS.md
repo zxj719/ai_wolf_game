@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-30 Round 93] 骑士 DAY→DAY 领袖指令读取闭环（knightLeaderReadHint，Step0 ④）— 感知-执行分裂修复
+
+- **完成状态**：`knight.js` 的 `getKnightDaySpeechPrompt` 在 `knightHistoryStep` 之前新增 `knightLeaderReadHint`（条件：`hasUsedDuel && ctx.dayCount > 1`），激活时为 ④ 子步骤：查 `D${ctx.dayCount - 1}领袖指令` 字样条目，三路径读取（路径A=集火型续战/路径B=调查型整合/路径C=保护型续期），并要求 thought 中明确今日战略切换决策。修改 `knightHistoryStep` 在 ③ 末尾追加 `\n${knightLeaderReadHint}`，使 ④ 成为 Step0 的第四子步骤。identity_table write（R89 Step0.5 ③）与 read（R93 Step0 ④）精确对应：写端 `D${dayCount}领袖指令` vs 读端 `D${dayCount - 1}领袖指令`。
+- **"仅写无读"是隐性感知-执行分裂（R93-A）**：R89 的 identity_table 写指导已标注"供下轮阅读领袖行动历史"，但 Step0 只扫描"决斗候选"关键词，使得 AI 能在 identity_table 中看到 `D{n}领袖指令` 记录，却无显式脚手架读取并基于其制定今日战略。**检测规则：凡 identity_table 写指导包含"供下轮读取"/"供下轮阅读"字样，必须立即检查对应的 Step0/读取步骤是否有 `indexOf(该关键词)` 的读取逻辑**——仅写无读是隐性感知-执行分裂，在实际游戏中 AI 可能偶尔自发读取，但无脚手架保证稳定性。
+- **领袖期多天战略连续性（R93-B）**：骑士领袖期是游戏中极少数需要"跨多天维持同一战略"的场景——集火型需要持续2-3天集票；调查型需要累积跨轮交叉验证结果；保护型需要持续监控关键好人状态。如果 Step0 没有读取历史领袖指令，每天 Step0.5 都会重新三选一，历史决策信息丢失，战略不连贯。**下轮若添加其他角色跨多天战略维持机制，均应在写端标注关键词 + 读端有对应查找逻辑，并且两端关键词必须精确一致（动态插值也要精确匹配）**。
+- **条件双重保护设计（R93-C）**：`knightLeaderReadHint` 条件为 `hasUsedDuel && ctx.dayCount > 1`。当 D1 时，`knightHistoryStep` 本身走 fallback 分支（不触发 active branch 中的 `${knightLeaderReadHint}`），且 hint 条件 `dayCount > 1` 也不满足——双重保护确保 D1 安全。设计原则：条件变量的激活判断应尽量自包含（变量本身就条件化），不要依赖外层 if 语句保护。
+- **白熊效应合规（第 14 次验证）**：三路径全正向描述（"继续集票带节奏"/"整合进今日战略选择"/"延续战略C"/"今日更新战略"），无负向禁词 ✅（T20 测试覆盖）。
+- **测试**：1542/1542（+20 new R93 tests T1-T20；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-30 Round 92] 女巫两连平安夜二阶推断（isConsecutivePeacefulWitch + witchAntidoteHint + consecutivePeaceHintWitch）— 平安夜推断系列里程碑完成
 
 - **完成状态**：`aiPrompts.js` 女巫 DAY_SPEECH 新增三个变量：① `isConsecutivePeacefulWitch`（外层：`ctx.dayCount >= 3 && isPeacefulNightWitch && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② if 块内：`prevPrevDay`（ctx.dayCount-2），`witchAntidoteHint`（`hasWitchSave ? '解药未动...守卫所为' : \`解药已用且两连平安夜——对比 savedIds 末位与 D${prevPrevDay}...\``），`consecutivePeaceHintWitch`（三元表达式：两连时注入四步两路径推断，否则为空字符串）。注入方式：路径A和路径B的 `witchPeaceNightStep` 赋值均以 `${consecutivePeaceHintWitch}⭕` 前置拼接，原 R82 内容完整保留。

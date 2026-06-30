@@ -114,6 +114,15 @@ export const getKnightDaySpeechPrompt = (ctx, params) => {
     ? `\n\n【⚡ 残局模式（存活${aliveNow}人）】决斗窗口收窄——优先级A阈值下调至≥${thresholdA}%，优先级B阈值下调至≥${thresholdB}%。残局每轮信息减少，宁早决断不延误。`
     : '';
 
+  // R93: 骑士领袖历史读取（DAY→DAY 闭环补完：Step0 ④ 读取上轮领袖指令，修复感知-执行分裂）
+  const knightLeaderReadHint = (hasUsedDuel && ctx.dayCount > 1)
+    ? `   ④ 读取上轮领袖指令（thought 中完成）：查 identity_table 中含"D${ctx.dayCount - 1}领袖指令"字样的条目：
+      路径A（上轮集火型）：核心目标当前存活 → 今日继续集票带节奏；目标已出局 → 续战切换新集火目标
+      路径B（上轮调查型）：回顾上轮交叉验证结果，将新确认的玩家立场整合进今日战略选择
+      路径C（上轮保护型）：查关键好人/神职今日是否仍有威胁；仍危险 → 延续战略C；已安全 → 今日更新战略
+      读取完成后在 thought 中明确今日沿用上轮战略还是切换（并简述原因）\n`
+    : '';
+
   // R44 DAY→DAY 读写闭环：历史决斗候选读取步骤（R86 升级：三路径评估 + 续战搜索框架）
   const knightHistoryStep = ctx.dayCount > 1
     ? `0. 【读取历史决斗候选与续战策略（thought 中完成）】
@@ -126,7 +135,8 @@ export const getKnightDaySpeechPrompt = (ctx, params) => {
       决斗优先级B（阈值≥${thresholdB}%）：是否有可疑假金水玩家需要破除？
       决斗优先级C（紧急救场）：是否有即将被错误投出的真神职需要搏命救场？
       将首个满足阈值的候选 reason 追加"→重启决斗候选：[优先级A/B/C]，[新依据]"
-   ③ 历史候选是决策起点，不是硬约束——若新信息推翻旧候选，更新并在 thought 中说明原因`
+   ③ 历史候选是决策起点，不是硬约束——若新信息推翻旧候选，更新并在 thought 中说明原因
+${knightLeaderReadHint}`
     : '0. 【第一天】无历史决斗候选记录——直接根据当前局势推断决斗候选目标';
 
   const duelStatus = hasUsedDuel
