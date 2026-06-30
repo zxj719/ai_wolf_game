@@ -1215,18 +1215,32 @@ Step4: 绝不能投金水！voteIntention 必须指向狼人或最可疑的人
 
         // R82：平安夜推断框架（女巫专属：结合救药使用状态推断昨夜平安夜来源）
         const isPeacefulNightWitch = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        // R92：连续两夜平安夜检测（女巫：结合救药双轨，精度高于单夜推断）
+        const isConsecutivePeacefulWitch = ctx.dayCount >= 3 && isPeacefulNightWitch && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
         let witchPeaceNightStep = '';
         if (isPeacefulNightWitch) {
             const prevDay = ctx.dayCount - 1;
+            const prevPrevDay = ctx.dayCount - 2;
+            const witchAntidoteHint = hasWitchSave
+                ? '解药未动，两连平安夜均为守卫所为；守卫正积极连守，你的解药应保留到守卫无法覆盖的关键时机'
+                : `解药已用且两连平安夜——对比 savedIds 末位与 D${prevPrevDay} 高票存活者：若一致则 confidence 升至 90-95（双重验证锁定）；若不同则两道防线各自独立`;
+            const consecutivePeaceHintWitch = isConsecutivePeacefulWitch
+                ? `⭕【女巫连续两夜平安夜二阶推断（thought 中完成）】
+- 对比 D${prevPrevDay} 和 D${prevDay} 的高票存活者是否为同一玩家：
+  - 路径A（相同）：守卫极可能连守同一目标；该玩家 confidence 升 25-35（好人最重点保护对象）
+  - 路径B（不同）：狼人尝试不同刀口——两夜高票存活者 confidence 均下调 10-15（好人可能性各升）
+- 药水联动：${witchAntidoteHint}
+- identity_table 追加"D${prevPrevDay}-D${prevDay}两连平安夜：[路径A/B]，药水推断结论"
+` : '';
             if (!hasWitchSave && witchHistory?.savedIds?.length > 0) {
                 const lastSaved = witchHistory.savedIds[witchHistory.savedIds.length - 1];
-                witchPeaceNightStep = `⭕【女巫平安夜推断（thought 中完成；speech 按普通村民发言，不提药水细节）】
+                witchPeaceNightStep = `${consecutivePeaceHintWitch}⭕【女巫平安夜推断（thought 中完成；speech 按普通村民发言，不提药水细节）】
 - 你的解药已使用，${lastSaved}号是你最近救过的玩家（savedIds 末位）
 - 平安夜推断路径A（解药救中）：若昨夜你救了被刀目标 → ${lastSaved}号确认为狼重点针对的关键好人
 - 将${lastSaved}号 identity_table confidence 升 20-30，reason 追加"D${prevDay}平安夜推断：疑似解药救成活（狼刀目标确认）"
 - 评估补充：D${prevDay} 高票存活者是否另有其人？若与 ${lastSaved}号不同，可能存在双重保护（解药+守卫协同）\n`;
             } else if (hasWitchSave) {
-                witchPeaceNightStep = `⭕【女巫平安夜推断（thought 中完成；speech 按普通村民发言）】
+                witchPeaceNightStep = `${consecutivePeaceHintWitch}⭕【女巫平安夜推断（thought 中完成；speech 按普通村民发言）】
 - 你解药未动，昨夜平安夜不是你的行动造成的 → 最可能原因：守卫守中了狼刀目标
 - 查 D${prevDay} 投票记录票压最高的存活玩家——最可能是守卫守护目标，identity_table confidence 降 10-15（好人可能性升）
 - 你解药仍可用：今晚评估用药节奏；若连续出现平安夜，可推断守卫正在连守同一目标\n`;

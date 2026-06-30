@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-06-30 Round 92] 女巫两连平安夜二阶推断（isConsecutivePeacefulWitch + witchAntidoteHint + consecutivePeaceHintWitch）— 平安夜推断系列里程碑完成
+
+- **完成状态**：`aiPrompts.js` 女巫 DAY_SPEECH 新增三个变量：① `isConsecutivePeacefulWitch`（外层：`ctx.dayCount >= 3 && isPeacefulNightWitch && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② if 块内：`prevPrevDay`（ctx.dayCount-2），`witchAntidoteHint`（`hasWitchSave ? '解药未动...守卫所为' : \`解药已用且两连平安夜——对比 savedIds 末位与 D${prevPrevDay}...\``），`consecutivePeaceHintWitch`（三元表达式：两连时注入四步两路径推断，否则为空字符串）。注入方式：路径A和路径B的 `witchPeaceNightStep` 赋值均以 `${consecutivePeaceHintWitch}⭕` 前置拼接，原 R82 内容完整保留。
+- **平安夜推断系列里程碑（R92-A）**：R88（村民+狼人）→ R90（预言家）→ R91（守卫）→ R92（女巫）全部完成。五角色两连推断按私有信息精度排序：狼人（直接知道刀口）> 守卫（guardHistory零间接推断）> 女巫（hasWitchSave知道自己行动，但不知守卫行动）> 预言家（查验记录交叉验证）> 村民（纯票压间接推断）。**平安夜推断至此真正完整**。
+- **女巫两连推断独特设计（R92-B）**：`witchAntidoteHint` 是所有角色两连推断中唯一实现双轨专属分析的变量——女巫知道自己是否用过解药，能区分"平安夜=自己救药行动"与"平安夜=守卫行动"，精度高于预言家和村民。`hasWitchSave ? 守卫独力两连连守 : savedIds末位×D-2高票存活者交叉验证` 双轨设计是女巫角色的信息优势的自然体现。
+- **多窗口级联更新规律（R92-C，第 13 次应用）**：女巫 var block 增长 927 chars（3350→4277）导致两个测试文件失效：round58 witch window（4500→6000，因 identity_table 到 4956 超出 4500）；round70 witch window（5000→6500，因 输出JSON: 到 5451 超出 5000）。**新规律：每次为女巫 DAY_SPEECH var block 添加 900+ chars，必须同时检查 round58（witch window）和 round70（getWitchBlock）两个文件**。检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.lastIndexOf(\"'女巫': (ctx, params) => {\"); const r=s.indexOf('return \\\`',a); const t=s.indexOf('输出JSON:',r); console.log('var block:',r-a,'template to JSON:',t-a)"`。
+- **白熊效应合规（第 13 次验证）**：路径A/B 均使用正向行为描述（"confidence 升 25-35"/"confidence 均下调 10-15"/"守卫极可能连守同一目标"），witchAntidoteHint 两分支均正向（"应保留到守卫无法覆盖的关键时机"/"confidence 升至 90-95"），无负向禁词 ✅（T17 测试覆盖）。
+- **测试**：1522/1522（+20 new R92 tests T1-T20；+round58 witch window 4500→6000；+round70 witch window 5000→6500；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-06-30 Round 91] 守卫两连平安夜二阶推断（isConsecutivePeacefulGuard + consecutivePeaceHintGuard）
 
 - **完成状态**：`aiPrompts.js` 守卫 DAY_SPEECH 新增两个变量：① `isConsecutivePeacefulGuard`（外层：`ctx.dayCount >= 3 && isPeacefulNightGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② if 块内三项：`prevPrevDay`（ctx.dayCount-2），`prevPrevNightGuardTarget`（`guardHistory?.find(g => g.night === ctx.dayCount - 2)?.targetId ?? null`），`consecutivePeaceHintGuard`（三元表达式前置注入，两连时输出路径A/B差异推断，否则为空字符串）。注入方式：`guardPeaceNightStep = \`${consecutivePeaceHintGuard}⭕【守卫平安夜推断...` 前置拼接，原 R81 内容完整保留。

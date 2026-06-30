@@ -31,7 +31,7 @@ function getSeerBlock() {
 function getWitchBlock() {
     const start = src.lastIndexOf("'女巫': (ctx, params) =>");
     if (start === -1) throw new Error('女巫 DAY_SPEECH 函数未找到');
-    return src.slice(start, start + 5000);
+    return src.slice(start, start + 6500); // R92: window expanded from 5000 (var block grew ~927 chars from isConsecutivePeacefulWitch + consecutivePeaceHintWitch; 输出JSON: now at ~5451 from func start)
 }
 
 function getVillagerBlock() {
