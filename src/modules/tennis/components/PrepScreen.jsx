@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { CHAR_QUOTES, FXNAME, PREP, rand } from '../gameData';
-import { loadLocalRecords } from '../localBoard';
+import { loadLocalRecords, loadLastPrepStats } from '../localBoard';
 
 function fxTags(fx) {
   return Object.entries(fx).map(([k, v]) => (
@@ -68,6 +68,13 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
     return `💡 球探速报：${face}${name} 今天${dominant}见长，备战可侧重强化${advice}`;
   }, [state.prepRound, state.opp]);
 
+  const prepHistoryHint = useMemo(() => {
+    if (state.prepRound !== 0 || !state.player || !state.opp) return null;
+    const last = loadLastPrepStats(state.player.name, state.opp.name);
+    if (!last) return null;
+    return `📋 上次备战 ${state.opp.face}${state.opp.name}：体力 ${last.sta} · 技巧 ${last.skill} · 心态 ${last.mind}`;
+  }, [state.prepRound, state.player?.name, state.opp?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onPick = (i) => {
     if (locked) return;
     setLocked(true);
@@ -87,6 +94,9 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
         <p className="hint">{round.desc}</p>
         {lastMatchHint && (
           <p className="last-match-hint">{lastMatchHint}</p>
+        )}
+        {prepHistoryHint && (
+          <p className="prep-history-hint">{prepHistoryHint}</p>
         )}
         {oppStrategyHint && (
           <p className="prep-strategy-hint">{oppStrategyHint}</p>

@@ -5,7 +5,7 @@ import { ROUTES } from '../../shell/paths';
 import { CHARS, rand } from './gameData';
 import { useTennisGame } from './useTennisGame';
 import { getTennisLeaderboard, sendMatchTelemetry, recordDailyCompletion, getDailyLeaderboard } from '../../services/tennisService';
-import { loadLocalRecords, clearLocalRecords } from './localBoard';
+import { loadLocalRecords, clearLocalRecords, savePrepHistory } from './localBoard';
 import { SelectScreen } from './components/SelectScreen';
 import { ReactTest } from './components/ReactTest';
 import { PrepScreen } from './components/PrepScreen';
@@ -104,6 +104,17 @@ export default function TennisRoute() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [state.screen]);
+
+  // 备战完成→对局开始时，保存本次备战结果（供下次 PrepScreen 展示对比）
+  useEffect(() => {
+    if (state.screen === 'match' && state.player && state.opp) {
+      savePrepHistory(state.player.name, state.opp.name, {
+        sta: state.player.sta,
+        skill: state.player.skill,
+        mind: state.player.mind,
+      });
+    }
+  }, [state.screen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onStart = useCallback((playerName) => {
     isDailyRef.current = false;

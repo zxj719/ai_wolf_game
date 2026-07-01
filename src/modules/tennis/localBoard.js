@@ -258,6 +258,38 @@ export function findRevengeOpportunity(records, playerName, maxDays = 7) {
   return null;
 }
 
+const PREP_HISTORY_KEY = 'tennis_prep_history_v1';
+
+function loadPrepHistoryStore() {
+  try {
+    return JSON.parse(store.getItem(PREP_HISTORY_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * 保存某玩家对某对手最近一次备战结束后的体力/技巧/心态快照。
+ * 每个 playerName×oppName 组合只保留最新一条（覆盖写入）。
+ */
+export function savePrepHistory(playerName, oppName, { sta, skill, mind }) {
+  const h = loadPrepHistoryStore();
+  if (!h[playerName]) h[playerName] = {};
+  h[playerName][oppName] = { sta, skill, mind };
+  try {
+    store.setItem(PREP_HISTORY_KEY, JSON.stringify(h));
+  } catch { /* 隐私模式等场景静默 */ }
+}
+
+/**
+ * 读取某玩家上次对某对手备战完成时的属性快照。
+ * 无记录时返回 null。
+ */
+export function loadLastPrepStats(playerName, oppName) {
+  const h = loadPrepHistoryStore();
+  return h[playerName]?.[oppName] ?? null;
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>
