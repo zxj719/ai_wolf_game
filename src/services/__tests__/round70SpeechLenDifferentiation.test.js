@@ -25,7 +25,8 @@ function getWolfBlock() {
 function getSeerBlock() {
     const start = src.lastIndexOf("'预言家': (ctx, params) =>");
     if (start === -1) throw new Error('预言家 DAY_SPEECH 函数未找到');
-    return src.slice(start, start + 7000);
+    // 窗口从 7000 升至 9000（R99 新增 isTripleConsecutivePeacefulSeer + tripleConsecutivePeaceHintSeer，${seerSpeechLen} 移至 ~7869 处）
+    return src.slice(start, start + 9000);
 }
 
 function getWitchBlock() {

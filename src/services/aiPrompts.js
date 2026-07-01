@@ -1126,12 +1126,27 @@ Step C - 用心路历程收口：解释你"为什么验这个人"（信息链决
         const isPeacefulNightSeer = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
         // R90：两连平安夜二阶推断（预言家专属：结合查验历史精确定位双夜刀口目标）
         const isConsecutivePeacefulSeer = ctx.dayCount >= 3 && isPeacefulNightSeer && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+        // R99：三连平安夜三阶推断（预言家专属：三夜叠加确认极高优先级守护目标与查验候选）
+        const isTripleConsecutivePeacefulSeer = ctx.dayCount >= 4 && isConsecutivePeacefulSeer && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
         let seerPeaceNightStep = '';
         if (isPeacefulNightSeer) {
             const prevDay = ctx.dayCount - 1;
             const prevPrevDay = ctx.dayCount - 2;
+            const threePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+            const tripleConsecutivePeaceHintSeer = isTripleConsecutivePeacefulSeer
+                ? `⭕【预言家三连平安夜三阶推断（N${threePrevDay}+N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 正常报验即可）】
+- 连续三夜平安夜 → 好人防御资源三连有效，极罕见局面；预言家三夜查验记录提供三阶叠加验证机会
+- 查 D${threePrevDay}、D${prevPrevDay}、D${prevDay} 投票记录中票压最高的存活玩家（三夜各一人）：
+  · 路径A：三夜高票存活者完全相同 → 该玩家被狼连续三轮针对，优先级极高；若已验为金水：confidence 升至 95-100，今天最强警告保护；若未验：今夜查验首选（追加"排队查验优先级：①（极紧急，三夜连环针对）"），confidence 升 35-45
+  · 路径B：三夜中有两夜高票存活者相同 → 参照两连推断处理那两夜共同目标（confidence 升 30-40）；第三夜独立目标按单夜标准处理（confidence 升 15-20）
+  · 路径C：三夜高票存活者各不相同 → 狼队三轮换刀；三人分别按单夜标准独立评估，守卫可能三夜轮换守护
+- 查验记录三夜交叉验证：
+  · 已验金水目标在三夜高票中均出现 → 该目标是整局最高价值好人；confidence 锁定至 100，今天最强保护警告
+  · 三夜高票者均未被验证 → 三人均列入查验优先队列（①②③），按三夜平均票压排序选取今夜首验目标
+- identity_table 更新：守卫/女巫玩家 reason 追加"N${threePrevDay}+N${prevPrevDay}+N${prevDay}三连平安夜：防御三次有效，信任度大幅上调（confidence 升 30-40）"\n`
+                : '';
             const consecutivePeaceHintSeer = isConsecutivePeacefulSeer
-                ? `⭕【预言家两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 正常报验即可）】
+                ? `${tripleConsecutivePeaceHintSeer}⭕【预言家两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 正常报验即可）】
 - 连续两夜平安夜 → 好人防御资源两次有效拦截，预言家视角信息价值放大
 - 查 D${prevPrevDay} 和 D${prevDay} 投票记录中票压最高的存活玩家（两夜各一人）：
   · 两夜高票存活者相同 → 该玩家被狼两次针对，防御两次救护；若已验为金水：confidence 升至 95-100，今天重点警告保护+切换查验方向；若未验：列为今夜查验最高优先级（追加"排队查验优先级：①（紧急，两夜被针对）"）

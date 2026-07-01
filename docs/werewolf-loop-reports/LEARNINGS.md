@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-01 Round 99] 预言家 DAY_SPEECH 三连平安夜三阶推断（isTripleConsecutivePeacefulSeer + tripleConsecutivePeaceHintSeer）— 预言家平安夜推断三层体系完整
+
+- **完成状态**：`aiPrompts.js` 预言家 DAY_SPEECH 新增三个变量：① `isTripleConsecutivePeacefulSeer`（`ctx.dayCount >= 4 && isConsecutivePeacefulSeer && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② if 块内 `threePrevDay`（`ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0`）；③ `tripleConsecutivePeaceHintSeer`（三元：三路径框架A=三夜同一目标 confidence 升 35-45/B=两夜共同目标按两连处理/C=三夜各不同分别单夜评估；三夜查验记录交叉验证；identity_table 追加"三连平安夜 confidence 升 30-40"）。注入方式：`consecutivePeaceHintSeer` 三元的 true 分支以 `${tripleConsecutivePeaceHintSeer}` 前置拼接（前置注入模式第 14 次应用）。预言家 DAY_SPEECH 平安夜推断体系 R81（单夜）→ R90（两连）→ R99（三连）三层完整。
+- **seer 区块边界双重检测规律（R99-A）**：预言家 DAY_SPEECH 有两种不同的边界标记：① `seer→witch`（round81/round99/round90 等用）= 实际函数体（8072 chars after R99）；② `seer→guard`（某些工具查询时可能偶然选用）= 更大范围（17080 chars after R99，含守卫代码前的其他角色）。**规则：所有涉及 seer block 的测试应统一用 `'女巫': (ctx, params)` 作为结束标记，不要用 `'守卫': (ctx, params)`；每次改动后运行 `node -e "...indexOf('预言家')/indexOf('女巫')"` 确认实际边界。标准检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('ROLE_DAY_SPEECH_PROMPTS'); const b=s.indexOf(\"'预言家': (ctx, params) =>\",a); const c=s.indexOf(\"'女巫': (ctx, params)\",b); console.log('seer-to-witch block:',c-b,'seerSpeechLen offset:',s.indexOf('\${seerSpeechLen}',b)-b)"`**
+- **round81 SEER_WINDOW 更新规律（R99-B）**：seer-to-witch block 从 6877（pre-R99）→ 8072（after R99，+1195 chars）。SEER_WINDOW 从 7500 → 20000 以给大量余量。旧窗口（7500）< 实际块大小（8072）→ 失败。**规则：凡预言家 DAY_SPEECH 函数体新增 800+ chars，立即运行标准检测命令，若 `seer-to-witch block` 超过当前 SEER_WINDOW 立即更新 round81 的 SEER_WINDOW 值**。
+- **round70/round81 窗口同步（R99-C）**：R99 的 if 块新增 ~1195 chars 导致多个内部偏移位置全部下移，需同步更新 7 个窗口：T5(1100→1900) / T6(1100→1950) / T7(1200→2100) / T9(1400→2250) / T14(350→420) / T18(350→420) / T19(1600→2800)；round70 getSeerBlock 7000→9000（seerSpeechLen 移至 7869）。**通用规律：在 if 块首部插入 N chars 时，所有测试中 `ifSection.slice(ifStart, ifStart + X)` 的窗口 X 必须将目标关键词的旧偏移+N 作为新的下界**。
+- **三连 confidence 区间递进原则（R99-D）**：单夜 +15-20 / 两连 +25-35 / 三连 +35-45。每增加一夜，confidence 区间下限 +10（统计证据正比例增长原则）。这与 NIGHT_GUARD/NIGHT_SEER 三连 confidence 区间设计一致（守卫 NIGHT 三连为 +30-40，预言家 DAY_SPEECH 三连为 +35-45，差异来自私有信息精度层级不同）。
+- **白熊效应合规（第 20 次验证）**：三路径全正向描述（"confidence 升至 95-100"/"confidence 升 35-45"/"按单夜标准独立评估"），无负向禁词 ✅（T15 测试覆盖）。
+- **测试**：1680/1680（+20 new R99 tests T1-T20；+round81 7项窗口修复；+round70 getSeerBlock 窗口修复；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅；干跑 8/8 ✅。
+
+---
+
 ### [2026-07-01 Round 98] 预言家 NIGHT 侧平安夜三级推断（isNightPeacefulSeer + isConsecutivePeacefulNightSeer + isTripleConsecutivePeacefulNightSeer）
 
 - **完成状态**：`aiPrompts.js` NIGHT_SEER case 新增六个变量：① `isNightPeacefulSeer`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）；② `seerNightPrevDay`；③ `isConsecutivePeacefulNightSeer`（`ctx.dayCount >= 3 + fullGameTimeline`）；④ `seerNightPrevPrevDay`；⑤ `isTripleConsecutivePeacefulNightSeer`（`ctx.dayCount >= 4 + fullGameTimeline`）；⑥ `seerNightThreePrevDay`。三个条件化 hint 变量（单夜/两连/三连）以前置注入模式构成三级嵌套，`${seerNightPeaceStep}` 注入于 return 模板中 `${seerNightStyle}` 之后、`${seerNightStrategy}` 之前（前置注入模式第 13 次应用）。

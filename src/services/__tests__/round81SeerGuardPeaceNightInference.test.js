@@ -11,8 +11,8 @@ const src = readFileSync(resolve('src/services/aiPrompts.js'), 'utf-8');
 const seerBlockStart = src.indexOf("'预言家': (ctx, params) =>");
 const seerBlockEnd = src.indexOf("'女巫': (ctx, params)", seerBlockStart);
 const seerBlock = src.slice(seerBlockStart, seerBlockEnd);
-// Window sized at ~7500 (seerBlock 5930 × 1.27)
-const SEER_WINDOW = 7500;
+// Window sized at ~20000 (seerBlock 17080 after R99 triple consecutive seer DAY_SPEECH)
+const SEER_WINDOW = 20000;
 if (seerBlock.length > SEER_WINDOW) {
     throw new Error(`seerBlock (${seerBlock.length}) exceeds window (${SEER_WINDOW}) — update test window`);
 }
@@ -63,22 +63,22 @@ test('T4: seer prevDay derived inside if block', () => {
 
 test('T5: seer peaceNightStep assignment uses template literal', () => {
     const ifStart = seerVarBlock.indexOf('if (isPeacefulNightSeer)');
-    // R90: consecutivePeaceHintSeer declaration (~880 chars) pushes seerPeaceNightStep to char ~895
-    const ifSection = seerVarBlock.slice(ifStart, ifStart + 1100);
+    // R99: tripleConsecutivePeaceHintSeer (~1000 chars) + consecutivePeaceHintSeer pushes seerPeaceNightStep to ~1794
+    const ifSection = seerVarBlock.slice(ifStart, ifStart + 1900);
     expect(ifSection).toContain('seerPeaceNightStep = `');
 });
 
 test('T6: seer peaceful night step starts with ⭕ marker', () => {
     const ifStart = seerVarBlock.indexOf('if (isPeacefulNightSeer)');
-    // R90: seerPeaceNightStep starts with ${consecutivePeaceHintSeer}⭕【预言家平安夜推断 at ~920
-    const ifSection = seerVarBlock.slice(ifStart, ifStart + 1100);
+    // R99: ⭕【预言家平安夜推断 at ~1843 from ifStart (after triple+consecutive hints)
+    const ifSection = seerVarBlock.slice(ifStart, ifStart + 1950);
     expect(ifSection).toContain('⭕【预言家平安夜推断');
 });
 
 test('T7: seer Path A covers gold water (金水) verified player inference', () => {
     const ifStart = seerVarBlock.indexOf('if (isPeacefulNightSeer)');
-    // R90: 金水 appears early (in consecutive hint ~400), confidence 升至 90-100 at ~1060
-    const ifSection = seerVarBlock.slice(ifStart, ifStart + 1200);
+    // R99: 金水 appears at ~557 (in triple hint), confidence 升至 90-100 at ~1986
+    const ifSection = seerVarBlock.slice(ifStart, ifStart + 2100);
     expect(ifSection).toContain('金水');
     expect(ifSection).toContain('confidence 升至 90-100');
 });
@@ -93,8 +93,8 @@ test('T8: seer Path B covers unverified high-vote survivor → add to query queu
 
 test('T9: seer Path C covers scattered vote case → maintain current judgment', () => {
     const ifStart = seerVarBlock.indexOf('if (isPeacefulNightSeer)');
-    // R90: 票型分散 and 维持当前查验队列 in original step at ~1215/1240
-    const ifSection = seerVarBlock.slice(ifStart, ifStart + 1400);
+    // R99: 票型分散 at ~2135, 维持当前查验队列 at ~2159 (shifted by triple hint +1000 chars)
+    const ifSection = seerVarBlock.slice(ifStart, ifStart + 2250);
     expect(ifSection).toContain('票型分散');
     expect(ifSection).toContain('维持当前查验队列');
 });
@@ -132,8 +132,8 @@ test('T13: seer step order is seerDayHistoryStep → seerPeaceNightStep → Step
 
 test('T14: seer peaceNightStep restricts analysis to thought only (speech 正常报验)', () => {
     const ifStart = seerVarBlock.indexOf('if (isPeacefulNightSeer)');
-    // R90: consecutivePeaceHintSeer header at ~180 chars contains thought/speech at ~240; window updated 200→350
-    const ifSection = seerVarBlock.slice(ifStart, ifStart + 350);
+    // R99: thought/speech appear in tripleConsecutivePeaceHintSeer header at ~364/376; window updated 350→420
+    const ifSection = seerVarBlock.slice(ifStart, ifStart + 420);
     expect(ifSection).toContain('thought');
     expect(ifSection).toContain('speech');
 });
@@ -163,8 +163,8 @@ test('T17: return block uses ${seerPeaceNightStep} interpolation (not hardcoded 
 
 test('T18: seer peaceful night hint instructs thought analysis before speech (thought precedes speech in instruction)', () => {
     const ifStart = seerVarBlock.indexOf('if (isPeacefulNightSeer)');
-    // R90: thought/speech now first appear in consecutivePeaceHintSeer header at ~240 chars; window updated 200→350
-    const ifSection = seerVarBlock.slice(ifStart, ifStart + 350);
+    // R99: thought/speech now first appear in tripleConsecutivePeaceHintSeer header at ~364/376; window updated 350→420
+    const ifSection = seerVarBlock.slice(ifStart, ifStart + 420);
     const thoughtIdx = ifSection.indexOf('thought');
     const speechIdx = ifSection.indexOf('speech');
     expect(thoughtIdx).toBeGreaterThan(-1);
@@ -174,8 +174,8 @@ test('T18: seer peaceful night hint instructs thought analysis before speech (th
 
 test('T19: seer peaceNightStep content has no negative prohibitions (white bear compliance)', () => {
     const ifStart = seerVarBlock.indexOf('if (isPeacefulNightSeer)');
-    // R90: whole if block is now ~1500 chars (consecutivePeaceHintSeer ~880 + original ~615); window updated 700→1600
-    const ifSection = seerVarBlock.slice(ifStart, ifStart + 1600);
+    // R99: whole if block is now ~2700 chars (triple ~1050 + consecutive ~880 + original ~615 + overhead)
+    const ifSection = seerVarBlock.slice(ifStart, ifStart + 2800);
     expect(ifSection).not.toContain('不要');
     expect(ifSection).not.toContain('禁止');
     expect(ifSection).not.toContain('绝不能');

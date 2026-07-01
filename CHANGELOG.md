@@ -2,6 +2,24 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-07-01] 狼人杀 Round 99 — 预言家 DAY_SPEECH 三连平安夜三阶推断框架
+
+### 新功能
+- **三连平安夜三阶推断**：预言家 DAY_SPEECH 新增 `isTripleConsecutivePeacefulSeer` 变量，在 D4+ 连续三夜平安夜时激活；三路径推断框架（路径A=三夜同一高票存活者 confidence 升 35-45 / 路径B=两夜共同目标按两连标准 / 路径C=各不同按单夜标准），配合三夜查验记录交叉验证；前置注入到 `consecutivePeaceHintSeer` 形成三层嵌套体系。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/services/aiPrompts.js` | 修改 | 预言家 DAY_SPEECH 新增 `isTripleConsecutivePeacefulSeer`/`threePrevDay`/`tripleConsecutivePeaceHintSeer`；`consecutivePeaceHintSeer` 前置注入三连 hint |
+| `src/services/__tests__/round99SeerTripleConsecutivePeaceNight.test.js` | 新建 | 20 tests T1-T20 覆盖变量声明/内容验证/注入结构/条件门控/回归 |
+| `src/services/__tests__/round81SeerGuardPeaceNightInference.test.js` | 修改 | SEER_WINDOW 7500→20000；7 项内部窗口修复（T5/T6/T7/T9/T14/T18/T19） |
+| `src/services/__tests__/round70SpeechLenDifferentiation.test.js` | 修改 | getSeerBlock 窗口 7000→9000 |
+
+### 技术细节
+- 预言家 DAY_SPEECH 平安夜推断体系 R81→R90→R99 三层完整（单夜/两连/三连）
+- confidence 区间梯度：单夜+15-20 / 两连+25-35 / 三连+35-45（统计证据正比例增长）
+- 前置注入模式第 14 次应用；白熊效应合规（第 20 次验证）
+
 ## [2026-06-29] 网球 Round 101 — 对手「上次对战」相对时间标签
 
 ### 新功能
