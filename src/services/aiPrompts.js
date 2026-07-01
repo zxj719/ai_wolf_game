@@ -1221,8 +1221,9 @@ Step4: 绝不能投金水！voteIntention 必须指向狼人或最可疑的人
         if (isPeacefulNightWitch) {
             const prevDay = ctx.dayCount - 1;
             const prevPrevDay = ctx.dayCount - 2;
+            // R95：hasWitchSave=true 分支细化——从"保留到关键时机"升级为可触发的双信号框架
             const witchAntidoteHint = hasWitchSave
-                ? '解药未动，两连平安夜均为守卫所为；守卫正积极连守，你的解药应保留到守卫无法覆盖的关键时机'
+                ? `解药未动，两连平安夜=守卫极可能连守同一目标（D${prevPrevDay}+D${prevDay}，confidence ≥ 95%）——今晚继续储药。出手触发信号：① 后续出现非平安夜且连守目标死亡（守卫换守失效）；② 票压最高存活者换人（连守节奏被打破）。identity_table 将 D${prevDay} 高票存活者 reason 追加"守卫D${prevPrevDay}-D${prevDay}双轮连守，候选保护期，待①②信号出手"`
                 : `解药已用且两连平安夜——对比 savedIds 末位与 D${prevPrevDay} 高票存活者：若一致则 confidence 升至 90-95（双重验证锁定）；若不同则两道防线各自独立`;
             const consecutivePeaceHintWitch = isConsecutivePeacefulWitch
                 ? `⭕【女巫连续两夜平安夜二阶推断（thought 中完成）】

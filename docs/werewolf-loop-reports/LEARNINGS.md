@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-07-01 Round 95] 女巫 witchAntidoteHint hasWitchSave=true 路径A细化 — 模糊语义→可触发双信号框架
+
+- **完成状态**：`aiPrompts.js` `witchAntidoteHint` 的 `hasWitchSave=true` 分支从静态字符串升级为模板字面量 + 双信号框架：① 后续出现非平安夜且连守目标死亡（守卫换守失效）；② 票压最高存活者换人（连守节奏被打破）。同时新增 identity_table 追加指导（"守卫D${prevPrevDay}-D${prevDay}双轮连守，候选保护期，待①②信号出手"），与 DAY_SPEECH 读写闭环对齐。同步更新 round92 T18 中的旧文本匹配。
+- **静态字符串→模板字面量升级的窗口安全规律（R95-A）**：将 `hasWitchSave=true` 分支从 `'...'` 改为 `` `...` `` 时，var block 增长 ~246 chars（4277→4523）。round58（6000 window）和 round70（6500 window）的关键内容（输出JSON: 在 5697 处）均在窗口内——**女巫 var block 增长 ≤ 300 chars 时，round58/70 窗口无需更新**。但 var block 超过 ~5700（使 输出JSON: 偏移超出 6000）时必须检查。标准检测命令：`` node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.lastIndexOf(\"'女巫': (ctx, params) => {\"); console.log('var block:',s.indexOf('return \`',a)-a,'输出JSON: at:',s.indexOf('输出JSON:',a)-a)" ``
+- **"模糊保留时机→可触发信号"升级模式（R95-B）**：凡提示词中出现"保留到 X 时机"/"在合适时机使用"等模糊语义，均应升级为可观测信号（"检测 A 事件 OR B 事件时出手"）。信号设计原则：① 信号应来自 AI 可从 identity_table 或上下文直接观察到的事实（如平安夜状态变化、票压模式变化）；② 每个信号对应一种覆盖中断方式；③ 用"AND"连接事件内聚（非平安夜+目标死亡），用"OR"连接信号选择（信号①②）。
+- **白熊效应合规（第 16 次验证）**：双信号框架全正向描述（"出手触发信号"/"守卫换守失效"/"连守节奏被打破"），无负向禁词 ✅（T17 测试覆盖）。
+- **测试**：1588/1588（+20 new R95 tests T1-T20；+round92 T18 更新；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅；游戏干跑 25/25 ✅。
+
+---
+
 ### [2026-06-30 Round 94] NIGHT_GUARD 两连平安夜 NIGHT 侧二阶推断（isConsecutivePeacefulNightGuard + consecutivePeaceNightHintGuard）— 守卫四象限推断矩阵闭合
 
 - **完成状态**：`aiPrompts.js` NIGHT_GUARD case 新增四个变量：① `isConsecutivePeacefulNightGuard`（`ctx.dayCount >= 3 && isNightPeacefulGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `guardNightPrevPrevDay`（`ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0`）；③ `prevPrevNightGuardTarget`（`gameState.guardHistory?.find(g => g.night === guardNightPrevPrevDay)?.targetId ?? null`，零间接推断）；④ `consecutivePeaceNightHintGuard`（三元表达式，激活时路径A=连守同一目标 confidence 升 25-35 换守；路径B=两夜目标不同分别评估各夜命中概率）。注入方式：`guardNightPeaceStep = \`${consecutivePeaceNightHintGuard}⭕【守卫平安夜守护来源推断...\`` 前置拼接（R85 内容完整保留）。
