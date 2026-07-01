@@ -1982,6 +1982,48 @@ ${wolfNightStyle}
              const aliveCount = players.filter(p => p.isAlive).length;
              const isEndgame = aliveCount <= 5;
 
+             // R98: NIGHT_SEER 平安夜查验优先级调整框架 — 用 identity_table confidence 间接推断平安夜狼刀目标
+             // 精度层级：守卫 NIGHT（零间接，guardHistory 直读）> 预言家 NIGHT（一阶间接，confidence≥65筛选）> 村民 DAY（二阶间接，票压推断）
+             const isNightPeacefulSeer = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+             const seerNightPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+             // R98: NIGHT 侧两连平安夜二阶推断（对称 DAY 侧 R90 两连；预言家两夜票压交叉验证，精度更高）
+             const isConsecutivePeacefulNightSeer = ctx.dayCount >= 3 && isNightPeacefulSeer &&
+                 ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+             const seerNightPrevPrevDay = ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0;
+             // R98: NIGHT 侧三连平安夜三阶推断（对称 R97 守卫三连；三夜连续高票存活者近确认好人保护目标）
+             const isTripleConsecutivePeacefulNightSeer = ctx.dayCount >= 4 && isConsecutivePeacefulNightSeer &&
+                 ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
+             const seerNightThreePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+
+             const tripleConsecutivePeaceNightHintSeer = isTripleConsecutivePeacefulNightSeer
+                 ? `⭕【预言家三连平安夜 NIGHT 三阶推断（N${seerNightThreePrevDay}+N${seerNightPrevPrevDay}+N${seerNightPrevDay}均平安；thought 中完成）】
+- 三夜平安极低概率，强推论：守卫连续三夜成功拦截狼刀，被保护的核心好人极可能是关键神职（守卫不会三夜连守狼人）
+- 查三夜票压记录：哪位存活玩家在 D${seerNightThreePrevDay}/D${seerNightPrevPrevDay}/D${seerNightPrevDay} 三天均处于高票压下仍存活？
+- 路径A - 连续三天同一玩家高票存活且未被查验：今晚查验优先级升至最高（confidence 升 30-40）——该人若是狼人则终止狼方最强保护链；若是好人则确认守卫战略，调整今后推断
+- 路径B - 三天高票存活者有重叠但非完全相同：优先查验两次及以上出现的玩家（confidence 升 20-30），交叉验证
+- 路径C - 三天高票存活者各不相同：狼人三夜目标分散，用三天票压综合评估，选最高 confidence 未验证者
+- identity_table 追加：三天连续高票存活候选 reason 加"N${seerNightThreePrevDay}-N${seerNightPrevPrevDay}-N${seerNightPrevDay}三连平安：[路径A/B/C]，今晚查验优先级调整"\n`
+                 : '';
+             const consecutivePeaceNightHintSeer = isConsecutivePeacefulNightSeer
+                 ? `${tripleConsecutivePeaceNightHintSeer}⭕【预言家两连平安夜 NIGHT 二阶推断（N${seerNightPrevPrevDay}+N${seerNightPrevDay}均平安；thought 中完成）】
+- 连续两夜平安 → 狼人连续两夜行刀均被守卫/女巫拦截，被保护目标极可能是狼队主攻对象
+- 查 D${seerNightPrevPrevDay} 和 D${seerNightPrevDay} 两天票压记录中的高票存活玩家：
+  路径A - 两天高票存活者相同：今晚查验该玩家价值极高（confidence 升 25-35）——连续两夜被保护且高票压，若查杀则直接锁定核心狼人，若金水则确认为守卫重点保护好人
+  路径B - 两天高票存活者不同：狼人两夜目标不同，分别从 identity_table 查两人当前 confidence，今晚优先查 confidence 较高的未验证者
+- identity_table 追加：两天高票存活者 reason 各加"N${seerNightPrevPrevDay}+N${seerNightPrevDay}两连平安：[路径A/路径B]，查验优先级调整"\n`
+                 : '';
+             const seerNightPeaceStep = isNightPeacefulSeer
+                 ? `${consecutivePeaceNightHintSeer}⭕【预言家平安夜 NIGHT 查验优先级调整（thought 中完成）】
+  ① 从 identity_table 筛选 confidence ≥ 65 且本局**未被查验**的存活玩家（高嫌疑未验证候选）
+  ② 今晚查验优先级调整：
+     路径A：存在 confidence ≥ 65 未验证存活候选 → 今晚查验首选该候选（confidence 最高者）；
+             在 identity_table 将其 reason 追加"N${seerNightPrevDay}平安夜：推测狼刀候选，今晚升至查验最高优先"
+     路径B：无 confidence ≥ 65 未验证候选（均已验证或嫌疑分散）→ 平安夜推断不提供额外查验线索，
+             按下方优先级框架正常选择今晚查验目标
+  ③ 注意：预言家的平安夜推断精度低于守卫（无直接守护记录），confidence 调整幅度适中（± 10-15）
+`
+                 : '';
+
              let seerNightStrategy;
              if (isFirstNight) {
                seerNightStrategy = `【首夜策略】第一夜没有发言信息，选择查验策略：
@@ -2012,7 +2054,7 @@ ${counterClaimText}
 ${nightCot}
 ${seerHistoryStep}
 ${seerNightStyle}
-${seerNightStrategy}
+${seerNightPeaceStep}${seerNightStrategy}
 【identity_table 填写指导（夜间查验：记录确认知识与候选优先级）】
 - 已查验玩家：confidence 填 95-100，reason 写"${seerNightLabel}夜查验确认：[狼人/好人角色名]（已公开/待明日报）"——标"待报"提醒自己次日发言必须优先公开
 - 今晚查验目标：confidence 填 50-70，reason 写"本轮查验候选：[策略原因，如'对跳验证'/'多路汇聚'/'投票节点']"

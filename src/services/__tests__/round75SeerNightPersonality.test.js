@@ -31,8 +31,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getNightSeerBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.NIGHT_SEER:');
     if (start === -1) throw new Error('NIGHT_SEER case 未找到');
-    // NIGHT_SEER block 原 2872 chars，新增个性块后约 4645 chars，用 6200 留余量
-    return src.slice(start, start + 6200);
+    // NIGHT_SEER block: R75 4645 chars → R98 7686 chars（+3041: 平安夜三级推断框架），用 9000 留余量
+    return src.slice(start, start + 9000);
 }
 
 // ═══════════════════════════════════════════════════════

@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-07-01 Round 98] 预言家 NIGHT 侧平安夜三级推断（isNightPeacefulSeer + isConsecutivePeacefulNightSeer + isTripleConsecutivePeacefulNightSeer）
+
+- **完成状态**：`aiPrompts.js` NIGHT_SEER case 新增六个变量：① `isNightPeacefulSeer`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）；② `seerNightPrevDay`；③ `isConsecutivePeacefulNightSeer`（`ctx.dayCount >= 3 + fullGameTimeline`）；④ `seerNightPrevPrevDay`；⑤ `isTripleConsecutivePeacefulNightSeer`（`ctx.dayCount >= 4 + fullGameTimeline`）；⑥ `seerNightThreePrevDay`。三个条件化 hint 变量（单夜/两连/三连）以前置注入模式构成三级嵌套，`${seerNightPeaceStep}` 注入于 return 模板中 `${seerNightStyle}` 之后、`${seerNightStrategy}` 之前（前置注入模式第 13 次应用）。
+- **预言家 NIGHT 推断精度层级（R98-A）**：守卫 NIGHT（零间接，guardHistory 直读）> 预言家 NIGHT（一阶间接，confidence≥65筛选）> 村民 DAY（二阶间接，纯票压）。预言家无直接守护记录，只能从 identity_table 高嫌疑未验证候选推断狼刀目标，confidence 调整幅度适中（±10-15）。**设计原则：每个角色的平安夜推断框架应精确匹配其私有信息层级，不能套用同一模板；零间接推断（直接读记录）> 一阶间接（从已有分析推断）> 二阶间接（纯外部观察）**。
+- **NIGHT_SEER 窗口更新（R98-B）**：NIGHT_SEER block 从 4645 → 7686 chars（+3041 chars），round75 测试窗口从 6200 → 9000。**标准检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.NIGHT_SEER:'); const b=s.indexOf('case PROMPT_ACTIONS.NIGHT_GUARD:',a); console.log('NIGHT_SEER size:',b-a)"`；NIGHT_SEER 新增代码后必须运行，若超过 round75 测试窗口（当前 9000）立即更新**。
+- **白熊效应合规（第 19 次验证）**：三级推断全正向描述（"今晚查验首选该候选"/"按下方优先级框架正常选择"/"confidence 升 25-35"/"confidence 升 30-40"），无负向禁词 ✅（T14 测试覆盖）。
+- **测试**：1660/1660（+20 new R98 tests T1-T20；+round75 窗口修复 6200→9000；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅；干跑 7/7 ✅。
+
+---
+
 ### [2026-07-01 Round 97] 守卫 NIGHT 三连平安夜三阶推断（isTripleConsecutivePeacefulNightGuard + tripleConsecutivePeaceNightHintGuard）+ 骑士写指导格式统一
 
 - **完成状态**：`aiPrompts.js` NIGHT_GUARD case 新增四个变量：① `isTripleConsecutivePeacefulNightGuard`（`ctx.dayCount >= 4 && isConsecutivePeacefulNightGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② `guardNightThreePrevDay`（`ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0`）；③ `threeNightGuardTarget`（`gameState.guardHistory?.find(g => g.night === guardNightThreePrevDay)?.targetId ?? null`，零间接推断）；④ `tripleConsecutivePeaceNightHintGuard`（三元表达式，路径A=三夜锁守/路径B=两夜高频/路径C=三夜全不同，`confidence 升 30-40`）。注入方式：`consecutivePeaceNightHintGuard` 正值分支前置 `${tripleConsecutivePeaceNightHintGuard}` 拼接（前置注入模式第 12 次应用）。`knight.js` 写指导从"供下轮阅读领袖行动历史"改为"供 DAY N+1 Step0 ④ 读取，read-write 闭环"（自文档化）。
