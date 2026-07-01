@@ -56,7 +56,7 @@ export const MOVES = {
  * 克制对：[克方, 被克方]。克中 1.5×，被克 0.7×，其余 1.0×。
  * 核心四循环 + 网前组（见 spec §1.3）。
  */
-const COUNTER_PAIRS = [
+export const COUNTER_PAIRS = [
   // 核心四循环：重炮 → 切削 → 上旋 → 放小球 → 重炮
   ['flatDrive', 'slice'],
   ['slice', 'topspin'],

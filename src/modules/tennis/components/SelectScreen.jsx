@@ -4,6 +4,7 @@ import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
 import { loadLocalRecords, computeCharStats, findBestChar, findMainChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
+import { CHAR_BUILDS, COUNTER_PAIRS, MOVES } from '../battle/moves';
 
 function getOppTag(name, map) {
   const data = map[name];
@@ -96,6 +97,23 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     }
     return map;
   }, [records, picked]);
+
+  const matchupMap = useMemo(() => {
+    if (!picked) return {};
+    const playerMoves = CHAR_BUILDS[picked]?.moves ?? [];
+    const map = {};
+    for (const c of CHARS) {
+      if (c.n === picked) continue;
+      const oppMoves = CHAR_BUILDS[c.n]?.moves ?? [];
+      for (const [counter, victim] of COUNTER_PAIRS) {
+        if (playerMoves.includes(counter) && oppMoves.includes(victim)) {
+          map[c.n] = counter;
+          break;
+        }
+      }
+    }
+    return map;
+  }, [picked]);
 
   const sortedOppChars = useMemo(
     () => sortOppChars(CHARS, seenOpps, oppWinRateMap),
@@ -358,6 +376,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                         </>
                       ) : (
                         <span className="opp-history-badge opp-history-new">NEW</span>
+                      )}
+                      {picked && matchupMap[c.n] && (
+                        <span className="matchup-hint" aria-label={`出${MOVES[matchupMap[c.n]].name}可克制对方`}>
+                          🎯 {MOVES[matchupMap[c.n]].name}
+                        </span>
                       )}
                     </div>
                   );
