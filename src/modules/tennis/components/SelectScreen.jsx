@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, findMainChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 
 function getOppTag(name, map) {
@@ -47,6 +47,7 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
   }, [records]);
   const charStatsMap = useMemo(() => computeCharStats(records), [records]);
   const bestChar = useMemo(() => findBestChar(charStatsMap), [charStatsMap]);
+  const mainChar = useMemo(() => findMainChar(charStatsMap), [charStatsMap]);
   const currentWinStreak = useMemo(
     () => (picked ? computeCurrentWinStreak(records, picked) : 0),
     [picked, records],
@@ -159,6 +160,9 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                 <span className="nm">{c.n}</span>
                 {bestChar === c.n && (
                   <span className="best-char-star">✦ 最佳</span>
+                )}
+                {mainChar === c.n && (
+                  <span className="main-char-tag">⭐ 主力</span>
                 )}
                 {cs && (
                   <span className="char-stat">出战 {cs.played} · 赢 {cs.won}</span>

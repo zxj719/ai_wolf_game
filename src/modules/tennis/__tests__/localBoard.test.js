@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
+import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -75,6 +75,44 @@ describe('findBestChar', () => {
   it('自定义 minPlayed = 1 时单场胜利也可入选', () => {
     const map = { 莹: { played: 1, won: 1 } };
     expect(findBestChar(map, 1)).toBe('莹');
+  });
+});
+
+describe('findMainChar', () => {
+  it('空 map 返回 null', () => {
+    expect(findMainChar({})).toBeNull();
+  });
+
+  it('所有角色出战场次低于 minPlayed 时返回 null', () => {
+    const map = { 诚: { played: 2, won: 1 }, Elza: { played: 1, won: 0 } };
+    expect(findMainChar(map, 3)).toBeNull();
+  });
+
+  it('单个满足 minPlayed 的角色被选中', () => {
+    const map = { 诚: { played: 5, won: 3 }, Elza: { played: 2, won: 1 } };
+    expect(findMainChar(map, 3)).toBe('诚');
+  });
+
+  it('返回出战场次最多的角色', () => {
+    const map = {
+      诚: { played: 8, won: 4 },
+      Elza: { played: 12, won: 7 },
+      菲比: { played: 5, won: 3 },
+    };
+    expect(findMainChar(map, 3)).toBe('Elza');
+  });
+
+  it('出战场次相同时，胜场更多者优先', () => {
+    const map = {
+      诚: { played: 6, won: 3 },
+      丫: { played: 6, won: 5 },
+    };
+    expect(findMainChar(map, 3)).toBe('丫');
+  });
+
+  it('自定义 minPlayed = 1 时，单场角色也可入选', () => {
+    const map = { Ross: { played: 1, won: 1 } };
+    expect(findMainChar(map, 1)).toBe('Ross');
   });
 });
 

@@ -83,6 +83,24 @@ export function findBestChar(charStatsMap, minPlayed = 2) {
 }
 
 /**
+ * 找出出战场次最多的已出战角色（至少 minPlayed 场）。
+ * 同场次时，胜场更多者优先（样本更丰富的主力更可信）。
+ * 返回角色名字符串，无满足条件者返回 null。
+ */
+export function findMainChar(charStatsMap, minPlayed = 3) {
+  let mainName = null, maxPlayed = 0, maxWon = 0;
+  for (const [name, { played, won }] of Object.entries(charStatsMap)) {
+    if (played < minPlayed) continue;
+    if (played > maxPlayed || (played === maxPlayed && won > maxWon)) {
+      maxPlayed = played;
+      maxWon = won;
+      mainName = name;
+    }
+  }
+  return mainName;
+}
+
+/**
  * 计算连胜或连败条数（含当前局）。
  * records 为 loadLocalRecords() 未含本局的历史，本局固定计入 1 作起点。
  * isWin=true 计算连胜；isWin=false 计算连败（sp <= so 视为败）。
