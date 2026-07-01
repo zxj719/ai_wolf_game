@@ -50,8 +50,8 @@ describe('R80 村民平安夜推断框架 — 变量声明', () => {
     test('T5: isPeacefulNight 为 true 时 peaceNightStep 被赋值（条件块）', () => {
         expect(villagerBlock).toContain('if (isPeacefulNight)');
         const ifPos = villagerBlock.indexOf('if (isPeacefulNight)');
-        // 窗口已从 300 升至 700（R88 在 if 块内新增 prevPrevDay + consecutivePeaceHintVillager 变量，peaceNightStep = 移至 ~601 处）
-        const afterIf = villagerBlock.slice(ifPos, ifPos + 700);
+        // 窗口已从 300 升至 700（R88），再从 700 升至 1400（R100 在 if 块内新增 threePrevDay + tripleHint，peaceNightStep = 移至 ~1244 处）
+        const afterIf = villagerBlock.slice(ifPos, ifPos + 1400);
         expect(afterIf).toContain('peaceNightStep =');
     });
 });
@@ -153,9 +153,9 @@ describe('R80 村民平安夜推断框架 — 白熊效应合规 & 块大小', (
         }
     });
 
-    // T20: 村民块大小合理（含 R80 新增内容后应 > 3000 chars，< 5000 chars）
-    test('T20: 村民 DAY_SPEECH 块大小在合理范围内（3000-5000 chars）', () => {
+    // T20: 村民块大小合理（含 R100 三连推断后应 > 3000 chars，< 6000 chars）
+    test('T20: 村民 DAY_SPEECH 块大小在合理范围内（3000-6000 chars）', () => {
         expect(villagerBlock.length).toBeGreaterThan(3000);
-        expect(villagerBlock.length).toBeLessThan(5000);
+        expect(villagerBlock.length).toBeLessThan(6000);
     });
 });

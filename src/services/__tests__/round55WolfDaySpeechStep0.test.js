@@ -116,7 +116,7 @@ describe('R55: 回归测试 — 关联系统未受影响', () => {
         // 村民的 Step0 也含此句（R54 验证；R67 改为函数体语法，用新标记定位）
         const villagerMarker = "'村民': (ctx, params) => {";
         const villagerStart = src.indexOf(villagerMarker);
-        const villagerBlock = src.slice(villagerStart, villagerStart + 4000);
+        const villagerBlock = src.slice(villagerStart, villagerStart + 5500);
         expect(villagerBlock).toContain('首日无历史可跳过');
     });
 

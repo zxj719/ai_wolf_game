@@ -4,6 +4,19 @@
 
 ---
 
+### [2026-07-01 Round 100] 村民 DAY_SPEECH 三连平安夜三阶推断框架（isTripleConsecutivePeacefulVillager）— 平安夜推断三层体系完成
+
+- **完成状态**：村民 DAY_SPEECH 在 R80（单夜）和 R88（两连）基础上，新增 `isTripleConsecutivePeacefulVillager`（`dayCount >= 4 && isConsecutivePeacefulVillager && fullGameTimeline?.includes(N${dayCount-3}:平安夜)`），`threePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`），`tripleConsecutivePeaceHintVillager`（三路径框架：路径A三夜相同目标 confidence 降35-45 / 路径B两夜共同目标降25-35 / 路径C三夜各不同各降10-15）。注入方式：`${tripleConsecutivePeaceHintVillager}` 前置到两连提示词的模板字符串头部（prepend injection 第15次应用）。村民块 4202 → 5058 chars。
+- **Prepend Injection 模式第 15 次应用（R100-A）**：`consecutivePeaceHintVillager = isConsecutivePeacefulVillager ? \`${tripleConsecutivePeaceHintVillager}⭕【两连...`。更高层级内容直接前置到下一层模板字符串头部，无需在 template 中新增占位符。**超集原则**：`isTriple` 包含 `isConsecutive` 包含 `isPeacefulNight`，保证激活条件为严格超集——isTriple 激活时三层全部显示，isConsecutive 激活时两层，仅 isPeacefulNight 激活时一层，完全零激活时 peaceNightStep 为空字符串。
+- **Confidence 分层体系完成（R100-B）**：单夜 +10-20 → 两连 +25-35 → 三连 +35-45，每增一层下界增加约 10 分。路径A（三夜相同）的 35-45 是整个推断体系的最高置信度，路径B借用两连区间，路径C降级回单夜。**设计原则：多层推断体系的 confidence 增量应呈严格递增梯度，让 AI 自然感知"连续夜数=推断可靠性"**。
+- **固定窗口测试的级联脆性（R100-C）**：新增约 856 chars 变量声明块（`isTripleConsecutivePeacefulVillager` + `threePrevDay` + `tripleConsecutivePeaceHintVillager`），导致 if 块内 `peaceNightStep =` 赋值从 ~700 移至 ~1244（R80 T5 失败），`"identity_table"` 从约 2900 移至 ~4913（R54 T24 失败，被 `+4000` 窗口截断）。**教训：固定偏移窗口（`slice(start, start+N)`）在目标内容位置超出 N 时静默失败。每轮扩充任意函数体后，必须立即运行全部测试并逐条核查失败原因——不要相信"看上去改过了"**。检查命令：`grep -rn "villagerStart\|villagerBlock\|villagerSeg" src/services/__tests__/*.test.js | grep "+[0-9]"`.
+- **Detached HEAD + stash pop 引发 merge conflict（R100-D）**：在 detached HEAD 状态下提交所有修改，再 `git checkout main && git stash pop` 导致 aiPrompts.js 和 round80 测试文件出现 merge conflict 标记。**预防：每次工作前先确认 `git status` 显示 On branch main，不要在 detached HEAD 下编辑文件；如已进入 detached HEAD，先 `git stash`，再 `git checkout main`，再 `git stash pop`，立即检查 conflict markers。分辨率规则：stashed（新）版本永远优先于 upstream（旧）**。
+- **T24 单测漏网（R100-E）**：round54 T23 用 `+5500` 通过，T24 同文件用 `+4000` 静默截断——sed 替换命令 `s/4000/5500/` 只替换了 T23 所在行，因为两处都是 `villagerStart + 4000`，sed 以行为单位从前到后替换时依赖顺序，若有多行包含相同字面串则须 `g`（全局）替换或逐行检查。**教训：修改测试窗口后，立即 grep 检查是否还有遗漏实例，而非假设 sed 已处理全部**。
+- **白熊效应合规（第 21 次验证）**：三路径均使用正向描述（"confidence 降 35-45"/"confidence 降 25-35"/"按单夜标准评估"），speech 约束用"speech 只说'三连平安夜，持续关注局势'"正向限定，无负向禁词 ✅。
+- **测试**：1395/1395（+20 new R100 tests T1-T20；R54 T24 / R80 T5 / R80 T20 / R67 窗口各修复 1 处；chatSocket 预存失败与本轮无关）；build ✅；check-build ✅
+
+---
+
 ### [2026-07-01 Round 99] 预言家 DAY_SPEECH 三连平安夜三阶推断（isTripleConsecutivePeacefulSeer + tripleConsecutivePeaceHintSeer）— 预言家平安夜推断三层体系完整
 
 - **完成状态**：`aiPrompts.js` 预言家 DAY_SPEECH 新增三个变量：① `isTripleConsecutivePeacefulSeer`（`ctx.dayCount >= 4 && isConsecutivePeacefulSeer && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② if 块内 `threePrevDay`（`ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0`）；③ `tripleConsecutivePeaceHintSeer`（三元：三路径框架A=三夜同一目标 confidence 升 35-45/B=两夜共同目标按两连处理/C=三夜各不同分别单夜评估；三夜查验记录交叉验证；identity_table 追加"三连平安夜 confidence 升 30-40"）。注入方式：`consecutivePeaceHintSeer` 三元的 true 分支以 `${tripleConsecutivePeaceHintSeer}` 前置拼接（前置注入模式第 14 次应用）。预言家 DAY_SPEECH 平安夜推断体系 R81（单夜）→ R90（两连）→ R99（三连）三层完整。

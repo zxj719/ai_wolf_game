@@ -25,8 +25,8 @@ const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 // 定位村民 DAY_SPEECH 函数体（R67 改为函数体语法，R56 教训：用 => { 而非 => ` 定位）
 const villagerMarker = "'村民': (ctx, params) => {";
 const villagerStart = src.indexOf(villagerMarker);
-// 窗口 4500 以覆盖变量声明区（~1800 chars）+ return 模板（~2000 chars）
-const villagerBlock = src.slice(villagerStart, villagerStart + 4500);
+// 窗口已从 4500 升至 5500（R100 新增 isTripleConsecutivePeacefulVillager + tripleHint 变量块，identity_table 移至 ~4913 处）
+const villagerBlock = src.slice(villagerStart, villagerStart + 5500);
 
 // 定位变量声明区（return 之前）和模板字符串区（return 之后）
 const returnIdx = villagerBlock.indexOf('return `');

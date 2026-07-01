@@ -1475,12 +1475,24 @@ Step4: 投票投谁？（结合 Step0 历史候选：高守护优先候选是否
         // R88：两连平安夜二阶推断检测（D3+适用）
         const isConsecutivePeacefulVillager = ctx.dayCount >= 3 && isPeacefulNight &&
             ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+        // R100：三连平安夜三阶推断检测（D4+适用）
+        const isTripleConsecutivePeacefulVillager = ctx.dayCount >= 4 && isConsecutivePeacefulVillager &&
+            ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
         let peaceNightStep = '';
         if (isPeacefulNight) {
             const prevDay = ctx.dayCount - 1;
             const prevPrevDay = ctx.dayCount - 2;
+            const threePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+            const tripleConsecutivePeaceHintVillager = isTripleConsecutivePeacefulVillager
+                ? `⭕【三连平安夜三阶推断（N${threePrevDay}+N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 只说"三连平安夜，持续关注局势"）】
+- 比对 D${threePrevDay}、D${prevPrevDay}、D${prevDay} 三轮高票存活者模式：
+  路径A - 三夜相同目标：confidence 降 35-45（铁好人候选，被狼三夜持续针对）
+  路径B - 两夜相同目标（第三夜不同）：共同目标降 25-35；独立目标按单夜标准降 10-15
+  路径C - 三夜各不相同：三人分别按单夜标准评估（各降 10-15）
+- identity_table 追加：高票存活者 reason 加"N${threePrevDay}+N${prevPrevDay}+N${prevDay}三连平安夜：[路径A/B/C]分析"\n`
+                : '';
             const consecutivePeaceHintVillager = isConsecutivePeacefulVillager
-                ? `⭕【两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 只说"连续平安夜，持续分析局势"）】
+                ? `${tripleConsecutivePeaceHintVillager}⭕【两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 只说"连续平安夜，持续分析局势"）】
 - 连续两夜平安夜 → 守卫极可能在连守同一目标，或好人防御资源持续有效拦截
 - 比对 D${prevPrevDay} 和 D${prevDay} 投票记录中票压最高的存活玩家：
   · 两夜高票存活者相同 → 同一目标被重点保护，identity_table 该玩家 confidence 降 25-35（核心好人，被狼持续针对）
