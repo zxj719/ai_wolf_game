@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats } from '../localBoard';
+import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats, loadPrevPrepStats } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -687,7 +687,7 @@ describe('savePrepHistory / loadLastPrepStats', () => {
     expect(loadLastPrepStats('诚', 'Elza')).toEqual({ sta: 60, skill: 70, mind: 55 });
   });
 
-  it('多次保存后只保留最新一条（覆盖写）', () => {
+  it('多次保存后 loadLastPrepStats 返回最新一条', () => {
     savePrepHistory('诚', 'Elza', { sta: 60, skill: 70, mind: 55 });
     savePrepHistory('诚', 'Elza', { sta: 65, skill: 72, mind: 58 });
     expect(loadLastPrepStats('诚', 'Elza')).toEqual({ sta: 65, skill: 72, mind: 58 });
@@ -711,5 +711,50 @@ describe('savePrepHistory / loadLastPrepStats', () => {
     savePrepHistory('诚', 'Elza', { sta: 60, skill: 70, mind: 55 });
     expect(loadLastPrepStats('诚', 'Ross')).toBeNull();
     expect(loadLastPrepStats('菲比', 'Elza')).toBeNull();
+  });
+});
+
+describe('loadPrevPrepStats', () => {
+  const KEY = 'tennis_prep_history_v1';
+  beforeEach(() => { try { localStorage.removeItem(KEY); } catch { /* noop */ } });
+  afterEach(() => { try { localStorage.removeItem(KEY); } catch { /* noop */ } });
+
+  it('无记录时返回 null', () => {
+    expect(loadPrevPrepStats('诚', 'Elza')).toBeNull();
+  });
+
+  it('仅一次保存时返回 null（无"上上次"）', () => {
+    savePrepHistory('诚', 'Elza', { sta: 60, skill: 70, mind: 55 });
+    expect(loadPrevPrepStats('诚', 'Elza')).toBeNull();
+  });
+
+  it('两次保存后返回第一次的数据', () => {
+    savePrepHistory('诚', 'Elza', { sta: 60, skill: 70, mind: 55 });
+    savePrepHistory('诚', 'Elza', { sta: 65, skill: 72, mind: 58 });
+    expect(loadPrevPrepStats('诚', 'Elza')).toEqual({ sta: 60, skill: 70, mind: 55 });
+  });
+
+  it('三次保存后返回第二次的数据（只记录一层 previous）', () => {
+    savePrepHistory('诚', 'Elza', { sta: 60, skill: 70, mind: 55 });
+    savePrepHistory('诚', 'Elza', { sta: 65, skill: 72, mind: 58 });
+    savePrepHistory('诚', 'Elza', { sta: 70, skill: 75, mind: 62 });
+    expect(loadLastPrepStats('诚', 'Elza')).toEqual({ sta: 70, skill: 75, mind: 62 });
+    expect(loadPrevPrepStats('诚', 'Elza')).toEqual({ sta: 65, skill: 72, mind: 58 });
+  });
+
+  it('不同玩家互不干扰', () => {
+    savePrepHistory('诚', 'Elza', { sta: 60, skill: 70, mind: 55 });
+    savePrepHistory('诚', 'Elza', { sta: 65, skill: 72, mind: 58 });
+    savePrepHistory('菲比', 'Elza', { sta: 50, skill: 80, mind: 60 });
+    savePrepHistory('菲比', 'Elza', { sta: 55, skill: 82, mind: 63 });
+    expect(loadPrevPrepStats('诚', 'Elza')).toEqual({ sta: 60, skill: 70, mind: 55 });
+    expect(loadPrevPrepStats('菲比', 'Elza')).toEqual({ sta: 50, skill: 80, mind: 60 });
+  });
+
+  it('未保存的组合返回 null', () => {
+    savePrepHistory('诚', 'Elza', { sta: 60, skill: 70, mind: 55 });
+    savePrepHistory('诚', 'Elza', { sta: 65, skill: 72, mind: 58 });
+    expect(loadPrevPrepStats('诚', 'Ross')).toBeNull();
+    expect(loadPrevPrepStats('菲比', 'Elza')).toBeNull();
   });
 });

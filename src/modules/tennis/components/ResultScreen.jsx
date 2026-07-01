@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ENDINGS, CHAR_QUOTES, rand } from '../gameData';
 import { MOVES, COUNTER_QUIPS } from '../battle/moves';
-import { saveLocalRecord, loadLocalRecords, computeStreakCount, computeWeeklyChamp } from '../localBoard';
+import { saveLocalRecord, loadLocalRecords, computeStreakCount, computeWeeklyChamp, loadPrevPrepStats } from '../localBoard';
 import { getPostMatchCommentary } from '../commentary';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
@@ -124,6 +124,17 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
     return `${name} 今日${dominant}见长（${val}），下次备战可优先加点${adviceAttr}`;
   }, [o]);
 
+  // 较上次备战同一对手的属性增减（需至少两次对该对手的完整备战周期）
+  const prepGrowthData = useMemo(() => {
+    const prev = loadPrevPrepStats(p.name, o.name);
+    if (!prev) return null;
+    return {
+      dSta: p.sta - prev.sta,
+      dSkill: p.skill - prev.skill,
+      dMind: p.mind - prev.mind,
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     // StrictMode 下 effect 会跑两次，ref 去重避免一局记两条
     if (recordedRef.current) return;
@@ -164,6 +175,22 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
         <div className="opp-stats-hint">
           {o.face} {o.name} 属性：体力 {o.sta} · 技巧 {o.skill} · 心态 {o.mind}
         </div>
+        {prepGrowthData && (
+          <div className="prep-growth-hint">
+            较上次备战 {o.name}：
+            <span className={prepGrowthData.dSta > 0 ? 'pg-up' : prepGrowthData.dSta < 0 ? 'pg-down' : 'pg-eq'}>
+              体力 {prepGrowthData.dSta > 0 ? '+' : ''}{prepGrowthData.dSta}
+            </span>
+            {' · '}
+            <span className={prepGrowthData.dSkill > 0 ? 'pg-up' : prepGrowthData.dSkill < 0 ? 'pg-down' : 'pg-eq'}>
+              技巧 {prepGrowthData.dSkill > 0 ? '+' : ''}{prepGrowthData.dSkill}
+            </span>
+            {' · '}
+            <span className={prepGrowthData.dMind > 0 ? 'pg-up' : prepGrowthData.dMind < 0 ? 'pg-down' : 'pg-eq'}>
+              心态 {prepGrowthData.dMind > 0 ? '+' : ''}{prepGrowthData.dMind}
+            </span>
+          </div>
+        )}
         {playerWon && winStreak >= 2 && (
           <div style={{ textAlign: 'center', marginTop: 10 }}>
             <span className={`ladder-streak${winStreak >= 5 ? ' streak-gold' : winStreak >= 3 ? ' streak-pulse' : ''}`}>

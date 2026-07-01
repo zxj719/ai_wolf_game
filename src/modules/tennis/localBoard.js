@@ -269,25 +269,46 @@ function loadPrepHistoryStore() {
 }
 
 /**
- * 保存某玩家对某对手最近一次备战结束后的体力/技巧/心态快照。
- * 每个 playerName×oppName 组合只保留最新一条（覆盖写入）。
+ * 保存某玩家对某对手最近一次备战结束后的属性快照。
+ * 格式：{ current: { sta, skill, mind }, previous: { sta, skill, mind } | null }
+ * 每次保存时，将原 current 移到 previous，实现"上一次 vs 本次"对比。
+ * 兼容旧格式（R111 存的 { sta, skill, mind }）：自动迁移为 previous。
  */
 export function savePrepHistory(playerName, oppName, { sta, skill, mind }) {
   const h = loadPrepHistoryStore();
   if (!h[playerName]) h[playerName] = {};
-  h[playerName][oppName] = { sta, skill, mind };
+  const existing = h[playerName][oppName];
+  // existing.current 为新格式；existing.sta 说明是旧格式，直接当 previous
+  const prevCurrent = existing
+    ? (existing.current ?? existing)
+    : null;
+  h[playerName][oppName] = { current: { sta, skill, mind }, previous: prevCurrent };
   try {
     store.setItem(PREP_HISTORY_KEY, JSON.stringify(h));
   } catch { /* 隐私模式等场景静默 */ }
 }
 
 /**
- * 读取某玩家上次对某对手备战完成时的属性快照。
+ * 读取某玩家对某对手最近一次完成备战时的属性快照（本次对局的备战结果）。
+ * 同时兼容旧格式（R111）{ sta, skill, mind } 和新格式 { current, previous }。
  * 无记录时返回 null。
  */
 export function loadLastPrepStats(playerName, oppName) {
   const h = loadPrepHistoryStore();
-  return h[playerName]?.[oppName] ?? null;
+  const entry = h[playerName]?.[oppName] ?? null;
+  if (!entry) return null;
+  return entry.current ?? entry; // 新格式取 current；旧格式直接返回
+}
+
+/**
+ * 读取某玩家对某对手"上上次"完成备战时的属性快照（用于结算屏「较上次备战」对比）。
+ * 仅在至少经历过两次对该对手备战后才有数据。
+ * 无记录时返回 null。
+ */
+export function loadPrevPrepStats(playerName, oppName) {
+  const h = loadPrepHistoryStore();
+  const entry = h[playerName]?.[oppName] ?? null;
+  return entry?.previous ?? null;
 }
 
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */

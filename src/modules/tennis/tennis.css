@@ -293,6 +293,10 @@
 .tennis-scope .ending-hero .comment { max-width: 520px; margin: 14px auto 0; color: var(--muted); line-height: 1.7; }
 .tennis-scope .ending-hero .post-match-comment { max-width: 520px; margin: 10px auto 0; font-size: .9rem; color: var(--accent); font-style: italic; line-height: 1.6; text-align: center; }
 .tennis-scope .ending-hero .opp-stats-hint { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-top: 5px; letter-spacing: .02em; opacity: .82; }
+.tennis-scope .ending-hero .prep-growth-hint { font-family: var(--mono); font-size: .66rem; color: var(--muted); margin-top: 4px; text-align: center; letter-spacing: .02em; }
+.tennis-scope .pg-up { color: #86efac; font-weight: 700; }
+.tennis-scope .pg-down { color: #f87171; font-weight: 700; }
+.tennis-scope .pg-eq { color: var(--muted); }
 
 /* 战报面板 */
 .tennis-scope .report { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 2px solid var(--court); border-radius: 14px; overflow: hidden; margin-top: 18px; }
