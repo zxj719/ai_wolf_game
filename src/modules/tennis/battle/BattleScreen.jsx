@@ -265,6 +265,25 @@ function RallyLog({ state }) {
   );
 }
 
+/** 非关键分读招教练：对手已用某招 ≥2 次时低调提示克制招。关键分由 CrisisHint 接管，两者互斥。 */
+function OppCoachHint({ matchStats, score, phase }) {
+  if (phase !== 'cards' || isKeyPoint(score)) return null;
+  const usage = matchStats?.oppMoveUsage ?? {};
+  const top = Object.entries(usage).sort((a, b) => b[1] - a[1])[0];
+  if (!top || top[1] < 2) return null;
+  const [moveId, count] = top;
+  const counter = COUNTER_FOR[moveId];
+  if (!counter) return null;
+  return (
+    <div className="bt-coach-hint">
+      <span className="bt-coach-icon">🎯</span>
+      <span className="bt-coach-text">
+        对手惯用「{MOVES[moveId]?.name}」(×{count})，出「{MOVES[counter]?.name}」可克制
+      </span>
+    </div>
+  );
+}
+
 /** 关键分读招提示：仅在 isKeyPoint + cards 阶段 + 对手已用某招 ≥2 次时显示 */
 function CrisisHint({ matchStats, score, phase }) {
   if (phase !== 'cards' || !isKeyPoint(score)) return null;
@@ -435,6 +454,7 @@ export function BattleScreen({
             {state.activeUltimate && (
               <div className="bt-ult-armed">⚡ 绝技已就绪 —— 本球生效！</div>
             )}
+            <OppCoachHint matchStats={state.matchStats} score={state.score} phase={state.phase} />
             <CrisisHint matchStats={state.matchStats} score={state.score} phase={state.phase} />
             <HandCards deck={state.deck} onPlay={(idx) => dispatch({ type: 'PLAY_CARD', idx })} />
             <MovePicker

@@ -482,6 +482,13 @@
 }
 .tennis-scope .bt-crisis-icon { font-size: 1rem; flex-shrink: 0; }
 .tennis-scope .bt-crisis-text { font-size: .72rem; color: var(--optic); font-weight: 600; line-height: 1.4; }
+.tennis-scope .bt-coach-hint {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 9px; margin-bottom: 8px; border-radius: 6px;
+  background: rgba(103,232,249,.06); border: 1px solid rgba(103,232,249,.18);
+}
+.tennis-scope .bt-coach-icon { font-size: .85rem; flex-shrink: 0; }
+.tennis-scope .bt-coach-text { font-size: .68rem; color: rgba(103,232,249,.80); line-height: 1.4; }
 .tennis-scope .bt-card-cost {
   position: absolute; top: -8px; left: -8px; width: 22px; height: 22px; border-radius: 50%;
   background: var(--court); color: var(--optic); font-family: var(--mono); font-weight: 700;
