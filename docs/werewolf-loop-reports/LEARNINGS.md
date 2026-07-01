@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-07-01 Round 96] 猎人开枪增加前轮投票票压参考（感知-执行分裂修复 · 双文件改动）
+
+- **完成状态**：`useDayFlow.js` `handleAIHunterShoot` 新增票压摘要注入：取 `voteHistory` 最新一条，过滤 `ABSTAIN_TARGET` 和 `aliveTargets` 后，降序取 Top-3 存活高票目标，以 `【D${day}票压】X号(n票) > Y号(m票)` 格式追加到 `hunterContext`。`aiPrompts.js` `hunterHistoryStep` 升级为"Step 0 读取历史候选 + 前轮票压参考"，明确要求与"开枪优先级：高"重叠者 confidence 提升 15-25。
+- **voteHistory 键格式（R96-A）**：`recordVoteRound` 存储时将 `voterId/targetId` 映射为 `from/to`（`votes.map(v => ({ from: v.voterId, to: v.targetId }))`），所以 R96 过滤逻辑必须用 `v.to !== ABSTAIN_TARGET` 而非 `v.targetId`。**通用规则：读取 voteHistory 时始终用 `from/to` 键；`voterId/targetId` 只在 buildVoteRecord 函数的中间值中出现**。
+- **"取最新一轮"设计（R96-B）**：`voteHistory[voteHistory.length - 1]` 覆盖两种猎人死亡场景——死于投票（当天 D${n} 已记录，票压显示当天格局）和死于夜间（最新为 D${n-1}，票压显示上一天格局）。若取 `dayCount - 1` 寻找特定日期，在第一天猎人死亡时会找不到记录；取最新一条更健壮。
+- **测试 r96Block 窗口（R96-C）**：R96 代码从注释到 hunterContext 模板字面量约 800 chars。初始设 700 chars 时 T8 失败（模板字面量恰好被截断）；扩展至 900 chars 全通过。**规则：含模板字面量的代码块，测试窗口应≥代码块估算长度 × 1.2**。
+- **白熊效应合规（第 17 次验证）**：hunterHistoryStep 新增内容全正向描述（"高票存活者是好人阵营持续怀疑的对象"/"confidence 可提升 15-25"），无负向禁词 ✅（T17 测试覆盖）。
+- **测试**：1614/1614（+20 new R96 tests T1-T20；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅；干跑逻辑验证 ✅。
+
+---
+
 ### [2026-07-01 Round 95] 女巫 witchAntidoteHint hasWitchSave=true 路径A细化 — 模糊语义→可触发双信号框架
 
 - **完成状态**：`aiPrompts.js` `witchAntidoteHint` 的 `hasWitchSave=true` 分支从静态字符串升级为模板字面量 + 双信号框架：① 后续出现非平安夜且连守目标死亡（守卫换守失效）；② 票压最高存活者换人（连守节奏被打破）。同时新增 identity_table 追加指导（"守卫D${prevPrevDay}-D${prevDay}双轮连守，候选保护期，待①②信号出手"），与 DAY_SPEECH 读写闭环对齐。同步更新 round92 T18 中的旧文本匹配。

@@ -452,6 +452,25 @@ export function useDayFlow({
       hunterContext += `【今日发言】${recentSpeeches}\n`;
     }
 
+    // R96: 前轮投票票压摘要（供猎人交叉参考存活高危目标，与 identity_table "开枪优先级：高" 重叠者优先级提升）
+    if (voteHistory && voteHistory.length > 0) {
+      const latestVote = voteHistory[voteHistory.length - 1];
+      if (latestVote.votes && latestVote.votes.length > 0) {
+        const voteCountMap = {};
+        latestVote.votes.forEach(v => {
+          if (v.to !== ABSTAIN_TARGET && aliveTargets.includes(v.to)) {
+            voteCountMap[v.to] = (voteCountMap[v.to] || 0) + 1;
+          }
+        });
+        const sortedVotePressure = Object.entries(voteCountMap)
+          .sort((a, b) => Number(b[1]) - Number(a[1]))
+          .slice(0, 3);
+        if (sortedVotePressure.length > 0) {
+          hunterContext += `【D${latestVote.day}票压】${sortedVotePressure.map(([id, n]) => `${id}号(${n}票)`).join(' > ')}\n`;
+        }
+      }
+    }
+
     // BT 决策：优先走 ECS BT Server，降级到本地 BT，再降级到 LLM
     const _hunterGameState = { players: currentPlayers, speechHistory, voteHistory: [], seerChecks, dayCount };
     const _hunterBT = await btDecide(hunter, 'HUNTER_SHOOT', _hunterGameState, { validTargets: aliveTargets });

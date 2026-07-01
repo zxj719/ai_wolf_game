@@ -2388,7 +2388,8 @@ ${voteStyleHint}
              const { aliveTargets, hunterContext } = params;
              const hunterExistingRoles = detectExistingRoles(players);
              // 读写闭环：读取 DAY_SPEECH 历史中积累的开枪优先候选（R38/R39/R40 同构模式）
-             const hunterHistoryStep = '0. 【读取历史开枪候选】先查看系统提示中【你之前的身份推理表】：哪些玩家 reason 含"开枪优先级：高"？这是你日间积累的高嫌疑候选（注：预言家查杀信息优先于此；已死亡目标跳过）';
+             // R96: 读取历史候选 + 前轮票压参考（感知-执行分裂修复：voteHistory 注入 hunterContext 后，Step 0 显式使用）
+             const hunterHistoryStep = '0. 【读取历史开枪候选 + 前轮票压参考】先查看系统提示中【你之前的身份推理表】：哪些玩家 reason 含"开枪优先级：高"？这是你日间积累的高嫌疑候选（注：预言家查杀信息优先于此；已死亡目标跳过）。再参考上方【票压】摘要（若有）：高票存活者是好人阵营持续怀疑的对象，与"开枪优先级：高"重叠者 confidence 可提升 15-25';
              const hunterStrategies = [];
              if (hunterExistingRoles.hasSeer) {
                  hunterStrategies.push('优先带走被预言家"查杀"的玩家');
