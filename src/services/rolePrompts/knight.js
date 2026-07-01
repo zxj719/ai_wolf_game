@@ -258,7 +258,7 @@ Step5: 投票倾向（如果未决斗）
 - 行为中立玩家：正常记录推断，不加"决斗候选"标签
 - 已决斗出局目标：reason 追加"→已决斗出局"
 - 候选已出局更新：追加"→已投票出局（好人方向一致）"（路径B）或"→已被狼击杀（铁好人确认）"（路径C）；新候选找到后追加"→重启决斗候选：[优先级A/B/C]，[新依据]"
-- 领袖期核心目标（Step0.5 执行后）：在本轮核心目标玩家的 reason 追加"D${ctx.dayCount}领袖指令：[战略A/B/C]，[说明]"（供下轮阅读领袖行动历史）
+- 领袖期核心目标（Step0.5 执行后）：在本轮核心目标玩家的 reason 追加"D${ctx.dayCount}领袖指令：[战略A/B/C]，[说明]"（供 DAY N+1 Step0 ④ 读取，read-write 闭环）
 - **追加不覆盖历史**：每轮在上轮 reason 基础上追加本轮新观察（用分号拼接），不覆盖历史积累
 
 输出JSON:{\"thought\":\"完整的6步思维链（含Step0读历史）\",\"speech\":\"发言内容(${knightSpeechLen})\",\"shouldDuel\":true/false,\"duelTarget\":数字或null,\"duelReason\":\"决斗理由（如果shouldDuel=true）\",\"confidence\":0-100,\"voteIntention\":数字或-1,\"identity_table\":{\"玩家号\":{\"suspect\":\"角色\",\"confidence\":0-100,\"reason\":\"依据\"}}}`;

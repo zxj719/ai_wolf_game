@@ -1746,8 +1746,24 @@ ${playerRole === '狼人'
             const prevPrevNightGuardTarget = isConsecutivePeacefulNightGuard
                 ? (gameState.guardHistory?.find(g => g.night === guardNightPrevPrevDay)?.targetId ?? null)
                 : null;
+            // R97: NIGHT 侧三连平安夜三阶推断（对称 R94 两连推断；三夜模式识别，精度更高）
+            const isTripleConsecutivePeacefulNightGuard = ctx.dayCount >= 4 && isConsecutivePeacefulNightGuard &&
+                ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
+            const guardNightThreePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+            const threeNightGuardTarget = isTripleConsecutivePeacefulNightGuard
+                ? (gameState.guardHistory?.find(g => g.night === guardNightThreePrevDay)?.targetId ?? null)
+                : null;
+            const tripleConsecutivePeaceNightHintGuard = (isTripleConsecutivePeacefulNightGuard && cannotGuard !== null)
+                ? `⭕【守卫三连平安夜 NIGHT 三阶推断（N${guardNightThreePrevDay}+N${guardNightPrevPrevDay}+N${guardNightPrevDay}均平安；thought 中完成）】
+- 三连平安夜极低概率事件，强推论：守卫连续成功拦截狼刀，OR 狼人因守护压力已改变刀口策略
+- 查三夜守护记录：N${guardNightThreePrevDay}守${threeNightGuardTarget !== null ? threeNightGuardTarget + '号' : '无（空守）'}；N${guardNightPrevPrevDay}守${prevPrevNightGuardTarget !== null ? prevPrevNightGuardTarget + '号' : '无'}；N${guardNightPrevDay}守${cannotGuard}号（已禁连守）
+- 路径A - 三夜锁守同目标（N${guardNightThreePrevDay}=N${guardNightPrevPrevDay}=${cannotGuard}号）：连守三次平安近确定性拦截；今晚因禁连守被迫切换 → 选次高优先候选，同时警惕狼人趁切换补刀
+- 路径B - 三夜中有两夜守同目标（A+A+B或A+B+A或B+A+A格局）：高频目标 confidence 升 30-40；结合下方二阶推断综合今晚最优选择
+- 路径C - 三夜全不同目标：轮守策略有效；用票压交叉验证三夜各目标存活率，选 confidence 最高未守过者
+- identity_table 追加：三夜守护目标 reason 各追加"N${guardNightThreePrevDay}-N${guardNightPrevPrevDay}-N${guardNightPrevDay}三连平安：[路径A锁守/路径B高频/路径C轮守]"\n`
+                : '';
             const consecutivePeaceNightHintGuard = (isConsecutivePeacefulNightGuard && cannotGuard !== null)
-                ? `⭕【守卫两连平安夜 NIGHT 二阶推断（N${guardNightPrevPrevDay}+N${guardNightPrevDay}均平安；thought 中完成）】
+                ? `${tripleConsecutivePeaceNightHintGuard}⭕【守卫两连平安夜 NIGHT 二阶推断（N${guardNightPrevPrevDay}+N${guardNightPrevDay}均平安；thought 中完成）】
 - 连续两夜平安夜 → 守卫持有 N${guardNightPrevPrevDay} 和 N${guardNightPrevDay} 两夜守护记录（零间接推断，精度最高）
 - 查守护记录：N${guardNightPrevPrevDay}夜守了${prevPrevNightGuardTarget !== null ? prevPrevNightGuardTarget + '号' : '无（空守）'}，N${guardNightPrevDay}夜守了${cannotGuard}号
 - 路径A - 连守同一目标（两夜均守${cannotGuard}号）：两次平安夜同目标=拦截可信度极高；

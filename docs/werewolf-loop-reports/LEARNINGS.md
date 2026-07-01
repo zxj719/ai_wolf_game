@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-07-01 Round 97] 守卫 NIGHT 三连平安夜三阶推断（isTripleConsecutivePeacefulNightGuard + tripleConsecutivePeaceNightHintGuard）+ 骑士写指导格式统一
+
+- **完成状态**：`aiPrompts.js` NIGHT_GUARD case 新增四个变量：① `isTripleConsecutivePeacefulNightGuard`（`ctx.dayCount >= 4 && isConsecutivePeacefulNightGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② `guardNightThreePrevDay`（`ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0`）；③ `threeNightGuardTarget`（`gameState.guardHistory?.find(g => g.night === guardNightThreePrevDay)?.targetId ?? null`，零间接推断）；④ `tripleConsecutivePeaceNightHintGuard`（三元表达式，路径A=三夜锁守/路径B=两夜高频/路径C=三夜全不同，`confidence 升 30-40`）。注入方式：`consecutivePeaceNightHintGuard` 正值分支前置 `${tripleConsecutivePeaceNightHintGuard}` 拼接（前置注入模式第 12 次应用）。`knight.js` 写指导从"供下轮阅读领袖行动历史"改为"供 DAY N+1 Step0 ④ 读取，read-write 闭环"（自文档化）。
+- **梯度推断层级闭合（R97-A）**：守卫平安夜推断 R85（单夜）→ R94（两连）→ R97（三连）三层梯度完整。三连激活时三层推断叠加，精度最高。**通用规律：平安夜推断系列应按"单夜→两连→三连"顺序逐步扩展；每层的激活条件是前一层的超集，高层激活时 AI 获得全部层级叠加，无需在高层复述低层内容（低层已在下方呈现）**。
+- **路径B阈值高于两连（R97-B）**：三连推断路径B的 `confidence 升 30-40`（高于两连路径A的 25-35）。**设计原则：三夜中出现同目标两次比两夜连守同目标的统计意义更强（更高频次=更强证据），confidence 阈值相应提高 5**；这是"证据权重随观测次数正比例增长"原则的自然应用。
+- **窗口更新规律（R97-C，第 4 次应用 NIGHT_GUARD 窗口规则）**：NIGHT_GUARD block 从 6181 → 7761 chars（+1580 chars），round73/round85/round94 的 `getNightGuardBlock()` 窗口从 6500 → 8500；round85 T19 上限 6500 → 8500；round94 T18 范围 5700-6500 → 7000-8500。**检测命令：`` node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.NIGHT_GUARD: {'); const b=s.indexOf('case PROMPT_ACTIONS.NIGHT_MAGICIAN:',a); console.log('NIGHT_GUARD size:',b-a)" ``；任何 NIGHT_GUARD 新增代码后必须运行此命令，若超过当前三个测试文件的窗口（当前 8500），立即全部更新**。
+- **白熊效应合规（第 18 次验证）**：路径A/B/C 全正向描述，无负向禁词 ✅（T17 测试覆盖）。
+- **测试**：1640/1640（+20 new R97 tests T1-T20；+round73/85/94 窗口修复；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅；check-build ✅；干跑 26/26 ✅。
+
+---
+
 ### [2026-07-01 Round 96] 猎人开枪增加前轮投票票压参考（感知-执行分裂修复 · 双文件改动）
 
 - **完成状态**：`useDayFlow.js` `handleAIHunterShoot` 新增票压摘要注入：取 `voteHistory` 最新一条，过滤 `ABSTAIN_TARGET` 和 `aliveTargets` 后，降序取 Top-3 存活高票目标，以 `【D${day}票压】X号(n票) > Y号(m票)` 格式追加到 `hunterContext`。`aiPrompts.js` `hunterHistoryStep` 升级为"Step 0 读取历史候选 + 前轮票压参考"，明确要求与"开枪优先级：高"重叠者 confidence 提升 15-25。
