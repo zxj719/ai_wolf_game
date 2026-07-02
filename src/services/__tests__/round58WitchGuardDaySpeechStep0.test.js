@@ -22,7 +22,7 @@ const src = readFileSync(path.join(__dirname, '../aiPrompts.js'), 'utf8');
 // 女巫 DAY_SPEECH 函数（ROLE_DAY_SPEECH_PROMPTS 中的 '女巫' 条目）
 // lastIndexOf 排除 ROLE_STRATEGY_PROMPTS 中的 '女巫': (isFirstDay,...) 条目
 const witchFuncMarkerIdx = src.lastIndexOf("'女巫': (ctx, params) => {");
-const witchFuncBlock = src.slice(witchFuncMarkerIdx, witchFuncMarkerIdx + 6000); // R92: window expanded from 4500 (witch var block grew ~825 chars from isConsecutivePeacefulWitch + consecutivePeaceHintWitch)
+const witchFuncBlock = src.slice(witchFuncMarkerIdx, witchFuncMarkerIdx + 7500); // R105: window expanded from 6000 (witch var block grew ~891 chars from isTripleConsecutivePeacefulWitch + tripleConsecutivePeaceHintWitch; 输出JSON: now at ~6588)
 
 // 守卫 DAY_SPEECH 函数（ROLE_DAY_SPEECH_PROMPTS 中的 '守卫' 条目）
 const guardFuncMarkerIdx = src.lastIndexOf("'守卫': (ctx, params) => {");

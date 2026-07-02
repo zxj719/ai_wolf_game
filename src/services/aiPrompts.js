@@ -1245,16 +1245,28 @@ Step4: 绝不能投金水！voteIntention 必须指向狼人或最可疑的人
         const isPeacefulNightWitch = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
         // R92：连续两夜平安夜检测（女巫：结合救药双轨，精度高于单夜推断）
         const isConsecutivePeacefulWitch = ctx.dayCount >= 3 && isPeacefulNightWitch && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+        // R105：三连平安夜检测（D4+，守卫连守三夜极高概率）
+        const isTripleConsecutivePeacefulWitch = ctx.dayCount >= 4 && isConsecutivePeacefulWitch && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
         let witchPeaceNightStep = '';
         if (isPeacefulNightWitch) {
             const prevDay = ctx.dayCount - 1;
             const prevPrevDay = ctx.dayCount - 2;
+            // R105：三连推断变量（零推断——依赖票压代理，无 guardHistory 直读）
+            const threePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+            const tripleConsecutivePeaceHintWitch = isTripleConsecutivePeacefulWitch
+                ? `⭕【女巫三连平安夜三阶推断（N${threePrevDay}+N${prevPrevDay}+N${prevDay}均无死亡）】
+- 对比 D${threePrevDay}、D${prevPrevDay}、D${prevDay} 高票存活者：
+  - 路径A（三夜相同）：守卫三夜锁守该目标，confidence 升 35-45；解药待①②双信号出手
+  - 路径B（两夜相同+一夜不同）：守卫高频连守，该高频目标 confidence 升 30-40；另一夜独立单夜评估
+  - 路径C（三夜各不同）：守卫轮守无固定模式，按单夜路径A/B独立评估
+- identity_table 追加"D${threePrevDay}-D${prevPrevDay}-D${prevDay}三连平安夜：[路径A锁守/路径B高频/路径C轮守]，confidence 升 35-45/30-40/按单夜"\n`
+                : '';
             // R95：hasWitchSave=true 分支细化——从"保留到关键时机"升级为可触发的双信号框架
             const witchAntidoteHint = hasWitchSave
                 ? `解药未动，两连平安夜=守卫极可能连守同一目标（D${prevPrevDay}+D${prevDay}，confidence ≥ 95%）——今晚继续储药。出手触发信号：① 后续出现非平安夜且连守目标死亡（守卫换守失效）；② 票压最高存活者换人（连守节奏被打破）。identity_table 将 D${prevDay} 高票存活者 reason 追加"守卫D${prevPrevDay}-D${prevDay}双轮连守，候选保护期，待①②信号出手"`
                 : `解药已用且两连平安夜——对比 savedIds 末位与 D${prevPrevDay} 高票存活者：若一致则 confidence 升至 90-95（双重验证锁定）；若不同则两道防线各自独立`;
             const consecutivePeaceHintWitch = isConsecutivePeacefulWitch
-                ? `⭕【女巫连续两夜平安夜二阶推断（thought 中完成）】
+                ? `${tripleConsecutivePeaceHintWitch}⭕【女巫连续两夜平安夜二阶推断（thought 中完成）】
 - 对比 D${prevPrevDay} 和 D${prevDay} 的高票存活者是否为同一玩家：
   - 路径A（相同）：守卫极可能连守同一目标；该玩家 confidence 升 25-35（好人最重点保护对象）
   - 路径B（不同）：狼人尝试不同刀口——两夜高票存活者 confidence 均下调 10-15（好人可能性各升）
