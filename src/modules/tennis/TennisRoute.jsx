@@ -384,6 +384,9 @@ export default function TennisRoute() {
               ultimate={activeUltimate}
               equip={equipBonus}
               onMatchOver={onSingleMatchOver}
+              isFirstMatch={!localRecords.some(
+                (r) => r.p === state.player.name && r.o === state.opp.name,
+              )}
             />
           </section>
         )}

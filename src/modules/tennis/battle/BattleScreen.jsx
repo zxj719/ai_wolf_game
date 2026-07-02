@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { MOVES, ULTIMATES, COUNTER_QUIPS } from './moves';
+import { MOVES, ULTIMATES, COUNTER_QUIPS, CHAR_BUILDS, COUNTER_PAIRS } from './moves';
 import { CARDS } from './cards';
 import { createBattle, battleReducer } from './battleReducer';
 import { pointLabel, isKeyPoint } from './scoring';
@@ -336,12 +336,36 @@ function DefensePressure({ countersWon, counterLost }) {
   );
 }
 
+/** 首局迎新辅助：首次对战某对手时，在第 1 球 cards 阶段提前告知克制招，无需等对手先出 2 次。 */
+function FirstMatchHint({ opponent, playerMoves }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  const oppMoves = CHAR_BUILDS[opponent.name]?.moves ?? [];
+  let counter = null, victim = null;
+  for (const [c, v] of COUNTER_PAIRS) {
+    if (playerMoves.includes(c) && oppMoves.includes(v)) { counter = c; victim = v; break; }
+  }
+  if (!counter) return null;
+  const statLabel = { sta: '体力 💪', skill: '技巧 🎯', mind: '心态 🧘' };
+  const attr = statLabel[MOVES[counter].stat] ?? MOVES[counter].stat;
+  return (
+    <div className="bt-first-match-hint">
+      <span className="bt-fmh-badge">🆕 初次对战</span>
+      <span className="bt-fmh-text">
+        出「{MOVES[counter].name}」可克制 {opponent.face}{opponent.name} 惯用的「{MOVES[victim].name}」——{attr}越强克制效果越佳
+      </span>
+      <button type="button" className="bt-fmh-close" onClick={() => setDismissed(true)} aria-label="关闭">×</button>
+    </div>
+  );
+}
+
 /**
  * @param {{player, opponent, deckInstances, ultimate?, twists?, equip?, playerMoves,
+ *          isFirstMatch?: boolean,
  *          onMatchOver: (result: {score, matchStats}) => void}} props
  */
 export function BattleScreen({
-  player, opponent, deckInstances, ultimate, twists, equip, playerMoves, onMatchOver,
+  player, opponent, deckInstances, ultimate, twists, equip, playerMoves, isFirstMatch, onMatchOver,
 }) {
   const [state, dispatch] = useReducer(
     battleReducer,
@@ -453,6 +477,9 @@ export function BattleScreen({
           <>
             {state.activeUltimate && (
               <div className="bt-ult-armed">⚡ 绝技已就绪 —— 本球生效！</div>
+            )}
+            {isFirstMatch && state.rallyCount === 1 && (
+              <FirstMatchHint opponent={opponent} playerMoves={playerMoves} />
             )}
             <OppCoachHint matchStats={state.matchStats} score={state.score} phase={state.phase} />
             <CrisisHint matchStats={state.matchStats} score={state.score} phase={state.phase} />
