@@ -995,12 +995,25 @@ const ROLE_DAY_SPEECH_PROMPTS = {
         // R88：两连平安夜二阶战术推断检测（D3+适用）
         const isConsecutivePeacefulWolf = ctx.dayCount >= 3 && isPeacefulNightWolf &&
             ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+        // R103：三连平安夜三阶战术推断检测（D4+适用）
+        const isTripleConsecutivePeacefulWolf = ctx.dayCount >= 4 && isConsecutivePeacefulWolf &&
+            ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
         let wolfPeaceNightStep = '';
         if (isPeacefulNightWolf) {
             const prevDay = ctx.dayCount - 1;
             const prevPrevDay = ctx.dayCount - 2;
+            const threePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+            const tripleConsecutivePeaceHintWolf = isTripleConsecutivePeacefulWolf
+                ? `⭕【狼人三连平安夜三阶战术推断（N${threePrevDay}+N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 按 Step0 叙事预案自然应对）】
+- 查 identity_table 中"→已N${threePrevDay}夜行刀"/"→已N${prevPrevDay}夜行刀"/"→已N${prevDay}夜行刀"标记，直接读取三夜刀口目标（零间接推断）：
+  路径A - 三夜刀口相同：守卫极大概率固定连守该目标，刀成功率接近零 → 换刀 confidence 升 35-45；今晚必须换次高威胁目标
+  路径B - 两夜刀口相同+一夜不同：重复刀口目标连守概率极高 → 换刀 confidence 升 25-35；独立刀口按单夜路径A/B独立评估
+  路径C - 三夜各不同目标：守卫随机轮守，无规律可循 → 按单夜路径A/B独立评估昨夜刀口被守概率
+- 资源损耗升级评估：三连平安夜女巫解药极可能仍完整（守卫三夜全覆盖）→ 今夜刀口同时需规避守卫高频目标和女巫保护范围
+- identity_table 追加：守卫/女巫玩家 reason 追加"N${threePrevDay}+N${prevPrevDay}+N${prevDay}三连平安夜：[路径A/B/C]防御格局"\n`
+                : '';
             const consecutivePeaceHintWolf = isConsecutivePeacefulWolf
-                ? `⭕【狼人两连平安夜二阶战术推断（thought 中完成；speech 按 Step0 叙事预案自然应对）】
+                ? `${tripleConsecutivePeaceHintWolf}⭕【狼人两连平安夜二阶战术推断（thought 中完成；speech 按 Step0 叙事预案自然应对）】
 - 连续两夜平安夜（N${prevPrevDay}/N${prevDay}）→ 好人防御资源持续有效拦截，高危局面
 - 查 identity_table 中"→已N${prevPrevDay}夜行刀"和"→已N${prevDay}夜行刀"标记：
   · 两夜刀口相同 → 守卫极大概率在连守该目标，下夜刀成功率极低 → 必须换刀，优先选守卫预测盲区的次优目标

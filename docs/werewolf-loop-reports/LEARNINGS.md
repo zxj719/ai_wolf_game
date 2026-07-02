@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-02 Round 103] Wolf DAY_SPEECH 三连平安夜三阶战术推断（isTripleConsecutivePeacefulWolf）— Prepend Injection 第 18 次
+
+- **完成状态**：`aiPrompts.js` Wolf DAY_SPEECH 在 R83（单夜）和 R88（两连）基础上，新增三个变量：① `isTripleConsecutivePeacefulWolf`（外层：`ctx.dayCount >= 4 && isConsecutivePeacefulWolf && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② if 块内 `threePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`）；③ `tripleConsecutivePeaceHintWolf`（三元：三路径框架A=三夜刀口相同 confidence 升 35-45/B=两夜相同+一夜不同 confidence 升 25-35/C=三夜各不同→按单夜路径A/B）。注入方式：`consecutivePeaceHintWolf` 三元 true 分支以 `${tripleConsecutivePeaceHintWolf}⭕【狼人两连` 前置拼接（Prepend Injection 第 18 次）。Wolf DAY block 29383 → 30397 chars（+1014 chars）；更新 round58 wolf window 6500→7500（高优先刀口 从 ~5805 移至 ~6819）；更新 round70 getWolfBlock window 7500→9000（${wolfSpeechLen} 从 ~6636 移至 ~7651）。
+- **Wolf DAY 侧零间接推断优势（R103-A）**：狼人在 DAY_SPEECH 侧可直接从 identity_table 读取"→已N${x}夜行刀"标记，三夜刀口历史确定性比对——路径A（三夜同目标=固定连守）/路径B（两夜同目标=部分连守）/路径C（三夜各不同=随机轮守）均基于确定事实，不需票压代理推断。**设计原则：DAY 侧三连推断的精度层级按私有信息类型分层——狼人（直读刀口记录，确定性最高）> 守卫（直读 guardHistory 守护记录）> 女巫/预言家（有限私有信息）> 村民（纯票压）**。
+- **DAY 侧三连推断系列完成状态（R103-B）**：村民（R80单/R88两/R100三）→ 预言家（R81单/R90两/R99三）→ 守卫（R81单/R91两/缺三连）→ 女巫（R82单/R92两/缺三连）→ 骑士（缺单/R101三层一次完成）→ 狼人（R83单/R88两/R103三）。**下一优先：守卫 DAY_SPEECH 三连（guardHistory.find() 零间接，与 guardHistory 四象限对称）或女巫 DAY_SPEECH 三连**。
+- **wolf block +1014 chars 的窗口级联规律（R103-C）**：新增三连变量块（~195 chars 外层 + ~820 chars if 块内）共 +1014 chars，插入在 wolfVarBlock 约 3741 处（isConsecutivePeacefulWolf 之后）。所有在此之后的 wolfVarBlock 内容偏移均 +1014：① `高优先刀口` 从 ~5805→6819，超出 round58 旧窗口 6500，须升至 7500；② `${wolfSpeechLen}` 在 return 模板从 ~6636→7651，超出 round70 旧窗口 7500，须升至 9000。**检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const w=s.indexOf(\"'狼人': (ctx, params) =>\"); const b=s.slice(w, w+10000); console.log('高优先刀口:', b.indexOf('高优先刀口'), '${wolfSpeechLen}:', b.indexOf('\${wolfSpeechLen}'))"`；Wolf DAY 新增代码后必须运行并与各测试窗口对比**。
+- **Prepend Injection 第 18 次（R103-D）**：标准模式已应用 18 次：① 外层检测变量（`isTripleConsecutivePeacefulWolf`）② if 块内 threePrevDay + tripleHint 三元 ③ 在下一层 hint 变量的 true 分支头部前置 `${tripleHint}⭕【原始两连内容`。每次应用逻辑完全相同，无需查阅代码即可直接复用。
+- **白熊效应合规（第 24 次验证）**：三路径全正向描述（"换刀 confidence 升 35-45"/"按单夜路径A/B独立评估"/"守卫极大概率固定连守"），无负向禁词 ✅（T13 测试覆盖）。
+- **测试**：1764/1764（+20 new R103 tests T1-T20；+round58 wolf window 6500→7500；+round70 getWolfBlock window 7500→9000；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅（WerewolfModule 241.50 kB）；check-build ✅；干跑 6/6 ✅。
+
+---
+
 ### [2026-07-02 Round 102] NIGHT_WOLF 两连/三连平安夜换刀决策框架（零间接推断）— Prepend Injection 第 17 次
 
 - **完成状态**：`aiPrompts.js` NIGHT_WOLF case 在 R84 单夜基础上，新增六个变量：① `isConsecutivePeacefulNightWolf`（`ctx.dayCount >= 3 && isNightPeacefulWolf && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `wolfNightPrevPrevDay`（`dayCount >= 3 ? dayCount - 2 : 0`）；③ `isTripleConsecutivePeacefulNightWolf`（`dayCount >= 4 && isConsecutivePeacefulNightWolf && fullGameTimeline N{dayCount-3}:平安夜`）；④ `wolfNightThreePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`）；⑤ `tripleConsecutivePeaceNightHintWolf`（if 块内三元，三连激活时注入三路径框架 A/B/C + confidence 升 35-45/25-35/按单夜）；⑥ `consecutivePeaceNightHintWolf`（`${tripleConsecutivePeaceNightHintWolf}⭕【两连平安夜二阶换刀决策...`前置拼接，confidence 升 25-35）。注入方式：`wolfNightPeaceStep` 三元 true 分支以 `${consecutivePeaceNightHintWolf}` 前置（Prepend Injection 第 17 次）。NIGHT_WOLF block 6115 → 7994 chars，更新 round76 窗口 7000→9000，round84 T19 上限 7000→9000。
