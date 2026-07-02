@@ -31,8 +31,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getNightWitchBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.NIGHT_WITCH:');
     if (start === -1) throw new Error('NIGHT_WITCH case 未找到');
-    // NIGHT_WITCH block 原 2209 chars，新增个性块后约 4023 chars，用 5200 留余量
-    return src.slice(start, start + 5200);
+    // NIGHT_WITCH block 原 4023 chars，R106 新增平安夜推断后约 6624 chars，用 8000 留余量
+    return src.slice(start, start + 8000);
 }
 
 // ═══════════════════════════════════════════════════════

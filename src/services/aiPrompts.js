@@ -2186,6 +2186,41 @@ ${seerNightPeaceStep}${seerNightStrategy}
                  ? '0. 【读取历史毒药候选】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"毒药优先候选"？将其列为今晚开毒候选起点（若该目标已死或局面改变，重新评估其他高威胁项）'
                  : '0. 【首夜】无历史毒药候选记录——直接根据当前情况判断用药';
 
+             // R106: 女巫 NIGHT 侧平安夜两连/三连推断（票压代理，非 guardHistory 零间接）
+             const isNightPeacefulWitch = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+             const witchNightPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+             const isConsecutivePeacefulNightWitch = ctx.dayCount >= 3 && isNightPeacefulWitch &&
+                 ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+             const witchNightPrevPrevDay = ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0;
+             const isTripleConsecutivePeacefulNightWitch = ctx.dayCount >= 4 && isConsecutivePeacefulNightWitch &&
+                 ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
+             const witchNightThreePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+             let tripleConsecutivePeaceNightHintWitch = '';
+             let consecutivePeaceNightHintWitch = '';
+             if (isConsecutivePeacefulNightWitch) {
+                 tripleConsecutivePeaceNightHintWitch = isTripleConsecutivePeacefulNightWitch
+                     ? `⭕【女巫三连平安夜三阶守护推断（N${witchNightThreePrevDay}+N${witchNightPrevPrevDay}+N${witchNightPrevDay}均无人死亡）】
+   - 守卫三夜历史守护模式分析（票压代理推断，非 guardHistory 零间接）：
+     路径A（三夜同一高票存活者）：守卫三夜锁守，该目标 confidence 升 35-45；今晚被刀目标若与此重合，守卫极可能再次拦截，评估是否值得双重保险
+     路径B（两夜共同目标+一夜不同）：守卫高频连守，高频目标 confidence 升 30-40；今晚被刀目标若是低频目标，救药价值更高（守卫未守概率高）
+     路径C（三夜各不同）：守卫随机轮守，无固定规律，按单夜标准框架独立评估今晚情况
+   - identity_table 追加"N${witchNightThreePrevDay}-N${witchNightPrevPrevDay}-N${witchNightPrevDay}三连平安夜：[路径A锁守/路径B高频/路径C轮守]，守护 confidence 升 35-45/30-40/独立评估"\n`
+                     : '';
+                 consecutivePeaceNightHintWitch = `${tripleConsecutivePeaceNightHintWitch}⭕【女巫两连平安夜二阶守护推断（N${witchNightPrevPrevDay}+N${witchNightPrevDay}均无人死亡）】
+   - 守卫连续两夜守护分析（票压代理推断）：
+     路径A（两夜同一高票存活者）：守卫连守该目标，confidence 升 25-35；今晚被刀目标与此重合时，救药预期效益降低（守卫可能再次拦截）；被刀目标不同时，救药价值提升
+     路径B（两夜不同高票存活者）：守卫已换守，分别评估两天守护目标概率，今晚按低守护覆盖目标优先救药
+   - identity_table 追加"N${witchNightPrevPrevDay}-N${witchNightPrevDay}两连平安夜：[路径A连守/路径B换守]，confidence 升 25-35/独立评估"\n`;
+             }
+             const witchNightPeaceStep = isNightPeacefulWitch
+                 ? `${consecutivePeaceNightHintWitch}⭕【女巫平安夜守护来源推断（N${witchNightPrevDay}无人死亡）】
+   - 上夜平安 = 守卫拦截了狼刀，推断守卫守护目标：
+     对比 D${witchNightPrevDay} 高票存活者（identity_table 高票），筛选可能守护目标，confidence 升 15-25
+   - 解药参考：今晚被刀目标若与守护推断目标重合（守卫可能再次守），救药效益降低；若被刀目标是全新高威胁目标，救药价值提升
+   - 毒药参考：上夜平安削减狼队一次杀伤，今晚狼队换刀概率提升；重新评估 identity_table 高可信毒药候选
+   - identity_table 追加"N${witchNightPrevDay}平安夜：守护目标推断 [候选]，confidence 升 15-25"\n`
+                 : '';
+
              // R74：女巫夜间用药策略个性化——不同个性类型对"激进用药 vs 保守持药"博弈权重不同
              const witchNightPersonalityType = currentPlayer?.personality?.type || '';
              let witchNightStyle = '';
@@ -2213,7 +2248,7 @@ ${nightCot}
 【用药策略（思维链）】
 ${witchHistoryStep}
 ${witchNightStyle}
-1. 解药考量：被刀者是否为关键神职？是否可能是自刀狼？救人收益vs保留价值？
+${witchNightPeaceStep}1. 解药考量：被刀者是否为关键神职？是否可能是自刀狼？救人收益vs保留价值？
 2. 毒药考量：结合上方历史候选（Step 0），只有高度确信某人是狼且逻辑完全崩坏时才考虑开毒
 3. 风险评估：毒错好人会导致阵营崩盘
 4. 临界决策：在危急时刻，保守会导致失败，必须果断出手
