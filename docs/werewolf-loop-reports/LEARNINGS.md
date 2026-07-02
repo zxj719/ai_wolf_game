@@ -4,6 +4,19 @@
 
 ---
 
+### [2026-07-02 Round 104] 守卫 DAY_SPEECH 三连平安夜三阶推断（isTripleConsecutivePeacefulGuard）— Prepend Injection 第 19 次
+
+- **完成状态**：`aiPrompts.js` 守卫 DAY_SPEECH 在 R81（单夜）和 R91（两连）基础上，新增三个变量：① `isTripleConsecutivePeacefulGuard`（外层：`ctx.dayCount >= 4 && isConsecutivePeacefulGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② if 块内 `threePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`）和 `threeNightGuardTarget`（`guardHistory?.find(g => g.night === ctx.dayCount - 3)?.targetId ?? null`）；③ `tripleConsecutivePeaceHintGuard`（三元：三路径框架 A=三夜守同一目标 confidence 升 35-45 / B=两夜共同目标+一夜不同 confidence 升 30-40 / C=三夜各不同→按单夜路径A/B独立评估）。注入方式：`consecutivePeaceHintGuard` 三元 true 分支以 `${tripleConsecutivePeaceHintGuard}⭕【守卫两连` 前置拼接（Prepend Injection 第 19 次）。Guard DAY block 5471 → 6665 chars（+1194 chars）。
+- **守卫 DAY 三层推断体系完整（R104-A）**：R81（单夜 +15-25）→ R91（两连 +25-35）→ R104（三连 +35-45）三层完整。守卫是 DAY_SPEECH 侧唯一通过 `guardHistory.find(g => g.night === N)?.targetId` 零间接读取历史守护目标的角色——所有夜次守护记录直接可查，无需票压代理推断。**DAY_SPEECH 侧平安夜推断精度层级：狼人（直读刀口记录）> 守卫（直读 guardHistory）> 女巫/预言家（有限私有信息）> 村民（纯票压）**。
+- **guard block +1194 chars 的窗口级联规律（R104-B）**：新增变量块共 +1194 chars，插入在 if 块内 `prevPrevNightGuardTarget` 声明之后。三个测试文件需级联更新：① `round81`：`GUARD_WINDOW` 6500→8000（模块级常量，超出会 throw Error）；T25/T26/T27/T28/T30/T34/T37/T38 各窗口扩展（if start 之后各位置偏移 +1194）；② `round91`：T7 600→1500 / T15 1600→2400 / T16 1700→2500 / T20 上限 6500→8000；③ `round69`：`getGuardBlock()` 6000→7000（`${guardSpeechLen}` 偏移 ~4857→~6463，超出旧窗口）。**检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const w=s.indexOf(\"'守卫': (ctx, params) =>\"); const b=s.slice(w, w+10000); const ri=b.indexOf('return \`'); console.log('guardBlock:',b.indexOf('村民',ri)-0,'returnAt:',ri,'guardSpeechLen:',b.indexOf('\${guardSpeechLen}'),'guardPeaceNightStep assign:',b.indexOf('guardPeaceNightStep = \`'))"`**。
+- **Prepend Injection 第 19 次（R104-C）**：标准三步模式（外层检测变量 + if 块内三元 + 前置到下一层 true 分支头部）已应用 19 次，在 Wolf/Guard/Seer/Witch/Villager/Knight DAY_SPEECH 及 NIGHT_WOLF 侧均有先例。下次遇到新角色三连推断直接复用，无需查阅代码。
+- **白熊效应合规（第 25 次验证）**：三路径全正向描述（"confidence 升 35-45"/"confidence 升 30-40"/"按单夜路径A/B独立评估"），无 不要/禁止/绝不能 ✅（T14 测试覆盖）。
+- **Detached HEAD 恢复（R104-D）**：本轮再次触发 detached HEAD 状态（与 R100-D / R101-A 相同），使用标准恢复协议：① `cp <5 files> /tmp/`；② `git stash push -u`；③ `git checkout main && git pull origin main`（fast-forward 39 commits）；④ `git stash drop`（NOT pop——stash base 是旧 HEAD，pop 会冲突）；⑤ `cp /tmp/<files> <原路径>`。**预防检查：每次工作开始运行 `git status` 确认 On branch main，在 detached HEAD 下绝不编辑文件**。
+- **测试**：1784/1784（+20 new R104 tests T1-T20；+round69/81/91 窗口级联更新；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅（WerewolfModule 242.15 kB）；check-build ✅；干跑 10/10 ✅。
+- **下轮优先**：女巫 DAY_SPEECH 三连平安夜推断（R82 单夜 + R92 两连 + 缺三连；使用 `fullGameTimeline` N-3 + `witchHistory` 零间接）。
+
+---
+
 ### [2026-07-02 Round 103] Wolf DAY_SPEECH 三连平安夜三阶战术推断（isTripleConsecutivePeacefulWolf）— Prepend Injection 第 18 次
 
 - **完成状态**：`aiPrompts.js` Wolf DAY_SPEECH 在 R83（单夜）和 R88（两连）基础上，新增三个变量：① `isTripleConsecutivePeacefulWolf`（外层：`ctx.dayCount >= 4 && isConsecutivePeacefulWolf && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② if 块内 `threePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`）；③ `tripleConsecutivePeaceHintWolf`（三元：三路径框架A=三夜刀口相同 confidence 升 35-45/B=两夜相同+一夜不同 confidence 升 25-35/C=三夜各不同→按单夜路径A/B）。注入方式：`consecutivePeaceHintWolf` 三元 true 分支以 `${tripleConsecutivePeaceHintWolf}⭕【狼人两连` 前置拼接（Prepend Injection 第 18 次）。Wolf DAY block 29383 → 30397 chars（+1014 chars）；更新 round58 wolf window 6500→7500（高优先刀口 从 ~5805 移至 ~6819）；更新 round70 getWolfBlock window 7500→9000（${wolfSpeechLen} 从 ~6636 移至 ~7651）。

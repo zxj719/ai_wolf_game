@@ -28,8 +28,8 @@ const seerVarBlock = seerBlock.slice(0, seerReturnStart);
 const guardBlockStart = src.indexOf("'守卫': (ctx, params) =>");
 const guardBlockEnd = src.indexOf("'村民': (ctx, params)", guardBlockStart);
 const guardBlock = src.slice(guardBlockStart, guardBlockEnd);
-// Window sized at ~6500 (guardBlock 5471 × 1.19 after R91 consecutivePeaceHintGuard addition)
-const GUARD_WINDOW = 6500;
+// Window sized at ~8000 (guardBlock 6665 after R104 tripleConsecutivePeaceHintGuard addition)
+const GUARD_WINDOW = 8000;
 if (guardBlock.length > GUARD_WINDOW) {
     throw new Error(`guardBlock (${guardBlock.length}) exceeds window (${GUARD_WINDOW}) — update test window`);
 }
@@ -209,30 +209,30 @@ test('T24: guard has lastGuardTarget !== null branch (target-known path)', () =>
 
 test('T25: guard has else branch for no-target case (昨夜未守护)', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: 昨夜未守护 in else branch now at offset ~1601; window updated 900→1700
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1700);
+    // R104: 昨夜未守护 in else branch now at offset ~2587; window updated 1700→2800
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 2800);
     expect(ifSection).toContain('昨夜未守护');
 });
 
 test('T26: guard known-target path starts with ⭕ marker', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: ⭕【守卫平安夜推断 in assignment now at offset ~1221; window updated 900→1400
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1400);
+    // R104: ⭕【守卫平安夜推断 in assignment now at offset ~2207; window updated 1400→2500
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 2500);
     expect(ifSection).toContain('⭕【守卫平安夜推断');
 });
 
 test('T27: guard known-target path covers 命中推断 with confidence increase', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: 命中推断 at ~1306, confidence 升 15-25 at ~1377; window updated 900→1600
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1600);
+    // R104: 命中推断 at ~2292, confidence 升 15-25 at ~2363; window updated 1600→2600
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 2600);
     expect(ifSection).toContain('命中推断');
     expect(ifSection).toContain('confidence 升 15-25');
 });
 
 test('T28: guard known-target path covers 未中推断 with witch save scenario', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: 未中推断 at ~1411, 女巫 at ~1424; window updated 900→1700
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1700);
+    // R104: 未中推断 at ~2397, 女巫 at ~2410; window updated 1700→2700
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 2700);
     expect(ifSection).toContain('未中推断');
     expect(ifSection).toContain('女巫');
 });
@@ -245,8 +245,8 @@ test('T29: guard known-target path references ${lastGuardTarget}号', () => {
 
 test('T30: guard prevDay used inside if block with D${prevDay}', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: D${prevDay} first appears in consecutivePeaceHintGuard at ~898; window updated 900→1100
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1100);
+    // R104: D${prevDay} first appears in consecutivePeaceHintGuard at ~1884; window updated 1100→2100
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 2100);
     expect(ifSection).toContain('dayCount - 1');
     expect(ifSection).toContain('D${prevDay}');
 });
@@ -277,8 +277,8 @@ test('T33: guard step order is guardDayHistoryStep → guardPeaceNightStep → S
 
 test('T34: guard peaceNightStep restricts to thought (not speech)', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: thought/speech first appear in consecutivePeaceHintGuard header at ~408/420; window updated 300→500
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 500);
+    // R104: thought/speech first appear in consecutivePeaceHintGuard header at ~1394/1406; window updated 500→1600
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1600);
     expect(ifSection).toContain('thought');
     expect(ifSection).toContain('speech');
 });
@@ -294,15 +294,15 @@ test('T36: guardPeaceNightStep empty init ensures no output on D1 or non-peacefu
 
 test('T37: guard var block assigns to guardPeaceNightStep using template literal backtick', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: guardPeaceNightStep = ` now at offset ~1170 (after consecutivePeaceHintGuard decl); window updated 300→1300
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1300);
+    // R104: guardPeaceNightStep = ` now at offset ~2156; window updated 1300→2400
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 2400);
     expect(ifSection).toContain('guardPeaceNightStep = `');
 });
 
 test('T38: guard peaceNightStep thought instruction comes before speech instruction', () => {
     const ifGuardStart = guardVarBlock.indexOf('if (isPeacefulNightGuard)');
-    // R91: thought at ~408, speech at ~420 (in consecutivePeaceHintGuard header); window updated 300→500
-    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 500);
+    // R104: thought at ~1394, speech at ~1406 (in consecutivePeaceHintGuard header); window updated 500→1600
+    const ifSection = guardVarBlock.slice(ifGuardStart, ifGuardStart + 1600);
     const thoughtIdx = ifSection.indexOf('thought');
     const speechIdx = ifSection.indexOf('speech');
     expect(thoughtIdx).toBeGreaterThan(-1);

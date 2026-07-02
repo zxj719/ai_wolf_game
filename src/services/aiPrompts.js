@@ -1402,13 +1402,26 @@ voteDecided=true=已决定；false=投票阶段再思考`;
         // R91：两连平安夜二阶推断（守卫独有：guardHistory 直接提供 N-2 守护目标，无需间接推断）
         const isConsecutivePeacefulGuard = ctx.dayCount >= 3 && isPeacefulNightGuard &&
             ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+        // R104: 三连平安夜三阶推断检测（D4+适用）
+        const isTripleConsecutivePeacefulGuard = ctx.dayCount >= 4 && isConsecutivePeacefulGuard &&
+            ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
         let guardPeaceNightStep = '';
         if (isPeacefulNightGuard) {
             const prevDay = ctx.dayCount - 1;
             const prevPrevDay = ctx.dayCount - 2;
             const prevPrevNightGuardTarget = guardHistory?.find(g => g.night === ctx.dayCount - 2)?.targetId ?? null;
+            const threePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+            const threeNightGuardTarget = guardHistory?.find(g => g.night === ctx.dayCount - 3)?.targetId ?? null;
+            const tripleConsecutivePeaceHintGuard = isTripleConsecutivePeacefulGuard && lastGuardTarget !== null
+                ? `⭕【守卫三连平安夜三阶推断（N${threePrevDay}+N${prevPrevDay}+N${prevDay}均无死亡；守卫独有：零间接推断三夜守护记录）】
+- 三夜守护历史：N${threePrevDay}守了${threeNightGuardTarget !== null ? threeNightGuardTarget + '号' : '无（空守）'}，N${prevPrevDay}守了${prevPrevNightGuardTarget !== null ? prevPrevNightGuardTarget + '号' : '无（空守）'}，N${prevDay}守了${lastGuardTarget}号
+- 路径A - 三夜守同一目标：命中可信度最高，confidence 升 35-45；今晚必须换守打破规律
+- 路径B - 两夜守同目标+一夜不同：频繁命中，confidence 升 30-40；独立夜按单夜命中概率补充评估
+- 路径C - 三夜各不同：轮守无固定模式，按单夜路径A/B独立评估昨夜命中可能
+- identity_table 追加：守护候选 reason 加"N${threePrevDay}+N${prevPrevDay}+N${prevDay}三连平安夜：[路径A三夜锁守/路径B高频命中/路径C轮守]，confidence 升 35-45/30-40/按单夜"\n`
+                : '';
             const consecutivePeaceHintGuard = isConsecutivePeacefulGuard && lastGuardTarget !== null
-                ? `⭕【守卫两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 按普通村民发言）】
+                ? `${tripleConsecutivePeaceHintGuard}⭕【守卫两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 按普通村民发言）】
 - 连续两夜平安夜 → 守卫守护记录可精确分析两夜防御效果（守卫独有：知道自己守了谁）
 - 查守护记录：N${prevPrevDay}夜守了${prevPrevNightGuardTarget !== null ? prevPrevNightGuardTarget + '号' : '无（空守）'}，N${prevDay}夜守了${lastGuardTarget}号
 - 路径A - 连守同一目标（两夜均守${lastGuardTarget}号）：两次平安夜同目标=命中可信度极高；
