@@ -31,8 +31,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getNightWolfBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.NIGHT_WOLF: {');
     if (start === -1) throw new Error('NIGHT_WOLF case 未找到');
-    // NIGHT_WOLF block 原 3287 chars，新增个性块后约 4975 chars，用 7000 留余量
-    return src.slice(start, start + 7000);
+    // NIGHT_WOLF block 原 3287 chars，R84+R102 后约 7994 chars，用 9000 留余量
+    return src.slice(start, start + 9000);
 }
 
 // ═══════════════════════════════════════════════════════

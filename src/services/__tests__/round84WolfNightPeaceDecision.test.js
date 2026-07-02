@@ -190,11 +190,11 @@ describe('T16-T20: 回归测试', () => {
         expect(peaceContent).not.toMatch(/不要|禁止|不能|绝不/);
     });
 
-    test('T19: 新块大小 ≤ 7000 chars（R76 测试窗口限制）', () => {
-        // NIGHT_WOLF 添加 wolfNightPeaceStep 后约 6115 chars，需 ≤ 7000
-        expect(nightWolfBlock.length).toBeLessThan(7000);
-        // 同时确认确实大于 5361（原始大小），说明内容已添加
-        expect(nightWolfBlock.length).toBeGreaterThan(5361);
+    test('T19: 新块大小在合理范围内（R102 后约 7994 chars）', () => {
+        // NIGHT_WOLF R84+R102 后约 7994 chars，需 ≤ 9000
+        expect(nightWolfBlock.length).toBeLessThan(9000);
+        // 同时确认确实大于 6115（R84 后大小），说明 R102 内容已添加
+        expect(nightWolfBlock.length).toBeGreaterThan(6115);
     });
 
     test('T20: R47 兼容 — wolfHistoryStep 原有内容（核查执行结果、女巫只剩毒药）仍存在', () => {

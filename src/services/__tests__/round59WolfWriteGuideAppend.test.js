@@ -136,8 +136,8 @@ describe('R59 测试 C: 四环关键词对齐验证', () => {
     });
 
     it('T15: NIGHT_WOLF Step 0 含"高优先刀口"（NIGHT读侧关键词，R47 回归）', () => {
-        // wolfHistoryStep 中的历史读取步骤
-        const nightStepAnchor = '读取历史刀口';
+        // wolfHistoryStep 中的历史读取步骤（使用 【读取历史刀口 + 核查执行结果】 更精确锚点，避免 R102 注释中的"读取历史刀口"误匹配）
+        const nightStepAnchor = '【读取历史刀口 + 核查执行结果】';
         const nightStepIdx = src.indexOf(nightStepAnchor);
         expect(nightStepIdx).toBeGreaterThan(-1);
         const nightStepBlock = src.slice(nightStepIdx, nightStepIdx + 200);

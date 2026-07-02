@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-02 Round 102] NIGHT_WOLF 两连/三连平安夜换刀决策框架（零间接推断）— Prepend Injection 第 17 次
+
+- **完成状态**：`aiPrompts.js` NIGHT_WOLF case 在 R84 单夜基础上，新增六个变量：① `isConsecutivePeacefulNightWolf`（`ctx.dayCount >= 3 && isNightPeacefulWolf && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 2}:平安夜\`)`）；② `wolfNightPrevPrevDay`（`dayCount >= 3 ? dayCount - 2 : 0`）；③ `isTripleConsecutivePeacefulNightWolf`（`dayCount >= 4 && isConsecutivePeacefulNightWolf && fullGameTimeline N{dayCount-3}:平安夜`）；④ `wolfNightThreePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`）；⑤ `tripleConsecutivePeaceNightHintWolf`（if 块内三元，三连激活时注入三路径框架 A/B/C + confidence 升 35-45/25-35/按单夜）；⑥ `consecutivePeaceNightHintWolf`（`${tripleConsecutivePeaceNightHintWolf}⭕【两连平安夜二阶换刀决策...`前置拼接，confidence 升 25-35）。注入方式：`wolfNightPeaceStep` 三元 true 分支以 `${consecutivePeaceNightHintWolf}` 前置（Prepend Injection 第 17 次）。NIGHT_WOLF block 6115 → 7994 chars，更新 round76 窗口 7000→9000，round84 T19 上限 7000→9000。
+- **NIGHT_WOLF 零间接推断优势（R102-A）**：狼人在 NIGHT 侧直接从 identity_table 的"→已NX夜行刀"标记读取历史刀口目标，无需票压推断——这是两连/三连推断的核心优势。相比守卫（从 guardHistory.find() 零间接读取守护目标）同级，相比预言家（从查验记录一阶间接）更高效，相比村民（二阶间接票压）精度更高。**设计原则：NIGHT 侧角色的连续平安夜推断应精确使用其私有信息的访问方式——有直接记录的用 identity_table 查找，不要降格为票压代理推断**。
+- **注释字串与测试锚点冲突（R102-B）**：R102 注释 `// R102: ... 直接读取历史刀口，无需票压代理` 包含 `"读取历史刀口"` 字串，导致 round59 T15 的 `src.indexOf('读取历史刀口')` 定位到注释而非 wolfHistoryStep。**修复规则：当为大型 case block 添加包含业务关键词的注释时，必须立即检查已有测试中是否有以该关键词为锚点的 `indexOf` 查找，若有，改用更精确的全量短语（如 `'【读取历史刀口 + 核查执行结果】'`）。预防：注释使用元描述语言（"两连/三连推断框架"）而非直接使用 wolfHistoryStep 内的业务短语**。
+- **R98 一轮完成 NIGHT 侧三级推断模式的复用（R102-C）**：R98（预言家 NIGHT）一轮完成单夜+两连+三连。R102（狼人 NIGHT）同样一轮完成两连+三连（单夜 R84 已有），避免两轮上下文重复初始化。对比 R94（守卫 NIGHT 两连）+ R97（守卫 NIGHT 三连）分两轮的方案，一轮方案节省约 30 分钟。**规律：NIGHT 侧平安夜三级推断已有 R98/R102 两个一轮完成先例，下次遇到缺失两连+三连的 NIGHT 角色，优先一轮完成而非分两轮**。
+- **三连路径C设计（R102-D）**：三夜各不同目标时，守卫随机轮守，无规律可循 → 按单夜路径A/B独立评估昨夜刀口被守概率。这与 R97（守卫三连路径C）一致——三连 C 路径永远是"回退到单夜标准框架"。**通用规律：三连三路径中路径C（三夜各不同）的处理方式固定为"无规律→按单夜标准框架重新评估"**。
+- **白熊效应合规（第 23 次验证）**：两连/三连内容全正向描述（"换刀 confidence 升 35-45"/"今晚选次高威胁目标"/"分别评估守护风险"），无负向禁词 ✅（T13 测试覆盖）。
+- **测试**：1744/1744（+20 new R102 tests T1-T20；+round76/round84 窗口更新；+round59 T15 锚点修复；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅（WerewolfModule 240.86 kB）；check-build ✅。
+
+---
+
 ### [2026-07-02 Round 101] 骑士 DAY_SPEECH 平安夜推断三层体系（单夜→两连→三连）— 骑士决斗候选 confidence 修正框架
 
 - **完成状态**：`knight.js` 新增三层平安夜推断：① `isPeacefulNightKnight`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）；② `isConsecutivePeacefulKnight`（`dayCount >= 3 && fullGameTimeline 含 N${dayCount-2}:平安夜`）；③ if 块内 `isTripleConsecutivePeacefulKnight`（`dayCount >= 4 && isConsecutivePeacefulKnight && fullGameTimeline 含 N${dayCount-3}:平安夜`）。三层 confidence 降幅梯度：单夜 10-20 / 两连 25-35 / 三连 35-45。注入方式：prepend injection（前置注入模式第 16 次应用），`${knightPeaceNightStep}` 在 return 模板 `${knightHistoryStep}` 之后注入。骑士独特角度：平安夜推断结论落在**决斗候选 confidence 下调**而非好人判断（被守护→守卫认为是好人→骑士决斗价值降低）。
