@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-02 Round 101] 骑士 DAY_SPEECH 平安夜推断三层体系（单夜→两连→三连）— 骑士决斗候选 confidence 修正框架
+
+- **完成状态**：`knight.js` 新增三层平安夜推断：① `isPeacefulNightKnight`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）；② `isConsecutivePeacefulKnight`（`dayCount >= 3 && fullGameTimeline 含 N${dayCount-2}:平安夜`）；③ if 块内 `isTripleConsecutivePeacefulKnight`（`dayCount >= 4 && isConsecutivePeacefulKnight && fullGameTimeline 含 N${dayCount-3}:平安夜`）。三层 confidence 降幅梯度：单夜 10-20 / 两连 25-35 / 三连 35-45。注入方式：prepend injection（前置注入模式第 16 次应用），`${knightPeaceNightStep}` 在 return 模板 `${knightHistoryStep}` 之后注入。骑士独特角度：平安夜推断结论落在**决斗候选 confidence 下调**而非好人判断（被守护→守卫认为是好人→骑士决斗价值降低）。
+- **Git 分叉恢复策略（R101-A，首次记录）**：本会话 local main 落后 remote main 30 commits（fa236cb vs f8b9dad），来自两个并行工作流（狼人杀循环 vs 网球循环）各自直接 push 到 main 后产生的历史分叉。**工作文件保存 + 快进 + 直接复制比 `stash pop` 更可靠**：① `cp <工作文件> /tmp/`；② `git stash push -u && git pull origin main`（fast-forward 快进）；③ `git stash drop && cp /tmp/<工作文件> <原路径>`；④ 正常 add/commit/push。原因：`git stash pop` 的 diff 基点是 stash 创建时的 HEAD（fa236cb），应用到快进后 HEAD（f8b9dad）时若该文件在 30 commits 中被修改，必然冲突；直接复制文件绕过 diff 基点。**预防：每次工作开始先 `git fetch origin main && git log --oneline origin/main..HEAD` 查看本地是否领先/落后远程；若落后且有在制工作，先快进再开始**。
+- **`git stash pop` 失败场景（R101-B）**：stash pop 本质是将 `(stash_base → stash_content)` 的 diff 应用到当前 HEAD。若当前 HEAD 与 stash_base 相差较大（如 30 commits），且共同文件在这 30 commits 中被改动过，patch 无法 apply → CONFLICT。**规则：若 `git log --oneline <stash_base>..<current_HEAD>` 超过 5 commits，不要依赖 stash pop 来恢复工作文件；改用 /tmp 备份路径**。
+- **Prepend Injection 模式第 16 次应用（R101-C）**：`consecutivePeaceHintKnight = isConsecutivePeacefulKnight ? \`${tripleConsecutivePeaceHintKnight}⭕【两连...`。超集激活原则再次验证（isTriple 激活时三层全显，isConsecutive 仅两层，isPeaceful 仅单层，空串则零激活）。
+- **骑士平安夜推断 vs 村民推断的角度差异（R101-D）**：同为 DAY_SPEECH 平安夜推断，村民结论是"该目标可能是好人（confidence 提升）"，骑士结论是"该目标被守护→决斗候选 confidence 下调"。**设计原则：平安夜推断结论应适配角色的核心决策框架；村民核心=投票；骑士核心=决斗候选选择；不能套用同一结论模板**。
+- **白熊效应合规（第 22 次验证）**：三路径（A/B/C）全正向描述（"confidence 降 35-45"/"守护"/"identity_table 追加"），无负向禁词 ✅（T15 测试覆盖）。
+- **测试**：1720/1720（+20 new R101 tests T1-T20；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅（WerewolfModule 232.02 kB）；check-build ✅。
+
+---
+
 ### [2026-07-01 Round 100] 村民 DAY_SPEECH 三连平安夜三阶推断框架（isTripleConsecutivePeacefulVillager）— 平安夜推断三层体系完成
 
 - **完成状态**：村民 DAY_SPEECH 在 R80（单夜）和 R88（两连）基础上，新增 `isTripleConsecutivePeacefulVillager`（`dayCount >= 4 && isConsecutivePeacefulVillager && fullGameTimeline?.includes(N${dayCount-3}:平安夜)`），`threePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`），`tripleConsecutivePeaceHintVillager`（三路径框架：路径A三夜相同目标 confidence 降35-45 / 路径B两夜共同目标降25-35 / 路径C三夜各不同各降10-15）。注入方式：`${tripleConsecutivePeaceHintVillager}` 前置到两连提示词的模板字符串头部（prepend injection 第15次应用）。村民块 4202 → 5058 chars。
