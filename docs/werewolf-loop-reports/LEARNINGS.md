@@ -4,6 +4,19 @@
 
 ---
 
+### [2026-07-02 Round 105] 女巫 DAY_SPEECH 三连平安夜三阶推断（isTripleConsecutivePeacefulWitch）— Prepend Injection 第 20 次
+
+- **完成状态**：`aiPrompts.js` 女巫 DAY_SPEECH 在 R82（单夜）和 R92（两连）基础上，新增三个变量：① `isTripleConsecutivePeacefulWitch`（外层：`ctx.dayCount >= 4 && isConsecutivePeacefulWitch && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② if 块内 `threePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`）和 `tripleConsecutivePeaceHintWitch`（三元：路径A=三夜相同 confidence 升 35-45 / 路径B=两夜相同+一夜不同 confidence 升 30-40 / 路径C=三夜各不同→按单夜路径A/B独立评估）；③ Prepend Injection 第 20 次。witch block 4523 → 5414 chars（+891 chars）。
+- **女巫 DAY 三层体系闭合（R105-A）**：R82（单夜）→ R92（两连）→ R105（三连）三层完整。女巫在 DAY_SPEECH 侧是**唯一拥有 hasWitchSave 双轨信息**的角色，三连推断叠加 hasWitchSave 状态给出"守卫三夜锁守=解药保留到①②信号"的可触发决策框架，精度层级：守卫（零间接）> 女巫（hasWitchSave+票压双轨）> 预言家（查验记录间接）> 村民（纯票压）。
+- **witch window 级联更新规律（R105-B）**：`${witchSpeechLen}` 从 5742 移至 6633（+891），超出 round58（6000→7500）和 round70（6500→7500）两个测试文件。**检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.lastIndexOf(\"'女巫': (ctx, params) => {\"); const r=s.indexOf('return \\\`',a); const w=s.indexOf('\\\${witchSpeechLen}',r); console.log('witchSpeechLen offset from func:',w-a)"`；凡女巫 var block 新增 ≥400 chars，必须运行此命令，若超 7500 立即更新 round58/round70 窗口**。
+- **测试窗口切片逻辑须精确匹配代码结构（R105-C）**：T6 初始用 `ifSection.indexOf('tripleConsecutivePeaceHintWitch')` 作为起点（索引到字符串第一次出现，可能是变量引用处），而非 `const tripleConsecutivePeaceHintWitch` 声明处，导致窗口切片起点偏移，`isTripleConsecutivePeacefulWitch` 不在 50-char 窗口内。**规则：在 ifSection 中用 indexOf 定位变量声明时，始终使用 `'const <varName>'` 而非仅 `'<varName>'`，防止匹配到引用处而非声明处**。
+- **Prepend Injection 第 20 次（R105-D）**：标准三步模式（外层检测变量 + if 块内三元 + true 分支头部前置）已应用 20 次。女巫、守卫、狼人、预言家、村民、骑士 DAY_SPEECH 均已完成三层体系。所有 DAY_SPEECH 角色 Prepend Injection 计数：Wolf(×3) + Guard(×3) + Seer(×3) + Witch(×3) + Villager(×3) + Knight(×3) = 18次 from 那些角色 + 夜间 NIGHT 侧 2次 = 20次总计（含 R97 守卫 NIGHT 三连等）。
+- **白熊效应合规（第 26 次验证）**：三路径全正向描述（"confidence 升 35-45"/"confidence 升 30-40"/"按单夜路径A/B独立评估"），无 不要/禁止/绝不能 ✅（T14 测试覆盖）。
+- **测试**：1804/1804（+20 new R105 tests T1-T20；+round58/70 窗口级联更新；1 pre-existing chatSocket suite failure 与本轮无关）；build ✅（WerewolfModule 242.61 kB）；check-build ✅；干跑 17/17 ✅。
+- **下轮优先**：女巫 NIGHT 侧两连+三连推断（NIGHT_WITCH case，参考 R102 狼人 NIGHT 一轮完成两连+三连模式；女巫是所有神职中 DAY+NIGHT 推断覆盖最不完整的角色）。
+
+---
+
 ### [2026-07-02 Round 104] 守卫 DAY_SPEECH 三连平安夜三阶推断（isTripleConsecutivePeacefulGuard）— Prepend Injection 第 19 次
 
 - **完成状态**：`aiPrompts.js` 守卫 DAY_SPEECH 在 R81（单夜）和 R91（两连）基础上，新增三个变量：① `isTripleConsecutivePeacefulGuard`（外层：`ctx.dayCount >= 4 && isConsecutivePeacefulGuard && ctx.fullGameTimeline?.includes(\`N${ctx.dayCount - 3}:平安夜\`)`）；② if 块内 `threePrevDay`（`dayCount >= 4 ? dayCount - 3 : 0`）和 `threeNightGuardTarget`（`guardHistory?.find(g => g.night === ctx.dayCount - 3)?.targetId ?? null`）；③ `tripleConsecutivePeaceHintGuard`（三元：三路径框架 A=三夜守同一目标 confidence 升 35-45 / B=两夜共同目标+一夜不同 confidence 升 30-40 / C=三夜各不同→按单夜路径A/B独立评估）。注入方式：`consecutivePeaceHintGuard` 三元 true 分支以 `${tripleConsecutivePeaceHintGuard}⭕【守卫两连` 前置拼接（Prepend Injection 第 19 次）。Guard DAY block 5471 → 6665 chars（+1194 chars）。
