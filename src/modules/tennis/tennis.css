@@ -500,6 +500,9 @@
 .tennis-scope .bt-fmh-text { font-size: .68rem; color: rgba(134,239,172,.85); line-height: 1.4; flex: 1; }
 .tennis-scope .bt-fmh-close { margin-left: auto; background: none; border: none; color: rgba(134,239,172,.5); font-size: .9rem; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; }
 .tennis-scope .bt-fmh-close:hover { color: rgba(134,239,172,.9); }
+.tennis-scope .bt-first-match-hint.bt-fmh-balanced { background: rgba(134,239,172,.05); border-color: rgba(134,239,172,.20); }
+.tennis-scope .bt-first-match-hint.bt-fmh-balanced .bt-fmh-badge { color: rgba(134,239,172,.78); background: rgba(134,239,172,.10); }
+.tennis-scope .bt-first-match-hint.bt-fmh-balanced .bt-fmh-text { color: rgba(134,239,172,.72); }
 .tennis-scope .bt-card-cost {
   position: absolute; top: -8px; left: -8px; width: 22px; height: 22px; border-radius: 50%;
   background: var(--court); color: var(--optic); font-family: var(--mono); font-weight: 700;

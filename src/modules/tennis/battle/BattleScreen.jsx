@@ -357,7 +357,17 @@ function FirstMatchHint({ opponent, playerMoves }) {
   for (const [c, v] of COUNTER_PAIRS) {
     if (playerMoves.includes(c) && oppMoves.includes(v)) { counter = c; victim = v; break; }
   }
-  if (!counter) return null;
+  if (!counter) {
+    return (
+      <div className="bt-first-match-hint bt-fmh-balanced">
+        <span className="bt-fmh-badge">⚡ 均势对阵</span>
+        <span className="bt-fmh-text">
+          {opponent.face}{opponent.name} 与你无直接克制——读招节省体力，三维均衡加点是关键
+        </span>
+        <button type="button" className="bt-fmh-close" onClick={() => setDismissed(true)} aria-label="关闭">×</button>
+      </div>
+    );
+  }
   const statLabel = { sta: '体力 💪', skill: '技巧 🎯', mind: '心态 🧘' };
   const attr = statLabel[MOVES[counter].stat] ?? MOVES[counter].stat;
   return (
