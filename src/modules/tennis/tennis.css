@@ -489,6 +489,8 @@
 }
 .tennis-scope .bt-coach-icon { font-size: .85rem; flex-shrink: 0; }
 .tennis-scope .bt-coach-text { font-size: .68rem; color: rgba(103,232,249,.80); line-height: 1.4; }
+.tennis-scope .bt-coach-hint.bt-coach-balanced { background: rgba(134,239,172,.05); border-color: rgba(134,239,172,.20); }
+.tennis-scope .bt-coach-hint.bt-coach-balanced .bt-coach-text { color: rgba(134,239,172,.78); }
 .tennis-scope .bt-first-match-hint {
   display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
   padding: 7px 10px; margin-bottom: 10px; border-radius: 8px;

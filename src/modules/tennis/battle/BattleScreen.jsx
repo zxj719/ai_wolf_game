@@ -265,8 +265,8 @@ function RallyLog({ state }) {
   );
 }
 
-/** 非关键分读招教练：对手已用某招 ≥2 次时低调提示克制招。关键分由 CrisisHint 接管，两者互斥。 */
-function OppCoachHint({ matchStats, score, phase }) {
+/** 非关键分读招教练：对手已用某招 ≥2 次时低调提示克制招；若玩家无对应克制招则改为均势提示。关键分由 CrisisHint 接管，两者互斥。 */
+function OppCoachHint({ matchStats, score, phase, playerMoves }) {
   if (phase !== 'cards' || isKeyPoint(score)) return null;
   const usage = matchStats?.oppMoveUsage ?? {};
   const top = Object.entries(usage).sort((a, b) => b[1] - a[1])[0];
@@ -274,6 +274,17 @@ function OppCoachHint({ matchStats, score, phase }) {
   const [moveId, count] = top;
   const counter = COUNTER_FOR[moveId];
   if (!counter) return null;
+  const canCounter = playerMoves?.includes(counter);
+  if (!canCounter) {
+    return (
+      <div className="bt-coach-hint bt-coach-balanced">
+        <span className="bt-coach-icon">⚡</span>
+        <span className="bt-coach-text">
+          对手惯用「{MOVES[moveId]?.name}」(×{count})，均势——读招节省体力
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="bt-coach-hint">
       <span className="bt-coach-icon">🎯</span>
@@ -284,20 +295,21 @@ function OppCoachHint({ matchStats, score, phase }) {
   );
 }
 
-/** 关键分读招提示：仅在 isKeyPoint + cards 阶段 + 对手已用某招 ≥2 次时显示 */
-function CrisisHint({ matchStats, score, phase }) {
+/** 关键分读招提示：仅在 isKeyPoint + cards 阶段 + 对手已用某招 ≥2 次时显示；玩家无克制招时改为均势提示。 */
+function CrisisHint({ matchStats, score, phase, playerMoves }) {
   if (phase !== 'cards' || !isKeyPoint(score)) return null;
   const usage = matchStats?.oppMoveUsage ?? {};
   const top = Object.entries(usage).sort((a, b) => b[1] - a[1])[0];
   if (!top || top[1] < 2) return null;
   const [moveId, count] = top;
   const counter = COUNTER_FOR[moveId];
+  const canCounter = counter && playerMoves?.includes(counter);
   return (
     <div className="bt-crisis-hint">
       <span className="bt-crisis-icon">⚡</span>
       <span className="bt-crisis-text">
         关键分！对手惯用「{MOVES[moveId]?.name}」(×{count})
-        {counter ? <>，出「{MOVES[counter]?.name}」可克制</> : '，注意读招'}
+        {canCounter ? <>，出「{MOVES[counter]?.name}」可克制</> : '，注意读招节省体力'}
       </span>
     </div>
   );
@@ -481,8 +493,8 @@ export function BattleScreen({
             {isFirstMatch && state.rallyCount === 1 && (
               <FirstMatchHint opponent={opponent} playerMoves={playerMoves} />
             )}
-            <OppCoachHint matchStats={state.matchStats} score={state.score} phase={state.phase} />
-            <CrisisHint matchStats={state.matchStats} score={state.score} phase={state.phase} />
+            <OppCoachHint matchStats={state.matchStats} score={state.score} phase={state.phase} playerMoves={playerMoves} />
+            <CrisisHint matchStats={state.matchStats} score={state.score} phase={state.phase} playerMoves={playerMoves} />
             <HandCards deck={state.deck} onPlay={(idx) => dispatch({ type: 'PLAY_CARD', idx })} />
             <MovePicker
               state={fullState}
