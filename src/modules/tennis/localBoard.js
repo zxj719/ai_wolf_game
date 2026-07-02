@@ -311,6 +311,22 @@ export function loadPrevPrepStats(playerName, oppName) {
   return entry?.previous ?? null;
 }
 
+/**
+ * 以「玩家身份 + 对手」双维度统计出战数和胜场数。
+ * 仅统计 r.p === playerName 的记录，按 r.o 分组。
+ * 返回 { [oppName]: { wins, total } }
+ */
+export function computePlayerOppWinRates(records, playerName) {
+  const map = {};
+  for (const r of records) {
+    if (r.p !== playerName) continue;
+    if (!map[r.o]) map[r.o] = { wins: 0, total: 0 };
+    map[r.o].total++;
+    if (r.sp > r.so) map[r.o].wins++;
+  }
+  return map;
+}
+
 /** 原版排序：胜场优先 → 净胜盘 → 反应越快越靠前 */
 export function sortLocalRecords(list) {
   return [...list].sort((a, b) =>

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, findMainChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, findMainChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, computePlayerOppWinRates } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 import { CHAR_BUILDS, COUNTER_PAIRS, MOVES } from '../battle/moves';
 
@@ -114,6 +114,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     }
     return map;
   }, [picked]);
+
+  const playerOppWrMap = useMemo(
+    () => (picked ? computePlayerOppWinRates(records, picked) : {}),
+    [records, picked],
+  );
 
   const sortedOppChars = useMemo(
     () => sortOppChars(CHARS, seenOpps, oppWinRateMap),
@@ -380,6 +385,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                       {picked && matchupMap[c.n] && (
                         <span className="matchup-hint" aria-label={`出${MOVES[matchupMap[c.n]].name}可克制对方`}>
                           🎯 {MOVES[matchupMap[c.n]].name}
+                          {playerOppWrMap[c.n]?.total >= 2 && (
+                            <span className="matchup-wr-sub">
+                              以此 {playerOppWrMap[c.n].wins}/{playerOppWrMap[c.n].total}
+                            </span>
+                          )}
                         </span>
                       )}
                     </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats, loadPrevPrepStats } from '../localBoard';
+import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats, loadPrevPrepStats, computePlayerOppWinRates } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -756,5 +756,40 @@ describe('loadPrevPrepStats', () => {
     savePrepHistory('诚', 'Elza', { sta: 65, skill: 72, mind: 58 });
     expect(loadPrevPrepStats('诚', 'Ross')).toBeNull();
     expect(loadPrevPrepStats('菲比', 'Elza')).toBeNull();
+  });
+});
+
+describe('computePlayerOppWinRates', () => {
+  it('空记录返回空对象', () => {
+    expect(computePlayerOppWinRates([], '诚')).toEqual({});
+  });
+
+  it('玩家无记录时返回空对象', () => {
+    const records = [{ p: '铁蛋', o: 'Elza', sp: 2, so: 1 }];
+    expect(computePlayerOppWinRates(records, '诚')).toEqual({});
+  });
+
+  it('正确按对手分组统计胜负', () => {
+    const records = [
+      { p: '诚', o: 'Elza', sp: 2, so: 1 },
+      { p: '诚', o: 'Elza', sp: 1, so: 2 },
+      { p: '诚', o: '菲比', sp: 2, so: 0 },
+      { p: '铁蛋', o: 'Elza', sp: 2, so: 1 },
+    ];
+    const result = computePlayerOppWinRates(records, '诚');
+    expect(result).toEqual({
+      Elza: { wins: 1, total: 2 },
+      菲比: { wins: 1, total: 1 },
+    });
+    expect(result['铁蛋']).toBeUndefined();
+  });
+
+  it('全败时 wins 为 0', () => {
+    const records = [
+      { p: '莹', o: 'Ross', sp: 0, so: 2 },
+      { p: '莹', o: 'Ross', sp: 1, so: 2 },
+    ];
+    const result = computePlayerOppWinRates(records, '莹');
+    expect(result['Ross']).toEqual({ wins: 0, total: 2 });
   });
 });
