@@ -392,6 +392,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                           )}
                         </span>
                       )}
+                      {picked && c.n !== picked && !matchupMap[c.n] && (
+                        <span className="matchup-hint matchup-balanced" aria-label="均势对阵，无直接克制">
+                          ⚡ 均势
+                        </span>
+                      )}
                     </div>
                   );
                 })}

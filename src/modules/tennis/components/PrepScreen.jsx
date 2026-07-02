@@ -90,6 +90,11 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
     return `⚔️ 克制参考：出「${MOVES[counter].name}」可克制 ${state.opp.face}${state.opp.name} 惯用的「${MOVES[victim].name}」——备战重点强化${attr}`;
   }, [state.prepRound, state.player?.name, state.opp?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const balancedMatchupHint = useMemo(() => {
+    if (state.prepRound !== 0 || !state.player || !state.opp || matchupAdviceHint) return null;
+    return `⚡ 均势对阵：${state.opp.face}${state.opp.name} 与你无直接克制——读招节省体力，三维均衡加点是关键`;
+  }, [state.prepRound, state.player?.name, state.opp?.name, matchupAdviceHint]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onPick = (i) => {
     if (locked) return;
     setLocked(true);
@@ -118,6 +123,9 @@ export function PrepScreen({ state, dispatch, toast, ultimateOptions = [], equip
         )}
         {matchupAdviceHint && (
           <p className="matchup-advice-hint">{matchupAdviceHint}</p>
+        )}
+        {balancedMatchupHint && (
+          <p className="matchup-advice-hint matchup-advice-balanced">{balancedMatchupHint}</p>
         )}
         {preMatchQuote && (
           <div className="char-quote-card">
