@@ -139,6 +139,46 @@ export const getKnightDaySpeechPrompt = (ctx, params) => {
 ${knightLeaderReadHint}`
     : '0. 【第一天】无历史决斗候选记录——直接根据当前局势推断决斗候选目标';
 
+  // R101: 骑士 DAY_SPEECH 平安夜推断三层体系（单夜→两连→三连）
+  const isPeacefulNightKnight = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+  const knightPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+  const isConsecutivePeacefulKnight = ctx.dayCount >= 3 && isPeacefulNightKnight &&
+      ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+  const prevPrevDayKnight = ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0;
+
+  let knightPeaceNightStep = '';
+  if (isPeacefulNightKnight) {
+      const isTripleConsecutivePeacefulKnight = ctx.dayCount >= 4 && isConsecutivePeacefulKnight &&
+          ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
+      const threePrevDayKnight = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+
+      const tripleConsecutivePeaceHintKnight = isTripleConsecutivePeacefulKnight
+          ? `⭕【三连平安夜三阶推断（N${threePrevDayKnight}+N${prevPrevDayKnight}+N${knightPrevDay}均无死亡；thought 中完成；speech 只说"三连平安夜，局势平稳"）】
+- 比对 D${threePrevDayKnight}、D${prevPrevDayKnight}、D${knightPrevDay} 三轮高票存活者模式：
+  路径A - 三夜相同目标：该目标守护概率极高，作为决斗候选的 confidence 降 35-45（守卫持续保护意味着该目标可能为铁好人）
+  路径B - 两夜相同目标（第三夜不同）：共同目标降 25-35；独立目标按单夜标准降 10-15
+  路径C - 三夜各不相同：三人分别按单夜标准评估（各降 10-15）
+- identity_table 追加：高票存活者 reason 加"N${threePrevDayKnight}+N${prevPrevDayKnight}+N${knightPrevDay}三连平安夜：[路径A/B/C]分析，决斗候选置信度调整"
+`
+          : '';
+
+      const consecutivePeaceHintKnight = isConsecutivePeacefulKnight
+          ? `${tripleConsecutivePeaceHintKnight}⭕【两连平安夜二阶推断（N${prevPrevDayKnight}+N${knightPrevDay}均无死亡；thought 中完成）】
+- 对比 D${prevPrevDayKnight} 与 D${knightPrevDay} 高票存活者：
+  路径A - 两夜相同目标：守卫连守概率极高，该目标作为决斗候选 confidence 降 25-35（守卫认为其为铁好人）
+  路径B - 两夜目标不同：分别按单夜标准评估各目标被守护概率，各降 10-15
+- identity_table 追加：两连相同高票存活者 reason 加"N${prevPrevDayKnight}+N${knightPrevDay}两连平安夜：可能被连守，决斗候选置信度下调"
+`
+          : '';
+
+      knightPeaceNightStep = `${consecutivePeaceHintKnight}⭕【平安夜守护来源推断（N${knightPrevDay}无死亡；thought 中完成；speech 正常骑士发言即可）】
+- 查 D${knightPrevDay} 投票记录，找高票存活者（≥2票）
+- 推断：守卫可能保护了高票存活者 → 守卫认定其为好人
+- 决斗修正：若决斗候选中有高票存活者，其作为好人的概率上升 → confidence 降 10-20；调整决斗优先级
+- identity_table 追加：高票存活者 reason 加"N${knightPrevDay}平安夜：可能被守护，决斗候选优先级下调"
+`;
+  }
+
   const duelStatus = hasUsedDuel
     ? '【已使用决斗】你已经使用过决斗技能，现在作为已知骑士身份指挥全场'
     : '【未使用决斗】你的决斗技能尚未使用，保持低调观察';
@@ -210,7 +250,7 @@ ${duelStatus}${endgameNote}
 ${knightPersonalityLens}
 【思维链（必须完成）】
 ${knightHistoryStep}
-${knightLeaderStep}Step1: 场上局势分析
+${knightPeaceNightStep}${knightLeaderStep}Step1: 场上局势分析
   - 是"双预言家对跳"还是"单边预言家"？
   - 哪些玩家声称是预言家？
   - 他们的验人逻辑是否合理？
