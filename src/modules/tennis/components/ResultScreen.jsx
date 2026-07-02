@@ -70,6 +70,29 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
     return entries.length ? entries.reduce((a, b) => (b[1] > a[1] ? b : a)) : null;
   }, [matchStats]);
 
+  const playStyleBadge = useMemo(() => {
+    if (!matchStats?.moveUsage) return null;
+    const sysTotals = {};
+    for (const [moveId, count] of Object.entries(matchStats.moveUsage)) {
+      const sys = MOVES[moveId]?.system;
+      if (sys) sysTotals[sys] = (sysTotals[sys] || 0) + count;
+    }
+    const total = Object.values(sysTotals).reduce((a, b) => a + b, 0);
+    if (total < 2) return null;
+    const [topSys, topCount] = Object.entries(sysTotals).reduce((a, b) => b[1] > a[1] ? b : a);
+    const pct = topCount / total;
+    if (pct < 0.40) {
+      return { icon: '⚡', label: '均衡战士', desc: '四系均衡出招，难以被针对', color: 'rgba(167,139,250,.85)' };
+    }
+    const STYLE_MAP = {
+      power:   { icon: '🔨', label: '重炮手',    desc: '以力量系为主，势大力沉', color: 'rgba(249,115,22,.85)' },
+      spin:    { icon: '🌀', label: '旋转大师',  desc: '以旋转系为主，节奏多变', color: 'rgba(34,211,238,.85)'  },
+      net:     { icon: '🥅', label: '网前刺客',  desc: '以网前系为主，压迫强势', color: 'rgba(74,222,128,.85)'  },
+      control: { icon: '🧠', label: '心理战专家', desc: '以控制系为主，以柔克刚', color: 'rgba(244,114,182,.85)' },
+    };
+    return STYLE_MAP[topSys] ?? null;
+  }, [matchStats]);
+
   const topOppMoves = useMemo(() => {
     if (!matchStats?.oppMoveUsage) return [];
     return Object.entries(matchStats.oppMoveUsage)
@@ -254,6 +277,15 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
               </div>
             )}
           </div>
+          {playStyleBadge && (
+            <div className="play-style-badge" style={{ borderColor: playStyleBadge.color }}>
+              <span className="psb-icon">{playStyleBadge.icon}</span>
+              <div className="psb-text">
+                <span className="psb-label" style={{ color: playStyleBadge.color }}>今日风格：{playStyleBadge.label}</span>
+                <span className="psb-desc">{playStyleBadge.desc}</span>
+              </div>
+            </div>
+          )}
           {matchStats.countersWon >= 2 && (
             <p className="counter-hl">🎯 本场克制得分 {matchStats.countersWon} 次！</p>
           )}
