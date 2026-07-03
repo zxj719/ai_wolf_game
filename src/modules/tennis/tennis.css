@@ -769,6 +769,49 @@
   .tennis-scope .fx-shake { animation: none; }
 }
 
+/* ===== 五连胜庆祝动效 (StreakBurst) ===== */
+.tennis-scope .streak-burst-overlay {
+  position: fixed; inset: 0; z-index: 9998; pointer-events: none; overflow: hidden;
+}
+@keyframes burstFlash {
+  0%   { opacity: .5; }
+  25%  { opacity: .65; }
+  100% { opacity: 0; }
+}
+.tennis-scope .streak-burst-flash {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 25%, rgba(255,210,0,.55) 0%, rgba(255,100,20,.28) 50%, transparent 78%);
+  animation: burstFlash 3.5s ease forwards;
+}
+@keyframes burstLabel {
+  0%   { opacity: 0; transform: translateX(-50%) scale(.5) translateY(12px); }
+  12%  { opacity: 1; transform: translateX(-50%) scale(1.22) translateY(0); }
+  22%  { transform: translateX(-50%) scale(1.0) translateY(0); opacity: 1; }
+  80%  { opacity: 1; transform: translateX(-50%) scale(1.0) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(.92) translateY(-10px); }
+}
+.tennis-scope .streak-burst-text {
+  position: absolute; top: 28%; left: 50%; transform: translateX(-50%);
+  font-size: clamp(1.3rem, 5vw, 2rem); font-weight: 900; white-space: nowrap;
+  color: #ffd700; letter-spacing: .07em; font-family: var(--mono);
+  text-shadow: 0 0 22px rgba(255,165,0,.9), 0 2px 6px rgba(0,0,0,.7);
+  animation: burstLabel 3.5s cubic-bezier(.22,.9,.3,1.2) forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-24px) rotate(var(--burst-start-rotate, 0deg)); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(calc(var(--burst-start-rotate, 0deg) + 720deg)); opacity: .1; }
+}
+.tennis-scope .streak-burst-particle {
+  position: absolute; top: -24px;
+  animation-name: confettiFall;
+  animation-timing-function: ease-in;
+  animation-fill-mode: both;
+  /* duration/delay set via inline styles */
+}
+@media (prefers-reduced-motion: reduce) {
+  .tennis-scope .streak-burst-overlay { display: none; }
+}
+
 /* ===== 新手引导浮层 (OnboardingModal) ===== */
 .tennis-scope .ob-overlay {
   position: fixed; inset: 0; z-index: 200;

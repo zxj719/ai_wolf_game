@@ -6,6 +6,7 @@ import { getPostMatchCommentary } from '../commentary';
 import { saveTennisRecord } from '../../../services/tennisService';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
+import { StreakBurst } from './StreakBurst';
 
 const MOVE_ICONS = {
   flatDrive: '💥', smash: '🔨', topspin: '🌀', slice: '✂️',
@@ -191,6 +192,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
 
   return (
     <section className="screen">
+      <StreakBurst count={winStreak} />
       <div className="card ending-hero">
         <span className="trophy">{ending.icon}</span>
         <h2>{ending.title}</h2>
