@@ -1472,3 +1472,37 @@
 - 魔术师 lens：聚焦「何时/如何决策揭示逻辑镜像身份」（魔术师的核心博弈就是跳vs不跳这一决策）。
 - **通用规则**：设计 personalityLens 时，先明确"该角色的核心博弈问题是什么"，lens 就是「不同性格的人如何面对这个核心问题」。
 
+---
+
+## Round 107 新增教训（2026-07-03）
+
+**教训 R107-A：摄梦人平安夜推断具有独特双来源视角，设计时不能套用单来源模板**
+- 其他所有角色（预言家/守卫/女巫/村民等）的平安夜推断只需推断守卫守护目标（单来源）。
+- 摄梦人的平安夜有两个独立来源：
+  - **来源 A**：狼人攻击了摄梦人的入梦目标 → 被入梦免疫拦截（狼刀被梦境吸收）
+  - **来源 B**：狼人攻击了其他目标 → 守卫/女巫保护生效（与摄梦人入梦选择无关）
+- 两条路径的信息价值完全不同：来源 A 提供"入梦目标是狼刀首选"的强信号；来源 B 提供"守卫轮守位置"线索。
+- **通用规则**：为具有独特能力机制的角色设计平安夜推断时，先列出"平安夜可能的所有来源"，再为每条来源设计独立推断分支。
+
+**教训 R107-B：测试窗口（WINDOW）随代码增长需同步更新**
+- round78 测试文件的 `getNightDreamweaverBlock()` 窗口为 7000 chars（R78 时 block 约 5412 chars）。
+- R107 新增 2625 chars 后 block 达 8037 chars，超出 7000 窗口 → T11/T17/T18 三个测试因内容被截断而失败。
+- 修复：窗口更新至 8500（block 8037 + 约 500 余量）。
+- **通用规则**：每当为现有 case 新增大量内容时，必须同时检查该 case 对应的所有已有测试文件的窗口大小，避免静默截断。
+- **检查命令**：`grep -n "WINDOW\|window\|slice(start" src/services/__tests__/round*.test.js | grep -i dreamweaver`
+
+**教训 R107-C：Prepend Injection 第 22 次应用 — 三层嵌套结构已成熟模板**
+- 截至 R107，Prepend Injection 模式已应用 22 次（R86 首次，R107 第 22 次）。
+- 固定结构：`tripleHint → 注入到 consecutiveHint 开头 → 注入到 singleHint/peaceStep 开头 → 注入到 return 模板`。
+- 下层变量赋值格式：`consecutiveHint = \`${tripleHint}⭕【两连...】\``（当 tripleHint 为空时前置空串，无副作用）。
+- **注意**：此模式不需要 else 分支，空串前置是幂等操作。
+
+**教训 R107-D：所有 NIGHT 角色平安夜推断覆盖率审计（R107 完成后）**
+- ✅ NIGHT_SEER（预言家）：已有推断
+- ✅ NIGHT_GUARD（守卫）：已有推断
+- ✅ NIGHT_WITCH（女巫）：R106 完成
+- ✅ NIGHT_DREAMWEAVER（摄梦人）：R107 完成（双来源）
+- ❓ NIGHT_KNIGHT（骑士）：需检查是否存在此 case
+- ❓ NIGHT_MAGICIAN（魔术师）：需检查是否存在此 case
+- 下轮进入前先运行：`grep -n "case PROMPT_ACTIONS.NIGHT_" src/services/aiPrompts.js` 确认完整列表。
+

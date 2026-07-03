@@ -53,8 +53,8 @@ const magicianSrc = readFileSync(resolve(process.cwd(), 'src/services/rolePrompt
 function getNightDreamweaverBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.NIGHT_DREAMWEAVER: {');
     if (start === -1) throw new Error('NIGHT_DREAMWEAVER case 未找到');
-    // 当前 NIGHT_DREAMWEAVER block 5359 chars，新增个性块后约 5359 chars（已含），用 7000 留余量
-    return src.slice(start, start + 7000);
+    // R107 新增平安夜推断后 block 8037 chars，用 8500 留余量
+    return src.slice(start, start + 8500);
 }
 
 function getMagicianNightFnBlock() {
