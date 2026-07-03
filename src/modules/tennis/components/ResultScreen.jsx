@@ -4,6 +4,7 @@ import { MOVES, COUNTER_QUIPS } from '../battle/moves';
 import { saveLocalRecord, loadLocalRecords, computeStreakCount, computeWeeklyChamp, loadPrevPrepStats } from '../localBoard';
 import { getPostMatchCommentary } from '../commentary';
 import { saveTennisRecord } from '../../../services/tennisService';
+import { achievementById } from '../meta/achievements';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
 import { StreakBurst } from './StreakBurst';
@@ -26,8 +27,32 @@ function fmtDuration(s) {
   return m > 0 ? `${m} 分 ${sec} 秒` : `${sec} 秒`;
 }
 
+function AchievementUnlockBanner({ ids }) {
+  if (!ids || ids.length === 0) return null;
+  return (
+    <div className="card flat ach-unlock-banner">
+      <div className="ach-unlock-title">🏅 成就解锁！</div>
+      <div className="ach-unlock-list">
+        {ids.map((id) => {
+          const a = achievementById(id);
+          if (!a) return null;
+          return (
+            <div key={id} className="ach-unlock-item">
+              <span className="ach-unlock-icon">{a.icon}</span>
+              <div className="ach-unlock-info">
+                <span className="ach-unlock-name">{a.name}</span>
+                <span className="ach-unlock-desc">{a.desc}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** ⑤ 结局 + 战报 + 双榜。挂载时本地入榜 + 登录用户上传全网榜。 */
-export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats }) {
+export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats, newAchievements }) {
   const ending = ENDINGS[`${state.setsP}-${state.setsO}`];
   const { player: p, opp: o } = state;
   const playerWon = state.setsP > state.setsO;
@@ -193,6 +218,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
   return (
     <section className="screen">
       <StreakBurst count={winStreak} />
+      <AchievementUnlockBanner ids={newAchievements} />
       <div className="card ending-hero">
         <span className="trophy">{ending.icon}</span>
         <h2>{ending.title}</h2>

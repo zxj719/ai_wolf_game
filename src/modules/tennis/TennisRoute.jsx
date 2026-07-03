@@ -227,6 +227,8 @@ export default function TennisRoute() {
       isDailyRef.current = false;
       setTimeout(refreshDailyBoard, 800);
     }
+    const newlyUnlocked = [...achievements].filter((id) => !progress.achievements.includes(id));
+    setNewAchievements(newlyUnlocked);
     updateProgress({
       ...progress,
       coins: progress.coins + coins + soldFor + dailyBonus,
@@ -245,6 +247,8 @@ export default function TennisRoute() {
 
   // 结算屏统计摘要（单局快打结束后由 onSingleMatchOver 存入）
   const [lastMatchStats, setLastMatchStats] = useState(null);
+  // 本局新解锁的成就 id 列表（传给 ResultScreen 显示弹出卡片）
+  const [newAchievements, setNewAchievements] = useState([]);
 
   // 模式页商店（永久收藏购卡/购装/开盒，金币消费出口）
   const [showMetaShop, setShowMetaShop] = useState(false);
@@ -419,6 +423,7 @@ export default function TennisRoute() {
             onRecorded={refreshBoards}
             boardProps={boardProps}
             matchStats={lastMatchStats}
+            newAchievements={newAchievements}
           />
         )}
 
