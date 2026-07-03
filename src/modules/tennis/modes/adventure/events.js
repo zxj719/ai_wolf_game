@@ -175,6 +175,89 @@ export const EVENTS = [
   },
 
   // ===== 扩充批（R93 +8 条，池：24 条）=====
+  // ===== 扩充批二（R123 +8 条，池：32 条）=====
+
+  // 小游戏 ×4
+  {
+    id: 'noodlePull', chapter: 1, type: 'minigame', minigame: 'rhythmBar', icon: '🍜',
+    title: '拉面师傅的考验',
+    text: '面馆老板拦住你："跟上我拉面的节奏，合格了分你一碗，还传你秘诀！"揪面、抻拉、折叠——力度和节奏的拿捏，正是上旋抽击的精髓。',
+    rewards: [
+      { kind: 'nothing', flavor: '面扯断了三次，老板无奈地摆摆手。' },
+      { kind: 'stat', stat: 'skill', amount: 4, flavor: '勉强合格！分到一碗面，手腕更灵活了。' },
+      { kind: 'stat', stat: 'skill', amount: 8, flavor: '完美合拍！老板激动地拍案："你是天生的面匠——也是网球手！"' },
+    ],
+  },
+  {
+    id: 'parkTimer', chapter: 1, type: 'minigame', minigame: 'precisionStop', icon: '⏱️',
+    title: '晨跑计时挑战',
+    text: '公园广播：晨跑满 5 圈在整分钟内停表，奖励"体能达人"打卡。踩准节点停步——和切削时卡住节拍一个道理。',
+    rewards: [
+      { kind: 'nothing', flavor: '踩过了整整 0.8 秒，打卡机吐出一张空白纸。' },
+      { kind: 'energyMax', amount: 5, flavor: '差点踩准！体能有所精进。' },
+      { kind: 'energyMax', amount: 10, flavor: '零误差！公园广播特别点名表扬，体能上限猛增。' },
+    ],
+  },
+  {
+    id: 'drumGate', chapter: 2, type: 'minigame', minigame: 'rhythmMash', icon: '🎵',
+    title: '仙府鼓阵',
+    text: '仙府大门前，四名弟子轮流击鼓验身："感受节律，力道到了便可入内。"百击鼓声，考验的是和重炮平击一样的爆发节奏。',
+    rewards: [
+      { kind: 'nothing', flavor: '鼓点乱了，弟子礼貌地拦在门外，递了张"下次再来"的帖子。' },
+      { kind: 'stat', stat: 'sta', amount: 5, flavor: '节奏对上了七成，臂力有所精进！' },
+      { kind: 'stat', stat: 'sta', amount: 10, flavor: '百击如一！大弟子赞叹："此人力道与心法皆通！"体能突破。' },
+    ],
+  },
+  {
+    id: 'dockingPrecision', chapter: 3, type: 'minigame', minigame: 'gaugeDrop', icon: '🚀',
+    title: '飞船对接演习',
+    text: '空间站通知：今日对接演习！推进器力度只能靠手感——推过了撞上对接口，推轻了够不着。放小球的力度感在这里又用上了。',
+    rewards: [
+      { kind: 'nothing', flavor: '对接口擦出火花，站长无语地让你去反思舱反思。' },
+      { kind: 'coins', amount: 40, flavor: '对接成功！站长发放演习津贴。' },
+      { kind: 'gear', flavor: '完美对接！工程师感动地把随身的"幸运工具包"送给了你。' },
+    ],
+  },
+
+  // 剧情二选一 ×4
+  {
+    id: 'lunchboxContest', chapter: 1, type: 'story', icon: '🥡',
+    title: '大妈的爱心便当',
+    text: '公园出口站着个热心大妈，提着两个便当："我多做了一份，随便拿！红烧肉饭管饱，或者蔬菜杂粮，看你想要哪个。"',
+    options: [
+      { label: '拿红烧肉饭（补体力）', reward: { kind: 'heal', amount: 45, flavor: '油香四溢，吃完精力大增！' } },
+      { label: '拿蔬菜杂粮（增技巧）', reward: { kind: 'stat', stat: 'skill', amount: 5, flavor: '清爽健康，手腕感觉更灵活了。' } },
+    ],
+  },
+  {
+    id: 'stallBargain', chapter: 1, type: 'story', icon: '🛒',
+    title: '旧货摊的暗格',
+    text: '旧货摊主压低嗓音："这双护膝是退役运动员的，我只收你 25 金币。不买也行，隔壁摊主卖的能是真的？"',
+    options: [
+      { label: '掏 25 金币买下', reward: { kind: 'gear', cost: 25, flavor: '护膝戴上，步伐稳多了，值！' } },
+      { label: '不上当，省下金币', reward: { kind: 'coins', amount: 20, flavor: '转身走掉，顺路碰到赞助商合作，金币到手。' } },
+    ],
+  },
+  {
+    id: 'caveOfMirrors', chapter: 2, type: 'story', icon: '🪞',
+    title: '幻镜洞',
+    text: '山道旁有一座幻镜洞，据说里面的镜子能映出"最强对手的形态"。引路小道士提醒："进去会耗神，但悟出来的东西是真的。"',
+    options: [
+      { label: '入洞参悟（获战术卡）', reward: { kind: 'card', flavor: '镜中的对手打出一招你从未见过的球路，记了下来。' } },
+      { label: '绕道走，留着体力', reward: { kind: 'heal', amount: 35, flavor: '省了不少精力，赶到下一站时精神饱满。' } },
+    ],
+  },
+  {
+    id: 'stargazing', chapter: 3, type: 'story', icon: '🌌',
+    title: '舷窗外的星海',
+    text: '深夜失眠，舷窗外银河铺展。你可以对着星空冥想整理思绪，也可以把这段时间用来回看今天的战术录像。',
+    options: [
+      { label: '对着星空冥想（心态+10）', reward: { kind: 'stat', stat: 'mind', amount: 10, flavor: '浩瀚星海让一切烦恼显得渺小，心境大开。' } },
+      { label: '回看战术录像（获战术卡）', reward: { kind: 'card', flavor: '录像里发现了一个细节漏洞——记下来化作战术卡。' } },
+    ],
+  },
+
+
 
   // 小游戏 ×4
   {
