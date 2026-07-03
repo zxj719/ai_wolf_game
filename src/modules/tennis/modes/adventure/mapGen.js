@@ -12,6 +12,7 @@ const CHAPTERS = [
   { title: '第一章 · 菜市场江湖', theme: 'market', regular: '广场舞大妈', elite: '外卖小哥' },
   { title: '第二章 · 修仙界', theme: 'immortal', regular: '太极宗师', elite: '修仙童子' },
   { title: '第三章 · 太空站', theme: 'space', regular: 'BOT-3000', elite: '网球之神' },
+  { title: '第四章 · 传说殿堂', theme: 'legend', regular: '传说幽灵', elite: '永恒球王' },
 ];
 
 function rollNodeType(rng) {
@@ -53,7 +54,7 @@ export function generateMap(rng) {
       type: 'battle',
       opponentId: ch.elite,
       elite: true,
-      ...(ci === 2 ? { boss: true } : {}),
+      ...(ci === CHAPTERS.length - 1 ? { boss: true } : {}),
     }]);
     return { title: ch.title, theme: ch.theme, regular: ch.regular, steps };
   });

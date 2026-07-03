@@ -117,7 +117,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
   }, [run.phase]);
 
   const equipBonus = applyEquipment(progress.equipment);
-  const chapter = run.map.chapters[Math.min(run.chapterIdx, 2)];
+  const chapter = run.map.chapters[Math.min(run.chapterIdx, run.map.chapters.length - 1)];
   const player = {
     ...basePlayer,
     sta: basePlayer.sta + run.runStats.sta,
@@ -184,7 +184,7 @@ export function AdventureScreen({ basePlayer, progress, onUpdateProgress, equipp
           <h2>{won ? '奖杯夺回！' : '闯关失败……'}</h2>
           <p className="comment">
             {won
-              ? '从菜市场打到太空站，离谱小游戏练出的每一分反应、心态和体能，都在最后这场正经网球对决里派上了用场。家族奖杯，完璧归赵！'
+              ? '从菜市场打到传说殿堂，一路的离谱小游戏练出每一分反应、心态和体能，都在最终对决里派上了用场。击败永恒球王，家族奖杯，完璧归赵！'
               : '这一路的装备和金币都揣进了口袋——养成不会清零，装备升满再来！'}
           </p>
           <div className="ladder-loot">

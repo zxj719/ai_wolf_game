@@ -338,6 +338,68 @@ export const EVENTS = [
       { label: '把频道时间留给战术录像', reward: { kind: 'card', flavor: '录像里发现了一张陌生战术卡，前辈遗留的心血。' } },
     ],
   },
+
+  // ===== 第四章 · 传说殿堂（R127 +6 条） =====
+
+  // 小游戏 ×2
+  {
+    id: 'legendScroll', chapter: 4, type: 'minigame', minigame: 'precisionStop', icon: '📜',
+    title: '传说典籍验身',
+    text: '殿堂入口矗立着千年典籍，记载着所有传说球手的技艺巅峰。"在最精妙的时刻停手——证明你配进入这里。"切削放缓的时机感，在这里又一次派上了用场。',
+    rewards: [
+      { kind: 'nothing', flavor: '典籍合上了，守门幽灵摇摇头。你还差点感悟。' },
+      { kind: 'stat', stat: 'skill', amount: 6, flavor: '停在了临界点，典籍微微发光。技巧有所精进。' },
+      { kind: 'stat', stat: 'skill', amount: 12, flavor: '完美时机！典籍碎成金光融入你手——传说技巧一并传承！' },
+    ],
+  },
+  {
+    id: 'legendRhythm', chapter: 4, type: 'minigame', minigame: 'rhythmBar', icon: '⚡',
+    title: '永恒节律试炼',
+    text: '传说殿堂的核心有一道永恒心跳，亿年未停。跟上它——心态上限对你再无约束。据说所有传说球王都曾在此共鸣过。',
+    rewards: [
+      { kind: 'nothing', flavor: '节律消散了，你找不到那个频率。心态仍有顾虑。' },
+      { kind: 'stat', stat: 'mind', amount: 7, flavor: '接上了几拍！心境大幅提升。' },
+      { kind: 'stat', stat: 'mind', amount: 14, flavor: '与永恒共振！传说球王的心境注入你体内——大彻大悟。' },
+    ],
+  },
+
+  // 剧情二选一 ×4
+  {
+    id: 'legendCoach', chapter: 4, type: 'story', icon: '🏅',
+    title: '传说教练现身',
+    text: '殿堂中央端坐着一位无形的老者，据说曾指导过所有传说球王。"我只有一句话能给你——是要技法，还是要体力？"',
+    options: [
+      { label: '要技法（获战术卡）', reward: { kind: 'card', flavor: '"接住。"老者的一枚战术卡在空中显形，是你从未见过的路子。' } },
+      { label: '要体力（大量回体）', reward: { kind: 'heal', amount: 70, flavor: '"喝完这碗。"传说般的体力恢复——这才是真正的秘诀。' } },
+    ],
+  },
+  {
+    id: 'ancientTrophy', chapter: 4, type: 'story', icon: '🏆',
+    title: '古老奖杯的启示',
+    text: '殿堂深处漂浮着一座远古奖杯——家族奖杯的原型。抚摸它，能感受到所有历代冠军的意志；但它也可能化作金币，让你在商店里换来实力。',
+    options: [
+      { label: '感受冠军意志（心态+12）', reward: { kind: 'stat', stat: 'mind', amount: 12, flavor: '历代冠军的意志涌入你体——泪流满面，心志钢铁。' } },
+      { label: '化作金币（+90💰）', reward: { kind: 'coins', amount: 90, flavor: '古老奖杯化为金雨。钱是真实的——意志嘛……自己找吧。' } },
+    ],
+  },
+  {
+    id: 'phantomDuel', chapter: 4, type: 'story', icon: '👻',
+    title: '幻影宿敌',
+    text: '走廊里出现了一个熟悉的身影——是你最强的那个家人的幻影，眼神中带着不服气。"来单练！赢了我传你一招，输了给我让路。"',
+    options: [
+      { label: '接受幻影对练（获战术卡 + 体力-20）', reward: { kind: 'card', healDelta: -20, flavor: '拆了几十回合，幻影消散，手中多了一张它的招式卡。' } },
+      { label: '绕道走，保留体力', reward: { kind: 'heal', amount: 30, flavor: '幻影冷笑着消失。你找到了一处僻静营地，小憩一番。' } },
+    ],
+  },
+  {
+    id: 'legendWager', chapter: 4, type: 'story', icon: '🎲',
+    title: '传说赌局',
+    text: '一位蒙面传说球手拦住你："我们赌一局——你赢了，我的精华归你；我赢了，你输我 30 金币。这种赌局，我从未输过。"那你选呢？',
+    options: [
+      { label: '接受赌局（随机属性+10 或 -30💰）', reward: { kind: 'stat', stat: 'random', amount: 10, flavor: '……他眯着眼："你走运了。"精华收入囊中。' } },
+      { label: '拒绝，留着金币稳打', reward: { kind: 'coins', amount: 20, flavor: '他失望地离去，你在他遗落的地方找到了 20 金币。' } },
+    ],
+  },
 ];
 
 /** 按章节 + roll 取事件（小游戏与剧情混合池） */

@@ -7,9 +7,9 @@ const rngSeq = (vals) => {
 };
 
 describe('generateMap（spec §4.2）', () => {
-  it('三章，每章 4-5 步，每步 1-2 个节点选项', () => {
+  it('四章，每章 4-5 步，每步 1-2 个节点选项', () => {
     const map = generateMap(rngSeq([0.1, 0.5, 0.9, 0.3, 0.7]));
-    expect(map.chapters).toHaveLength(3);
+    expect(map.chapters).toHaveLength(4);
     for (const ch of map.chapters) {
       expect(ch.steps.length).toBeGreaterThanOrEqual(4);
       expect(ch.steps.length).toBeLessThanOrEqual(5);
@@ -23,9 +23,9 @@ describe('generateMap（spec §4.2）', () => {
     }
   });
 
-  it('每章末步固定单一精英战；第三章末为 BOSS', () => {
+  it('每章末步固定单一精英战；第四章末为 BOSS', () => {
     const map = generateMap(rngSeq([0.2, 0.6, 0.4]));
-    const elites = ['外卖小哥', '修仙童子', '网球之神'];
+    const elites = ['外卖小哥', '修仙童子', '网球之神', '永恒球王'];
     map.chapters.forEach((ch, i) => {
       const last = ch.steps[ch.steps.length - 1];
       expect(last).toHaveLength(1);
@@ -33,7 +33,7 @@ describe('generateMap（spec §4.2）', () => {
       expect(last[0].opponentId).toBe(elites[i]);
       expect(last[0].elite).toBe(true);
     });
-    expect(map.chapters[2].steps.at(-1)[0].boss).toBe(true);
+    expect(map.chapters[3].steps.at(-1)[0].boss).toBe(true);
   });
 
   it('对战节点带本章常规对手；任意 seed 都能走到 BOSS（线性步进+必有选项）', () => {
@@ -52,7 +52,7 @@ describe('generateMap（spec §4.2）', () => {
   it('章节主题文案齐备', () => {
     const map = generateMap(rngSeq([0.5]));
     expect(map.chapters.map((c) => c.title)).toEqual([
-      '第一章 · 菜市场江湖', '第二章 · 修仙界', '第三章 · 太空站',
+      '第一章 · 菜市场江湖', '第二章 · 修仙界', '第三章 · 太空站', '第四章 · 传说殿堂',
     ]);
   });
 });

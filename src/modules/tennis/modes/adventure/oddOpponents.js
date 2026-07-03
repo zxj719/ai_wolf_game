@@ -60,6 +60,26 @@ export const ODD_OPPONENTS = {
     taunt: '凡人，奖杯在我手里。每一盘，我都是另一个我。',
     twistDesc: '每盘更换一套配招——上一盘的读招经验作废',
   },
+  '传说幽灵': {
+    name: '传说幽灵', face: '👻', chapter: 4,
+    sta: 84, skill: 90, mind: 78,
+    build: { moves: ['smash', 'topspin', 'passingShot', 'volley'], weights: [0.3, 0.3, 0.25, 0.15] },
+    twists: { timeScale: 0.6 },
+    taunt: '时光不败，传说永存——你的小游戏窗口，也会随我一起消逝。',
+    twistDesc: '传说幽灵的时间感超越凡人——你的小游戏时限 −40%',
+  },
+  '永恒球王': {
+    name: '永恒球王', face: '👑', chapter: 4, elite: true, boss: true,
+    sta: 99, skill: 99, mind: 95,
+    builds: [
+      { moves: ['flatDrive', 'smash', 'topspin', 'passingShot'], weights: [0.3, 0.3, 0.25, 0.15] },
+      { moves: ['slice', 'lob', 'dropShot', 'volley'], weights: [0.3, 0.25, 0.25, 0.2] },
+      { moves: ['topspin', 'passingShot', 'smash', 'flatDrive'], weights: [0.3, 0.3, 0.2, 0.2] },
+    ],
+    twists: { bossPhaseSwap: true, forcedMindDuel: 2 },
+    taunt: '千年来没有一人能在我面前打出完整一盘。今天——也不行。',
+    twistDesc: '每盘切换三套打法（上盘的读招经验作废），且每两球强制比拼心态——精神不稳者必败',
+  },
 };
 
 /** 家人客串对手（章节梯度属性由调用方掷出） */

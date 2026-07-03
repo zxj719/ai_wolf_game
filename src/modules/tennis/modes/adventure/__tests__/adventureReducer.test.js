@@ -85,13 +85,13 @@ describe('adventureReducer（spec §4）', () => {
 
   it('整章打穿进入下一章；BOSS 胜利 → victory', () => {
     let s = mk();
-    // 连续清步直到第三章 BOSS
+    // 连续清步直到第四章 BOSS
     let guard = 0;
-    while (s.phase === 'pick' && guard++ < 40) {
+    while (s.phase === 'pick' && guard++ < 60) {
       s = clearStep(s);
     }
     expect(s.phase).toBe('victory');
-    expect(s.chapterIdx).toBe(2);
+    expect(s.chapterIdx).toBe(3);
   });
 
   it('BATTLE_RESULT 胜利时保存 lastMatchStats，供攻防回顾', () => {
