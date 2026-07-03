@@ -60,8 +60,8 @@ function getNightDreamweaverBlock() {
 function getMagicianNightFnBlock() {
     const start = magicianSrc.indexOf('export const getMagicianNightActionPrompt');
     if (start === -1) throw new Error('getMagicianNightActionPrompt 未找到');
-    // 当前函数 5566 chars，用 7500 留余量
-    return magicianSrc.slice(start, start + 7500);
+    // R109 新增平安夜推断后函数 8275 chars，用 9000 留余量
+    return magicianSrc.slice(start, start + 9000);
 }
 
 // ═══════════════════════════════════════════════════════

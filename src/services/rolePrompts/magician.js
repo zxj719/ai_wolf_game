@@ -92,6 +92,8 @@ export const getMagicianNightActionPrompt = (params) => {
     suspectedWolves,
     hasRevealed,  // R46 Bug 修复：身份已公开时自保优先级跃升为最高（R22 补传但未消费）
     personalityType,  // R78: 夜间换刀决策风格个性化
+    lastNightInfo,    // R109: 平安夜推断（昨夜结果字符串）
+    fullGameTimeline, // R109: 平安夜推断（全局时间线）
   } = params;
 
   // R43 读写闭环（同 R38-R41 NIGHT_WOLF/WITCH/GUARD/SEER 模式）
@@ -99,6 +101,50 @@ export const getMagicianNightActionPrompt = (params) => {
   const magicianHistoryStep = dayCount > 1
     ? '0. 【读取历史换刀候选与保护目标】查看系统提示中【你之前的身份推理表】：哪些玩家的 reason 含"换刀候选"或"保核目标候选"？作为今晚交换决策的起点（若该目标已死亡或受整局/连续限制不可换，跳过，改选其他目标）'
     : '0. 【首夜】无历史换刀/保护候选记录——直接根据当前局势选择交换目标';
+
+  // R109: NIGHT_MAGICIAN 平安夜交换价值评估框架（一轮完成单夜→两连→三连）
+  // 魔术师独特性：知道自己的 lastSwap + 平安夜 → 推断守护来源 → 调整今晚换刀方向
+  const isNightPeacefulMagician = dayCount > 1 && lastNightInfo?.includes('平安夜');
+  const magNightPrevDay = dayCount > 1 ? dayCount - 1 : 0;
+  const isConsecutivePeacefulNightMagician = dayCount >= 3 && isNightPeacefulMagician &&
+      fullGameTimeline?.includes(`N${dayCount - 2}:平安夜`);
+  const magNightPrevPrevDay = dayCount >= 3 ? dayCount - 2 : 0;
+  const isTripleConsecutivePeacefulNightMagician = dayCount >= 4 && isConsecutivePeacefulNightMagician &&
+      fullGameTimeline?.includes(`N${dayCount - 3}:平安夜`);
+  const magNightThreePrevDay = dayCount >= 4 ? dayCount - 3 : 0;
+  const lastNightHadSwap = lastSwap && lastSwap.player1Id !== null;
+  const lastSwapRef = lastNightHadSwap
+      ? `${lastSwap.player1Id}号 ↔ ${lastSwap.player2Id}号`
+      : '（未交换）';
+  const swapStatusHint = lastNightHadSwap
+      ? `昨夜有交换（${lastSwapRef}）：狼刀落点经交换重定向后被守卫/女巫拦截 → 被拦截的交换落点玩家今晚仍受保护概率适中（confidence 升 15-20）；今晚继续交换相同目标价值降低，建议覆盖未保护高威胁目标`
+      : `昨夜未交换：守卫/女巫直接保护了狼刀目标 → 受保护玩家今晚连守概率适中（confidence 升 10-15）；今晚交换该玩家价值降低`;
+  let tripleConsecutivePeaceNightHintMag = '';
+  let consecutivePeaceNightHintMag = '';
+  if (isConsecutivePeacefulNightMagician) {
+      tripleConsecutivePeaceNightHintMag = isTripleConsecutivePeacefulNightMagician
+          ? `⭕【三连平安夜三阶交换价值评估（thought 中完成）】
+      ① 三夜交换记录对照：查 identity_table 含"N${magNightThreePrevDay}夜交换已用"/"N${magNightPrevPrevDay}夜交换已用"/"N${magNightPrevDay}夜交换已用"条目
+      ② 三路径推断（超集激活：三连时三层全显示）：
+         路径A：三夜均有有效交换 → 守卫/女巫极可能持续保护交换链覆盖的某固定目标，今晚交换价值在覆盖全新目标方向，confidence 升 35-45
+         路径B：两夜有交换一夜未交换 → 守卫稳定保护某目标，今晚向未覆盖高威胁目标倾斜，confidence 升 30-40
+         路径C：三夜交换各不相同 → 保护规律随机，按单夜框架独立评估今晚交换价值
+      ③ identity_table 追加：在交换候选 reason 末尾追加"N${magNightPrevDay}三连平安夜：[路径A/B/C]换方向调整"`
+          : '';
+      consecutivePeaceNightHintMag = `${tripleConsecutivePeaceNightHintMag}⭕【两连平安夜二阶交换价值评估（thought 中完成）】
+      ① 两夜交换记录对照：查 identity_table 含"N${magNightPrevPrevDay}夜交换已用"/"N${magNightPrevDay}夜交换已用"条目
+      ② 两路径推断：
+         路径A：两夜均有交换 + 两连平安夜 → 守卫/女巫可能持续保护交换链覆盖的目标，confidence 升 25-35；今晚切换交换方向覆盖未保护的高威胁目标
+         路径B：某夜未交换 + 两连平安夜 → 守卫连续保护同一目标，confidence 升 20-30；今晚交换切换候选优先于维持原方向
+      ③ identity_table 追加：在交换候选 reason 末尾追加"N${magNightPrevDay}两连平安夜：[路径A/B]换方向"
+`;
+  }
+  const magicianNightPeaceStep = isNightPeacefulMagician
+      ? `${consecutivePeaceNightHintMag}⭕【魔术师平安夜交换价值评估（thought 中完成）】昨夜N${magNightPrevDay}交换状态：${lastSwapRef}
+      ① 来源推断：${swapStatusHint}
+      ② identity_table 追加：在交换候选 reason 末尾追加"N${magNightPrevDay}平安夜：[有换/未换]→守护来源推断"
+`
+      : '';
 
   // R78: NIGHT_MAGICIAN 换刀决策风格个性化（magicianNightStyle）
   const magicianNightPersonalityType = personalityType || '';
@@ -205,7 +251,7 @@ ${strategyHints.join('\n')}
 
 【博弈思维链（必须按此顺序思考）】
 ${magicianHistoryStep}
-${magicianNightStyle}
+${magicianNightPeaceStep}${magicianNightStyle}
 Step 1: 当前局势分析
   - 谁是明神（已暴露的神职）？
   - 谁是狼嫌疑人？
