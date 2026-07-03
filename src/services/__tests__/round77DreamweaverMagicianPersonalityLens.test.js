@@ -43,7 +43,7 @@ const magSrc = readFileSync(resolve(process.cwd(), 'src/services/rolePrompts/mag
 function getDreamweaverDayBlock() {
     const start = dwSrc.indexOf('export const getDreamweaverDaySpeechPrompt');
     if (start === -1) throw new Error('getDreamweaverDaySpeechPrompt 未找到');
-    return dwSrc.slice(start, start + 5500);
+    return dwSrc.slice(start, start + 7000);  // R108: +1700 chars 平安夜推断 → 5500→7000
 }
 
 // 定位魔术师 daySpeech 函数块（更新后约 4398 chars，窗口用 6000）

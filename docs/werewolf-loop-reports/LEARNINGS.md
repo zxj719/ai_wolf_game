@@ -4,6 +4,20 @@
 
 ---
 
+### [2026-07-03 Round 108] 摄梦人 DAY_SPEECH 平安夜双来源推断三层体系（isPeacefulNightDW + isConsecutivePeacefulDW + isTripleConsecutivePeacefulDW）— Prepend Injection 第 23 次
+
+- **完成状态**：`dreamweaver.js` `getDreamweaverDaySpeechPrompt` 新增 8 个变量：① `isPeacefulNightDW`（`dayCount > 1 && lastNightInfo?.includes('平安夜')`）；② `dwPrevDay`；③ `isConsecutivePeacefulDW`（`dayCount >= 3 + fullGameTimeline N-2:平安夜`）；④ `dwPrevPrevDay`；⑤ `dreamTargetRef`（`lastDreamTarget !== null ? '${lastDreamTarget}号' : '（记录缺失）'`）；⑥ let `dwPeaceNightStep = ''`；⑦ if 块内 `isTripleConsecutivePeacefulDW`（`dayCount >= 4 + isConsecutivePeacefulDW + N-3:平安夜`）；⑧ `dwThreePrevDay`；⑨ `tripleConsecutivePeaceHintDW`（三元）；⑩ `consecutivePeaceHintDW`（Prepend Injection）。注入方式：`${dwPeaceNightStep}` 在 return 模板 `${dreamweaverDayHistoryStep}` 之后、`Step1:` 之前。函数从 ~4800 → 6463 chars（+1663 chars）；round77 窗口 5500→7000。
+- **摄梦人 DAY_SPEECH 双来源推断独特性（R108-A）**：摄梦人知道 `lastDreamTarget`（昨晚入梦目标），平安夜时需辨别"来源A（入梦免疫拦截狼刀）vs 来源B（守卫/女巫保护他处）"。推断结论落在**今晚是否维持入梦该目标**（防守决策），而非"谁是好人"。**设计原则：平安夜推断结论必须适配角色的核心决策框架——骑士（决斗候选置信度降）、摄梦人（入梦目标置信度升 + 今晚入梦方向）、守卫（守护目标来源推断）、狼人（换刀策略）——不能套用同一结论模板**。
+- **dreamTargetRef 参数化（R108-B）**：通过 `const dreamTargetRef = lastDreamTarget !== null ? \`${lastDreamTarget}号\` : '（记录缺失）'` 将入梦目标具体玩家号注入推断文本，使推断内容与本局具体目标绑定（而非通用描述）。T19 测试验证：`makeParams(5)` 时 result 包含 `'5号'`。这是首个在平安夜推断文本中注入 params 派生变量的实现，可供未来角色参考。
+- **detached HEAD + local main 落后 50 commits 恢复（R108-C）**：本轮启动时 `git checkout main` 显示"local main 落后 remote 50 commits"（local 停在 R86，remote 在 R123）。原因是远端 force push 后 local main 引用指向旧 SHA。工作树干净，直接 `git reset --hard origin/main` 恢复。**本地 main 落后 remote 超过 10 commits 时，若工作树干净，直接 `git reset --hard origin/main`；若有在制工作，先 cp 文件备份再 reset**。
+- **round77 窗口更新规律（R108-D）**：`getDreamweaverDayBlock()` 窗口 5500→7000（函数体 +1663 chars，`${dreamweaverSpeechLen}` 从 ~4800 移至 5965，超出旧窗口）。**检测命令：`node -e "const s=require('fs').readFileSync('src/services/rolePrompts/dreamweaver.js','utf8'); const a=s.indexOf('export const getDreamweaverDaySpeechPrompt'); console.log('speechLen offset:',s.indexOf('\${dreamweaverSpeechLen}',a)-a)"`；dreamweaver.js 新增代码后必须运行，若 speechLen offset > round77 窗口则立即更新**。
+- **摄梦人 DAY×NIGHT 双侧推断闭合（R108-E）**：R107（NIGHT_DW 双来源推断）+ R108（DAY_SPEECH 双来源推断）= 摄梦人双侧三层推断体系完整。至此所有已实现 NIGHT 推断的角色（守卫/狼人/预言家/女巫/摄梦人）均已完成 DAY_SPEECH 侧对应推断。**下一覆盖目标：魔术师 NIGHT 推断（magician.js），需在 NIGHT_MAGICIAN case 补充传递 `lastNightInfo` 和 `fullGameTimeline` 参数**。
+- **白熊效应合规（第 29 次验证）**：三层推断全正向描述（"confidence 升 15-20/25-35/35-45"/"今晚维持入梦该目标"/"调整入梦方向"），无负向禁词 ✅（T15 测试覆盖）。
+- **测试**：1864/1864（+20 new R108 tests T1-T20；+round77 窗口 5500→7000；1 pre-existing chatSocket failure 与本轮无关）；build ✅（WerewolfModule 247.21 kB）；check-build ✅。
+- **下轮优先**：魔术师 NIGHT 平安夜推断（`magician.js` + NIGHT_MAGICIAN case 补传参数），或覆盖审计（NIGHT_HUNTER / NIGHT_KNIGHT 是否存在）。
+
+---
+
 ### [2026-07-02 Round 106] 女巫 NIGHT 侧平安夜两连+三连推断（isNightPeacefulWitch + isConsecutivePeacefulNightWitch + isTripleConsecutivePeacefulNightWitch）— Prepend Injection 第 21 次
 
 - **完成状态**：`aiPrompts.js` NIGHT_WITCH case 新增 9 个变量：① `isNightPeacefulWitch`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）；② `witchNightPrevDay`；③ `isConsecutivePeacefulNightWitch`（D3+，fullGameTimeline N-2:平安夜）；④ `witchNightPrevPrevDay`；⑤ `isTripleConsecutivePeacefulNightWitch`（D4+，fullGameTimeline N-3:平安夜）；⑥ `witchNightThreePrevDay`；⑦ `tripleConsecutivePeaceNightHintWitch`（let，if 块内三元）；⑧ `consecutivePeaceNightHintWitch`（let，if 块内拼接三连前置）；⑨ `witchNightPeaceStep`（三元）。注入方式：`${witchNightPeaceStep}` 在 return 模板 `${witchNightStyle}` 之后、`1. 解药考量：` 之前（Prepend Injection 第 21 次）。NIGHT_WITCH block 4023 → 6624 chars（+2601 chars）；round74 窗口 5200→8000。

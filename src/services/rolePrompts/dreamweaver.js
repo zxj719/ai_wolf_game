@@ -115,6 +115,44 @@ export const getDreamweaverDaySpeechPrompt = (ctx, params) => {
   else if (dwPersonalityType === 'cautious') dreamweaverSpeechLen = '35-60';
   else if (dwPersonalityType === 'steady') dreamweaverSpeechLen = '40-65';
 
+  // R108: 摄梦人 DAY_SPEECH 平安夜双来源推断三层体系（单夜→两连→三连）
+  const isPeacefulNightDW = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+  const dwPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+  const isConsecutivePeacefulDW = ctx.dayCount >= 3 && isPeacefulNightDW &&
+      ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+  const dwPrevPrevDay = ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0;
+  const dreamTargetRef = lastDreamTarget !== null ? `${lastDreamTarget}号` : '（记录缺失）';
+
+  let dwPeaceNightStep = '';
+  if (isPeacefulNightDW) {
+      const isTripleConsecutivePeacefulDW = ctx.dayCount >= 4 && isConsecutivePeacefulDW &&
+          ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
+      const dwThreePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+
+      const tripleConsecutivePeaceHintDW = isTripleConsecutivePeacefulDW
+          ? `⭕【三连平安夜三阶双来源推断（N${dwThreePrevDay}+N${dwPrevPrevDay}+N${dwPrevDay}均无死亡；thought 中完成）】
+- 比较三夜入梦目标模式（通过 identity_table 历史记录 reason 中"N${dwThreePrevDay}夜/N${dwPrevPrevDay}夜/N${dwPrevDay}夜已入梦"推断）：
+  路径A - 三夜相同目标：该目标连续三夜受入梦免疫保护，狼队持续无法击杀 → 极高概率是核心好人且持续被针对；identity_table 该目标 confidence 升 35-45，reason 追加"N${dwThreePrevDay}+N${dwPrevPrevDay}+N${dwPrevDay}三连平安夜：持续入梦目标，核心好人且持续被针对"
+  路径B - 两夜相同+一夜不同：共同两夜目标 confidence 升 25-35（局部连保）；独立目标按单夜框架评估
+  路径C - 三夜各不相同：守卫/女巫轮守格局，三目标分别按单夜标准独立评估各来源A/B可能性
+`
+          : '';
+
+      const consecutivePeaceHintDW = isConsecutivePeacefulDW
+          ? `${tripleConsecutivePeaceHintDW}⭕【两连平安夜二阶双来源推断（N${dwPrevPrevDay}+N${dwPrevDay}均无死亡；thought 中完成）】
+- 对比两夜入梦目标（通过 identity_table reason 中"N${dwPrevPrevDay}夜/N${dwPrevDay}夜已入梦"推断）：
+  路径A - 两夜相同目标：该目标连续两夜受入梦免疫保护 → 狼队持续将其列为刀口但被拦截；confidence 升 25-35，reason 追加"N${dwPrevPrevDay}+N${dwPrevDay}两连平安夜：连续入梦拦截，持续刀口推断"；今晚维持入梦该目标
+  路径B - 两夜不同目标：分别按单夜框架对两个目标各自评估来源A/B可能性，各 confidence 升 15-20
+`
+          : '';
+
+      dwPeaceNightStep = `${consecutivePeaceHintDW}⭕【摄梦人平安夜双来源推断（N${dwPrevDay}无死亡；thought 中完成；speech 正常发言即可）】
+你昨晚入梦了 ${dreamTargetRef}，今早无人死亡，两种来源需辨别：
+- 来源A：狼人攻击了你的入梦目标 → 被入梦免疫拦截（该目标是狼的首选刀口；若其 identity_table confidence ≥65，来源A概率升高；今晚维持入梦该目标，让免疫继续保护；confidence 升 15-20；reason 追加"N${dwPrevDay}平安夜来源A推断：疑似狼刀目标，入梦免疫生效"）
+- 来源B：守卫/女巫保护了其他目标 → 狼人未攻击入梦目标（若其 confidence <65，来源B可能性更高；考虑今晚调整入梦方向至更高威胁核心好人）
+`;
+  }
+
   return `${getBaseContext(ctx)}
 【摄梦人专属任务】白天发言 - 隐藏身份与逻辑输出
 
@@ -161,7 +199,7 @@ ${dreamweaverPersonalityLens}
 
 【思维链（必须完成）】
 ${dreamweaverDayHistoryStep}
-Step1: 昨晚入梦回顾
+${dwPeaceNightStep}Step1: 昨晚入梦回顾
   - 我入梦了谁？为什么入梦TA？
   - 今早TA的状态如何？
 
