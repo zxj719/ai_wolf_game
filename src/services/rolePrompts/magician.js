@@ -348,6 +348,48 @@ export const getMagicianDaySpeechPrompt = (ctx, params) => {
   else if (magPersonalityType === 'cautious') magicianSpeechLen = '35-55';
   else if (magPersonalityType === 'steady') magicianSpeechLen = '40-65';
 
+  // R110: 魔术师 DAY_SPEECH 平安夜逻辑镜像推断三层体系（单夜→两连→三连）
+  // 独特性：魔术师知道 lastSwap 历史 + 平安夜 → 推断守护来源 → 更新逻辑镜像表（DAY 侧闭环）
+  const isPeacefulNightMagicianDay = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+  const magDayPrevDay = ctx.dayCount > 1 ? ctx.dayCount - 1 : 0;
+  const isConsecutivePeacefulMagicianDay = ctx.dayCount >= 3 && isPeacefulNightMagicianDay &&
+      ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+  const magDayPrevPrevDay = ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0;
+  const lastDayHadSwap = lastSwap && lastSwap.player1Id !== null;
+  const lastDaySwapRef = lastDayHadSwap
+      ? `${lastSwap.player1Id}号 ↔ ${lastSwap.player2Id}号`
+      : '（昨夜未交换）';
+  const swapDayStatusHint = lastDayHadSwap
+      ? `有交换（${lastDaySwapRef}）→ 狼刀经交换重定向后被守护，交换落点玩家今天可视为好人概率升高（confidence 升 15-20）；今晚建议切换方向覆盖未保护高威胁目标`
+      : `未交换 → 守卫直接守护了狼刀目标，昨夜高票存活玩家为守卫守护候选（confidence 升 10-15）；今晚可将高威胁玩家纳入交换链`;
+
+  let magDayPeaceStep = '';
+  if (isPeacefulNightMagicianDay) {
+      const isTripleConsecutivePeacefulMagicianDay = ctx.dayCount >= 4 && isConsecutivePeacefulMagicianDay &&
+          ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
+      const magDayThreePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+      const tripleConsecutivePeaceDayHintMag = isTripleConsecutivePeacefulMagicianDay
+          ? `⭕【三连平安夜三阶逻辑镜像推断（N${magDayThreePrevDay}+N${magDayPrevPrevDay}+N${magDayPrevDay}均无死亡；thought 中完成）】
+      ① 三夜交换记录交叉：查 identity_table 含"N${magDayThreePrevDay}夜交换已用"/"N${magDayPrevPrevDay}夜交换已用"/"N${magDayPrevDay}夜交换已用"条目
+      ② 三路径框架（超集激活：三连时三层全显示）：
+         路径A：三夜均有交换 → 守卫/女巫极可能稳定保护交换链覆盖的固定目标，confidence 升 35-45；逻辑镜像表标注"三连守护锁定"
+         路径B：两夜有交换一夜未 → 守卫稳定保护某目标，confidence 升 30-40；今晚交换方向向未覆盖高威胁目标倾斜
+         路径C：三夜交换各不相同 → 守卫随机轮守，按单夜框架独立评估今日局势
+      ③ identity_table 追加：守卫/女巫候选 reason 末尾加"N${magDayThreePrevDay}+N${magDayPrevPrevDay}+N${magDayPrevDay}三连平安夜：[路径A/B/C]逻辑镜像锁定，confidence 升 35-45"\n`
+          : '';
+      const consecutivePeaceDayHintMag = isConsecutivePeacefulMagicianDay
+          ? `${tripleConsecutivePeaceDayHintMag}⭕【两连平安夜二阶逻辑镜像推断（N${magDayPrevPrevDay}+N${magDayPrevDay}均无死亡；thought 中完成）】
+      ① 两夜交换记录交叉：查 identity_table 含"N${magDayPrevPrevDay}夜交换已用"/"N${magDayPrevDay}夜交换已用"条目
+      ② 两路径推断：
+         路径A：两夜均有交换 + 两连平安夜 → 守卫持续保护交换链覆盖玩家，confidence 升 25-35；逻辑镜像表该目标标注"两连守护候选"
+         路径B：某夜未交换 + 两连平安夜 → 守卫连续直接守护某玩家，confidence 升 20-30；关注两夜存活的高票玩家
+      ③ identity_table 追加：守卫/女巫候选 reason 末尾加"N${magDayPrevPrevDay}+N${magDayPrevDay}两连平安夜：[路径A/B]逻辑镜像更新，confidence 升 25-35"\n`
+          : '';
+      magDayPeaceStep = `${consecutivePeaceDayHintMag}⭕【魔术师平安夜逻辑镜像推断（N${magDayPrevDay}无死亡；thought 中完成；speech 正常魔术师发言）】
+      ① 昨夜交换状态：${swapDayStatusHint}
+      ② identity_table 追加：守卫/女巫候选 reason 末尾加"N${magDayPrevDay}平安夜：[有换/未换]守护来源推断，confidence 升 15-20"\n`;
+  }
+
   return `${getBaseContext(ctx)}
 【魔术师专属任务】白天发言 - 逻辑修正与身份隐藏
 
@@ -380,7 +422,7 @@ ${magicianPersonalityLens}
 
 【思维链（必须完成）】
 ${magicianDayHistoryStep}
-Step1: 逻辑镜像计算
+${magDayPeaceStep}Step1: 逻辑镜像计算
   - 昨晚的死亡是谁？根据交换，狼人实际选择的目标是谁？
   - 预言家验人的真实结果是什么？（经过交换修正）
   - 场上当前的逻辑链是否正确？

@@ -46,11 +46,11 @@ function getDreamweaverDayBlock() {
     return dwSrc.slice(start, start + 7000);  // R108: +1700 chars 平安夜推断 → 5500→7000
 }
 
-// 定位魔术师 daySpeech 函数块（更新后约 4398 chars，窗口用 6000）
+// 定位魔术师 daySpeech 函数块（R110 后约 7224 chars，窗口用 8000）
 function getMagicianDayBlock() {
     const start = magSrc.indexOf('export const getMagicianDaySpeechPrompt');
     if (start === -1) throw new Error('getMagicianDaySpeechPrompt 未找到');
-    return magSrc.slice(start, start + 6000);
+    return magSrc.slice(start, start + 8000);
 }
 
 // ═══════════════════════════════════════════════════════

@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-03 Round 110] 魔术师 DAY_SPEECH 平安夜逻辑镜像推断三层体系（isPeacefulNightMagicianDay + isConsecutivePeacefulMagicianDay + isTripleConsecutivePeacefulMagicianDay）— Prepend Injection 第 25 次
+
+- **完成状态**：`magician.js` `getMagicianDaySpeechPrompt` 新增 11 个变量：① `isPeacefulNightMagicianDay`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）；② `magDayPrevDay`；③ `isConsecutivePeacefulMagicianDay`（`dayCount >= 3 + fullGameTimeline N-2:平安夜`）；④ `magDayPrevPrevDay`；⑤ `lastDayHadSwap`（`lastSwap && lastSwap.player1Id !== null`）；⑥ `lastDaySwapRef`（有换/未换两路参数化）；⑦ `swapDayStatusHint`（有换 confidence 升 15-20 / 未换 confidence 升 10-15）；⑧ `let magDayPeaceStep = ''` + if 块内：⑨ `isTripleConsecutivePeacefulMagicianDay`（`dayCount >= 4 + isConsecutive + fullGameTimeline N-3:平安夜`）；⑩ `magDayThreePrevDay`；⑪ `tripleConsecutivePeaceDayHintMag`；⑫ `consecutivePeaceDayHintMag`（前置三连，Prepend Injection 第 25 次）。注入方式：`${magDayPeaceStep}` 在 return 模板 `${magicianDayHistoryStep}` 之后、`Step1:` 之前。函数从 4403 → 7224 chars（+2821 chars）；round77 窗口 6000→8000。
+- **魔术师 DAY_SPEECH vs NIGHT 推断框架差异（R110-A）**：NIGHT_MAGICIAN 推断结论是「今晚换刀方向（行动决策）」；DAY_SPEECH 推断结论是「更新逻辑镜像表 + identity_table 标注（信息整合）」。两者使用相同的 `lastSwap` 信息但结论目标不同。**设计原则：DAY 侧推断结论应适配 DAY 侧决策框架（信息整合→speech 策略），NIGHT 侧推断结论适配 NIGHT 侧决策框架（行动选择）；不能套用同一结论模板**。
+- **平安夜推断矩阵完整闭合（R110-B）**：至此，所有需要平安夜推断的角色/侧均已覆盖：DAY_SPEECH 侧（Wolf/Guard/Seer/Witch/Villager/Knight/Dreamweaver/Magician 共 8 个）；NIGHT 侧（Guard/Wolf/Seer/Witch/Dreamweaver/Magician 共 6 个）；猎人 HUNTER_SHOOT 和骑士无夜间行动，不需要。**下轮起，平安夜推断系列已完整，应转向其他优化维度（游戏机制/平衡性/警长/遗言/干跑模拟）**。
+- **round77 窗口级联规律（R110-C）**：`getMagicianDayBlock()` 窗口 6000→8000（函数体 +2821 chars，`${magicianSpeechLen}` 从 4207 移至 7028，超出旧窗口 6000）。**检测命令：`node -e "const s=require('fs').readFileSync('src/services/rolePrompts/magician.js','utf8'); const a=s.indexOf('export const getMagicianDaySpeechPrompt'); const b=s.indexOf('export const getMagicianVotePrompt',a); console.log('daySpeechFnSize:',b-a,'magicianSpeechLen offset:',s.indexOf('\${magicianSpeechLen}',a)-a)"`；getMagicianDaySpeechPrompt 新增代码后必须运行，若 magicianSpeechLen offset 超出 round77 窗口（当前 8000）立即更新**。
+- **白熊效应合规（第 31 次验证）**：三层推断全正向描述（"confidence 升 35-45/30-40/25-35/20-30/15-20/10-15"/"逻辑镜像表标注"/"守卫守护候选"），无负向禁词 ✅（T14 测试覆盖）。
+- **测试**：1912/1912（+20 new R110 tests T1-T20；+round77 窗口修复 6000→8000；1 pre-existing chatSocket failure 与本轮无关）；build ✅（WerewolfModule 250.35 kB）；check-build ✅。
+- **下轮优先**：平安夜推断矩阵已完整，转向：①游戏机制干跑模拟（useWerewolfGame.js reducer 模拟一局完整流程）；②平衡性评估（狼/好人胜率分析）；③警长竞选提示词优化；④遗言生成质量优化。
+
+---
+
 ### [2026-07-03 Round 109] 魔术师 NIGHT 平安夜交换价值评估框架（isNightPeacefulMagician + isConsecutivePeacefulNightMagician + isTripleConsecutivePeacefulNightMagician）— Prepend Injection 第 24 次
 
 - **完成状态**：`magician.js` `getMagicianNightActionPrompt` 新增 11 个变量：① `isNightPeacefulMagician`（`dayCount > 1 && lastNightInfo?.includes('平安夜')`）；② `magNightPrevDay`；③ `isConsecutivePeacefulNightMagician`（`dayCount >= 3 + fullGameTimeline N-2:平安夜`）；④ `magNightPrevPrevDay`；⑤ `isTripleConsecutivePeacefulNightMagician`（`dayCount >= 4 + isConsecutive + fullGameTimeline N-3:平安夜`）；⑥ `magNightThreePrevDay`；⑦ `lastNightHadSwap`（`lastSwap && lastSwap.player1Id !== null`）；⑧ `lastSwapRef`（有换/未换两路参数化）；⑨ `swapStatusHint`（有换 confidence 升 15-20 / 未换 confidence 升 10-15）；⑩ `let tripleConsecutivePeaceNightHintMag = ''` + if 块内三连内容；⑪ `consecutivePeaceNightHintMag`（前置拼接三连，Prepend Injection 第 24 次）。注入方式：`${magicianNightPeaceStep}` 在 return 模板 `${magicianHistoryStep}` 之后、`${magicianNightStyle}` 之前。函数从 5567 → 8275 chars（+2708 chars）；aiPrompts.js NIGHT_MAGICIAN case 补传 `lastNightInfo: ctx.lastNightInfo` 和 `fullGameTimeline: ctx.fullGameTimeline`；round78 窗口 7500→9000。
