@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-03 Round 111] LAST_WORDS 遗言背景上下文增强（lwContextBlock）— 天次 + 先行出局 + 被投出票型摘要
+
+- **完成状态**：`aiPrompts.js` LAST_WORDS case 新增 7 个外层变量：① `lwDay`（`gameState?.dayCount ?? 1`）；② `priorDeaths`（`deathHistory.filter(d => d.playerId !== currentPlayer?.id)`）；③ `lwDeathsText`（三元：有先行出局→`X号(DY夜/投票)`列表 / 无→`（无先行出局玩家）`）；④ `isVotedOut`（`cause.includes('投')`）；⑤ `let lwVotedByText = ''` + if 块内：⑥ `lastVoteRound`（`voteHistory.slice(-1)[0]`）和 ⑦ `votesAgainstMe`（`v.to === currentPlayer?.id` 过滤）；⑧ `lwContextBlock`（背景行模板字符串）。return 首行由 `你已死亡（${cause}）` 改为 `你已死亡（D${lwDay}，${cause}）`，且在首行之后、`${lwRoleHint}` 之前注入 `${lwContextBlock}`。LAST_WORDS block 3776 → 4869 chars（+1093 chars）；round54 窗口 4500→5500（12 处）。
+- **遗言上下文三维增强（R111-A）**：遗言现在提供三个维度的上下文：① D${lwDay} 天次（AI 知道自己在第几天死）；② 先行出局列表（谁先走、什么原因死的，有助遗言引用已知死亡推断）；③ 被投出时的票型（谁投了你，这些人是潜在对立面/狼队嫌疑）。这三个维度直接提升遗言与局势的契合度，避免 AI 生成脱离游戏背景的遗言。**设计原则（Wang 2025 arxiv:2408.17177）：结构化历史上下文注入是提升 AI 信息决策精准度的核心机制；遗言是局中信息传递的关键节点，缺乏上下文的遗言质量直接影响好人阵营追查能力**。
+- **voteHistory from/to 键规范（R111-B，第 2 次应用 R96 规则）**：`votesAgainstMe` 过滤用 `v.to === currentPlayer?.id`（非 `v.targetId`）。R96 教训已明确：`recordVoteRound` 存储时将 `voterId/targetId` 映射为 `from/to`；所有 voteHistory 读取必须用 `from/to` 键，禁用 `v.targetId`。此为第 2 次在 LAST_WORDS 相关代码中应用该规则，证明该规范已标准化。
+- **round54 LAST_WORDS 窗口级联规律（R111-C）**：LAST_WORDS block +1093 chars（3776→4869），关键词 `整局积累` 从 3506 移至 4571，`帮助场上好人继续追查` 从 3577 至 4642，均超出旧窗口 4500。**标准检测命令：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.LAST_WORDS: {'); const b=s.indexOf('case PROMPT_ACTIONS.SUMMARIZE_CONTENT',a); console.log('LAST_WORDS size:',b-a,'整局积累 at:',s.slice(a,a+6000).indexOf('整局积累'))"`；LAST_WORDS 任何新增代码后必须运行，若关键词超出 round54 窗口（当前 5500）立即更新**。
+- **白熊效应合规（第 32 次验证）**：新增变量块全正向描述（"先行出局"/"投你出局"/"D${lwDay}出局背景"），无负向禁词 ✅（T17 测试覆盖）。
+- **测试**：1932/1932（+20 new R111 tests T1-T20；+round54 窗口 4500→5500；干跑 15/15 ✅；1 pre-existing chatSocket failure 与本轮无关）；build ✅（WerewolfModule 250.90 kB）；check-build ✅。
+- **下轮优先**：①游戏机制干跑模拟（useWerewolfGame.js reducer 完整一局流程，验证夜间顺序/投票/猎人连锁/胜负判定）；②警长竞选发言角色缺口审计（SHERIFF_SPEECH 是否所有角色都有专属发言框架？）；③平衡性评估。
+
+---
+
 ### [2026-07-03 Round 110] 魔术师 DAY_SPEECH 平安夜逻辑镜像推断三层体系（isPeacefulNightMagicianDay + isConsecutivePeacefulMagicianDay + isTripleConsecutivePeacefulMagicianDay）— Prepend Injection 第 25 次
 
 - **完成状态**：`magician.js` `getMagicianDaySpeechPrompt` 新增 11 个变量：① `isPeacefulNightMagicianDay`（`ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜')`）；② `magDayPrevDay`；③ `isConsecutivePeacefulMagicianDay`（`dayCount >= 3 + fullGameTimeline N-2:平安夜`）；④ `magDayPrevPrevDay`；⑤ `lastDayHadSwap`（`lastSwap && lastSwap.player1Id !== null`）；⑥ `lastDaySwapRef`（有换/未换两路参数化）；⑦ `swapDayStatusHint`（有换 confidence 升 15-20 / 未换 confidence 升 10-15）；⑧ `let magDayPeaceStep = ''` + if 块内：⑨ `isTripleConsecutivePeacefulMagicianDay`（`dayCount >= 4 + isConsecutive + fullGameTimeline N-3:平安夜`）；⑩ `magDayThreePrevDay`；⑪ `tripleConsecutivePeaceDayHintMag`；⑫ `consecutivePeaceDayHintMag`（前置三连，Prepend Injection 第 25 次）。注入方式：`${magDayPeaceStep}` 在 return 模板 `${magicianDayHistoryStep}` 之后、`Step1:` 之前。函数从 4403 → 7224 chars（+2821 chars）；round77 窗口 6000→8000。

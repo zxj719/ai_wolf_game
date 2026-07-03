@@ -2870,6 +2870,26 @@ ${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}
         case PROMPT_ACTIONS.LAST_WORDS: {
              const { cause } = params || {};
              const hasPoliceFlow = isLargeGame(gameState?.gameSetup);
+
+             // R111: 遗言背景上下文 - 当前天次 + 先行出局玩家 + 被投出时的票型摘要
+             const lwDay = gameState?.dayCount ?? 1;
+             const priorDeaths = (gameState?.deathHistory || [])
+                 .filter(d => d.playerId !== currentPlayer?.id);
+             const lwDeathsText = priorDeaths.length > 0
+                 ? priorDeaths.map(d => `${d.playerId}号(D${d.day}${d.phase ?? ''})`).join('、')
+                 : '（无先行出局玩家）';
+             const isVotedOut = (cause || '').includes('投');
+             let lwVotedByText = '';
+             if (isVotedOut) {
+                 const lastVoteRound = (gameState?.voteHistory || []).slice(-1)[0];
+                 const votesAgainstMe = (lastVoteRound?.votes || [])
+                     .filter(v => v.to === currentPlayer?.id);
+                 if (votesAgainstMe.length > 0) {
+                     lwVotedByText = ` | 投你出局：${votesAgainstMe.map(v => `${v.from}号`).join('、')}`;
+                 }
+             }
+             const lwContextBlock = `【D${lwDay}出局背景】${cause ?? '死亡'}${lwVotedByText} | 先行出局：${lwDeathsText}`;
+
              let lwRoleHint;
              if (playerRole === '狼人') {
                  lwRoleHint = '你是狼人：先查看【你之前的身份推理表】——confidence 最高（威胁最大）的好人就是你遗言中应"怀疑"的目标，这样遗言与你整局的分析立场保持一致，更有说服力。以普通好人的视角申辩，发言自然坚定，像一个真心被冤枉的好人做最后申辩。';
@@ -2924,7 +2944,8 @@ ${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}
              } else {
                  lwRoleHint = '你是好人：先查看【你之前的身份推理表】——confidence 最高的玩家是你整局积累的最高嫌疑人，比临场印象更可靠。将其作为遗言核心内容：明确指出最可疑的1-2人，同时说明你最信任谁（帮好人建立信任链）。信息密度优先，帮助场上好人继续追查。';
              }
-             return `你已死亡（${cause}），现在是你的遗言时间——这是你最后一次发言，之后不再参与游戏。
+             return `你已死亡（D${lwDay}，${cause}），现在是你的遗言时间——这是你最后一次发言，之后不再参与游戏。
+${lwContextBlock}
 ${lwRoleHint}
 要求：80字以内，信息密度优先，不要煽情告别。
 输出JSON:{"speech":"遗言内容","thought":"你的真实想法"}`;
