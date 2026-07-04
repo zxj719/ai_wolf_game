@@ -1649,3 +1649,32 @@
 - 主因：① 狼人协调完美投票，好人有随机噪声；② 3 狼压力下守护/解药覆盖率不足。
 - **决策**：平衡调整属大改（影响角色配置比例），本轮不实现，记入 `werewolf-decisions-pending.md` 长期跟踪。
 - MC 仿真脚本：`.tmp/werewolf-balance-sim-r115.mjs`（600局/配置，无 LLM 依赖）。
+
+---
+
+## Round 116 新增教训（2026-07-04）
+
+**教训 R116-A：向 SHERIFF_VOTE 新增角色分支后必须同步检查所有历史 getSvBlock() 测试文件的 SV_WINDOW**
+- R116 新增骑士/魔术师分支（+2295 chars）后，svRoleHint 从块内偏移 ~5000 移到 6073。
+- R114 (SV_WINDOW=5400) 和 R115 (SV_WINDOW=6000) 均截断了 svRoleHint 链，导致 T19/T20（R114）和 T12（R115）失败。
+- **铁律（R107-B/R113-C 强化）**：每次向任何角色 case 新增超过 500 chars 后，必须运行：
+  ```
+  grep -n "SV_WINDOW\|BP_WINDOW\|getSvBlock\|getSs\|getBp" src/services/__tests__/round*.test.js | grep <caseName>
+  ```
+  并将所有对应测试文件的窗口更新到 `实际 block 大小（到下一个 case）× 130%`。
+- 本次修复：R114/R115 的 SV_WINDOW 均从原值更新至 7500（block 7296 到 BADGE_PASS）。
+
+**教训 R116-B：骑士的 SHERIFF_VOTE 核心博弈 — 决斗前/后框架截然不同**
+- 未决斗时：骑士 + 警长是全游戏最强双牌（1.5 票 + 决斗威慑），应优先自投（若自身在候选名单）。
+- 已决斗时：身份已公开，警长价值在延续领袖可信度，不再需要自投优先逻辑。
+- **通用模式**：hasUsedDuel 是骑士在任何 SHERIFF_* case 的核心分支变量，两路径设计不可省略。
+
+**教训 R116-C：魔术师的 SHERIFF_VOTE 核心博弈 — 身份暴露代价是唯一特殊变量**
+- `hasRevealed=false`：当选警长 = 公开身份 = 狼人针对优先级上升，需要评估代价是否值得 1.5 票。
+- `hasRevealed=true`：当选警长 = 零额外代价，纯收益，框架与其他角色相同（投金水/稳健者）。
+- **注意**：`svMagAlreadySwapped`（交换容量）不需要影响投票决策（影响的是今晚的夜间行动，不是警长选举）——仅作候选人注释信息，不改变核心排序。
+
+**教训 R116-D：R115 预测"SV_WINDOW 6000 仍满足"被证伪——预测性窗口估算不可靠**
+- R115 LEARNINGS 最后一行预测："R116 摄梦人后续角色每个约 +600-900 chars，预计 block 不超过 11000 chars，R115 测试窗口 6000 仍满足"。
+- 实际情况：block 仅增加 2295 chars（900×2.5），但 svRoleHint 从偏移 ~5000 移到 6073，超过了 6000 窗口。
+- **教训**：不要在 LEARNINGS 中预测"下轮窗口仍然够用"——每轮开始时必须重新测量，不依赖上轮的预测。
