@@ -917,6 +917,23 @@
 }
 .tennis-scope .ob-help-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
 
+/* 游戏模式 Tab */
+.tennis-scope .ob-mode-list { display: flex; flex-direction: column; gap: 10px; }
+.tennis-scope .ob-mode-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,.05);
+}
+.tennis-scope .ob-mode-row--sprint { background: rgba(34,211,238,.07); border: 1px solid rgba(34,211,238,.18); }
+.tennis-scope .ob-mode-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 1px; }
+.tennis-scope .ob-mode-body { flex: 1; }
+.tennis-scope .ob-mode-name { font-weight: 700; font-size: .95rem; }
+.tennis-scope .ob-mode-desc { font-size: .82rem; color: var(--muted, #a1a1aa); margin-top: 3px; }
+.tennis-scope .ob-mode-ranks {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+  font-size: .75rem; color: var(--muted, #a1a1aa);
+}
+
 /* ===== 赛后评价 (FeedbackWidget) ===== */
 .tennis-scope .fb-card { }
 .tennis-scope .fb-stars { display: flex; gap: 6px; align-items: center; margin: 10px 0; }

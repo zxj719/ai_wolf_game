@@ -10,10 +10,11 @@ export function markOnboardingSeen() {
   localStorage.setItem(ONBOARDING_KEY, '1');
 }
 
-const TABS = [
+export const TABS = [
   { id: 'counter', label: '⚡ 克制表' },
   { id: 'energy', label: '💪 体力规则' },
   { id: 'tell', label: '🔍 读招技巧' },
+  { id: 'modes', label: '🎮 游戏模式' },
 ];
 
 function CounterTab() {
@@ -124,7 +125,56 @@ function TellTab() {
   );
 }
 
-const TAB_CONTENT = { counter: CounterTab, energy: EnergyTab, tell: TellTab };
+function ModesTab() {
+  return (
+    <div className="ob-section">
+      <p className="ob-lead">四种模式随心选，适合不同时间和心情。</p>
+
+      <div className="ob-mode-list">
+        <div className="ob-mode-row">
+          <span className="ob-mode-icon">⚡</span>
+          <div className="ob-mode-body">
+            <div className="ob-mode-name">单局快打</div>
+            <div className="ob-mode-desc">三盘两胜制，战绩上全球榜。随时可打，5–10 分钟决出胜负。</div>
+          </div>
+        </div>
+
+        <div className="ob-mode-row">
+          <span className="ob-mode-icon">🏆</span>
+          <div className="ob-mode-body">
+            <div className="ob-mode-name">家族挑战</div>
+            <div className="ob-mode-desc">6 位对手梯度连战，输一场止步。击败全员加冕球王，过关可解锁绝技。</div>
+          </div>
+        </div>
+
+        <div className="ob-mode-row">
+          <span className="ob-mode-icon">🗺️</span>
+          <div className="ob-mode-body">
+            <div className="ob-mode-name">奇幻闯关</div>
+            <div className="ob-mode-desc">穿越菜市场／修仙界／太空站夺回家族奖杯！剧情奇遇 + 装备掉落，失败也保留进度。</div>
+          </div>
+        </div>
+
+        <div className="ob-mode-row ob-mode-row--sprint">
+          <span className="ob-mode-icon">⏱️</span>
+          <div className="ob-mode-body">
+            <div className="ob-mode-name">限时冲刺</div>
+            <div className="ob-mode-desc">15 分钟内尽量多赢！随机对手，胜 <b>+3</b> 分，负 <b>+1</b> 分（参与即得）。碎片时间首选。</div>
+            <div className="ob-mode-ranks">
+              <span>🏆 ≥30 传说冲分王</span>
+              <span>🥈 ≥18 进阶冲刺手</span>
+              <span>🥉 ≥9 坚持就是胜利</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="ob-tip">💡 碎片时间选「限时冲刺」，专心挑战选「家族挑战」，剧情冒险选「奇幻闯关」！</div>
+    </div>
+  );
+}
+
+const TAB_CONTENT = { counter: CounterTab, energy: EnergyTab, tell: TellTab, modes: ModesTab };
 
 export function OnboardingModal({ onClose }) {
   const [tab, setTab] = useState('counter');
