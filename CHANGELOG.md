@@ -2,6 +2,25 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-07-04] 狼人杀 Round 117 — 骑士/魔术师 SHERIFF_BADGE_PASS 专属提示词
+
+### 新功能
+- **骑士 SHERIFF_BADGE_PASS 专属提示词**：`bpKnightHint` 两路径（能力已用→以能力结果为最高信任锚；未用→承认未打出资产，优先最强好人）；`bpIdentityStep` 和 `bpHint` 扩展骑士分支
+- **魔术师 SHERIFF_BADGE_PASS 专属提示词**：`bpMagicianHint` 两路径（已公开→交换知识作一手信任依据；未公开→按通用优先级，避免暴露私有信息）；`bpIdentityStep` 和 `bpHint` 扩展魔术师分支
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/services/aiPrompts.js` | 修改 | SHERIFF_BADGE_PASS 新增骑士/魔术师专属提示词；bpIdentityStep/bpHint 从 4-path 扩展至 6-path；return 模板追加 bpKnightHint + bpMagicianHint |
+| `src/services/__tests__/round117SheriffBadgePassKnightMagician.test.js` | 新建 | 18 tests T1-T18（变量声明/两路径/bpIdentityStep/bpHint/return 模板/白熊效应/R113 回归） |
+| `src/services/__tests__/round113SheriffBadgePassWitchGuard.test.js` | 修改 | BP_WINDOW 4500→8500（R117 +2386 chars 后 block 6389 chars）|
+
+### 技术细节
+- SHERIFF 三大 case（SPEECH/BADGE_PASS/VOTE）的骑士/魔术师分支现已全部补齐（6-path 闭环）
+- 白熊效应合规（第 39 次验证）：骑士块无"决斗"技能词，两个 hint 块均无"自曝/千万别/绝不能"
+- `bpKnightDueled` 读取 `currentPlayer?.hasUsedDuel`（与 R116 SHERIFF_VOTE `svKnightDueled` 设计一致）
+- `bpMagIsRevealed` 读取 `currentPlayer?.hasRevealed`（与 R116 SHERIFF_VOTE `svMagIsRevealed` 设计一致）
+
 ## [2026-07-01] 狼人杀 Round 99 — 预言家 DAY_SPEECH 三连平安夜三阶推断框架
 
 ### 新功能

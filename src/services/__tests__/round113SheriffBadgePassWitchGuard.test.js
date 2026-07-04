@@ -20,7 +20,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const bpStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:');
-const BP_WINDOW = 4500;
+const BP_WINDOW = 8500; // R117: +2386 chars (knight/magician blocks), block now 6389 chars → 8500 ≈ 6389×133%
 const getBpBlock = () => src.slice(bpStart, bpStart + BP_WINDOW);
 
 // ─── T1-T3: 锚点 + 基础变量声明 ──────────────────────────────────────────────

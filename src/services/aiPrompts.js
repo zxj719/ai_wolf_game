@@ -3017,14 +3017,46 @@ ${ssHint}
                  }
              }
 
+             // R117: 骑士 SHERIFF_BADGE_PASS 专属提示词 — 决斗状态决定私有信息维度
+             const bpKnightDueled = currentPlayer?.hasUsedDuel ?? false;
+             let bpKnightHint = '';
+             if (playerRole === '骑士') {
+                 if (bpKnightDueled) {
+                     bpKnightHint = '\n🗡️【骑士传徽私有信息】你已使用能力，能力结果揭示了场上身份真相——以此为最高优先信任锚点，叠加预言家金水后选出最可信的传徽对象；无充分依据时撕掉（-1）。';
+                 } else {
+                     bpKnightHint = '\n🗡️【骑士传徽私有信息】你的能力尚未使用，将随你离场作废——这是好人阵营一次未打出的战略资产。传徽给身份信息最充分、最确认为好人的候选人（金水 > identity_table 高置信），确保 1.5 票落在最强好人手中；无充分依据时撕掉（-1）。';
+                 }
+             }
+
+             // R117: 魔术师 SHERIFF_BADGE_PASS 专属提示词 — 交换知识 × 身份暴露状态
+             const bpMagHistory = gameState.magicianHistory || { swappedPlayers: [], lastSwap: null };
+             const bpMagSwappedCount = (bpMagHistory.swappedPlayers || []).length;
+             const bpMagIsRevealed = currentPlayer?.hasRevealed ?? false;
+             let bpMagicianHint = '';
+             if (playerRole === '魔术师') {
+                 if (bpMagIsRevealed) {
+                     const swapNote = bpMagSwappedCount > 0
+                         ? `你已完成 ${bpMagSwappedCount} 次交换，掌握真实身份映射——这是优于所有人 identity_table 推断的一手信息`
+                         : '你尚未使用交换能力，身份映射未被修改，场上信息为原始状态';
+                     bpMagicianHint = `\n🎩【魔术师传徽私有信息（身份已公开）】${swapNote}。传徽优先级：⚡预言家金水 > 🎩基于交换知识确认的好人 > identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。`;
+                 } else {
+                     bpMagicianHint = '\n🎩【魔术师传徽私有信息（身份仍隐藏）】身份未公开——传徽选择本身不应暴露你掌握的交换信息。按通用优先级操作：⚡预言家金水 > identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。';
+                 }
+             }
+
              // R64 读写闭环补完：好人警长死亡时读取 identity_table 积累的身份推理（传徽关键决策）
              // R113: 女巫/守卫 role-specific 优先级链（私有信息 > identity_table）
+             // R117: 骑士/魔术师 role-specific 优先级链（能力状态 > identity_table）
              const bpIdentityStep = playerRole === '狼人'
                  ? ''
                  : playerRole === '女巫'
                  ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 💊银水（你救过的存活好人）> identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
                  : playerRole === '守卫'
                  ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 🛡️守护最频繁者 > identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
+                 : playerRole === '骑士'
+                 ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 🗡️能力结果确认的好人（若已使用）> identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
+                 : playerRole === '魔术师'
+                 ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 🎩交换知识确认的好人（若已公开）> identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
                  : 'Step0: 【读取历史身份推理（传徽决策依据）】查看系统提示中【你之前的身份推理表】：哪些存活候选人的 confidence ≥ 70 且 suspect 不含"狼人"？将其列为传徽优先候选（若与预言家金水⚡一致则更确信；有冲突时以金水为准）。\nStep1: 传徽优先级 → ⚡预言家金水 > identity_table confidence ≥ 70 非狼嫌疑 > 发言可信者 > -1撕毁。';
 
              const bpHint = playerRole === '狼人'
@@ -3033,10 +3065,14 @@ ${ssHint}
                  ? '你是女巫警长：参考下方银水记录（你亲手救过的人是你最确信的好人）和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
                  : playerRole === '守卫'
                  ? '你是守卫警长：参考下方守护记录（守护最频繁者=你最信任的好人）和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
+                 : playerRole === '骑士'
+                 ? '你是骑士警长：参考下方能力信息（见私有信息块）和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
+                 : playerRole === '魔术师'
+                 ? '你是魔术师警长：参考下方交换知识（见私有信息块）和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
                  : '你是好人警长：把警徽传给你最确信的好人。完全无法判断时撕掉警徽（-1）——错传给狼等于送1.5票。';
              return `你（警长）死亡，决定警徽去向。
 【可移交对象】${(badgeTargets || []).join(',')}号，或-1撕毁警徽。
-${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}${bpGuardHint}
+${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}${bpGuardHint}${bpKnightHint}${bpMagicianHint}
 输出JSON:{"targetId":数字或-1,"reason":"一句话理由","thought":"决策思考"}`;
         }
 

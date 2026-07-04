@@ -1678,3 +1678,27 @@
 - R115 LEARNINGS 最后一行预测："R116 摄梦人后续角色每个约 +600-900 chars，预计 block 不超过 11000 chars，R115 测试窗口 6000 仍满足"。
 - 实际情况：block 仅增加 2295 chars（900×2.5），但 svRoleHint 从偏移 ~5000 移到 6073，超过了 6000 窗口。
 - **教训**：不要在 LEARNINGS 中预测"下轮窗口仍然够用"——每轮开始时必须重新测量，不依赖上轮的预测。
+
+---
+
+## Round 117 新增教训（2026-07-04）
+
+**教训 R117-A：SHERIFF 三大 case 骑士/魔术师分支全部闭环（6-path 完成）**
+- R116 完成 SHERIFF_VOTE，R117 完成 SHERIFF_BADGE_PASS，SHERIFF_SPEECH 早已完成。
+- 所有 8 个特殊神职（预言家/狼人/猎人/摄梦人/骑士/魔术师/女巫/守卫）在 SHERIFF_SPEECH/BADGE_PASS/VOTE 三 case 中均有专属分支或合理 fallback。
+- **完成标志**：`bpIdentityStep` 和 `bpHint` 均为 6-path；BADGE_PASS 骑士/魔术师分支闭环。
+
+**教训 R117-B：BP_WINDOW 铁律 — 每次向 SHERIFF_BADGE_PASS 新增超过 500 chars 需同步更新 R113 测试窗口**
+- R117 新增 ~2386 chars 后 block 从 4003 → 6389 chars，超出 R113 的 4500-char BP_WINDOW。
+- 失效症状：T10-T17（bpIdentityStep/bpHint/return 模板锚点）全部超出窗口范围而 FAIL。
+- **铁律（R113-C 的 BADGE_PASS 专属强化）**：每次向 SHERIFF_BADGE_PASS case 新增超过 500 chars，必须运行 `grep -n "BP_WINDOW" src/services/__tests__/round*.test.js` 并将所有窗口更新到 `实际 block 大小 × 130%`。
+
+**教训 R117-C：骑士 BADGE_PASS 未用能力路径不能出现"决斗"技能词汇（R45 铁律二次应用）**
+- 骑士 BADGE_PASS 的"能力尚未使用"路径描述时，若写"决斗未使用"会激活"决斗"词汇（R45 白熊效应扩展）。
+- 修复：以"能力尚未使用，将随你离场作废"替代，用抽象类别词"能力"而非具体技能名"决斗"。
+- **通用模式**：描述骑士技能"未使用"状态时，始终用"能力"替代"决斗"作为词汇——R45 铁律的骑士 BADGE_PASS 专属应用案例。
+
+**教训 R117-D：魔术师 BADGE_PASS 的核心私有信息是"交换知识作一手信息"而非"交换容量"**
+- R116 SHERIFF_VOTE 中 `svMagAlreadySwapped`（交换容量）不影响投票决策，仅作注释。
+- R117 SHERIFF_BADGE_PASS 中，已公开时关键是"交换知识（谁的真实身份是什么）"而非"还有多少次交换可用"。
+- **通用规则**：魔术师在 SHERIFF_* 的核心决策轴：VOTE = 身份暴露代价；BADGE_PASS = 交换知识作信任依据；SPEECH = 信息修正权威。三者均从 `hasRevealed` 分叉，但二级变量不同，不能混用。
