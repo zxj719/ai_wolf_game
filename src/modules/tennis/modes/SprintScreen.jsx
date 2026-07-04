@@ -18,6 +18,10 @@ export const SPRINT_DURATION_S = 15 * 60;
 export const WIN_PTS = 3;
 export const LOSS_PTS = 1;
 
+export function buildShareText({ totalPts, matchCount, winCount, grade }) {
+  return `⏱️ 限时15分钟 · ${totalPts}分 · ${matchCount}场 · ${winCount}胜 · ${grade.label}${grade.icon}`;
+}
+
 const SPRINT_DECK = [
   { cardId: 'towelTime', upgraded: false },
   { cardId: 'newBalls', upgraded: false },
@@ -51,6 +55,7 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
   const [timeLeft, setTimeLeft] = useState(SPRINT_DURATION_S);
   const [currentOpp, setCurrentOpp] = useState(() => randomOpp(basePlayer.name));
   const [results, setResults] = useState([]);
+  const [copied, setCopied] = useState(false);
 
   // Ref mirrors timeLeft to avoid stale closure in handleMatchOver
   const timeLeftRef = useRef(SPRINT_DURATION_S);
@@ -127,6 +132,26 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
       : totalPts >= 9  ? { label: '坚持就是胜利', icon: '🥉' }
       : { label: '参与奖领取中…', icon: '🎾' };
 
+    const shareText = buildShareText({ totalPts, matchCount: results.length, winCount, grade });
+
+    const handleCopy = () => {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(shareText).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = shareText;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+
     return (
       <section className="screen">
         <div className="card">
@@ -163,6 +188,18 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
           {results.length === 0 && (
             <p className="hint" style={{ textAlign: 'center' }}>本轮未完成任何对局</p>
           )}
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={handleCopy}
+              style={{ flex: 1 }}
+              aria-label="复制成绩文字"
+            >
+              {copied ? '✅ 已复制' : '📋 复制成绩'}
+            </button>
+          </div>
 
           <button type="button" className="btn" onClick={onExit} style={{ width: '100%' }}>
             🏠 返回模式选择
