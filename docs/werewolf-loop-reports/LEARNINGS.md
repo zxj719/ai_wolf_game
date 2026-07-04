@@ -4,6 +4,19 @@
 
 ---
 
+### [2026-07-04 Round 112] 女巫 + 守卫 SHERIFF_SPEECH 专属提示词——信息权威 × 药效执行力框架
+
+- **完成状态**：`aiPrompts.js` SHERIFF_SPEECH case 在 `knightSsHint` 之后新增 7 个变量：① `witchSsSaveHave`（`currentPlayer?.hasWitchSave ?? false`）；② `witchSsPoisonHave`（`currentPlayer?.hasWitchPoison ?? false`）；③ `let witchSsMedStatus` + if-else 4路径（双药均在/解药在手+毒药已用/毒药在手+解药已用/双药已用）；④ `const witchSsHint`（`hasRevealedIdentity` 三元：已跳身份→信息权威×药效执行力框架 / 未公开→"有底气的好人"隐性竞选框架）；⑤ `const guardSsHint`（`hasRevealedIdentity` 三元：已公开→守护记录信任锚点 / 未公开→稳健理性好人框架）。ssHint 链插入 `playerRole === '女巫' ? witchSsHint : playerRole === '守卫' ? guardSsHint` 在骑士之后、通用 fallback 之前。SHERIFF_SPEECH block 3876 → 5935 chars（+2059 chars）；WerewolfModule 250.90→252.07 kB（+1.17 kB）。
+- **SHERIFF_SPEECH 覆盖完整闭合（R112-A）**：至此，所有 8 个特殊神职均有专属 SHERIFF_SPEECH 框架：预言家（信息资产展示）+ 狼人（悍跳/好人竞选）+ 猎人（隐性威慑）+ 摄梦人（双路威慑）+ 魔术师（信息修正权威）+ 骑士（隐性主动/行动验证）+ 女巫（药效矩阵×信息权威）+ 守卫（守护记录锚点×稳健框架）= 完整覆盖。村民走通用 fallback 是有意设计。**SHERIFF_SPEECH 覆盖审计完毕，下次无需再检查此维度**。
+- **女巫 4路径药效矩阵（R112-B）**：与 PK辩护模式（lines 1666-1677）保持一致的状态分类体系：双药均在（杠杆放大器）/ 解药在（救援价值高）/ 毒药在（精准打击保留）/ 双药已用（决策记录竞选）。**设计原则：相同的角色状态在不同提示词上下文中应使用一致的分类框架，避免 AI 在不同场景下对同一状态有不同解读**。
+- **守卫已公开身份框架（R112-C）**：守护记录是零间接信任锚点（同 DAY_SPEECH R104），身份公开后"报出守护过的关键目标"是最强竞选论据。**设计原则：守卫 DAY_SPEECH（R104）已建立守护记录可核实的框架，SHERIFF_SPEECH 守卫已公开分支应复用同一核心论据**。
+- **Detached HEAD 恢复（R112-D）**：本轮再次触发 detached HEAD 状态。恢复协议（第 4 次应用）：① `cp <files> /tmp/`；② `git stash push -u`；③ `git checkout main && git fetch origin main && git reset --hard origin/main`；④ `git stash drop`（NOT pop）；⑤ `cp /tmp/<files> <原路径>`。**协议已固化为标准流程，detached HEAD 是本项目的高频问题，每轮工作开始先 `git status` 确认 `On branch main`**。
+- **白熊效应合规（第 33 次验证）**：`witchSsMedStatus` 4路径推断内容全正向描述（"双药均在：…杠杆放大器"/"解药在手：…救援机会"/"毒药在手：…精准打击机会"/"双药已用：…判断力证明"），无 自曝/禁止/绝不能/千万别 ✅（T17 测试覆盖）。
+- **测试**：1952/1952（+20 new R112 tests T1-T20；1 pre-existing chatSocket failure 与本轮无关；干跑 simulate-game-flow.mjs 25/25 ✅）；build ✅（WerewolfModule 252.07 kB）；check-build ✅。
+- **下轮优先**：①SHERIFF_BADGE_PASS 遗言流审计（哪些角色有专属传徽策略框架？）；②平衡性评估（simulate-game-flow.mjs 多局干跑统计狼/好人胜率）；③SHERIFF_VOTE 守卫/女巫投票策略审计。
+
+---
+
 ### [2026-07-03 Round 111] LAST_WORDS 遗言背景上下文增强（lwContextBlock）— 天次 + 先行出局 + 被投出票型摘要
 
 - **完成状态**：`aiPrompts.js` LAST_WORDS case 新增 7 个外层变量：① `lwDay`（`gameState?.dayCount ?? 1`）；② `priorDeaths`（`deathHistory.filter(d => d.playerId !== currentPlayer?.id)`）；③ `lwDeathsText`（三元：有先行出局→`X号(DY夜/投票)`列表 / 无→`（无先行出局玩家）`）；④ `isVotedOut`（`cause.includes('投')`）；⑤ `let lwVotedByText = ''` + if 块内：⑥ `lastVoteRound`（`voteHistory.slice(-1)[0]`）和 ⑦ `votesAgainstMe`（`v.to === currentPlayer?.id` 过滤）；⑧ `lwContextBlock`（背景行模板字符串）。return 首行由 `你已死亡（${cause}）` 改为 `你已死亡（D${lwDay}，${cause}）`，且在首行之后、`${lwRoleHint}` 之前注入 `${lwContextBlock}`。LAST_WORDS block 3776 → 4869 chars（+1093 chars）；round54 窗口 4500→5500（12 处）。
