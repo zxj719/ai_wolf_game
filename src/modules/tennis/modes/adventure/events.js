@@ -401,9 +401,31 @@ export const EVENTS = [
     ],
   },
 
-  // ===== 第四章 · 传说殿堂（R128 +4 条，事件池 6→10） =====
+  // ===== 第四章 · 传说殿堂（R128 +4 条，事件池 6→10；R129 +2 条，事件池 10→12） =====
 
-  // 小游戏 ×2
+  // ===== R129 新增 · 小游戏 ×2（dodge + directionReact） =====
+  {
+    id: 'legendEvasion', chapter: 4, type: 'minigame', minigame: 'dodge', icon: '🌀',
+    title: '传说残影弹幕',
+    text: '殿堂回廊中，历代传说球手的精神体化为无数球弹席卷而来！"躲过我们的残影，你才配踏入核心殿堂。"绕过来球不是防守——是向传说的传承证明你的资格。',
+    rewards: [
+      { kind: 'nothing', flavor: '残影的球弹把你淹没了，传说的回廊依旧沉默。' },
+      { kind: 'stat', stat: 'mind', amount: 8, flavor: '穿越了大半残影！传说的压迫感变成了你的心理强度。' },
+      { kind: 'stat', stat: 'mind', amount: 15, flavor: '所有残影都绕过去了！历代球手的灵魂齐声低语："你是我们的传人。"' },
+    ],
+  },
+  {
+    id: 'legendInstinct', chapter: 4, type: 'minigame', minigame: 'directionReact', icon: '🧠',
+    title: '传说本能判断',
+    text: '殿堂守护者蒙住你双眼："传说级球手的最终考验不需要眼睛——需要身体的记忆与心的直觉。球从哪边来，你的身体比大脑先知道。"',
+    rewards: [
+      { kind: 'nothing', flavor: '直觉没能绕过理性——这一关，你还差一层顿悟。' },
+      { kind: 'stat', stat: 'skill', amount: 9, flavor: '身体先动了！传说级的肌肉记忆开始苏醒。' },
+      { kind: 'stat', stat: 'sta', amount: 14, flavor: '完美预判！守护者摘下眼罩："你的本能已经超越了大脑。"体能也随之突破。' },
+    ],
+  },
+
+  // 小游戏 ×2（dualTiming + shrinkSmash）
   {
     id: 'legendDualBeat', chapter: 4, type: 'minigame', minigame: 'dualTiming', icon: '⚖️',
     title: '传说双刃时刻',
