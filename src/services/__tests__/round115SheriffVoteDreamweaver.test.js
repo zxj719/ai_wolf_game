@@ -22,7 +22,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const svStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_VOTE:');
-const SV_WINDOW = 6000;
+const SV_WINDOW = 7500; // R116 后 svRoleHint 移至偏移 6073，原 6000 窗口截断 T12；更新至 7500（block=7296）
 const getSvBlock = () => src.slice(svStart, svStart + SV_WINDOW);
 
 // ─── T1: 锚点校验 ────────────────────────────────────────────────────────────

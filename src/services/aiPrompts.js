@@ -2909,6 +2909,40 @@ ${ssHint}
                 svDreamweaverHint = `\n【摄梦人投票策略】你与入梦目标"同生共死"——入梦目标死亡你也死亡。投票排序：⚡金水候选人（最高可信度） > 发言最稳健的存活好人 > 弃票（-1）。${svDWTargetNote}`;
             }
 
+            // R116: 骑士 SHERIFF_VOTE 专属提示词 — 决斗状态决定最优投票框架
+            let svKnightHint = '';
+            if (playerRole === '骑士') {
+                const svKnightDueled = currentPlayer?.hasUsedDuel ?? false;
+                const svKnightIsCandidate = svCandidateSet.has(Number(currentPlayer?.id));
+                const svKnightSelfNote = svKnightIsCandidate
+                    ? `\n🗡️【你本人正在竞选】骑士当选警长 = 1.5 票权重 + 决斗威慑双重压制 → 自投价值极高，优先级高于投其他候选人`
+                    : '';
+                if (!svKnightDueled) {
+                    svKnightHint = `\n【骑士投票策略】决斗尚未使用——骑士 + 警长是全游戏最强双牌组合（1.5 票杠杆 + 决斗可随时清除假跳预言家）。投票排序：🗡️你自身（若在候选名单）> ⚡金水候选人 > 发言最果断的好人 > 弃票（-1）。${svKnightSelfNote}`;
+                } else {
+                    svKnightHint = `\n【骑士投票策略】决斗已使用，身份已公开 → 以已验证领袖身份当选警长可延续 1.5 票引导力，最大化好人阵营的票权。投票排序：⚡金水候选人 > 你自身（若在候选名单）> 发言最稳健的好人 > 弃票（-1）。${svKnightSelfNote}`;
+                }
+            }
+
+            // R116: 魔术师 SHERIFF_VOTE 专属提示词 — 身份暴露代价 × 交换容量剩余框架
+            const svMagHistory = gameState.magicianHistory || { swappedPlayers: [], lastSwap: null };
+            const svMagAlreadySwapped = (svMagHistory.swappedPlayers || []).length;
+            const svMagIsRevealed = currentPlayer?.hasRevealed ?? false;
+            let svMagicianHint = '';
+            if (playerRole === '魔术师') {
+                const svMagIsCandidate = svCandidateSet.has(Number(currentPlayer?.id));
+                const svMagSwapNote = svMagAlreadySwapped > 0
+                    ? `（已用 ${svMagAlreadySwapped} 次交换，剩余容量充裕）`
+                    : '（尚未使用任何交换，全额容量）';
+                const svMagStrategyNote = svMagIsRevealed
+                    ? `身份已公开 → 警长 + 交换组合完全公开，无额外暴露代价，当选可用 1.5 票权重最大化好人引导力。投票排序：⚡金水候选人 > 你自身（若在候选名单）> 发言最稳健的好人 > 弃票（-1）`
+                    : `身份仍隐藏 → 当选警长会公开你的身份，狼人将优先针对你，交换容量可能随之提前消耗。评估：候选人中有金水好人则投金水；无金水时，衡量暴露代价是否值得 1.5 票收益再决定是否自投。投票排序：⚡金水候选人 > 发言最稳健的好人 > 你自身（暴露代价可接受时）> 弃票（-1）`;
+                const svMagCandidateNote = svMagIsCandidate
+                    ? `\n🎩【你本人正在竞选】${svMagSwapNote}，自投决策请参考上述暴露代价评估`
+                    : '';
+                svMagicianHint = `\n【魔术师投票策略】${svMagStrategyNote}。${svMagCandidateNote}`;
+            }
+
             const svRoleHint = playerRole === '狼人'
                 ? `\n【狼人策略】你掌握真实身份：候选人中有无狼队友？有 → 投队友（1.5票优势是跨越全局的战略资产），但投票不能太明显。无队友候选人 → 投对狼队威胁最低的好人，或弃票。`
                 : playerRole === '预言家'
@@ -2921,6 +2955,10 @@ ${ssHint}
                 ? svHunterHint
                 : playerRole === '摄梦人'
                 ? svDreamweaverHint
+                : playerRole === '骑士'
+                ? svKnightHint
+                : playerRole === '魔术师'
+                ? svMagicianHint
                 : '';
 
             return `警长选举投票（首轮特殊机制：警长获1.5票权重）。候选人：${svCandidates.join(',')}号，或-1弃票。${svCheckHint}${svRoleHint}
