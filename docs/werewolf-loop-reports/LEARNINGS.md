@@ -1624,3 +1624,28 @@
 - 骑士（Knight）`nightAction: false`（见 roles.js），无需 NIGHT_KNIGHT case → ✅ 关闭。
 - 魔术师 NIGHT_MAGICIAN 已在 R109 完成平安夜推断（lastNightInfo + fullGameTimeline）→ ✅ 关闭。
 - R107-D 审计清单全部完成，无需再次检查。
+
+---
+
+## Round 115 新增教训（2026-07-04）
+
+**教训 R115-A：摄梦人同生共死约束是 SHERIFF_VOTE 唯一需要排除特定候选人的约束**
+- 所有其他角色的投票逻辑是"投谁更好"（正向选择），唯有摄梦人需要"排除谁"（负向约束）：入梦目标当选警长后死亡 → 摄梦人连带死亡 + 警徽 1.5 票权重双重损失。
+- **设计模式**：svDWTargetIsCandidate 两路径 — 有连带风险展示风险警告，无风险展示"无直接连带风险"（全正向描述，符合白熊效应原则）。
+- 白熊效应第 36 次验证：连带风险警告以"⚠️【连带风险】…你同时死亡，警徽…随之作废"的正向陈述事实方式呈现，无"千万别/绝对不要"等负向禁令。
+
+**教训 R115-B：dreamweaverHistory 双路回退 — currentDreamTarget ?? lastDreamTarget**
+- 摄梦人刚入梦（第一夜）可能只有 `lastDreamTarget` 无 `currentDreamTarget`；白天竞选时则 current 覆盖 last。
+- **铁律**：读取摄梦人入梦状态时，始终 `currentDreamTarget ?? lastDreamTarget ?? null`，不要单独读 current。
+- 同 R96 类型安全铁律：`svCandidateSet.has(Number(svDWCurrentTarget))` — Set 存储数字，游戏状态 id 可能是字符串，`Number()` 转换消除类型不匹配。
+
+**教训 R115-C：SV_WINDOW 5400 对 R114 测试仍然足够（重新验证）**
+- R115 新增 896 chars 后，R114 测试的 `svRoleHint` 锚点从 offset 3104 移至 3919，仍在 5400 chars 窗口内。
+- R115 新测试文件设 SV_WINDOW = 6000（block 9004 × 67% ≈ 6000，保留 ~33% 余量用于后续追加）。
+- **观察**：SHERIFF_VOTE block 已达 9004 chars，R116 摄梦人后续角色（骑士/魔术师）每个约 +600-900 chars，预计 block 不超过 11000 chars，R115 测试窗口 6000 仍满足。
+
+**教训 R115-D：Monte Carlo 平衡仿真发现 3 狼配置严重偏强（平均 87%）**
+- 简化策略模型（非 LLM）显示：8-9 人 2 狼局较平衡（60-65%），10 人 3 狼局严重失衡（84-90%）。
+- 主因：① 狼人协调完美投票，好人有随机噪声；② 3 狼压力下守护/解药覆盖率不足。
+- **决策**：平衡调整属大改（影响角色配置比例），本轮不实现，记入 `werewolf-decisions-pending.md` 长期跟踪。
+- MC 仿真脚本：`.tmp/werewolf-balance-sim-r115.mjs`（600局/配置，无 LLM 依赖）。

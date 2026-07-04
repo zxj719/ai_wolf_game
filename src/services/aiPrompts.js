@@ -2897,6 +2897,18 @@ ${ssHint}
                 svHunterHint = `\n【猎人投票策略】警长倒地 → 警徽传递 + 枪连锁开枪，是全局最强的两连打击。投票排序：⚡金水候选人 > 发言最稳定的好人 > 弃票（-1）。评估重点：候选人中谁的身份最有利于好人阵营？优先选择"当选后能用枪 + 1.5 票最大化好人胜率"的候选人。`;
             }
 
+            // R115: 摄梦人 SHERIFF_VOTE 专属提示词 — 入梦目标连带死亡风险框架
+            const svDWHistory = gameState.dreamweaverHistory || {};
+            const svDWCurrentTarget = svDWHistory.currentDreamTarget ?? svDWHistory.lastDreamTarget ?? null;
+            const svDWTargetIsCandidate = svDWCurrentTarget !== null && svCandidateSet.has(Number(svDWCurrentTarget));
+            let svDreamweaverHint = '';
+            if (playerRole === '摄梦人') {
+                const svDWTargetNote = svDWTargetIsCandidate
+                    ? `⚠️【连带风险】当前入梦目标 ${svDWCurrentTarget}号 正在竞选 → 若 ${svDWCurrentTarget}号 当选警长后遭狼刀/被投出局，你同时死亡，警徽 1.5 票权重随之作废`
+                    : '（当前入梦目标不在候选名单中，无直接连带风险）';
+                svDreamweaverHint = `\n【摄梦人投票策略】你与入梦目标"同生共死"——入梦目标死亡你也死亡。投票排序：⚡金水候选人（最高可信度） > 发言最稳健的存活好人 > 弃票（-1）。${svDWTargetNote}`;
+            }
+
             const svRoleHint = playerRole === '狼人'
                 ? `\n【狼人策略】你掌握真实身份：候选人中有无狼队友？有 → 投队友（1.5票优势是跨越全局的战略资产），但投票不能太明显。无队友候选人 → 投对狼队威胁最低的好人，或弃票。`
                 : playerRole === '预言家'
@@ -2907,6 +2919,8 @@ ${ssHint}
                 ? svGuardHint
                 : playerRole === '猎人'
                 ? svHunterHint
+                : playerRole === '摄梦人'
+                ? svDreamweaverHint
                 : '';
 
             return `警长选举投票（首轮特殊机制：警长获1.5票权重）。候选人：${svCandidates.join(',')}号，或-1弃票。${svCheckHint}${svRoleHint}
