@@ -1,11 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   formatTime,
   buildShareText,
+  computeGrade,
   SPRINT_DURATION_S,
   WIN_PTS,
   LOSS_PTS,
 } from '../modes/SprintScreen';
+import {
+  loadSprintHiscores,
+  saveSprintHiscore,
+  clearSprintHiscores,
+} from '../modes/sprintScores';
 
 describe('SprintScreen — constants', () => {
   it('SPRINT_DURATION_S is 15 minutes', () => {
@@ -81,5 +87,115 @@ describe('buildShareText', () => {
     expect(text).toContain('0分');
     expect(text).toContain('0场');
     expect(text).toContain('0胜');
+  });
+});
+
+describe('computeGrade', () => {
+  it('returns 传说冲分王 for 30', () => {
+    const g = computeGrade(30);
+    expect(g.label).toBe('传说冲分王');
+    expect(g.icon).toBe('🏆');
+  });
+  it('returns 传说冲分王 for 99', () => {
+    expect(computeGrade(99).label).toBe('传说冲分王');
+  });
+  it('returns 进阶冲刺手 for 18', () => {
+    const g = computeGrade(18);
+    expect(g.label).toBe('进阶冲刺手');
+    expect(g.icon).toBe('🥈');
+  });
+  it('returns 进阶冲刺手 for 29', () => {
+    expect(computeGrade(29).icon).toBe('🥈');
+  });
+  it('returns 坚持就是胜利 for 9', () => {
+    const g = computeGrade(9);
+    expect(g.label).toBe('坚持就是胜利');
+    expect(g.icon).toBe('🥉');
+  });
+  it('returns 坚持就是胜利 for 17', () => {
+    expect(computeGrade(17).label).toBe('坚持就是胜利');
+  });
+  it('returns 参与奖领取中… for 8', () => {
+    const g = computeGrade(8);
+    expect(g.label).toBe('参与奖领取中…');
+    expect(g.icon).toBe('🎾');
+  });
+  it('returns 参与奖领取中… for 0', () => {
+    expect(computeGrade(0).icon).toBe('🎾');
+  });
+});
+
+describe('sprintScores', () => {
+  beforeEach(() => { clearSprintHiscores(); });
+
+  it('loads empty array initially', () => {
+    expect(loadSprintHiscores()).toEqual([]);
+  });
+
+  it('saveSprintHiscore returns rank 1 and isNew for first entry', () => {
+    const { rank, isNew } = saveSprintHiscore(
+      { totalPts: 15, matchCount: 5, winCount: 3, grade: { label: '坚持就是胜利', icon: '🥉' }, playerName: '诚' },
+      { now: 1000 },
+    );
+    expect(rank).toBe(1);
+    expect(isNew).toBe(true);
+  });
+
+  it('saves entry that can be loaded back', () => {
+    saveSprintHiscore(
+      { totalPts: 21, matchCount: 7, winCount: 5, grade: { label: '进阶冲刺手', icon: '🥈' }, playerName: 'Elza' },
+      { now: 5000 },
+    );
+    const list = loadSprintHiscores();
+    expect(list).toHaveLength(1);
+    expect(list[0].pts).toBe(21);
+    expect(list[0].player).toBe('Elza');
+  });
+
+  it('sorts by pts descending', () => {
+    saveSprintHiscore({ totalPts: 10, matchCount: 4, winCount: 2, grade: { label: '坚持就是胜利', icon: '🥉' }, playerName: 'A' }, { now: 1000 });
+    saveSprintHiscore({ totalPts: 25, matchCount: 8, winCount: 6, grade: { label: '进阶冲刺手', icon: '🥈' }, playerName: 'B' }, { now: 2000 });
+    saveSprintHiscore({ totalPts: 5, matchCount: 2, winCount: 1, grade: { label: '参与奖领取中…', icon: '🎾' }, playerName: 'C' }, { now: 3000 });
+    const list = loadSprintHiscores();
+    expect(list[0].pts).toBe(25);
+    expect(list[1].pts).toBe(10);
+    expect(list[2].pts).toBe(5);
+  });
+
+  it('new high score gets rank 1', () => {
+    saveSprintHiscore({ totalPts: 12, matchCount: 4, winCount: 2, grade: { label: '坚持就是胜利', icon: '🥉' }, playerName: 'A' }, { now: 1000 });
+    const { rank } = saveSprintHiscore({ totalPts: 35, matchCount: 12, winCount: 10, grade: { label: '传说冲分王', icon: '🏆' }, playerName: 'B' }, { now: 2000 });
+    expect(rank).toBe(1);
+  });
+
+  it('lower score gets lower rank', () => {
+    saveSprintHiscore({ totalPts: 30, matchCount: 10, winCount: 8, grade: { label: '传说冲分王', icon: '🏆' }, playerName: 'A' }, { now: 1000 });
+    const { rank } = saveSprintHiscore({ totalPts: 6, matchCount: 2, winCount: 1, grade: { label: '参与奖领取中…', icon: '🎾' }, playerName: 'B' }, { now: 2000 });
+    expect(rank).toBe(2);
+  });
+
+  it('tie-breaks: earlier timestamp wins (lower rank number = better)', () => {
+    saveSprintHiscore({ totalPts: 20, matchCount: 7, winCount: 5, grade: { label: '进阶冲刺手', icon: '🥈' }, playerName: 'A' }, { now: 1000 });
+    const { rank } = saveSprintHiscore({ totalPts: 20, matchCount: 7, winCount: 5, grade: { label: '进阶冲刺手', icon: '🥈' }, playerName: 'B' }, { now: 2000 });
+    expect(rank).toBe(2);
+  });
+
+  it('caps at 10 entries, keeps highest scorers', () => {
+    for (let i = 0; i < 12; i++) {
+      saveSprintHiscore(
+        { totalPts: i * 3, matchCount: i, winCount: Math.floor(i / 2), grade: { label: '参与奖领取中…', icon: '🎾' }, playerName: 'X' },
+        { now: i * 1000 },
+      );
+    }
+    const list = loadSprintHiscores();
+    expect(list).toHaveLength(10);
+    // The two lowest (0 and 3 pts) should be evicted
+    expect(list.every((s) => s.pts >= 6)).toBe(true);
+  });
+
+  it('clearSprintHiscores empties the board', () => {
+    saveSprintHiscore({ totalPts: 10, matchCount: 3, winCount: 2, grade: { label: '坚持就是胜利', icon: '🥉' }, playerName: 'X' }, { now: 1 });
+    clearSprintHiscores();
+    expect(loadSprintHiscores()).toEqual([]);
   });
 });

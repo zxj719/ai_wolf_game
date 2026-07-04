@@ -13,10 +13,18 @@ import { CHARS } from '../gameData';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
 import { sendMatchTelemetry } from '../../../services/tennisService';
 import { incrementNoviceGames } from '../meta/noviceTracker';
+import { saveSprintHiscore, loadSprintHiscores } from './sprintScores';
 
 export const SPRINT_DURATION_S = 15 * 60;
 export const WIN_PTS = 3;
 export const LOSS_PTS = 1;
+
+export function computeGrade(pts) {
+  if (pts >= 30) return { label: '传说冲分王', icon: '🏆' };
+  if (pts >= 18) return { label: '进阶冲刺手', icon: '🥈' };
+  if (pts >= 9)  return { label: '坚持就是胜利', icon: '🥉' };
+  return { label: '参与奖领取中…', icon: '🎾' };
+}
 
 export function buildShareText({ totalPts, matchCount, winCount, grade }) {
   return `⏱️ 限时15分钟 · ${totalPts}分 · ${matchCount}场 · ${winCount}胜 · ${grade.label}${grade.icon}`;
@@ -56,10 +64,15 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
   const [currentOpp, setCurrentOpp] = useState(() => randomOpp(basePlayer.name));
   const [results, setResults] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [hiRank, setHiRank] = useState(null);
 
   // Ref mirrors timeLeft to avoid stale closure in handleMatchOver
   const timeLeftRef = useRef(SPRINT_DURATION_S);
   const timerRef = useRef(null);
+  // Marks the timestamp of the saved hiscore entry (for row highlight in leaderboard)
+  const currentTsRef = useRef(null);
+  // Guard against double-saving (effect may run with stale phase in dev strict mode)
+  const hiSavedRef = useRef(false);
 
   const equipBonus = applyEquipment(progress.equipment);
 
@@ -79,6 +92,22 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
   useEffect(() => {
     if (timeLeft === 0 && phase === 'between') setPhase('done');
   }, [timeLeft, phase]);
+
+  // Save hiscore once when phase transitions to 'done' (React 18 batching ensures results is final)
+  useEffect(() => {
+    if (phase !== 'done' || hiSavedRef.current || results.length === 0) return;
+    hiSavedRef.current = true;
+    const pts = results.reduce((s, r) => s + r.pts, 0);
+    const wins = results.filter((r) => r.win).length;
+    const g = computeGrade(pts);
+    const now = Date.now();
+    currentTsRef.current = now;
+    const { rank } = saveSprintHiscore({
+      totalPts: pts, matchCount: results.length, winCount: wins,
+      grade: g, playerName: basePlayer.name,
+    }, { now });
+    setHiRank(rank);
+  }, [phase, results, basePlayer.name]);
 
   const handleMatchOver = useCallback(({ score, matchStats, durationS }) => {
     const win = score.winner === 0;
@@ -126,11 +155,8 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
   const timerColor = timeLeft < 60 ? '#ef4444' : timeLeft < 180 ? '#f59e0b' : '#22d3ee';
 
   if (phase === 'done') {
-    const grade =
-      totalPts >= 30 ? { label: '传说冲分王', icon: '🏆' }
-      : totalPts >= 18 ? { label: '进阶冲刺手', icon: '🥈' }
-      : totalPts >= 9  ? { label: '坚持就是胜利', icon: '🥉' }
-      : { label: '参与奖领取中…', icon: '🎾' };
+    const grade = computeGrade(totalPts);
+    const hiscores = loadSprintHiscores().slice(0, 5);
 
     const shareText = buildShareText({ totalPts, matchCount: results.length, winCount, grade });
 
@@ -187,6 +213,38 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
 
           {results.length === 0 && (
             <p className="hint" style={{ textAlign: 'center' }}>本轮未完成任何对局</p>
+          )}
+
+          {hiRank !== null && (
+            <div style={{
+              textAlign: 'center', padding: '6px 0 10px',
+              color: hiRank === 1 ? '#facc15' : hiRank <= 3 ? '#22d3ee' : '#a3e635',
+              fontSize: '0.95rem', fontWeight: 700,
+            }}>
+              {hiRank === 1 ? '🥇 家族历史最高分！' : hiRank <= 3 ? `🏅 家族第 ${hiRank} 名！` : `📊 榜单第 ${hiRank} 名`}
+            </div>
+          )}
+
+          {hiscores.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.45, textAlign: 'center', marginBottom: 5 }}>
+                🏠 家族冲刺榜
+              </div>
+              {hiscores.map((s, i) => (
+                <div key={s.ts} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '4px 8px', borderRadius: 6,
+                  background: s.ts === currentTsRef.current ? 'rgba(250,204,21,.14)' : 'transparent',
+                  fontSize: '0.82rem',
+                }}>
+                  <span style={{ minWidth: 22, opacity: 0.55 }}>#{i + 1}</span>
+                  <span style={{ flex: 1 }}>{s.player}</span>
+                  <span style={{ fontWeight: 700 }}>{s.pts}分</span>
+                  <span style={{ marginLeft: 4 }}>{s.grade.icon}</span>
+                  <span style={{ opacity: 0.45, fontSize: '0.72rem', marginLeft: 4 }}>{s.date}</span>
+                </div>
+              ))}
+            </div>
           )}
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
