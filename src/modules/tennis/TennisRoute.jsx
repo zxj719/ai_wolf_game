@@ -18,6 +18,7 @@ import { ACHIEVEMENTS } from './meta/achievements';
 import { ShopPanel } from './meta/ShopPanel';
 import { LadderScreen } from './modes/LadderScreen';
 import { AdventureScreen } from './modes/adventure/AdventureScreen';
+import { SprintScreen } from './modes/SprintScreen';
 import { OnboardingModal, checkOnboardingSeen } from './components/OnboardingModal';
 import { isNovice, incrementNoviceGames, NOVICE_STAT_PENALTY } from './meta/noviceTracker';
 import { getDailyChallenge, markDailyChallengeCompleted, saveDailyStats, DAILY_BONUS_COINS } from './meta/dailyChallenge';
@@ -346,6 +347,10 @@ export default function TennisRoute() {
                   <span className="key">🗺️</span>
                   <span>奇幻闯关<span className="fx"><em>家族奖杯被偷了！穿越菜市场/修仙界/太空站夺回</em><em>离谱对手 · 奇遇小游戏 · 装备金币失败也保留</em></span></span>
                 </button>
+                <button type="button" className="opt" onClick={() => dispatch({ type: 'SET_MODE', mode: 'sprint' })}>
+                  <span className="key">⏱️</span>
+                  <span>限时冲刺<span className="fx"><em>15 分钟内尽量多赢 · 赢 +3 分 负 +1 分</em><em>碎片时间首选 · 随机对手 · 金币掉落照常</em></span></span>
+                </button>
                 <button type="button" className="opt" onClick={() => setShowMetaShop(true)}>
                   <span className="key">🛒</span>
                   <span>网球用品店<span className="fx"><em>花掉比赛赚的金币：购卡入永久收藏（组进每局牌库）· 购装 · 升装 · 开盲盒</em></span></span>
@@ -406,6 +411,16 @@ export default function TennisRoute() {
         )}
         {state.screen === 'match' && state.mode === 'adventure' && (
           <AdventureScreen
+            basePlayer={state.player}
+            progress={progress}
+            onUpdateProgress={updateProgress}
+            equippedUltimate={activeUltimate}
+            onExit={() => { dispatch({ type: 'REPLAY' }); refreshBoards(); }}
+            toast={toast}
+          />
+        )}
+        {state.screen === 'match' && state.mode === 'sprint' && (
+          <SprintScreen
             basePlayer={state.player}
             progress={progress}
             onUpdateProgress={updateProgress}

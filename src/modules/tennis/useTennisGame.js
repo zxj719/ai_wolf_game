@@ -23,7 +23,7 @@ export function gradeFromMs(ms) {
 
 export const initialState = {
   screen: 'select', // select | mode | react | prep | match | result
-  mode: 'single',   // single | ladder | adventure(C 段)
+  mode: 'single',   // single | ladder | adventure | sprint
   player: null,     // { name, face, talent, sta, skill, mind, ms, grade }
   opp: null,        // { name, face, sta, skill, mind }
   prepRound: 0,
