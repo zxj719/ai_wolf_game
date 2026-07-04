@@ -1570,3 +1570,39 @@
 - ❓ NIGHT_MAGICIAN（魔术师）：需检查是否存在此 case
 - 下轮进入前先运行：`grep -n "case PROMPT_ACTIONS.NIGHT_" src/services/aiPrompts.js` 确认完整列表。
 
+---
+
+## Round 112 新增教训（2026-07-04）
+
+**教训 R112-A：SHERIFF_SPEECH 女巫/守卫 4-path 分支完成后，所有 8 个特殊神职均有专属竞选框架**
+- 预言家/狼人/猎人/摄梦人/魔术师/骑士在 SHERIFF_SPEECH 已有专属提示词。
+- R112 补全：女巫（4路径药效矩阵 × 已跳/未跳 = witchSsHint）+ 守卫（hasRevealedIdentity = guardSsHint）。
+- 村民走通用 fallback 是有意设计（无私有信息可复用）。
+
+**教训 R112-B：SHERIFF_SPEECH 白熊效应（第 33 次验证）—— witchSsMedStatus 4路径推断全正向**
+- 4路径均以"双药均在/解药在手/毒药在手/双药已用"开头，描述状态和价值，不含任何"自曝/禁止/绝不能/千万别"。
+- 这是第 33 次应用正向描述铁律（R112）；白熊测试应排在分支内容验证之前（R77-A 铁律）。
+
+**教训 R112-C：窗口大小铁律 — 函数体增长时必须同步更新测试窗口**
+- R112 新增 ~2059 chars 到 SHERIFF_SPEECH block，历史测试若有窗口未更新会悄然截断。
+- 每次向现有 case 新增超过 500 chars，必须用 `grep -n "WINDOW\|window\|slice(start" src/services/__tests__/round*.test.js | grep <caseName>` 检查所有历史测试窗口。
+
+---
+
+## Round 113 新增教训（2026-07-04）
+
+**教训 R113-A：SHERIFF_BADGE_PASS 完成女巫/守卫专属框架（私有信息 > identity_table 优先级链）**
+- 女巫：`witchHistory.savedIds` 过滤存活候选 = 银水存活好人（最高可信度传徽候选）。
+- 守卫：`guardHistory` 频次分析 Top-2 = 守护最多次者（不可伪造的信任排序）。
+- 两者的 `bpIdentityStep` 优先级链同步更新：⚡金水 > 💊/🛡️私有信息 > identity_table > 发言可信者 > 撕毁。
+
+**教训 R113-B：回归测试应检查语义意图而非实现字面**
+- R64 T7 测试字面检查 `playerRole !== '狼人'`，在 R113 将二元条件改为 4-path ternary（`=== '狼人' ? ''`）后失效。
+- 修复：改为检查 `=== '狼人'` 存在 + `? ''`（空串赋值意图），而非原始字符串。
+- **通用规则**：测试应锚定"哪些角色不应得到此信息"的语义结果（狼人得到空串），而非具体的条件写法；任何角色扩展不会再触发此类回归。
+
+**教训 R113-C：BP_WINDOW 铁律 — 每次扩充 SHERIFF_BADGE_PASS block 都需更新测试窗口**
+- R113 新增 ~1500 chars，导致 bpHint/return 模板超出原 3200-char 窗口范围。
+- 修复：BP_WINDOW 从 3200 扩至 4500（block ~2700 + 约 1800 余量）。
+- **测试写作铁律（R24 扩展）**：每次向现有 case 新增大量内容后，新测试文件的窗口应设为"预估 block 大小 × 130%"，历史测试文件中对应 case 的窗口也需同步检查更新。
+

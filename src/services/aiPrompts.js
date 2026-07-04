@@ -2897,18 +2897,53 @@ ${ssHint}
                  seerHint += `\n⛔【预言家查杀（已验狼人）】${killedTargets.map(c => `${c.targetId}号`).join('、')} → 绝对不能移交（传给狼等于送1.5票，直接输）`;
              }
 
+             // R113: 女巫 SHERIFF_BADGE_PASS 专属提示词 — 银水记录作信任锚点
+             const bpWitchHistory = gameState.witchHistory || { savedIds: [], poisonedIds: [] };
+             const bpWitchSavedAlive = (bpWitchHistory.savedIds || []).filter(id => badgeableSet.has(id));
+             let bpWitchHint = '';
+             if (playerRole === '女巫' && bpWitchSavedAlive.length > 0) {
+                 bpWitchHint = `\n💊【你的银水（解药救过且仍存活的好人）】${bpWitchSavedAlive.join(',')}号 → 你亲手保住的好人，是最有依据的传徽首选`;
+             }
+
+             // R113: 守卫 SHERIFF_BADGE_PASS 专属提示词 — 守护记录作信任锚点
+             const bpGuardHistory = gameState.guardHistory || [];
+             let bpGuardHint = '';
+             if (playerRole === '守卫' && bpGuardHistory.length > 0) {
+                 const guardCounts = {};
+                 bpGuardHistory.forEach(g => {
+                     if (g.targetId != null && badgeableSet.has(g.targetId)) {
+                         guardCounts[g.targetId] = (guardCounts[g.targetId] || 0) + 1;
+                     }
+                 });
+                 const topGuarded = Object.entries(guardCounts)
+                     .sort((a, b) => b[1] - a[1])
+                     .slice(0, 2)
+                     .map(([id, cnt]) => `${id}号(守${cnt}次)`);
+                 if (topGuarded.length > 0) {
+                     bpGuardHint = `\n🛡️【你的守护记录（存活候选中守护最频繁者）】${topGuarded.join('、')} → 守护次数最多=你最信任的好人，优先传徽`;
+                 }
+             }
+
              // R64 读写闭环补完：好人警长死亡时读取 identity_table 积累的身份推理（传徽关键决策）
-             // 系统提示中 previousIdentityTable 始终存在；此 Step0/Step1 指导 AI 主动利用它
-             const bpIdentityStep = playerRole !== '狼人'
-                 ? 'Step0: 【读取历史身份推理（传徽决策依据）】查看系统提示中【你之前的身份推理表】：哪些存活候选人的 confidence ≥ 70 且 suspect 不含"狼人"？将其列为传徽优先候选（若与预言家金水⚡一致则更确信；有冲突时以金水为准）。\nStep1: 传徽优先级 → ⚡预言家金水 > identity_table confidence ≥ 70 非狼嫌疑 > 发言可信者 > -1撕毁。'
-                 : '';
+             // R113: 女巫/守卫 role-specific 优先级链（私有信息 > identity_table）
+             const bpIdentityStep = playerRole === '狼人'
+                 ? ''
+                 : playerRole === '女巫'
+                 ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 💊银水（你救过的存活好人）> identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
+                 : playerRole === '守卫'
+                 ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 🛡️守护最频繁者 > identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
+                 : 'Step0: 【读取历史身份推理（传徽决策依据）】查看系统提示中【你之前的身份推理表】：哪些存活候选人的 confidence ≥ 70 且 suspect 不含"狼人"？将其列为传徽优先候选（若与预言家金水⚡一致则更确信；有冲突时以金水为准）。\nStep1: 传徽优先级 → ⚡预言家金水 > identity_table confidence ≥ 70 非狼嫌疑 > 发言可信者 > -1撕毁。';
 
              const bpHint = playerRole === '狼人'
                  ? '你是狼人警长：把警徽传给狼队友能延续1.5票优势；若会暴露关系链，可传给一个好人混淆视听或撕掉。'
+                 : playerRole === '女巫'
+                 ? '你是女巫警长：参考下方银水记录（你亲手救过的人是你最确信的好人）和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
+                 : playerRole === '守卫'
+                 ? '你是守卫警长：参考下方守护记录（守护最频繁者=你最信任的好人）和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
                  : '你是好人警长：把警徽传给你最确信的好人。完全无法判断时撕掉警徽（-1）——错传给狼等于送1.5票。';
              return `你（警长）死亡，决定警徽去向。
 【可移交对象】${(badgeTargets || []).join(',')}号，或-1撕毁警徽。
-${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}
+${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}${bpGuardHint}
 输出JSON:{"targetId":数字或-1,"reason":"一句话理由","thought":"决策思考"}`;
         }
 

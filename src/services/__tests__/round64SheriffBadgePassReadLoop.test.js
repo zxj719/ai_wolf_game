@@ -67,11 +67,14 @@ describe('Round 64: SHERIFF_BADGE_PASS 读写闭环（好人警长传徽）', ()
 
     it('T7: 狼人警长分支不包含 Step0（狼人无需读取，已知全局身份）', () => {
         // 狼人分支的 bpIdentityStep = ''，不应向狼人注入 Step0
-        const wolfHintIdx = badgePassBlock.indexOf('狼人警长');
-        const step0Idx = badgePassBlock.indexOf('Step0:');
-        // Step0 出现前（或整个 block 内只有一个 Step0 在好人条件内）
-        // 验证方式：bpIdentityStep 仅在 playerRole !== '狼人' 时赋值
-        expect(badgePassBlock).toContain("playerRole !== '狼人'");
+        // R113 后：bpIdentityStep 改为 4-path ternary，狼人分支赋空串
+        // 验证方式：playerRole === '狼人' 且该分支结果为空串 ''
+        expect(badgePassBlock).toContain("playerRole === '狼人'");
+        // 确保 bpIdentityStep 计算式中狼人路径给 ''（空串，不注入 Step0）
+        const bpIdStepIdx = badgePassBlock.indexOf('const bpIdentityStep =');
+        const bpIdStepBlock = badgePassBlock.slice(bpIdStepIdx, bpIdStepIdx + 100);
+        expect(bpIdStepBlock).toContain("playerRole === '狼人'");
+        expect(bpIdStepBlock).toContain("? ''");
     });
 
     it('T8: bpIdentityStep 注入在 bpHint 之前（Step0 先于主要建议）', () => {
