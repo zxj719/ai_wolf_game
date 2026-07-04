@@ -400,6 +400,50 @@ export const EVENTS = [
       { label: '拒绝，留着金币稳打', reward: { kind: 'coins', amount: 20, flavor: '他失望地离去，你在他遗落的地方找到了 20 金币。' } },
     ],
   },
+
+  // ===== 第四章 · 传说殿堂（R128 +4 条，事件池 6→10） =====
+
+  // 小游戏 ×2
+  {
+    id: 'legendDualBeat', chapter: 4, type: 'minigame', minigame: 'dualTiming', icon: '⚖️',
+    title: '传说双刃时刻',
+    text: '殿堂深处两道时间门同时开合——传说中，唯有阴阳球感兼修者方能同步踩点。普通球手只能选一扇，传说球手两扇都不放过。',
+    rewards: [
+      { kind: 'nothing', flavor: '错过了节奏，两扇门都关上了。传说并非一日之功。' },
+      { kind: 'stat', stat: 'skill', amount: 7, flavor: '踩中一扇！刻骨铭心的时机感渗入肌肉记忆。' },
+      { kind: 'stat', stat: 'mind', amount: 12, flavor: '双门同穿！阴阳同步——这就是传说的感觉，心态彻底升华。' },
+    ],
+  },
+  {
+    id: 'legendPrecisionBall', chapter: 4, type: 'minigame', minigame: 'shrinkSmash', icon: '🎯',
+    title: '点睛传说一击',
+    text: '传说守护者在空中凝聚一个光球，光球越缩越小，越亮越烈。"传说级击球只有一个标准——在最小时砸中它。"',
+    rewards: [
+      { kind: 'nothing', flavor: '光球在指尖散开了，守护者微微摇头。' },
+      { kind: 'stat', stat: 'sta', amount: 8, flavor: '砸中了！爆发出的冲击力充实着你的体力储备。' },
+      { kind: 'stat', stat: 'sta', amount: 16, flavor: '完美命中！守护者震惊地后退半步："这就是传说之力。"' },
+    ],
+  },
+
+  // 剧情二选一 ×2
+  {
+    id: 'legendCodex', chapter: 4, type: 'story', icon: '📖',
+    title: '传说球路密典',
+    text: '殿堂角落藏着一本泛黄密典，记载着与你球路截然相反的技法——是前代传说球王留下的异端之道。研读需要心力，但说不定正是你缺的东西。',
+    options: [
+      { label: '沉心研读密典（获战术卡）', reward: { kind: 'card', flavor: '密典最后一页写着：「真正的传说，是把所有风格都打通了。」一张绝版战术卡落入你手。' } },
+      { label: '放下密典，专注休息', reward: { kind: 'heal', amount: 50, flavor: '放下密典，席地而坐。什么都不想，只是呼吸——比读一百本书都管用。' } },
+    ],
+  },
+  {
+    id: 'legendBanquet', chapter: 4, type: 'story', icon: '🥂',
+    title: '殿堂庆功宴',
+    text: '攀上传说殿堂的消息传遍了家族。家人们在殿堂外搭起庆功宴：热菜热汤，等你归来。"先赴宴补气，还是独自备战最后一搏？"',
+    options: [
+      { label: '赴宴（大量回体 +60）', reward: { kind: 'heal', amount: 60, flavor: '围坐一桌，笑声不断。吃完那一刻，感觉什么困难都能扛过去。' } },
+      { label: '独自备战（获战术卡）', reward: { kind: 'card', flavor: '家人把一盒便当悄悄塞给你，附了一张战术笔记——他们懂你。' } },
+    ],
+  },
 ];
 
 /** 按章节 + roll 取事件（小游戏与剧情混合池） */
