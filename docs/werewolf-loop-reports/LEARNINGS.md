@@ -1606,3 +1606,21 @@
 - 修复：BP_WINDOW 从 3200 扩至 4500（block ~2700 + 约 1800 余量）。
 - **测试写作铁律（R24 扩展）**：每次向现有 case 新增大量内容后，新测试文件的窗口应设为"预估 block 大小 × 130%"，历史测试文件中对应 case 的窗口也需同步检查更新。
 
+---
+
+## Round 114 新增教训（2026-07-04）
+
+**教训 R114-A：SHERIFF_VOTE 三神职 5-path 完成（私有信息注入闭环）**
+- 女巫：`witchHistory.savedIds` 过滤候选人集合 = 最高可信度投票锚点（同 R113 SHERIFF_BADGE_PASS 设计）。
+- 守卫：`guardHistory` 频次分析 Top-2 = 不可伪造的候选人信任排序（同 R113 SHERIFF_BADGE_PASS 设计）。
+- 猎人：枪+警徽连锁框架（正向价值描述，无暴露风险警告）= 独特战略视角。
+- SHERIFF 三大 case（SPEECH/BADGE_PASS/VOTE）的女巫/守卫/猎人分支至此全部补齐。
+
+**教训 R114-B：测试窗口必须在写测试前测量实际 block 大小**
+- 初始窗口估算 3200 chars，实际 SHERIFF_VOTE block 为 4105 chars（新增 ~2600 chars 后），T20 因窗口截断失败。
+- **铁律（强化）**：写新测试文件前，先用 `node -e "const src = require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const s = src.indexOf('case PROMPT_ACTIONS.XXX:'); const e = src.indexOf('case PROMPT_ACTIONS.', s+10); console.log(e-s);"` 测量实际 block 大小，然后设窗口为 `block_size × 130%`，不要靠直觉估算。
+
+**教训 R114-C：NIGHT_KNIGHT 和 NIGHT_MAGICIAN R107-D 遗留已完全关闭**
+- 骑士（Knight）`nightAction: false`（见 roles.js），无需 NIGHT_KNIGHT case → ✅ 关闭。
+- 魔术师 NIGHT_MAGICIAN 已在 R109 完成平安夜推断（lastNightInfo + fullGameTimeline）→ ✅ 关闭。
+- R107-D 审计清单全部完成，无需再次检查。

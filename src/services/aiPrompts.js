@@ -2860,12 +2860,53 @@ ${ssHint}
                 svCheckHint += `\n⛔【查杀候选人（已验狼人）】${svSlaughter.map(c => `${c.targetId}号`).join('、')} → 绝对不能投，狼人当警长等于把1.5票永久送给狼队`;
             }
 
+            // R114: 女巫 SHERIFF_VOTE 专属提示词 — 银水候选人作投票锚点（私有信息最强信任锚）
+            const svWitchHistory = gameState.witchHistory || { savedIds: [], poisonedIds: [] };
+            const svWitchSavedAlive = (svWitchHistory.savedIds || []).filter(id => svCandidateSet.has(id));
+            let svWitchHint = '';
+            if (playerRole === '女巫') {
+                const svWitchCandidateNote = svWitchSavedAlive.length > 0
+                    ? `💊【你的银水候选人（亲手救过且参选）】${svWitchSavedAlive.join(',')}号 → 你亲手保住的好人，可信度高于发言质量分析`
+                    : '（候选人中无银水玩家，按金水 > 发言质量排序）';
+                svWitchHint = `\n【女巫投票策略】警长身份会加速你被针对（保命 = 保药）。投票排序：⚡金水 > ${svWitchSavedAlive.length > 0 ? '💊银水候选人 > ' : ''}发言质量最佳者 > 弃票（-1）。${svWitchCandidateNote}`;
+            }
+
+            // R114: 守卫 SHERIFF_VOTE 专属提示词 — 守护频次最高候选人作投票锚点
+            const svGuardHistory = gameState.guardHistory || [];
+            const svGuardCounts = {};
+            svGuardHistory.forEach(g => {
+                if (g.targetId != null && svCandidateSet.has(g.targetId)) {
+                    svGuardCounts[g.targetId] = (svGuardCounts[g.targetId] || 0) + 1;
+                }
+            });
+            const svTopGuarded = Object.entries(svGuardCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 2)
+                .map(([id, cnt]) => `${id}号(守${cnt}次)`);
+            let svGuardHint = '';
+            if (playerRole === '守卫') {
+                const svGuardCandidateNote = svTopGuarded.length > 0
+                    ? `🛡️【你的守护候选人（守护次数最多）】${svTopGuarded.join('、')} → 守护频次 = 你最信任的好人，可信度高于发言质量分析`
+                    : '（候选人中无守护历史，按金水 > 发言质量排序）';
+                svGuardHint = `\n【守卫投票策略】警长身份会暴露你（影响守护效力）。投票排序：⚡金水 > ${svTopGuarded.length > 0 ? '🛡️守护频次最高者 > ' : ''}发言质量最佳者 > 弃票（-1）。${svGuardCandidateNote}`;
+            }
+
+            // R114: 猎人 SHERIFF_VOTE 专属提示词 — 枪 + 警徽连锁框架
+            let svHunterHint = '';
+            if (playerRole === '猎人') {
+                svHunterHint = `\n【猎人投票策略】警长倒地 → 警徽传递 + 枪连锁开枪，是全局最强的两连打击。投票排序：⚡金水候选人 > 发言最稳定的好人 > 弃票（-1）。评估重点：候选人中谁的身份最有利于好人阵营？优先选择"当选后能用枪 + 1.5 票最大化好人胜率"的候选人。`;
+            }
+
             const svRoleHint = playerRole === '狼人'
                 ? `\n【狼人策略】你掌握真实身份：候选人中有无狼队友？有 → 投队友（1.5票优势是跨越全局的战略资产），但投票不能太明显。无队友候选人 → 投对狼队威胁最低的好人，或弃票。`
                 : playerRole === '预言家'
                 ? `\n【预言家策略】警徽让你的报验拥有1.5票杠杆。若你是候选人，优先保住警徽留在己方；若退选，把票给你验过的金水好人，或发言逻辑与你查验结果最吻合的人。`
-                : playerRole === '女巫' || playerRole === '守卫' || playerRole === '猎人'
-                ? `\n【神职策略】你是隐藏神职，警长身份会吸引狼人刀。投票时优先投好人担任警长（金水>发言扎实>无记录），避免神职扎堆暴露。`
+                : playerRole === '女巫'
+                ? svWitchHint
+                : playerRole === '守卫'
+                ? svGuardHint
+                : playerRole === '猎人'
+                ? svHunterHint
                 : '';
 
             return `警长选举投票（首轮特殊机制：警长获1.5票权重）。候选人：${svCandidates.join(',')}号，或-1弃票。${svCheckHint}${svRoleHint}
