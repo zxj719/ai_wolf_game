@@ -135,7 +135,8 @@ describe('R113: bpHint 四路径行动框架', () => {
     test('T15: bpHint 好人 fallback 仍存在（非女巫/守卫/狼人的通用框架）', () => {
         const blk = getBpBlock();
         const hintIdx = blk.indexOf('const bpHint =');
-        const hintBlock = blk.slice(hintIdx, hintIdx + 700);
+        // R122: 新增预言家分支（~120 chars）后好人 fallback 位置后移，窗口从 700 → 1100
+        const hintBlock = blk.slice(hintIdx, hintIdx + 1100);
         expect(hintBlock).toContain('你是好人警长：把警徽传给你最确信的好人');
     });
 });

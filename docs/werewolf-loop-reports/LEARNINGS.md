@@ -1803,3 +1803,19 @@
 - R64 T13 原意："女巫 DAY_VOTE 有意走通用 fallback（暂无专属框架）"，设 `expect(...).toBe(false)`。
 - R121 完成女巫框架后，此测试直接失败（因为现在有框架了）。
 - **通用规则**：任何"有意缺失 X"的测试（标注"有意设计"或"暂无"），在对应功能完成后必须同轮反转为正向确认。不要让这类测试留过轮，否则下轮会触发虚假 FAIL。
+
+---
+
+## Round 122 新增教训（2026-07-05）
+
+**教训 R122-A：向 bpHint 末尾插入新角色分支时，必须同步检查"好人 fallback 仍存在"的历史测试窗口**
+- 问题：R113 T15 检测"好人 fallback 仍存在"，使用 `bpHint` 起点向后 700 chars 的滑动窗口。
+- R122 在 魔术师 分支之后插入预言家分支（~120 chars），导致好人 fallback 偏移量超过 700，T15 FAIL。
+- **铁律（新增）**：每次在 `bpHint` 或 `bpIdentityStep` ternary chain 末尾附近新增角色分支后，grep 所有 `"bpHint"` 和 `"bpIdentityStep"` 相关测试，找到检测"好人 fallback / others fallback"的窗口值并更新。
+- **快速定位命令**：`grep -rn "好人警长\|好人 fallback\|others fallback" src/services/__tests__/round*.test.js`
+
+**教训 R122-B：预言家 BADGE_PASS 的核心设计原则 — 一手验证不降格为"参考项"**
+- 守卫/骑士/魔术师的 bpIdentityStep 都说"查看 identity_table 作为参考，再叠加私有信息"。
+- 预言家不同：seerChecks 是直接验证结果（100% 可信），不需要借助 identity_table "确认"。
+- **正确设计**：预言家的 Step0 应说"你的查验记录是第一优先依据，优先级高于 identity_table 推断"，而非"查看 identity_table 再参考金水"。
+- **通用模式**：当私有信息是直接验证（100%可信）时，用"第一优先依据"措辞；当私有信息是推断（守护频次、行为分析）时，用"参考 + 叠加"措辞。
