@@ -19,9 +19,8 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const bpStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:');
-// R117: block was 6389 chars → BP_WINDOW = 8500 (6389 × 133%)
-// R122 adds ~480 chars (seer bpIdentityStep + bpHint branches) → block ~6870, still within 8500
-const BP_WINDOW = 8500;
+// R117: 8500; R122: seer branch +480 → ~6870; R123: +摄梦人 +1525 → block 8327 → 10000
+const BP_WINDOW = 10000;
 const getBpBlock = () => src.slice(bpStart, bpStart + BP_WINDOW);
 
 // ─── T1-T2: 块锚点校验 ────────────────────────────────────────────────────────

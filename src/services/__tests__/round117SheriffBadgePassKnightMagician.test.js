@@ -24,8 +24,8 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const bpStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:');
-// R117: block is 6389 chars; 8500 ≈ 6389 × 133% provides headroom for future additions
-const BP_WINDOW = 8500;
+// R117: 8500; R123: +摄梦人分支 block now 8327 chars → 10000 ≥ 8327×120%
+const BP_WINDOW = 10000;
 const getBpBlock = () => src.slice(bpStart, bpStart + BP_WINDOW);
 
 // ─── T1-T2: 块锚点校验 ────────────────────────────────────────────────────────

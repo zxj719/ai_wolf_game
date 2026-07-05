@@ -20,7 +20,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const bpStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:');
-const BP_WINDOW = 8500; // R117: +2386 chars (knight/magician blocks), block now 6389 chars → 8500 ≈ 6389×133%
+const BP_WINDOW = 10000; // R117: 8500; R123: +摄梦人分支 block 8327 chars → 10000 ≥ 8327×120%
 const getBpBlock = () => src.slice(bpStart, bpStart + BP_WINDOW);
 
 // ─── T1-T3: 锚点 + 基础变量声明 ──────────────────────────────────────────────
@@ -108,7 +108,8 @@ describe('R113: bpIdentityStep 四路径优先级链', () => {
     test('T12: bpIdentityStep others fallback 仍包含原始 Step0 历史推理读取指导', () => {
         const blk = getBpBlock();
         const stepIdx = blk.indexOf('const bpIdentityStep =');
-        const stepBlock = blk.slice(stepIdx, stepIdx + 1200);
+        // R123: +摄梦人分支 (~230 chars)，others fallback 移至 ~1377，窗口 1200→1600
+        const stepBlock = blk.slice(stepIdx, stepIdx + 1600);
         expect(stepBlock).toContain('读取历史身份推理（传徽决策依据）');
     });
 });

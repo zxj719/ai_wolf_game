@@ -184,9 +184,9 @@ describe('R115: SHERIFF_VOTE block 大小', () => {
         expect(blockSize).toBeGreaterThanOrEqual(8000);
     });
 
-    test('T20: SHERIFF_VOTE block ≤ 15000 chars（防止意外膨胀）', () => {
+    test('T20: SHERIFF_VOTE block ≤ 17000 chars（防止意外膨胀；R123: +摄梦人 BP 分支 +1525 → 15623）', () => {
         const lwStart = src.indexOf('case PROMPT_ACTIONS.LAST_WORDS:', svStart);
         const blockSize = lwStart - svStart;
-        expect(blockSize).toBeLessThanOrEqual(15000);
+        expect(blockSize).toBeLessThanOrEqual(17000);
     });
 });

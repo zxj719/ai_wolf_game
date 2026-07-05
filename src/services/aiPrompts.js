@@ -3139,10 +3139,31 @@ ${ssHint}
                  }
              }
 
+             // R123: 摄梦人 SHERIFF_BADGE_PASS 专属提示词 — 入梦历史作信任锚点
+             const bpDreamweaverHistory = gameState.dreamweaverHistory || { dreamedPlayers: [], lastDreamTarget: null };
+             const bpDreamweaverDreamed = bpDreamweaverHistory.dreamedPlayers || [];
+             let bpDreamweaverHint = '';
+             if (playerRole === '摄梦人' && bpDreamweaverDreamed.length > 0) {
+                 const dwDreamCounts = {};
+                 bpDreamweaverDreamed.forEach(id => {
+                     if (id != null && badgeableSet.has(id)) {
+                         dwDreamCounts[id] = (dwDreamCounts[id] || 0) + 1;
+                     }
+                 });
+                 const topDreamed = Object.entries(dwDreamCounts)
+                     .sort((a, b) => b[1] - a[1])
+                     .slice(0, 2)
+                     .map(([id, cnt]) => `${id}号(入梦${cnt}次)`);
+                 if (topDreamed.length > 0) {
+                     bpDreamweaverHint = `\n🌙【你的入梦记录（存活候选中入梦最频繁者）】${topDreamed.join('、')} → 你最愿意为之承担同生共死风险的好人，优先传徽`;
+                 }
+             }
+
              // R64 读写闭环补完：好人警长死亡时读取 identity_table 积累的身份推理（传徽关键决策）
              // R113: 女巫/守卫 role-specific 优先级链（私有信息 > identity_table）
              // R117: 骑士/魔术师 role-specific 优先级链（能力状态 > identity_table）
              // R122: 预言家 role-specific 优先级链（一手验证 > identity_table）
+             // R123: 摄梦人 role-specific 优先级链（入梦频次 > identity_table）
              const bpIdentityStep = playerRole === '狼人'
                  ? ''
                  : playerRole === '女巫'
@@ -3155,6 +3176,8 @@ ${ssHint}
                  ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 🎩交换知识确认的好人（若已公开）> identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
                  : playerRole === '预言家'
                  ? 'Step0: 【你的查验记录是第一优先依据（一手信息，优先级高于 identity_table 推断）】你验证过的金水候选（⚡存活被验好人）是最可信的传徽对象，无需再借助推断作替代。\nStep1: 传徽优先级 → 🔮金水验证候选 > identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
+                 : playerRole === '摄梦人'
+                 ? 'Step0: 查看【你之前的身份推理表】作为传徽补充参考（confidence ≥ 70 且 suspect 不含"狼人"的存活候选人）。\nStep1: 传徽优先级 → ⚡预言家金水 > 🌙入梦最频繁者（你愿为之同生共死）> identity_table ≥70 非狼嫌疑 > 发言可信者 > -1撕毁。'
                  : 'Step0: 【读取历史身份推理（传徽决策依据）】查看系统提示中【你之前的身份推理表】：哪些存活候选人的 confidence ≥ 70 且 suspect 不含"狼人"？将其列为传徽优先候选（若与预言家金水⚡一致则更确信；有冲突时以金水为准）。\nStep1: 传徽优先级 → ⚡预言家金水 > identity_table confidence ≥ 70 非狼嫌疑 > 发言可信者 > -1撕毁。';
 
              const bpHint = playerRole === '狼人'
@@ -3169,10 +3192,12 @@ ${ssHint}
                  ? '你是魔术师警长：参考下方交换知识（见私有信息块）和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
                  : playerRole === '预言家'
                  ? '你是预言家警长：你的查验记录（⚡金水候选）是全场最可靠的一手信息——优先将警徽传给已验金水候选；完全无合适候选时撕掉（-1）。'
+                 : playerRole === '摄梦人'
+                 ? '你是摄梦人警长：入梦记录是你最信任的好人信号（你愿为之承担同生共死风险）——参考入梦历史中存活的候选人和预言家金水，选出最可信的传徽对象；无充分依据时撕掉（-1）。'
                  : '你是好人警长：把警徽传给你最确信的好人。完全无法判断时撕掉警徽（-1）——错传给狼等于送1.5票。';
              return `你（警长）死亡，决定警徽去向。
 【可移交对象】${(badgeTargets || []).join(',')}号，或-1撕毁警徽。
-${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}${bpGuardHint}${bpKnightHint}${bpMagicianHint}
+${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}${bpGuardHint}${bpKnightHint}${bpMagicianHint}${bpDreamweaverHint}
 输出JSON:{"targetId":数字或-1,"reason":"一句话理由","thought":"决策思考"}`;
         }
 
