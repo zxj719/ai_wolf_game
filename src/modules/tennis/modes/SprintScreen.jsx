@@ -13,7 +13,7 @@ import { CHARS } from '../gameData';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
 import { sendMatchTelemetry } from '../../../services/tennisService';
 import { incrementNoviceGames } from '../meta/noviceTracker';
-import { saveSprintHiscore, loadSprintHiscores } from './sprintScores';
+import { saveSprintHiscore, loadSprintHiscores, isToday } from './sprintScores';
 
 export const SPRINT_DURATION_S = 15 * 60;
 export const WIN_PTS = 3;
@@ -230,20 +230,33 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
               <div style={{ fontSize: '0.75rem', opacity: 0.45, textAlign: 'center', marginBottom: 5 }}>
                 🏠 家族冲刺榜
               </div>
-              {hiscores.map((s, i) => (
-                <div key={s.ts} style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '4px 8px', borderRadius: 6,
-                  background: s.ts === currentTsRef.current ? 'rgba(250,204,21,.14)' : 'transparent',
-                  fontSize: '0.82rem',
-                }}>
-                  <span style={{ minWidth: 22, opacity: 0.55 }}>#{i + 1}</span>
-                  <span style={{ flex: 1 }}>{s.player}</span>
-                  <span style={{ fontWeight: 700 }}>{s.pts}分</span>
-                  <span style={{ marginLeft: 4 }}>{s.grade.icon}</span>
-                  <span style={{ opacity: 0.45, fontSize: '0.72rem', marginLeft: 4 }}>{s.date}</span>
-                </div>
-              ))}
+              {hiscores.map((s, i) => {
+                const isCurrent = s.ts === currentTsRef.current;
+                const todayEntry = !isCurrent && isToday(s.ts);
+                return (
+                  <div key={s.ts} style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '4px 8px', borderRadius: 6,
+                    background: isCurrent
+                      ? 'rgba(250,204,21,.14)'
+                      : todayEntry ? 'rgba(34,211,238,.09)' : 'transparent',
+                    fontSize: '0.82rem',
+                  }}>
+                    <span style={{ minWidth: 22, opacity: 0.55 }}>#{i + 1}</span>
+                    <span style={{ flex: 1 }}>{s.player}</span>
+                    <span style={{ fontWeight: 700 }}>{s.pts}分</span>
+                    <span style={{ marginLeft: 4 }}>{s.grade.icon}</span>
+                    {todayEntry && (
+                      <span style={{
+                        fontSize: '0.65rem', color: '#22d3ee',
+                        border: '1px solid rgba(34,211,238,.4)',
+                        borderRadius: 3, padding: '0 3px', lineHeight: '1.4',
+                      }}>☀️今日</span>
+                    )}
+                    <span style={{ opacity: 0.45, fontSize: '0.72rem', marginLeft: 4 }}>{s.date}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
 

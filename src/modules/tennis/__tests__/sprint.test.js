@@ -11,6 +11,7 @@ import {
   loadSprintHiscores,
   saveSprintHiscore,
   clearSprintHiscores,
+  isToday,
 } from '../modes/sprintScores';
 
 describe('SprintScreen — constants', () => {
@@ -122,6 +123,39 @@ describe('computeGrade', () => {
   });
   it('returns 参与奖领取中… for 0', () => {
     expect(computeGrade(0).icon).toBe('🎾');
+  });
+});
+
+describe('isToday', () => {
+  // Anchor: 2026-07-05 12:00:00 UTC = ms value chosen for stable test reference
+  const ANCHOR = new Date('2026-07-05T12:00:00Z').getTime();
+  const SAME_DAY_MORNING = new Date('2026-07-05T01:30:00Z').getTime();
+  const SAME_DAY_NIGHT   = new Date('2026-07-05T23:59:00Z').getTime();
+  const YESTERDAY        = new Date('2026-07-04T23:00:00Z').getTime();
+  const TOMORROW         = new Date('2026-07-06T01:00:00Z').getTime();
+
+  it('returns true when ts matches the injected today (same ms)', () => {
+    expect(isToday(ANCHOR, { today: ANCHOR })).toBe(true);
+  });
+
+  it('returns true for early-morning timestamp on same day', () => {
+    expect(isToday(SAME_DAY_MORNING, { today: ANCHOR })).toBe(true);
+  });
+
+  it('returns true for late-night timestamp on same day', () => {
+    expect(isToday(SAME_DAY_NIGHT, { today: ANCHOR })).toBe(true);
+  });
+
+  it('returns false for yesterday timestamp', () => {
+    expect(isToday(YESTERDAY, { today: ANCHOR })).toBe(false);
+  });
+
+  it('returns false for tomorrow timestamp', () => {
+    expect(isToday(TOMORROW, { today: ANCHOR })).toBe(false);
+  });
+
+  it('works without injected today (does not throw)', () => {
+    expect(() => isToday(ANCHOR)).not.toThrow();
   });
 });
 

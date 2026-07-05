@@ -35,6 +35,22 @@ export function clearSprintHiscores() {
 }
 
 /**
+ * 判断给定时间戳是否属于「今天」（按本地时区）。
+ *
+ * @param {number} ts - Unix ms 时间戳
+ * @param {{ today?: number }} opts - today 注入用于测试（亦为 Unix ms）
+ */
+export function isToday(ts, { today } = {}) {
+  const d = new Date(ts);
+  const ref = today !== undefined ? new Date(today) : new Date();
+  return (
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth() &&
+    d.getDate() === ref.getDate()
+  );
+}
+
+/**
  * 写入一条 Sprint 成绩，自动维护降序榜单。
  *
  * @param {{ totalPts, matchCount, winCount, grade, playerName }} entry
