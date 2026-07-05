@@ -12,6 +12,8 @@ import {
   saveSprintHiscore,
   clearSprintHiscores,
   isToday,
+  computeEff,
+  getTodayEffBoard,
 } from '../modes/sprintScores';
 
 describe('SprintScreen — constants', () => {
@@ -156,6 +158,89 @@ describe('isToday', () => {
 
   it('works without injected today (does not throw)', () => {
     expect(() => isToday(ANCHOR)).not.toThrow();
+  });
+});
+
+describe('computeEff', () => {
+  it('returns pts divided by matchCount', () => {
+    expect(computeEff(9, 3)).toBe(3);
+  });
+  it('returns null for 0 matchCount', () => {
+    expect(computeEff(9, 0)).toBeNull();
+  });
+  it('handles fractional result', () => {
+    expect(computeEff(7, 3)).toBeCloseTo(2.333, 2);
+  });
+  it('returns 1 when all losses', () => {
+    expect(computeEff(4, 4)).toBe(1);
+  });
+  it('returns 3 when all wins', () => {
+    expect(computeEff(12, 4)).toBe(3);
+  });
+});
+
+describe('getTodayEffBoard', () => {
+  const ANCHOR    = new Date('2026-07-05T12:00:00Z').getTime();
+  const YESTERDAY = new Date('2026-07-04T12:00:00Z').getTime();
+  const G = { label: '坚持就是胜利', icon: '🥉' };
+  const save = (pts, matches, name, ts) =>
+    saveSprintHiscore({ totalPts: pts, matchCount: matches, winCount: 0, grade: G, playerName: name }, { now: ts });
+
+  beforeEach(() => clearSprintHiscores());
+
+  it('returns empty array for empty hiscores', () => {
+    expect(getTodayEffBoard([], { today: ANCHOR })).toEqual([]);
+  });
+
+  it('filters out non-today entries', () => {
+    save(15, 5, 'A', YESTERDAY);
+    const board = getTodayEffBoard(loadSprintHiscores(), { today: ANCHOR });
+    expect(board).toHaveLength(0);
+  });
+
+  it('includes today entries', () => {
+    save(9, 3, 'A', ANCHOR);
+    const board = getTodayEffBoard(loadSprintHiscores(), { today: ANCHOR });
+    expect(board).toHaveLength(1);
+    expect(board[0].player).toBe('A');
+  });
+
+  it('sorts by efficiency descending', () => {
+    save(8, 4, 'B', ANCHOR + 1000); // eff 2.0
+    save(9, 3, 'A', ANCHOR);        // eff 3.0
+    const board = getTodayEffBoard(loadSprintHiscores(), { today: ANCHOR });
+    expect(board[0].player).toBe('A');
+    expect(board[1].player).toBe('B');
+  });
+
+  it('tie-breaks by pts descending when same eff', () => {
+    save(8, 4, 'B', ANCHOR + 1000);  // eff 2.0, pts 8
+    save(12, 6, 'C', ANCHOR + 2000); // eff 2.0, pts 12
+    const board = getTodayEffBoard(loadSprintHiscores(), { today: ANCHOR });
+    expect(board[0].player).toBe('C');
+    expect(board[1].player).toBe('B');
+  });
+
+  it('tie-breaks by timestamp ascending when eff and pts equal', () => {
+    save(9, 3, 'B', ANCHOR + 1500);
+    save(9, 3, 'A', ANCHOR + 500);
+    const board = getTodayEffBoard(loadSprintHiscores(), { today: ANCHOR });
+    expect(board[0].player).toBe('A');
+  });
+
+  it('filters out entries with 0 matches', () => {
+    saveSprintHiscore({ totalPts: 0, matchCount: 0, winCount: 0, grade: G, playerName: 'Z' }, { now: ANCHOR });
+    const board = getTodayEffBoard(loadSprintHiscores(), { today: ANCHOR });
+    expect(board).toHaveLength(0);
+  });
+
+  it('mixes today and non-today, returns only today', () => {
+    save(15, 5, 'D', YESTERDAY);
+    save(9, 3, 'A', ANCHOR);
+    save(6, 2, 'B', ANCHOR + 1000);
+    const board = getTodayEffBoard(loadSprintHiscores(), { today: ANCHOR });
+    expect(board).toHaveLength(2);
+    expect(board.every((s) => s.player !== 'D')).toBe(true);
   });
 });
 

@@ -50,6 +50,31 @@ export function isToday(ts, { today } = {}) {
   );
 }
 
+/** 计算每场均分（效率）。matchCount 为 0 时返回 null。 */
+export function computeEff(pts, matchCount) {
+  if (!matchCount) return null;
+  return pts / matchCount;
+}
+
+/**
+ * 今日效率排行（按 pts/matches 降序，同效率时分数高者前，再按时间戳升序）。
+ * @param {Array} hiscores - loadSprintHiscores() 的返回值
+ * @param {{ today?: number }} opts - today 注入（测试用）
+ * @returns {Array} 今日记录按效率排序
+ */
+export function getTodayEffBoard(hiscores, { today } = {}) {
+  return hiscores
+    .filter((s) => s.matches > 0 && isToday(s.ts, { today }))
+    .sort((a, b) => {
+      const ea = a.pts / a.matches;
+      const eb = b.pts / b.matches;
+      const diff = eb - ea;
+      if (Math.abs(diff) > 1e-9) return diff;
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      return a.ts - b.ts;
+    });
+}
+
 /**
  * 写入一条 Sprint 成绩，自动维护降序榜单。
  *

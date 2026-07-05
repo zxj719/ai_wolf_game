@@ -13,7 +13,7 @@ import { CHARS } from '../gameData';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
 import { sendMatchTelemetry } from '../../../services/tennisService';
 import { incrementNoviceGames } from '../meta/noviceTracker';
-import { saveSprintHiscore, loadSprintHiscores, isToday } from './sprintScores';
+import { saveSprintHiscore, loadSprintHiscores, isToday, getTodayEffBoard } from './sprintScores';
 
 export const SPRINT_DURATION_S = 15 * 60;
 export const WIN_PTS = 3;
@@ -156,7 +156,13 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
 
   if (phase === 'done') {
     const grade = computeGrade(totalPts);
-    const hiscores = loadSprintHiscores().slice(0, 5);
+    const allHiscores = loadSprintHiscores();
+    const hiscores = allHiscores.slice(0, 5);
+    const todayEffBoard = getTodayEffBoard(allHiscores);
+    const myEffRank = currentTsRef.current
+      ? todayEffBoard.findIndex((s) => s.ts === currentTsRef.current) + 1
+      : 0;
+    const isEffChamp = myEffRank === 1 && todayEffBoard.length >= 2;
 
     const shareText = buildShareText({ totalPts, matchCount: results.length, winCount, grade });
 
@@ -215,13 +221,21 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
             <p className="hint" style={{ textAlign: 'center' }}>本轮未完成任何对局</p>
           )}
 
-          {hiRank !== null && (
-            <div style={{
-              textAlign: 'center', padding: '6px 0 10px',
-              color: hiRank === 1 ? '#facc15' : hiRank <= 3 ? '#22d3ee' : '#a3e635',
-              fontSize: '0.95rem', fontWeight: 700,
-            }}>
-              {hiRank === 1 ? '🥇 家族历史最高分！' : hiRank <= 3 ? `🏅 家族第 ${hiRank} 名！` : `📊 榜单第 ${hiRank} 名`}
+          {(hiRank !== null || isEffChamp) && (
+            <div style={{ textAlign: 'center', padding: '6px 0 10px' }}>
+              {hiRank !== null && (
+                <div style={{
+                  color: hiRank === 1 ? '#facc15' : hiRank <= 3 ? '#22d3ee' : '#a3e635',
+                  fontSize: '0.95rem', fontWeight: 700,
+                }}>
+                  {hiRank === 1 ? '🥇 家族历史最高分！' : hiRank <= 3 ? `🏅 家族第 ${hiRank} 名！` : `📊 榜单第 ${hiRank} 名`}
+                </div>
+              )}
+              {isEffChamp && (
+                <div style={{ color: '#22d3ee', fontWeight: 600, fontSize: '0.85rem', marginTop: 2 }}>
+                  ⚡ 今日效率冠军！
+                </div>
+              )}
             </div>
           )}
 
@@ -254,6 +268,34 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
                       }}>☀️今日</span>
                     )}
                     <span style={{ opacity: 0.45, fontSize: '0.72rem', marginLeft: 4 }}>{s.date}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {todayEffBoard.length >= 2 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.45, textAlign: 'center', marginBottom: 5 }}>
+                ⚡ 今日效率排名
+              </div>
+              {todayEffBoard.slice(0, 3).map((s, i) => {
+                const isCurrent = s.ts === currentTsRef.current;
+                const eff = (s.pts / s.matches).toFixed(1);
+                return (
+                  <div
+                    key={s.ts}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '4px 8px', borderRadius: 6,
+                      background: isCurrent ? 'rgba(34,211,238,.12)' : 'transparent',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <span style={{ minWidth: 22, opacity: 0.55 }}>#{i + 1}</span>
+                    <span style={{ flex: 1 }}>{s.player}</span>
+                    <span style={{ fontWeight: 700, color: '#22d3ee' }}>{eff}分/场</span>
+                    <span style={{ opacity: 0.5, fontSize: '0.72rem' }}>{s.pts}分·{s.matches}场</span>
                   </div>
                 );
               })}
