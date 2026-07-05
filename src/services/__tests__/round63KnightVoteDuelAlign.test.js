@@ -58,7 +58,7 @@ describe('R63: 骑士 DAY_VOTE vote-duel 对齐框架', () => {
   it('T5: playerRole 链条顺序正确（狼→预→猎→骑士→通用）', () => {
     const hunterBranchIdx = dvBlock.indexOf("playerRole === '猎人'");
     const knightBranchIdx = dvBlock.indexOf("playerRole === '骑士'");
-    const genericIdx = dvBlock.indexOf('有查杀 → 跟投查杀');
+    const genericIdx = dvBlock.lastIndexOf('有查杀 → 跟投查杀');
     expect(hunterBranchIdx).toBeGreaterThan(-1);
     expect(knightBranchIdx).toBeGreaterThan(hunterBranchIdx);
     expect(genericIdx).toBeGreaterThan(knightBranchIdx);

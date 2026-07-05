@@ -28,8 +28,8 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'utf-8');
 
-// R118 窗口：block 11728 chars × 130% ≈ 15246，设 16000 保留余量
-const DV_WINDOW = 16000;
+// R118 窗口：block 16786 chars（R121 后），× ~107%，设 18000 保留余量
+const DV_WINDOW = 18000;
 
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');

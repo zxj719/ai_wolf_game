@@ -113,11 +113,11 @@ describe('Round 64: 守卫/女巫 DAY_VOTE 通用 fallback 确认（有意设计
         expect(hasGuardVoteStrategy).toBe(true);
     });
 
-    it('T13: DAY_VOTE case 块中女巫没有专属投票框架（有意走通用）', () => {
-        const hasWitchVoteStrategy = dayVoteBlock.includes('witchVoteStrategy') ||
-                                     (dayVoteBlock.includes("playerRole === '女巫'") &&
-                                      dayVoteBlock.includes('VoteStrategy'));
-        expect(hasWitchVoteStrategy).toBe(false);
+    it('T13: DAY_VOTE case 块中女巫有专属投票框架（R121 读写闭环完成）', () => {
+        // R64 原意：女巫走通用 fallback；R121 完成女巫专属框架，此测试更新为正向确认
+        const hasWitchVoteStrategy = dayVoteBlock.includes('witchVoteStrategy') &&
+                                     dayVoteBlock.includes("playerRole === '女巫'");
+        expect(hasWitchVoteStrategy).toBe(true);
     });
 
     it('T14: DAY_VOTE 已有的4个专属框架完整存在（狼/猎/骑士 + 预言家对跳策略）', () => {

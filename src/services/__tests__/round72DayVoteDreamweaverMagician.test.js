@@ -35,8 +35,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');
     if (start === -1) throw new Error('DAY_VOTE case block not found');
-    // Window: 16000 chars to cover the full extended case block (R120 added ~1819 chars, total ~15065)
-    return src.slice(start, start + 16000);
+    // Window: 18000 chars to cover the full extended case block (R121 added ~1721 chars, total ~16786)
+    return src.slice(start, start + 18000);
 }
 
 // Extract just the dreamweaverVoteStrategy template string content
@@ -160,7 +160,7 @@ test('T14: 三元链顺序正确 — 骑士 > 摄梦人 > 魔术师 > 通用 fal
     const knightIdx = block.indexOf("playerRole === '骑士'");
     const dreamIdx = block.indexOf("playerRole === '摄梦人'");
     const magIdx = block.indexOf("playerRole === '魔术师'");
-    const fallbackIdx = block.indexOf('【投票策略】有查杀');
+    const fallbackIdx = block.lastIndexOf('【投票策略】有查杀');
     // All found
     expect(knightIdx).toBeGreaterThan(-1);
     expect(dreamIdx).toBeGreaterThan(-1);

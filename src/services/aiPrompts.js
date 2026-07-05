@@ -2624,6 +2624,32 @@ Step5: 确定入梦目标
    c) 投票优先排序：① 预言家查杀（外部验证，最高信任）→ ② 从未被你守护、identity_table 嫌疑最高的玩家（高嫌疑 + 无守护信任 = 双重标记）→ ③ 发言逻辑崩塌者
    d) 残局推断：若你守护了X号而X号安然无恙，可推测X号是昨夜狼人刀口目标——X号=已验盟友，投票时作为排除锚点使用`;
 
+            // 女巫 DAY_VOTE 读写闭环（R121）：从 witchHistory.savedIds 提取银水记录作为投票排除锚点
+            // 设计依据：savedIds = 女巫主动投入解药成本的关键好人（零间接信息，类比守卫守护记录）
+            // 投资逻辑：解药已使用 → 女巫确信该玩家值得救 → 高可信好人，排除出投票目标选项
+            // 与猎人(R62)/骑士(R63)/摄梦人/魔术师(R72)/预言家(R119)/守卫(R120)同构
+            const dvWitchHistory = playerRole === '女巫'
+                ? (gameState.witchHistory || { savedIds: [], poisonedIds: [] })
+                : { savedIds: [], poisonedIds: [] };
+            const dvWitchSavedAliveIds = (dvWitchHistory.savedIds || [])
+                .filter(id => alivePlayers.find(p => p.id === id));
+            const dvWitchPoisonedIds = dvWitchHistory.poisonedIds || [];
+            const dvWitchSavedSummary = dvWitchSavedAliveIds.length > 0
+                ? dvWitchSavedAliveIds.map(id => `${id}号`).join('、') + '（银水玩家，已确认盟友，从投票选项中排除）'
+                : '暂无存活银水';
+            const dvWitchPoisonedSummary = dvWitchPoisonedIds.length > 0
+                ? dvWitchPoisonedIds.map(id => `${id}号`).join('、') + '（毒亡玩家）'
+                : '暂无';
+            // 双路径：有银水（高价值信息锚点）vs 无银水（通用 fallback）
+            // 白熊效应合规：全正向描述（"排除/优先排除/已确认盟友"），无负向禁令词汇
+            const witchVoteStrategy = dvWitchSavedAliveIds.length > 0
+                ? `2. 【女巫投票—银水排除框架（R121 读写闭环）】
+   a) 🧪银水锚点：存活银水玩家：${dvWitchSavedSummary}；毒亡玩家：${dvWitchPoisonedSummary}
+   b) 排除逻辑：你主动救出的玩家是你投入解药成本的关键好人——投票时优先将其从目标列表中排除（confidence 最高，保护已验证的存活盟友）
+   c) 投票优先排序：① 预言家查杀（外部验证，最高信任）→ ② 从未被你救过、identity_table 嫌疑最高的玩家（高嫌疑 + 无银水信任 = 双重标记）→ ③ 发言逻辑崩塌者
+   d) 毒亡共谋推断：若毒亡玩家曾在发言中为某存活玩家"金水/力挺"，该存活玩家共谋嫌疑上升——可在 identity_table 中提升其嫌疑并作为投票优先排查对象`
+                : `2. 【投票策略】有查杀 → 跟投查杀！无查杀 → 投发言逻辑最混乱或历史被投最多的玩家。好人分票=助狼人优势。`;
+
             // R71：DAY_VOTE 语气风格一致性——personalityType 影响投票理由表述风格
             // 设计：风格 hint 调整"如何表达决策"，不影响"选谁"的策略框架（策略已由角色专属块覆盖）
             // 白熊效应合规：所有分支均为正向描述（"用X方式表达"），无"不要Y"禁止语句
@@ -2672,6 +2698,8 @@ ${playerRole === '狼人'
   ? (dvMagIsRevealed ? dvMagRevealedVoteStrategy : magicianVoteStrategy)
   : playerRole === '守卫'
   ? guardVoteStrategy
+  : playerRole === '女巫'
+  ? witchVoteStrategy
   : `2. 【投票策略】有查杀 → 跟投查杀！无查杀 → 投发言逻辑最混乱或历史被投最多的玩家。好人分票=助狼人优势。`}
 3. 无有效信息时可弃票(-1)，但有查杀或明确嫌疑时弃票等于放弃好人票权。
 

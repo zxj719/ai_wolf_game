@@ -1737,3 +1737,69 @@
 - R116 SHERIFF_VOTE 中 `svMagAlreadySwapped`（交换容量）不影响投票决策，仅作注释。
 - R117 SHERIFF_BADGE_PASS 中，已公开时关键是"交换知识（谁的真实身份是什么）"而非"还有多少次交换可用"。
 - **通用规则**：魔术师在 SHERIFF_* 的核心决策轴：VOTE = 身份暴露代价；BADGE_PASS = 交换知识作信任依据；SPEECH = 信息修正权威。三者均从 `hasRevealed` 分叉，但二级变量不同，不能混用。
+
+---
+
+## Round 118 新增教训（2026-07-05）
+
+**教训 R118-A：魔术师 DAY_VOTE 双路径 — hasRevealed 驱动内嵌三元**
+- 隐藏期（hasRevealed=false）：维持 R72 的 `magicianVoteStrategy`（换刀候选对齐）不变。
+- 公开期（hasRevealed=true）：切换到 `dvMagRevealedVoteStrategy`，以历史交换记录作一手信息锚点，优先投"交换验证确认的狼人"。
+- **三元链模式**：`playerRole === '魔术师' ? (dvMagIsRevealed ? dvMagRevealedVoteStrategy : magicianVoteStrategy) : ...` — 内嵌三元是两个不同策略的路由层，外层三元是角色路由层，不要合并。
+
+**教训 R118-B：DV_WINDOW 随新增内容同步扩大 — 首次超过 16000**
+- R118 新增 ~2100 chars 后 DAY_VOTE block 首次超过 16000 chars，导致原 16000-char 测试窗口截断 ternary chain。
+- 症状：含 `dvMagIsRevealed ? dvMagRevealedVoteStrategy` 的三元链在 block 内偏移超过 16000，测试 indexOf 返回 -1。
+- **铁律（新增）**：每次向 DAY_VOTE case 新增超过 300 chars，运行 `grep -n "DV_WINDOW" src/services/__tests__/round*.test.js` 并将所有窗口更新至 `block 实际大小 × ~107%`（DAY_VOTE block 没有固定下一个 case 边界，按比例保留余量）。
+
+---
+
+## Round 119 新增教训（2026-07-05）
+
+**教训 R119-A：预言家 DAY_VOTE 读写闭环 — seerChecks 作三路径分叉**
+- 第一路径（对跳 seerCounterClaimants > 0）：以🔮查验锚点主动带票，三步优先排序（一手验证最高 > 悍跳者 > identity_table 崩塌者）。
+- 第二路径（有查杀 dvSeerConfirmedWolves > 0）：以 confidence=100 锚点率先带票，领袖义务描述（无白熊效应）。
+- 第三路径（无记录）：通用 fallback。
+- **设计原则**：三路径从最特殊（对跳）到最通用（无数据）排列，每路径均有信息优先度最高的锚点作开头，保持 AI 对"为什么投这个人"有明确信念链。
+
+**教训 R119-B：dvSeerGoodSummary 正向描述铁律 — "已确认好人，从投票选项中排除"**
+- 预言家查验的好人信息不直接影响"投谁"（不应投好人是显然的），但应明确表达"排除"意图（白熊效应正向描述：说"我排除了谁"，不说"我不投谁"）。
+- **通用规则**：任何 DAY_VOTE "保护盟友/已验好人" 的信息，用 `已确认 X，从投票选项中排除` 表达，不用 `不能投/绝对不投 X`。
+
+---
+
+## Round 120 新增教训（2026-07-05）
+
+**教训 R120-A：守卫 DAY_VOTE 读写闭环 — guardHistory 三步数据提取**
+- `dvGuardProtectedAliveIds`（Set 去重，过滤存活）→ `dvGuardFreqMap`（每个守护目标的频次）→ `dvGuardLastTarget`（最近一次守护）。
+- 三步提取形成完整的"守护画像"：谁最值得信任（高频）、昨夜动向（最新）、是否昨夜空守。
+- **设计原则**：残局推断（守护对象 = 昨夜刀口目标）是守卫独有的 DAY_VOTE 推理能力，不同于猎人/骑士的"已决斗验证"——要单独一步 `d)` 强调。
+
+**教训 R120-B：DV_WINDOW 18000 铁律（DAY_VOTE 专属）**
+- R119/R120 连续追加 ~1500+~1400 chars，block 从 12000 区间增至 15000+ chars。
+- 所有 DAY_VOTE 测试文件统一设 `DV_WINDOW = 18000`（block 实际大小 16786 × ~107% ≈ 17961），18000 是唯一的安全值，无需每轮重新计算——只要不超过 18000-16786=1214 chars（一个角色策略的上限）。
+- **新铁律**：R121+ 每轮向 DAY_VOTE case 追加内容后，检查 `输出JSON格式:` 是否仍在 18000 窗口内（T20 类型测试）。如果超出，18000 → 20000，并全量更新。
+
+---
+
+## Round 121 新增教训（2026-07-05）
+
+**教训 R121-A：女巫 DAY_VOTE 读写闭环完成 — 全 8 役角色 DAY_VOTE 专属策略达成**
+- 至 R121：狼人（R61）→ 猎人（R62）→ 骑士（R63）→ 预言家（R119）→ 守卫（R120）→ 女巫（R121）→ 摄梦人/魔术师（R72/R118）全部有专属框架。
+- 女巫框架核心：银水记录（savedIds）作"高可信盟友"排除锚点；毒亡记录（poisonedIds）作"共谋嫌疑上升"推断源。
+- **设计亮点**：毒亡共谋推断是女巫独有的 DAY_VOTE 能力（力挺某人 → 被毒 → 推断该人共谋），不同于猎人/骑士/守卫/预言家的任何模式。
+
+**教训 R121-B：新增角色 else-branch 中的文字与已有测试 indexOf 查找的"最终 fallback 文字"相同时会伪造偏移**
+- 问题：witch else-branch = `'有查杀 → 跟投查杀！...'`（在声明区，偏移 ~14000），ternary chain final fallback 使用同样文字（偏移 ~16000）。
+- 使用 `indexOf` 的旧测试（R63 T5、R72 T14）找到的是第一次出现（声明区），而非最终 fallback（链条区）。
+- **铁律（新增）**：当新增角色的 else-branch 使用通用 fallback 文字时，所有用该文字做"链条顺序"断言的历史测试必须从 `indexOf` 改为 `lastIndexOf`（找最后出现的才是 ternary 链尾部的 fallback）。
+- 本轮修复：R63 T5、R72 T14（已在前轮修复）。
+
+**教训 R121-C：注释中不得拼写白熊效应违禁词汇（即使是负向说明）**
+- 问题：guard section 注释写 `无"绝不投/禁止"等负向禁令` → witch section 的同类注释继承了这种写法 → guard 测试的 `getGuardVoteSection()` 范围从 guardHistory 到 R71 comment，现在包含 witch section 的注释 → 测试检查"该范围内无 `绝不投`"失败。
+- **铁律（新增）**：代码注释中描述白熊效应时，用"无负向禁令词汇"或"全正向描述"代替拼写具体禁止词。具体词汇只能出现在测试文件的 `.not.toContain()` 中。
+
+**教训 R121-D：R64 T13 类型的"有意设计（暂无框架）"测试是消耗品——新角色框架完成后需立即翻转**
+- R64 T13 原意："女巫 DAY_VOTE 有意走通用 fallback（暂无专属框架）"，设 `expect(...).toBe(false)`。
+- R121 完成女巫框架后，此测试直接失败（因为现在有框架了）。
+- **通用规则**：任何"有意缺失 X"的测试（标注"有意设计"或"暂无"），在对应功能完成后必须同轮反转为正向确认。不要让这类测试留过轮，否则下轮会触发虚假 FAIL。

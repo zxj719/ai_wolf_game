@@ -29,8 +29,8 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'utf-8');
 
-// Window: 16000 chars (block size 13246 × ~120%, with headroom for future additions)
-const DV_WINDOW = 16000;
+// Window: 18000 chars (block size 16786 × ~107%, updated for R121 Witch DAY_VOTE addition)
+const DV_WINDOW = 18000;
 
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');
