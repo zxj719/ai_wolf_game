@@ -27,8 +27,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');
     if (start === -1) throw new Error('DAY_VOTE case block not found');
-    // Window: 14500 chars to cover the full case block (R119 added ~1518 chars)
-    return src.slice(start, start + 14500);
+    // Window: 16000 chars to cover the full case block (R120 added ~1819 chars, total ~15065)
+    return src.slice(start, start + 16000);
 }
 
 // Sub-block: from votePersonalityType declaration to the return statement

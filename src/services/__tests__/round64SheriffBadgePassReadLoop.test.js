@@ -106,11 +106,11 @@ describe('Round 64: 守卫/女巫 DAY_VOTE 通用 fallback 确认（有意设计
     // 守卫写"守护优先级：高/中" → 这是夜间计划，白天投票走通用 fallback 是正确设计
     // 女巫写"毒药优先候选" → 这是独立夜间决策，不应影响白天投票（会暴露身份）
 
-    it('T12: DAY_VOTE case 块中守卫没有专属投票框架（有意走通用）', () => {
-        const hasGuardVoteStrategy = dayVoteBlock.includes('guardVoteStrategy') ||
+    it('T12: DAY_VOTE case 块中守卫有专属投票框架（R120 读写闭环完成）', () => {
+        // R64 原意：守卫走通用 fallback；R120 完成守卫专属框架，此测试更新为正向确认
+        const hasGuardVoteStrategy = dayVoteBlock.includes('guardVoteStrategy') &&
                                      dayVoteBlock.includes("playerRole === '守卫'");
-        // 守卫应走通用 fallback，不应有专属框架
-        expect(hasGuardVoteStrategy).toBe(false);
+        expect(hasGuardVoteStrategy).toBe(true);
     });
 
     it('T13: DAY_VOTE case 块中女巫没有专属投票框架（有意走通用）', () => {

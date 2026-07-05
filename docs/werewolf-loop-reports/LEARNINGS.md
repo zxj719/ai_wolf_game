@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-05 Round 120] 守卫 DAY_VOTE 读写闭环——guardHistory 作投票排除锚点（所有神职 DAY_VOTE 全覆盖）
+
+- **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 7 个变量（`dvGuardHistory/dvGuardProtectedAliveIds/dvGuardFreqMap/dvGuardLastTarget/dvGuardProtectedSummary/dvGuardLastTargetRef/guardVoteStrategy`）+ return 链插入 `playerRole === '守卫' ? guardVoteStrategy`（在魔术师分支之后）。DAY_VOTE block 13246 → 15065 chars（+1819 chars）；R71 窗口 14500 → 16000；R72 窗口 13000 → 16000；R64 T12 更新为正向确认。全量测试 2179/2179 ✅，build ✅。
+- **守卫零间接信息设计（R120-A）**：`dvGuardHistory` 使用 `playerRole === '守卫'` 门控，`dvGuardProtectedAliveIds` 用 `Set` 去重（同一玩家可被保护多夜），`dvGuardFreqMap` 记录频次（多次守护=核心盟友）。排除锚点是守卫信息最直接的利用方式。**设计原则：守卫和预言家同样拥有零间接私有信息，应用相同"直接读取结构化数据 >> NLP 推断"原则**。
+- **DAY_VOTE 窗口级联铁律（R120-B）**：每次新增超过约 800 chars 时，`输出JSON格式:` 可能超出原窗口。**检测命令（每次新增后必跑）**：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.lastIndexOf('case PROMPT_ACTIONS.DAY_VOTE:'); const block=s.slice(a,a+20000); console.log('block size:', block.indexOf('case PROMPT_ACTIONS.',1), 'JSON offset:', block.indexOf('输出JSON格式:'))"` 当前窗口需求：R71(16000)、R72(16000)、R119(16000)、R120(16500)。
+- **R64 obsolete test 更新模式（R120-C）**：早期轮次的"禁止性"测试（`expect(X).toBe(false)`）被后续轮次颠覆时，必须更新为正向确认（`expect(X).toBe(true)`）并标注更新轮次。**铁律：任何新功能可能改变已有 false-assertion 测试时，全量 vitest 前先搜索 `toBe(false)` 相关测试，预判可能受影响的测试**。
+- **守卫 DAY vs NIGHT 信息利用差异（R120-D）**：NIGHT_GUARD 读 identity_table "守护优先级"（AI 规划记忆）；DAY_VOTE 读 `gameState.guardHistory` 结构数据（系统记录的真实行为）。**两者互补独立，NIGHT 侧利用 AI 自行规划，DAY_VOTE 侧利用系统 ground truth**。
+- **测试**：2179/2179（+17 new R120 tests T1-T17；R71/R72/R64 窗口+逻辑修复；1 pre-existing chatSocket failure 无关）；build ✅（WerewolfModule 258.59 kB）；check-build ✅；干跑 25/25 ✅。
+- **下轮优先**：平衡性评估（N=100局干跑模拟统计狼/好人胜率），或女巫 DAY_VOTE 策略（witchHistory 药效状态 → 投票框架）。
+
+---
+
 ### [2026-07-05 Round 119] 预言家 DAY_VOTE 读写闭环——seerChecks 作投票锚点（三路径 + confidence=100）
 
 - **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 5 个辅助变量（`dvSeerMyChecks/dvSeerConfirmedWolves/dvSeerConfirmedGood/dvSeerKillSummary/dvSeerGoodSummary`）+ `seerVoteStrategy` 从 2路径升级为3路径（对跳优先 > 有查杀记录 > 无记录）。直接从 `gameState.seerChecks` 读取结构化已验结果（不依赖 AI 对 identity_table 的 NLP 解析）。DAY_VOTE block 约 11728→13246 chars（+~1518 chars）。全量测试 2148/2148 ✅，build ✅。

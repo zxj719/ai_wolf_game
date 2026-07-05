@@ -35,8 +35,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');
     if (start === -1) throw new Error('DAY_VOTE case block not found');
-    // Window: 13000 chars to cover the full extended case block (R72 added ~600 chars)
-    return src.slice(start, start + 13000);
+    // Window: 16000 chars to cover the full extended case block (R120 added ~1819 chars, total ~15065)
+    return src.slice(start, start + 16000);
 }
 
 // Extract just the dreamweaverVoteStrategy template string content

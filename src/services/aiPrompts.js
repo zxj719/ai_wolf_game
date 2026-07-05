@@ -2596,6 +2596,34 @@ Step5: 确定入梦目标
    b) 场景评估：今天能推票出局 → 全力推票（直接淘汰比夜间交换成功更可靠稳定）；今天无法翻转票型 → 仍然投他，为好人阵营建立公共嫌疑认知，夜间换刀策略作为补充保障
    c) 无"换刀候选"标注时：跟投预言家查杀 > 发言逻辑最崩塌的玩家 > 历史热力最高的目标`;
 
+            // 守卫 DAY_VOTE 读写闭环（R120）：从 guardHistory 提取守护记录作为投票排除锚点
+            // 设计依据：守卫拥有零间接信息（直接守护记录），守护对象=已分析的高可信好人
+            // 与猎人(R62)/骑士(R63)/摄梦人/魔术师(R72)/骑士post-duel/魔术师公开(R118)/预言家(R119)同构
+            const dvGuardHistory = playerRole === '守卫'
+                ? (gameState.guardHistory || []).filter(g => g.targetId !== null && g.targetId !== undefined)
+                : [];
+            const dvGuardProtectedAliveIds = [...new Set(
+                dvGuardHistory.map(g => g.targetId).filter(id => alivePlayers.find(p => p.id === id))
+            )];
+            const dvGuardFreqMap = {};
+            dvGuardHistory.forEach(g => { dvGuardFreqMap[g.targetId] = (dvGuardFreqMap[g.targetId] || 0) + 1; });
+            const dvGuardLastTarget = dvGuardHistory.length > 0
+                ? dvGuardHistory[dvGuardHistory.length - 1]?.targetId
+                : null;
+            const dvGuardProtectedSummary = dvGuardProtectedAliveIds.length > 0
+                ? dvGuardProtectedAliveIds.map(id => `${id}号(${dvGuardFreqMap[id] || 1}次)`).join('、') + '（已确认盟友，从投票选项中排除）'
+                : '暂无存活守护记录';
+            const dvGuardLastTargetRef = dvGuardLastTarget !== null && dvGuardLastTarget !== undefined
+                ? `${dvGuardLastTarget}号（昨夜守护对象）`
+                : '（昨夜空守）';
+            // 守卫投票策略：守护记录排除框架 + 高嫌疑无守护双重标记（R120 读写闭环）
+            // 白熊效应合规：全正向描述（"排除/优先"），无"绝不投/禁止"等负向禁令
+            const guardVoteStrategy = `2. 【守卫投票—守护排除框架（R120 读写闭环）】
+   a) 🛡️守护锚点：存活守护记录：${dvGuardProtectedSummary}；昨夜：${dvGuardLastTargetRef}
+   b) 排除逻辑：你多次守护的玩家是你主动判断的关键好人——投票时优先将其从目标列表中排除（confidence 最高，维持队友保护链完整）
+   c) 投票优先排序：① 预言家查杀（外部验证，最高信任）→ ② 从未被你守护、identity_table 嫌疑最高的玩家（高嫌疑 + 无守护信任 = 双重标记）→ ③ 发言逻辑崩塌者
+   d) 残局推断：若你守护了X号而X号安然无恙，可推测X号是昨夜狼人刀口目标——X号=已验盟友，投票时作为排除锚点使用`;
+
             // R71：DAY_VOTE 语气风格一致性——personalityType 影响投票理由表述风格
             // 设计：风格 hint 调整"如何表达决策"，不影响"选谁"的策略框架（策略已由角色专属块覆盖）
             // 白熊效应合规：所有分支均为正向描述（"用X方式表达"），无"不要Y"禁止语句
@@ -2642,6 +2670,8 @@ ${playerRole === '狼人'
   ? dreamweaverVoteStrategy
   : playerRole === '魔术师'
   ? (dvMagIsRevealed ? dvMagRevealedVoteStrategy : magicianVoteStrategy)
+  : playerRole === '守卫'
+  ? guardVoteStrategy
   : `2. 【投票策略】有查杀 → 跟投查杀！无查杀 → 投发言逻辑最混乱或历史被投最多的玩家。好人分票=助狼人优势。`}
 3. 无有效信息时可弃票(-1)，但有查杀或明确嫌疑时弃票等于放弃好人票权。
 
