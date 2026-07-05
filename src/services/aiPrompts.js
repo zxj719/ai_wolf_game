@@ -2524,10 +2524,35 @@ Step5: 确定入梦目标
                 ? `\n【🎖️ 警长投票】你的投票权重为1.5票——比普通玩家多出半票。你的票型在接近平票的局面中决定胜负。务必投有信息支撑的目标，切勿弃票（警长弃票=放弃1.5票，好人阵营损失最重）。`
                 : '';
 
-            // 预言家投票策略：对跳局面时悍跳者优先于其他目标（悍跳 = 公开谎言 = 已知狼人）
+            // 预言家 DAY_VOTE 读写闭环（R119）：从 seerChecks 提取已验结果作为投票锚点
+            // 设计依据：与猎人(R62)/骑士(R63)/摄梦人/魔术师(R72)/骑士post-duel/魔术师公开(R118)同构
+            const dvSeerMyChecks = playerRole === '预言家'
+                ? (gameState.seerChecks || []).filter(c => c.seerId === currentPlayer?.id)
+                : [];
+            const dvSeerConfirmedWolves = dvSeerMyChecks
+                .filter(c => c.isWolf && alivePlayers.find(p => p.id === c.targetId))
+                .map(c => c.targetId);
+            const dvSeerConfirmedGood = dvSeerMyChecks
+                .filter(c => !c.isWolf && alivePlayers.find(p => p.id === c.targetId))
+                .map(c => c.targetId);
+            const dvSeerKillSummary = dvSeerConfirmedWolves.length > 0
+                ? dvSeerConfirmedWolves.map(id => `${id}号`).join('、')
+                : '暂无存活的查杀目标';
+            const dvSeerGoodSummary = dvSeerConfirmedGood.length > 0
+                ? dvSeerConfirmedGood.map(id => `${id}号`).join('、') + '（已确认好人，从投票选项中排除）'
+                : '暂无';
+            // 三路径策略：对跳优先 > 有查杀记录 > 无记录通用
             const seerVoteStrategy = seerCounterClaimantsInVote.length > 0
-                ? `2. 【预言家投票策略—对跳优先】${seerCounterClaimantsInVote.join(',')}号是在场悍跳者（自称预言家），你已知其身份虚假，投票优先级等同于已验查杀——${pkMode ? 'PK必须投悍跳者！弃票=放过已知狼人，对好人阵营不可接受' : '率先投悍跳者出局！勿浪费这次信息优势，绝不投金水（已验好人）。'}`
-                : `2. 【预言家投票策略】率先投查杀目标！绝不投金水（已验好人）。引领好人集中票型形成多数。`;
+                ? `2. 【预言家投票策略—对跳优先（R119 读写闭环）】
+   a) 🔮查验锚点：已验查杀→存活：${dvSeerKillSummary}；已验金水→存活：${dvSeerGoodSummary}
+   b) ${seerCounterClaimantsInVote.join(',')}号是在场悍跳者（自称预言家），你已知其身份虚假，投票优先级等同于已验查杀——${pkMode ? 'PK必须投悍跳者！弃票=放过已知狼人，对好人阵营不可接受' : '率先投悍跳者出局！勿浪费这次信息优势'}
+   c) 投票排序：① 你查杀的存活狼人（一手验证最高） → ② 悍跳者（公开谎言=已知狼人） → ③ identity_table 逻辑崩塌者`
+                : dvSeerConfirmedWolves.length > 0
+                ? `2. 【预言家投票策略—查验锚点导引（R119 读写闭环）】
+   a) 🔮查验锚点：已验查杀→存活：${dvSeerKillSummary}；已验金水→存活：${dvSeerGoodSummary}
+   b) 投票优先排序：① 已验查杀的存活狼人（confidence=100，一手验证最高）→ ② identity_table 中 confidence 最高的狼嫌疑 → ③ 发言逻辑崩塌者
+   c) 领袖义务：你是场上信息最充分的角色——率先带票投查杀方向，引导好人集中形成多数；票型分裂=放弃信息优势`
+                : `2. 【预言家投票策略】率先投查杀目标！已验为好人的玩家从投票选项中排除（confidence 最高，维持队友信任）。引领好人集中票型形成多数。`;
 
             // 猎人投票策略：DAY_SPEECH积累的"开枪优先级：高"候选与投票方向对齐（刀票对齐原则，R62）
             const hunterVoteStrategy = `2. 【猎人投票—刀票对齐框架】

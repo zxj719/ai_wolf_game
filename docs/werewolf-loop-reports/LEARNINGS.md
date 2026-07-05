@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-07-05 Round 119] 预言家 DAY_VOTE 读写闭环——seerChecks 作投票锚点（三路径 + confidence=100）
+
+- **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 5 个辅助变量（`dvSeerMyChecks/dvSeerConfirmedWolves/dvSeerConfirmedGood/dvSeerKillSummary/dvSeerGoodSummary`）+ `seerVoteStrategy` 从 2路径升级为3路径（对跳优先 > 有查杀记录 > 无记录）。直接从 `gameState.seerChecks` 读取结构化已验结果（不依赖 AI 对 identity_table 的 NLP 解析）。DAY_VOTE block 约 11728→13246 chars（+~1518 chars）。全量测试 2148/2148 ✅，build ✅。
+- **seerVoteStrategy 三路径设计（R119-A）**：预言家 DAY_VOTE 独有"对跳优先"作为最高优先级路径（因对跳=已知狼人，高于任何 seerChecks 锚点）；第二路径为有存活查杀记录（`dvSeerConfirmedWolves.length > 0`）时展示具体 ID + confidence=100；第三路径为无锚点通用。**设计原则：与猎人/骑士/摄梦人/魔术师不同，预言家有独立的"对跳优先"第一优先级，必须在对跳路径中同时展示查验锚点（信息复用原则）**。
+- **金水禁令从负向改正向（R119-B）**："绝不投金水" → "已确认好人，从投票选项中排除（confidence 最高，维持队友信任）"。第 34 次应用白熊效应正向铁律（R112 第 33 次）。**铁律累计：每次遇到"绝不X/千万别X"在提示词中时，必须重写为"Y（正向结果）"的等价描述**。
+- **DAY_VOTE 窗口必须覆盖 `输出JSON格式:` 行（R119-C）**：该行位于 DAY_VOTE block 末尾（约 offset 13000+）；R71 原窗口 12000 被 +1518 chars 超出，T9/T10 失效。修复：12000 → 14500。**铁律：新增操作使 DAY_VOTE block 超过 R71 窗口时，必须更新 R71 测试窗口**（已建立为新铁律）。
+- **测试**：2148/2148（+17 new R119 tests T1-T17；R71 窗口修复 3 tests 恢复；1 pre-existing chatSocket failure 无关）；build ✅（check-build 零泄露）。
+- **下轮优先**：守卫 DAY_VOTE 读写闭环（最后一个未注入私有信息的角色），完成后所有神职角色 DAY_VOTE 均有专属锚点。
+
+---
+
 ### [2026-07-05 Round 118] 骑士/魔术师 DAY_VOTE 私有信息注入——决斗验证锚点 × 交换知识一手信息
 
 - **完成状态**：`aiPrompts.js` DAY_VOTE case 扩展骑士 post-duel 路径 + 魔术师双路径。骑士：`knightVoteStrategy` 的 true-branch 由单行通用扩展为结构化三步（a 决斗验证锚 b 投票优先排序 c 票权锁定），引导 AI 从 identity_table 中找"已决斗出局"的确认狼人，并将其生前"保护/力挺/金水"的存活玩家列为连带嫌疑（confidence 下调 20-30）。魔术师：新增 `dvMagIsRevealed`（`currentPlayer?.hasRevealed`）、`dvMagHistory`（`gameState.magicianHistory`）、`dvMagSwappedCount`（交换次数）、`dvMagRevealedVoteStrategy`（公开路径策略），返回链魔术师分支改为内嵌三元 `(dvMagIsRevealed ? dvMagRevealedVoteStrategy : magicianVoteStrategy)`；隐藏路径保持 R72 换刀候选框架不变。DAY_VOTE block 约 11728→12200 chars（+~480 chars）。
