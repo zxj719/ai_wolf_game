@@ -111,6 +111,61 @@ export function getTodayEffBoard(hiscores, { today } = {}) {
 }
 
 /**
+ * 计算本次 Sprint 结算的成就徽章（最多 3 个，按威信度降序）。
+ *
+ * 成就列表（prestige 高 = 更稀有）：
+ *   全场全胜 (6) — 3+ 场全赢
+ *   完美收官 (4) — 最后一场赢了
+ *   三连胜   (3) — 任意连续 3 场赢
+ *   逆势翻盘 (2) — 曾落后（累计负>胜），最终以赢收官
+ *   铁打意志 (1) — 累计 6 场以上
+ *
+ * @param {Array<{win: boolean}>} results
+ * @returns {Array<{icon: string, label: string, color: string}>}
+ */
+export function computeAchievements(results) {
+  if (!results || results.length === 0) return [];
+
+  const earned = [];
+  const lastWin = results[results.length - 1].win;
+
+  if (results.length >= 3 && results.every((r) => r.win)) {
+    earned.push({ icon: '🏅', label: '全场全胜', color: '#facc15', prestige: 6 });
+  }
+
+  if (lastWin) {
+    earned.push({ icon: '🔥', label: '完美收官', color: '#f97316', prestige: 4 });
+  }
+
+  let maxStreak = 0, cur = 0;
+  for (const r of results) {
+    cur = r.win ? cur + 1 : 0;
+    if (cur > maxStreak) maxStreak = cur;
+  }
+  if (maxStreak >= 3) {
+    earned.push({ icon: '⚡', label: '三连胜', color: '#22d3ee', prestige: 3 });
+  }
+
+  {
+    let w = 0, l = 0, wasBehind = false;
+    for (const r of results) {
+      if (r.win) w++; else l++;
+      if (l > w) wasBehind = true;
+    }
+    if (wasBehind && lastWin) {
+      earned.push({ icon: '💪', label: '逆势翻盘', color: '#4ade80', prestige: 2 });
+    }
+  }
+
+  if (results.length >= 6) {
+    earned.push({ icon: '🏃', label: '铁打意志', color: '#a78bfa', prestige: 1 });
+  }
+
+  earned.sort((a, b) => b.prestige - a.prestige);
+  return earned.slice(0, 3).map(({ icon, label, color }) => ({ icon, label, color }));
+}
+
+/**
  * 写入一条 Sprint 成绩，自动维护降序榜单。
  *
  * @param {{ totalPts, matchCount, winCount, grade, playerName }} entry

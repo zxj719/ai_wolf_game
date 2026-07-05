@@ -13,7 +13,7 @@ import { CHARS } from '../gameData';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
 import { sendMatchTelemetry } from '../../../services/tennisService';
 import { incrementNoviceGames } from '../meta/noviceTracker';
-import { saveSprintHiscore, loadSprintHiscores, isToday, getTodayEffBoard, getPersonalMonthlyBest } from './sprintScores';
+import { saveSprintHiscore, loadSprintHiscores, isToday, getTodayEffBoard, getPersonalMonthlyBest, computeAchievements } from './sprintScores';
 
 export const SPRINT_DURATION_S = 15 * 60;
 export const WIN_PTS = 3;
@@ -166,6 +166,8 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
     const personalMonthlyBest = getPersonalMonthlyBest(allHiscores, basePlayer.name);
     const isMonthlyBest = personalMonthlyBest !== null && personalMonthlyBest.ts === currentTsRef.current;
 
+    const achievements = computeAchievements(results);
+
     const shareText = buildShareText({ totalPts, matchCount: results.length, winCount, grade });
 
     const handleCopy = () => {
@@ -221,6 +223,24 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
 
           {results.length === 0 && (
             <p className="hint" style={{ textAlign: 'center' }}>本轮未完成任何对局</p>
+          )}
+
+          {achievements.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 8, margin: '4px 0 14px' }}>
+              {achievements.map((a) => (
+                <div
+                  key={a.label}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    padding: '4px 10px', borderRadius: 16,
+                    background: `${a.color}22`, border: `1px solid ${a.color}55`,
+                    color: a.color, fontSize: '0.82rem', fontWeight: 700,
+                  }}
+                >
+                  {a.icon} {a.label}
+                </div>
+              ))}
+            </div>
           )}
 
           {(hiRank !== null || isEffChamp || isMonthlyBest) && (

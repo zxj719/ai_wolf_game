@@ -16,6 +16,7 @@ import {
   getTodayEffBoard,
   isThisMonth,
   getPersonalMonthlyBest,
+  computeAchievements,
 } from '../modes/sprintScores';
 
 describe('SprintScreen — constants', () => {
@@ -349,6 +350,103 @@ describe('isThisMonth', () => {
   });
   it('works without injected today (does not throw)', () => {
     expect(() => isThisMonth(ANCHOR)).not.toThrow();
+  });
+});
+
+describe('computeAchievements', () => {
+  const W = { win: true };
+  const L = { win: false };
+
+  it('returns [] for empty results', () => {
+    expect(computeAchievements([])).toEqual([]);
+  });
+
+  it('returns [] for null results', () => {
+    expect(computeAchievements(null)).toEqual([]);
+  });
+
+  it('returns [完美收官] for single win', () => {
+    const result = computeAchievements([W]);
+    expect(result).toHaveLength(1);
+    expect(result[0].label).toBe('完美收官');
+  });
+
+  it('returns [] for single loss', () => {
+    expect(computeAchievements([L])).toEqual([]);
+  });
+
+  it('全场全胜 requires 3+ all-win matches', () => {
+    // 2 wins — not enough for 全场全胜
+    const two = computeAchievements([W, W]);
+    expect(two.some((a) => a.label === '全场全胜')).toBe(false);
+    // 3 wins — should trigger
+    const three = computeAchievements([W, W, W]);
+    expect(three.some((a) => a.label === '全场全胜')).toBe(true);
+  });
+
+  it('全场全胜 not awarded when any match is a loss', () => {
+    const result = computeAchievements([W, W, L, W, W]);
+    expect(result.some((a) => a.label === '全场全胜')).toBe(false);
+  });
+
+  it('三连胜 awarded for 3 consecutive wins anywhere', () => {
+    // Loss then 3 wins
+    const result = computeAchievements([L, W, W, W]);
+    expect(result.some((a) => a.label === '三连胜')).toBe(true);
+  });
+
+  it('三连胜 not awarded when max streak is 2', () => {
+    const result = computeAchievements([W, W, L, W, W]);
+    expect(result.some((a) => a.label === '三连胜')).toBe(false);
+  });
+
+  it('逆势翻盘 awarded when behind early and last match a win', () => {
+    // L, L, W, W, W — was behind (0-2 after 2nd match), finished with 3 wins
+    const result = computeAchievements([L, L, W, W, W]);
+    expect(result.some((a) => a.label === '逆势翻盘')).toBe(true);
+  });
+
+  it('逆势翻盘 not awarded when last match is a loss', () => {
+    const result = computeAchievements([L, W, W, L]);
+    expect(result.some((a) => a.label === '逆势翻盘')).toBe(false);
+  });
+
+  it('逆势翻盘 not awarded when never behind', () => {
+    // W, L, W → never had losses > wins
+    const result = computeAchievements([W, L, W]);
+    expect(result.some((a) => a.label === '逆势翻盘')).toBe(false);
+  });
+
+  it('铁打意志 awarded for 6+ matches', () => {
+    const six = computeAchievements([L, L, L, L, L, L]);
+    expect(six.some((a) => a.label === '铁打意志')).toBe(true);
+    const five = computeAchievements([L, L, L, L, L]);
+    expect(five.some((a) => a.label === '铁打意志')).toBe(false);
+  });
+
+  it('caps at 3 achievements even when more are earned', () => {
+    // 6 all wins: 全场全胜 + 完美收官 + 三连胜 + 铁打意志 = 4 earned → capped to 3
+    const result = computeAchievements([W, W, W, W, W, W]);
+    expect(result).toHaveLength(3);
+  });
+
+  it('returns highest-prestige achievements first when capping', () => {
+    // 6 all wins: should pick 全场全胜(6) > 完美收官(4) > 三连胜(3), dropping 铁打意志(1)
+    const result = computeAchievements([W, W, W, W, W, W]);
+    const labels = result.map((a) => a.label);
+    expect(labels[0]).toBe('全场全胜');
+    expect(labels).toContain('完美收官');
+    expect(labels).toContain('三连胜');
+    expect(labels).not.toContain('铁打意志');
+  });
+
+  it('each achievement has icon, label, and color fields', () => {
+    const result = computeAchievements([W, W, W]);
+    result.forEach((a) => {
+      expect(typeof a.icon).toBe('string');
+      expect(typeof a.label).toBe('string');
+      expect(typeof a.color).toBe('string');
+    });
   });
 });
 
