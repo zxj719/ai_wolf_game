@@ -27,7 +27,7 @@ export const MOVES = {
   },
   slice: {
     id: 'slice', name: '切削放缓', system: 'spin', stat: 'skill',
-    energyCost: -10, powerFactor: 0.85, minigame: 'precisionStop',
+    energyCost: -3, powerFactor: 0.85, minigame: 'precisionStop',
     desc: '低平切削改变节奏，顺势喘口气',
   },
   volley: {
@@ -42,7 +42,7 @@ export const MOVES = {
   },
   lob: {
     id: 'lob', name: '挑高球', system: 'control', stat: 'mind',
-    energyCost: 6, powerFactor: 0.90, minigame: 'directionReact',
+    energyCost: 6, powerFactor: 0.86, minigame: 'directionReact',
     desc: '过顶高球送对手回老家',
   },
   passingShot: {
