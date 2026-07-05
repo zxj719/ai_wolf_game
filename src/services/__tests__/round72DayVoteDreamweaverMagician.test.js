@@ -149,9 +149,9 @@ test("T12: 摄梦人分支接入三元链（playerRole === '摄梦人'）", () =
 test("T13: 魔术师分支接入三元链（playerRole === '魔术师'）", () => {
     const block = getDayVoteBlock();
     expect(block).toContain("playerRole === '魔术师'");
-    // 魔术师分支应该使用 magicianVoteStrategy
+    // R118: 魔术师分支扩展为内嵌三元 (dvMagIsRevealed ? revealed : hidden)，需要更大的检查窗口
     const magIdx = block.indexOf("playerRole === '魔术师'");
-    const afterMag = block.slice(magIdx, magIdx + 80);
+    const afterMag = block.slice(magIdx, magIdx + 120);
     expect(afterMag).toContain('magicianVoteStrategy');
 });
 

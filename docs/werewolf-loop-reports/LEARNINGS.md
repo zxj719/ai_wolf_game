@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-05 Round 118] 骑士/魔术师 DAY_VOTE 私有信息注入——决斗验证锚点 × 交换知识一手信息
+
+- **完成状态**：`aiPrompts.js` DAY_VOTE case 扩展骑士 post-duel 路径 + 魔术师双路径。骑士：`knightVoteStrategy` 的 true-branch 由单行通用扩展为结构化三步（a 决斗验证锚 b 投票优先排序 c 票权锁定），引导 AI 从 identity_table 中找"已决斗出局"的确认狼人，并将其生前"保护/力挺/金水"的存活玩家列为连带嫌疑（confidence 下调 20-30）。魔术师：新增 `dvMagIsRevealed`（`currentPlayer?.hasRevealed`）、`dvMagHistory`（`gameState.magicianHistory`）、`dvMagSwappedCount`（交换次数）、`dvMagRevealedVoteStrategy`（公开路径策略），返回链魔术师分支改为内嵌三元 `(dvMagIsRevealed ? dvMagRevealedVoteStrategy : magicianVoteStrategy)`；隐藏路径保持 R72 换刀候选框架不变。DAY_VOTE block 约 11728→12200 chars（+~480 chars）。
+- **hasUsedDuel 在 DAY_VOTE 的语义（R118-A）**：`knightHasDueledForVote=true` 在 DAY_VOTE 阶段必然代表**成功决斗**，因为决斗失败导致骑士死亡→骑士无法进入投票阶段。因此 post-duel 路径无需任何 fallback，可直接无条件读取 identity_table 中"已决斗出局"的确认狼人。**设计原则：AI 的私有状态标志（hasUsedDuel、hasRevealed、hasUsedAbility）在不同 PROMPT_ACTIONS 下的语义可能不同；DAY_VOTE 中的状态是经过存活过滤后的语义，必须考虑"死亡玩家不会调用"这一隐含前提**。
+- **内嵌三元保护原有测试（R118-B）**：为避免破坏 R72 的 `getMagicianStrategyContent()` 提取器（依赖 `const magicianVoteStrategy = \`` 关键字），将隐藏路径保留为独立变量 `magicianVoteStrategy`（不变），新增公开路径变量 `dvMagRevealedVoteStrategy`，通过内嵌三元路由。**设计原则：当新路径需要分叉且存在依赖原变量名的测试提取器时，保持原变量名作为旧路径、新增变量作为新路径，通过三元路由是最小干扰方案；切勿将原变量改为三元，否则会破坏所有依赖该关键字的提取器**。
+- **窗口参数偏移规律（R118-C）**：在 return 链中插入内嵌三元时，三元后续的变量名（如 `magicianVoteStrategy`）在固定字符窗口内的位置会向后移动约 40-50 chars（三元表达式长度）。本轮修复 R72 T13 窗口 80→120 chars。**检测方法：每次修改 return 链三元顺序后，手动计算从 `playerRole === 'X'` 到目标变量名的字符偏移，确保测试窗口足够大**。
+- **白熊效应合规（第 40 次验证）**：`dvMagRevealedVoteStrategy` 内容全正向描述（"交换知识锚""一手信息""引导好人阵营对齐"），无"绝不能/禁止"；"不要"词仅在"不要覆盖/不要重复"技术追加格式语境下允许（T13 合规检查覆盖）✅。
+- **测试**：2118/2118（+15 new R118 tests T1-T15；R72 T13 窗口 80→120 修复；1 pre-existing chatSocket failure 与本轮无关）；build ✅（check-build 零泄露）。
+- **下轮优先**：① 预言家 DAY_VOTE 读写闭环（NIGHT_DIVINE 查验结果写入 identity_table，DAY_VOTE 优先级提升）；② 猎人 DAY_VOTE 私有信息注入（`hasUsedAbility` 状态路由）；③ 守卫 DAY_VOTE 策略（夜间守护记录推断投票目标）。
+
+---
+
 ### [2026-07-04 Round 112] 女巫 + 守卫 SHERIFF_SPEECH 专属提示词——信息权威 × 药效执行力框架
 
 - **完成状态**：`aiPrompts.js` SHERIFF_SPEECH case 在 `knightSsHint` 之后新增 7 个变量：① `witchSsSaveHave`（`currentPlayer?.hasWitchSave ?? false`）；② `witchSsPoisonHave`（`currentPlayer?.hasWitchPoison ?? false`）；③ `let witchSsMedStatus` + if-else 4路径（双药均在/解药在手+毒药已用/毒药在手+解药已用/双药已用）；④ `const witchSsHint`（`hasRevealedIdentity` 三元：已跳身份→信息权威×药效执行力框架 / 未公开→"有底气的好人"隐性竞选框架）；⑤ `const guardSsHint`（`hasRevealedIdentity` 三元：已公开→守护记录信任锚点 / 未公开→稳健理性好人框架）。ssHint 链插入 `playerRole === '女巫' ? witchSsHint : playerRole === '守卫' ? guardSsHint` 在骑士之后、通用 fallback 之前。SHERIFF_SPEECH block 3876 → 5935 chars（+2059 chars）；WerewolfModule 250.90→252.07 kB（+1.17 kB）。

@@ -2,6 +2,24 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-07-05] 狼人杀 Round 118 — 骑士/魔术师 DAY_VOTE 私有信息注入
+
+### 新功能
+- **骑士 DAY_VOTE post-duel 验证锚点**：`knightVoteStrategy` 后决斗路径新增 "已决斗出局" 验证锚，引导 AI 将决斗狼人生前力挺的存活玩家列为连带嫌疑（保护/力挺/金水 → 同组互保信号），并按 ①②③ 多步优先排序投票
+- **魔术师 DAY_VOTE 身份公开路径**：新增 `dvMagRevealedVoteStrategy` 以交换知识作一手信息锚点（身份公开后），通过内嵌三元 `(dvMagIsRevealed ? dvMagRevealedVoteStrategy : magicianVoteStrategy)` 路由；隐藏路径保持原 R72 换刀候选框架不变
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/services/aiPrompts.js` | 修改 | DAY_VOTE 骑士 post-duel 策略扩展；新增 dvMagIsRevealed/dvMagHistory/dvMagSwappedCount/dvMagRevealedVoteStrategy；return 三元链魔术师分支扩展为内嵌三元 |
+| `src/services/__tests__/round118DayVoteKnightMagicianPrivate.test.js` | 新建 | 15 tests T1-T15（骑士验证锚/连带嫌疑/魔术师交换知识/内嵌三元/白熊效应/回归） |
+| `src/services/__tests__/round72DayVoteDreamweaverMagician.test.js` | 修改 | T13 窗口 80→120 chars（内嵌三元使 magicianVoteStrategy 后移约 40 字符） |
+
+### 技术细节
+- DAY_VOTE 骑士/魔术师私有信息读写闭环完成：骑士读 identity_table 的"已决斗出局"；魔术师读 magicianHistory.swappedPlayers
+- 白熊效应合规（第 40 次验证）：dvMagRevealedVoteStrategy 无"绝不能/禁止"，不要仅在"不要覆盖/不要重复"技术追加格式语境下使用
+- DAY_VOTE block 从 11728 chars 扩展至约 12200 chars；DV_WINDOW 设为 16000（留足余量）
+
 ## [2026-07-04] 狼人杀 Round 117 — 骑士/魔术师 SHERIFF_BADGE_PASS 专属提示词
 
 ### 新功能

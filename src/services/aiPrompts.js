@@ -2536,9 +2536,13 @@ Step5: 确定入梦目标
    c) 无"开枪优先级：高"候选时：跟投预言家查杀 > 发言逻辑最崩塌的玩家 > 历史热力最高的目标`;
 
             // 骑士投票策略：DAY_SPEECH积累的"决斗候选"与投票方向对齐（vote-duel对齐原则，R63）
+            // R118: 已决斗成功时以决斗验证结果作最高信任锚点（DAY_VOTE 私有信息注入闭环）
             const knightHasDueledForVote = currentPlayer?.hasUsedDuel ?? false;
             const knightVoteStrategy = knightHasDueledForVote
-                ? `2. 【骑士投票—领袖框架（身份已公开）】决斗已使用，你是场上公信力锚点：优先投预言家查杀目标；无查杀时投你本轮综合分析最高嫌疑的玩家（1.5票权重放大判断影响力，务必投有依据的目标）`
+                ? `2. 【骑士投票—领袖框架（身份已公开）】决斗已使用，你是场上公信力锚点：
+   a) 🗡️决斗验证锚点（R118）：从【身份推理表】找到 reason 含"已决斗出局"的玩家 → 该狼人确认；查其生前"保护/力挺/金水"过的存活玩家，confidence 下调 20-30（狼人同组互保信号）→ 列为本轮优先投票目标
+   b) 投票优先排序：① 预言家查杀（外部验证） → ② 决斗狼人生前力挺的存活玩家（连带嫌疑） → ③ 本轮发言逻辑最崩塌者
+   c) 票权（若为警长 1.5 票）应锁定有验证依据的目标，服务于信息优势而非直觉猜测`
                 : `2. 【骑士投票—决斗候选对齐框架（技能待用）】
    a) 先查【身份推理表】(identity_table) 中 reason 含"决斗候选"的存活玩家——这是你多轮积累的最高嫌疑目标，投票首选与决斗方向对齐（vote-duel 对齐，R63）
    b) 场景评估：能推票出局 → 全力推票（投票出局比决斗更省资源，保留决斗用于更高价值时刻）；无法翻转票型 → 仍然投他，积累好人阵营公共认知，伺机决斗
@@ -2554,6 +2558,14 @@ Step5: 确定入梦目标
 
             // 魔术师投票策略：DAY_SPEECH积累的"换刀候选"与投票方向对齐（换票对齐原则，R72）
             // 换刀候选是强狼嫌疑 → 投票出局比夜间交换更直接可靠
+            // R118: 身份已公开时交换知识作一手信息（优于所有推理），身份隐藏时保持通用换刀候选对齐
+            const dvMagIsRevealed = currentPlayer?.hasRevealed ?? false;
+            const dvMagHistory = gameState.magicianHistory || { swappedPlayers: [], lastSwap: null };
+            const dvMagSwappedCount = (dvMagHistory.swappedPlayers || []).length;
+            const dvMagRevealedVoteStrategy = `2. 【魔术师投票—交换知识作一手信息（身份已公开，R118）】身份公开后，交换记录是优于所有推理的一手信息：
+   a) 🎩交换知识锚点：根据历史交换记录（已交换${dvMagSwappedCount}对），交换对（A↔B）中若 A 死则狼实际刀了 B——订正身份推理表，将交换验证确认的好人/狼人置信度更新至 90+
+   b) 投票优先排序：① 交换验证确认为狼人的玩家（最高信任锚点）→ ② 预言家查杀（经交换修正后的真实结果）→ ③ 发言逻辑崩塌者
+   c) 已跳身份后的投票义务：率先带票投有交换验证依据的方向，引导好人阵营对齐正确信息流；好人阵营票型分裂是对你领袖地位的最大浪费`;
             const magicianVoteStrategy = `2. 【魔术师投票—换票对齐框架】
    a) 先查【身份推理表】(identity_table) 中 reason 含"换刀候选"的存活玩家——这是你多轮积累的最高嫌疑狼人（已多轮发言分析），投票首选与换刀方向对齐（换票对齐：投票直接淘汰 > 夜间换刀风险转移）
    b) 场景评估：今天能推票出局 → 全力推票（直接淘汰比夜间交换成功更可靠稳定）；今天无法翻转票型 → 仍然投他，为好人阵营建立公共嫌疑认知，夜间换刀策略作为补充保障
@@ -2604,7 +2616,7 @@ ${playerRole === '狼人'
   : playerRole === '摄梦人'
   ? dreamweaverVoteStrategy
   : playerRole === '魔术师'
-  ? magicianVoteStrategy
+  ? (dvMagIsRevealed ? dvMagRevealedVoteStrategy : magicianVoteStrategy)
   : `2. 【投票策略】有查杀 → 跟投查杀！无查杀 → 投发言逻辑最混乱或历史被投最多的玩家。好人分票=助狼人优势。`}
 3. 无有效信息时可弃票(-1)，但有查杀或明确嫌疑时弃票等于放弃好人票权。
 
