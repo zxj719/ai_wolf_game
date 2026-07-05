@@ -134,6 +134,8 @@
 .tennis-scope .daily-label { font-size: .8rem; font-weight: 700; color: var(--optic); font-family: var(--mono); letter-spacing: .04em; }
 .tennis-scope .daily-date { font-size: .72rem; color: var(--muted); font-family: var(--mono); }
 .tennis-scope .daily-done-badge { font-size: .7rem; color: #4ade80; font-family: var(--mono); font-weight: 700; margin-left: auto; }
+.tennis-scope .daily-streak-badge { font-size: .68rem; font-family: var(--mono); font-weight: 700; color: #fbbf24; background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.3); border-radius: 5px; padding: 1px 6px; }
+.tennis-scope .daily-streak-fire { color: #f97316; background: rgba(249,115,22,.14); border-color: rgba(249,115,22,.4); }
 .tennis-scope .daily-body { display: flex; align-items: center; gap: 10px; }
 .tennis-scope .daily-face { font-size: 1.8rem; flex-shrink: 0; }
 .tennis-scope .daily-info { flex: 1; min-width: 0; }

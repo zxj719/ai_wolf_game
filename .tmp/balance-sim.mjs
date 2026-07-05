@@ -218,3 +218,9 @@ import('../src/modules/tennis/modes/adventure/oddOpponents.js').then(({ ODD_OPPO
   }
   console.log(`满分重炮 ${pPower.toFixed(0)} vs 大妈挑高球（${dama.mind}×0.90×0.5–1.35）→ d20 中 ${lose}/20 个 roll 能打爆满分重炮`);
 });
+
+console.log('\n═══ 9) 反读招扰动：高心态对手 tellReader 胜率（75-90 / 80-95 / 90-100）═══');
+for (const [label, band] of [['中档[55-65]', [55, 65]], ['中高[70-80]', [70, 80]], ['高档[80-90]', [80, 90]], ['顶档[88-100]', [88, 100]]]) {
+  const r = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'avg', oppChar: 'Elza', oppBand: band, strategy: 'tellReader' });
+  console.log(`${label} → 胜率 ${r.winRate}%  场均球 ${r.avgRallies}`);
+}

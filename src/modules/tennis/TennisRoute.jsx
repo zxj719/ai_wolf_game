@@ -21,7 +21,7 @@ import { AdventureScreen } from './modes/adventure/AdventureScreen';
 import { SprintScreen } from './modes/SprintScreen';
 import { OnboardingModal, checkOnboardingSeen } from './components/OnboardingModal';
 import { isNovice, incrementNoviceGames, NOVICE_STAT_PENALTY } from './meta/noviceTracker';
-import { getDailyChallenge, markDailyChallengeCompleted, saveDailyStats, DAILY_BONUS_COINS } from './meta/dailyChallenge';
+import { getDailyChallenge, markDailyChallengeCompleted, saveDailyStats, updateDailyStreak, DAILY_BONUS_COINS } from './meta/dailyChallenge';
 import './tennis.css';
 
 // 单局快打的体验牌库（4 张，B 段后牌库改为养成构建）
@@ -224,7 +224,12 @@ export default function TennisRoute() {
         clutchWins: matchStats.clutchWins ?? 0,
         countersWon: matchStats.countersWon ?? 0,
       });
-      if (win) markDailyChallengeCompleted();
+      if (win) {
+        markDailyChallengeCompleted();
+        const newStreak = updateDailyStreak();
+        if (newStreak >= 7) toast(`🔥 连续 ${newStreak} 天完成今日一战！`);
+        else if (newStreak >= 3) toast(`⚡ ${newStreak} 天连胜！坚持就是胜利！`);
+      }
       isDailyRef.current = false;
       setTimeout(refreshDailyBoard, 800);
     }

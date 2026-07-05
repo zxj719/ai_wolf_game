@@ -3,7 +3,7 @@ import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
 import { loadLocalRecords, computeCharStats, findBestChar, findMainChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, computePlayerOppWinRates } from '../localBoard';
-import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
+import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, loadDailyStreak, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 import { CHAR_BUILDS, COUNTER_PAIRS, MOVES } from '../battle/moves';
 
 function getOppTag(name, map) {
@@ -141,6 +141,7 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
 
   const dailyChallenge = useMemo(() => (picked ? getDailyChallenge(picked) : null), [picked]);
   const dailyDone = picked ? isDailyChallengeCompleted() : false;
+  const dailyStreak = loadDailyStreak();
   const myDailyStats = useMemo(() => (picked ? loadDailyStats(picked) : null), [picked]);
   const myDailyRank = useMemo(
     () => (picked && dailyBoard ? computeDailyRank(picked, dailyBoard.completions) : null),
@@ -223,6 +224,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             <div className="daily-header">
               <span className="daily-label">⚡ 今日一战</span>
               <span className="daily-date">{dailyChallenge.date}</span>
+              {dailyStreak >= 2 && (
+                <span className={`daily-streak-badge${dailyStreak >= 7 ? ' daily-streak-fire' : ''}`}>
+                  {dailyStreak >= 7 ? '🔥' : '⚡'} {dailyStreak} 天连续
+                </span>
+              )}
               {dailyDone && <span className="daily-done-badge">✓ 今日已完成</span>}
             </div>
             <div className="daily-body">

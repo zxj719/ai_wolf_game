@@ -92,6 +92,39 @@ export function loadDailyStats(playerName) {
   } catch { return null; }
 }
 
+const STREAK_KEY = 'tennis_daily_streak';
+
+/** 返回当前连续完成天数（0 = 无记录）。 */
+export function loadDailyStreak() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STREAK_KEY));
+    if (!raw || typeof raw.streak !== 'number') return 0;
+    return raw.streak;
+  } catch { return 0; }
+}
+
+/**
+ * 在今日一战胜利时调用；幂等（同一天多次调用不重复计）。
+ * @param {string} [today] 可注入日期（YYYY-MM-DD UTC），方便测试
+ * @returns {number} 更新后的连续天数
+ */
+export function updateDailyStreak(today = getTodayKey()) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STREAK_KEY)) ?? {};
+    if (raw.lastDate === today) return raw.streak ?? 1;
+    const todayMs = new Date(`${today}T00:00:00Z`).getTime();
+    const yesterday = new Date(todayMs - 86400000).toISOString().slice(0, 10);
+    const newStreak = raw.lastDate === yesterday ? (raw.streak ?? 0) + 1 : 1;
+    localStorage.setItem(STREAK_KEY, JSON.stringify({ streak: newStreak, lastDate: today }));
+    return newStreak;
+  } catch { return 1; }
+}
+
+/** 清空连胜记录（测试辅助）。 */
+export function clearDailyStreak() {
+  try { localStorage.removeItem(STREAK_KEY); } catch { /* noop */ }
+}
+
 /**
  * 计算玩家在今日一战中的速度排名（按 duration_s 升序，仅统计胜者）。
  * @param {string} playerName
