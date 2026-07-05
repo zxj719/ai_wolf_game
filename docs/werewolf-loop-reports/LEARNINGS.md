@@ -4,6 +4,19 @@
 
 ---
 
+### [2026-07-05 Round 123] 摄梦人 SHERIFF_BADGE_PASS 专属分支——全 8 神职 BADGE_PASS 覆盖完成
+
+- **完成状态**：`aiPrompts.js` BADGE_PASS case 新增 `bpDreamweaverHistory`（gameState.dreamweaverHistory 安全读取）、`bpDreamweaverDreamed`（dreamedPlayers 数组）、`dwDreamCounts`（频次计数）、`topDreamed`（top-2 入梦候选）、`bpDreamweaverHint`（空串时零副作用）；`bpIdentityStep` 新增第 8 路径（摄梦人：入梦最频繁者 > identity_table）；`bpHint` 新增第 8 路径（摄梦人警长）；return 模板追加 `${bpDreamweaverHint}`。BADGE_PASS block 6802 → 8327 chars（+1525）；BP_WINDOW 全量升级 8500→10000。全量测试 2254/2254 ✅；干跑 25/25 ✅；build ✅（WerewolfModule 260.19 kB）。
+- **摄梦人零间接信任设计（R123-A）**：`dreamedPlayers` 是摄梦人主动选择承受同生共死风险的玩家列表——频次最高=信任最深，与守卫 `guardHistory`（R113）在认识论层次等价：**直接行为记录（ground truth）>> NLP 推断**。`bpDreamweaverHint` 读取 `gameState.dreamweaverHistory.dreamedPlayers`，用 `badgeableSet` 过滤存活候选，生成 top-2 频次榜，条件：`playerRole === '摄梦人' && bpDreamweaverDreamed.length > 0`（零历史时零副作用）。
+- **BP_WINDOW 逼近危险线铁律（R123-B）**：BADGE_PASS block 从 6802 增至 8327（余量 173 chars，≈ BP_WINDOW 8500 的 2%）。**铁律：BADGE_PASS block 大小检测命令**：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:'); const end=s.indexOf('case PROMPT_ACTIONS.',a+1); console.log('block:', end-a, '余量:', 10000-(end-a))"`。当余量 < 500 时**必须**将所有 BADGE_PASS 测试的 BP_WINDOW 再次升级（当前 10000，下次目标 12000）。当余量 < 50 时代码已失效，立即升级。
+- **SV→LW 联合块哨兵更新规律（R123-C）**：`round115SheriffVoteDreamweaver.test.js T20` 用 `s.indexOf('LAST_WORDS:', svStart) - svStart` 测量的是 SHERIFF_VOTE + SHERIFF_BADGE_PASS 两个 case 的合并大小。BADGE_PASS 有意增长时 T20 上限必须同步更新（本轮 15000→17000）。**铁律：每次新增 BADGE_PASS 内容后，运行** `node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const sv=s.indexOf('case PROMPT_ACTIONS.SHERIFF_VOTE:'); const lw=s.indexOf('case PROMPT_ACTIONS.LAST_WORDS:',sv); console.log('SV→LW block:', lw-sv)"` **确认不超过 R115 T20 上限**；超出则更新 T20。
+- **bpIdentityStep stepBlock 窗口级联规律（R123-D）**：`bpIdentityStep` 三元链每新增一个角色分支（约 200-250 chars），`others` fallback 位置后移相同量。R113 T12 用 1200 窗口，新增摄梦人分支后 fallback 移至 1377，超出旧窗口。**铁律：每次新增 bpIdentityStep 分支后，运行** `node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:'); const block=s.slice(a,a+10000); const si=block.indexOf('const bpIdentityStep ='); const sb=block.slice(si,si+2000); console.log('others fallback offset:', sb.indexOf('读取历史身份推理'))"` **确认 fallback offset < R113 T12 窗口（当前 1600）**；超出则更新。
+- **T6 bpHint/bpDreamweaverHint 窗口设计教训（R123-E）**：新增 `bpDreamweaverHint` 时，测试 T6 用 `let bpDreamweaverHint = ''` 为锚点 + 500 窗口查找 `入梦`（offset 582）和 `同生共死`（offset 743）。500 窗口不够——两个关键字都在 500 外。调试方法：`node -e "const s=require('fs').readFileSync(...); const idx=s.indexOf('let bpDreamweaverHint'); const blk=s.slice(idx,idx+900); console.log('入梦:', blk.indexOf('入梦'), '同生共死:', blk.indexOf('同生共死'))"` 确认实际偏移再设窗口。**通用规则：新 bpXxxHint 变量的模板字符串通常在 500-800 chars 之后，测试窗口应设为 800-900**。
+- **测试**：2254/2254（+15 new R123 tests T1-T15；R113 T12 窗口 1200→1600；R115 T20 上限 15000→17000；R117/R122 BP_WINDOW 8500→10000；干跑 25/25 ✅；chatSocket 1 pre-existing failure 无关）；build ✅（WerewolfModule 260.19 kB）；check-build ✅。
+- **下轮优先**：平衡性调整（10p/3w 狼胜率 84-90%，需用户决策 Option A/B/C），或猎人 BADGE_PASS（价值低，可跳过）。
+
+---
+
 ### [2026-07-05 Round 120] 守卫 DAY_VOTE 读写闭环——guardHistory 作投票排除锚点（所有神职 DAY_VOTE 全覆盖）
 
 - **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 7 个变量（`dvGuardHistory/dvGuardProtectedAliveIds/dvGuardFreqMap/dvGuardLastTarget/dvGuardProtectedSummary/dvGuardLastTargetRef/guardVoteStrategy`）+ return 链插入 `playerRole === '守卫' ? guardVoteStrategy`（在魔术师分支之后）。DAY_VOTE block 13246 → 15065 chars（+1819 chars）；R71 窗口 14500 → 16000；R72 窗口 13000 → 16000；R64 T12 更新为正向确认。全量测试 2179/2179 ✅，build ✅。
