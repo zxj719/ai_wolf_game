@@ -13,7 +13,7 @@ import { CHARS } from '../gameData';
 import { applyEquipment, rollDrop, mergeDrop, RARITY_META, SLOT_META } from '../meta/equipment';
 import { sendMatchTelemetry } from '../../../services/tennisService';
 import { incrementNoviceGames } from '../meta/noviceTracker';
-import { saveSprintHiscore, loadSprintHiscores, isToday, getTodayEffBoard } from './sprintScores';
+import { saveSprintHiscore, loadSprintHiscores, isToday, getTodayEffBoard, getPersonalMonthlyBest } from './sprintScores';
 
 export const SPRINT_DURATION_S = 15 * 60;
 export const WIN_PTS = 3;
@@ -163,6 +163,8 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
       ? todayEffBoard.findIndex((s) => s.ts === currentTsRef.current) + 1
       : 0;
     const isEffChamp = myEffRank === 1 && todayEffBoard.length >= 2;
+    const personalMonthlyBest = getPersonalMonthlyBest(allHiscores, basePlayer.name);
+    const isMonthlyBest = personalMonthlyBest !== null && personalMonthlyBest.ts === currentTsRef.current;
 
     const shareText = buildShareText({ totalPts, matchCount: results.length, winCount, grade });
 
@@ -221,7 +223,7 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
             <p className="hint" style={{ textAlign: 'center' }}>本轮未完成任何对局</p>
           )}
 
-          {(hiRank !== null || isEffChamp) && (
+          {(hiRank !== null || isEffChamp || isMonthlyBest) && (
             <div style={{ textAlign: 'center', padding: '6px 0 10px' }}>
               {hiRank !== null && (
                 <div style={{
@@ -234,6 +236,11 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
               {isEffChamp && (
                 <div style={{ color: '#22d3ee', fontWeight: 600, fontSize: '0.85rem', marginTop: 2 }}>
                   ⚡ 今日效率冠军！
+                </div>
+              )}
+              {isMonthlyBest && (
+                <div style={{ color: '#fb923c', fontWeight: 600, fontSize: '0.85rem', marginTop: 2 }}>
+                  📅 本月个人新高！
                 </div>
               )}
             </div>
@@ -271,6 +278,33 @@ export function SprintScreen({ basePlayer, progress, onUpdateProgress, equippedU
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {personalMonthlyBest && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.45, textAlign: 'center', marginBottom: 5 }}>
+                📅 {basePlayer.name}的本月最高
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 10px', borderRadius: 7,
+                background: isMonthlyBest ? 'rgba(251,146,60,.14)' : 'rgba(255,255,255,.06)',
+                fontSize: '0.85rem',
+              }}>
+                <span style={{ fontWeight: 700, color: isMonthlyBest ? '#fb923c' : undefined }}>
+                  {personalMonthlyBest.pts} 分
+                </span>
+                <span style={{ opacity: 0.6 }}>
+                  {personalMonthlyBest.matches} 场 · {personalMonthlyBest.grade.icon}
+                </span>
+                {isMonthlyBest && (
+                  <span style={{ fontSize: '0.75rem', color: '#fb923c', marginLeft: 2 }}>本月新高</span>
+                )}
+                <span style={{ marginLeft: 'auto', opacity: 0.45, fontSize: '0.72rem' }}>
+                  {personalMonthlyBest.date}
+                </span>
+              </div>
             </div>
           )}
 

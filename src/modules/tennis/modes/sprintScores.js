@@ -57,6 +57,41 @@ export function computeEff(pts, matchCount) {
 }
 
 /**
+ * 判断给定时间戳是否属于「本月」（按本地时区，同年同月）。
+ *
+ * @param {number} ts - Unix ms 时间戳
+ * @param {{ today?: number }} opts - today 注入用于测试（亦为 Unix ms）
+ */
+export function isThisMonth(ts, { today } = {}) {
+  const d = new Date(ts);
+  const ref = today !== undefined ? new Date(today) : new Date();
+  return (
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth()
+  );
+}
+
+/**
+ * 当前玩家本月最高成绩（按 pts 最高选取，同分时选最早的那条）。
+ *
+ * @param {Array} hiscores - loadSprintHiscores() 的返回值
+ * @param {string} playerName - 玩家名字
+ * @param {{ today?: number }} opts - today 注入（测试用）
+ * @returns {Object|null} 最高分条目，无记录则 null
+ */
+export function getPersonalMonthlyBest(hiscores, playerName, { today } = {}) {
+  const mine = hiscores.filter(
+    (s) => s.player === playerName && isThisMonth(s.ts, { today }),
+  );
+  if (!mine.length) return null;
+  return mine.reduce((best, s) => {
+    if (s.pts > best.pts) return s;
+    if (s.pts === best.pts && s.ts < best.ts) return s;
+    return best;
+  });
+}
+
+/**
  * 今日效率排行（按 pts/matches 降序，同效率时分数高者前，再按时间戳升序）。
  * @param {Array} hiscores - loadSprintHiscores() 的返回值
  * @param {{ today?: number }} opts - today 注入（测试用）

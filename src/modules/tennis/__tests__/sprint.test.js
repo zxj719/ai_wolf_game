@@ -14,6 +14,8 @@ import {
   isToday,
   computeEff,
   getTodayEffBoard,
+  isThisMonth,
+  getPersonalMonthlyBest,
 } from '../modes/sprintScores';
 
 describe('SprintScreen — constants', () => {
@@ -316,5 +318,96 @@ describe('sprintScores', () => {
     saveSprintHiscore({ totalPts: 10, matchCount: 3, winCount: 2, grade: { label: '坚持就是胜利', icon: '🥉' }, playerName: 'X' }, { now: 1 });
     clearSprintHiscores();
     expect(loadSprintHiscores()).toEqual([]);
+  });
+});
+
+describe('isThisMonth', () => {
+  const ANCHOR        = new Date('2026-07-05T12:00:00Z').getTime();
+  const SAME_MONTH_1  = new Date('2026-07-01T00:00:00Z').getTime();
+  const SAME_MONTH_31 = new Date('2026-07-31T23:59:00Z').getTime();
+  const PREV_MONTH    = new Date('2026-06-30T23:59:00Z').getTime();
+  const NEXT_MONTH    = new Date('2026-08-01T00:00:00Z').getTime();
+  const LAST_YEAR     = new Date('2025-07-05T12:00:00Z').getTime();
+
+  it('returns true for same timestamp', () => {
+    expect(isThisMonth(ANCHOR, { today: ANCHOR })).toBe(true);
+  });
+  it('returns true for first day of the month', () => {
+    expect(isThisMonth(SAME_MONTH_1, { today: ANCHOR })).toBe(true);
+  });
+  it('returns true for last day of the month', () => {
+    expect(isThisMonth(SAME_MONTH_31, { today: ANCHOR })).toBe(true);
+  });
+  it('returns false for last day of previous month', () => {
+    expect(isThisMonth(PREV_MONTH, { today: ANCHOR })).toBe(false);
+  });
+  it('returns false for first day of next month', () => {
+    expect(isThisMonth(NEXT_MONTH, { today: ANCHOR })).toBe(false);
+  });
+  it('returns false for same day+month in previous year', () => {
+    expect(isThisMonth(LAST_YEAR, { today: ANCHOR })).toBe(false);
+  });
+  it('works without injected today (does not throw)', () => {
+    expect(() => isThisMonth(ANCHOR)).not.toThrow();
+  });
+});
+
+describe('getPersonalMonthlyBest', () => {
+  const ANCHOR     = new Date('2026-07-05T12:00:00Z').getTime();
+  const PREV_MONTH = new Date('2026-06-15T12:00:00Z').getTime();
+  const G = { label: '坚持就是胜利', icon: '🥉' };
+  const save = (pts, name, ts) =>
+    saveSprintHiscore(
+      { totalPts: pts, matchCount: Math.max(1, Math.ceil(pts / 2)), winCount: 0, grade: G, playerName: name },
+      { now: ts },
+    );
+
+  beforeEach(() => clearSprintHiscores());
+
+  it('returns null for empty hiscores', () => {
+    expect(getPersonalMonthlyBest([], 'A', { today: ANCHOR })).toBeNull();
+  });
+
+  it('returns null when player has no records this month', () => {
+    save(15, 'A', PREV_MONTH);
+    expect(getPersonalMonthlyBest(loadSprintHiscores(), 'A', { today: ANCHOR })).toBeNull();
+  });
+
+  it('returns the single record when only one this month', () => {
+    save(12, 'A', ANCHOR);
+    const best = getPersonalMonthlyBest(loadSprintHiscores(), 'A', { today: ANCHOR });
+    expect(best).not.toBeNull();
+    expect(best.pts).toBe(12);
+    expect(best.player).toBe('A');
+  });
+
+  it('returns highest pts among multiple records this month', () => {
+    save(9, 'A', ANCHOR);
+    save(18, 'A', ANCHOR + 1000);
+    save(6, 'A', ANCHOR + 2000);
+    const best = getPersonalMonthlyBest(loadSprintHiscores(), 'A', { today: ANCHOR });
+    expect(best.pts).toBe(18);
+  });
+
+  it('ignores other players — returns only for requested playerName', () => {
+    save(30, 'B', ANCHOR);
+    save(9, 'A', ANCHOR + 500);
+    const best = getPersonalMonthlyBest(loadSprintHiscores(), 'A', { today: ANCHOR });
+    expect(best.pts).toBe(9);
+    expect(best.player).toBe('A');
+  });
+
+  it('ignores records from previous months', () => {
+    save(50, 'A', PREV_MONTH);
+    save(9, 'A', ANCHOR);
+    const best = getPersonalMonthlyBest(loadSprintHiscores(), 'A', { today: ANCHOR });
+    expect(best.pts).toBe(9);
+  });
+
+  it('tie-breaks equal pts by earliest timestamp', () => {
+    save(15, 'A', ANCHOR + 2000);
+    save(15, 'A', ANCHOR + 500);
+    const best = getPersonalMonthlyBest(loadSprintHiscores(), 'A', { today: ANCHOR });
+    expect(best.ts).toBe(ANCHOR + 500);
   });
 });
