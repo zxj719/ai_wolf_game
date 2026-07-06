@@ -68,7 +68,7 @@ export const buildKnightPersonaPrompt = (player, existingRoles, gameSetup) => {
  * 骑士白天发言提示词
  */
 export const getKnightDaySpeechPrompt = (ctx, params) => {
-  const { hasUsedDuel, aliveCount: aliveNow = 8 } = params;
+  const { hasUsedDuel, aliveCount: aliveNow = 8, knightCounterClaimants = [] } = params;
 
   // R87：骑士 DAY_SPEECH 个性化发言风格（pre-duel 隐藏期 + post-duel 领袖期双阶段）
   const knightPersonalityType = params.personalityType || '';
@@ -114,6 +114,16 @@ export const getKnightDaySpeechPrompt = (ctx, params) => {
     ? `\n\n【⚡ 残局模式（存活${aliveNow}人）】决斗窗口收窄——优先级A阈值下调至≥${thresholdA}%，优先级B阈值下调至≥${thresholdB}%。残局每轮信息减少，宁早决断不延误。`
     : '';
 
+  // R125: 骑士悍跳骑士检测（Priority 0 — 身份独占规则保证 100% 命中）
+  const hasKnightFakeJumper = knightCounterClaimants.length > 0;
+  const knightP0Hint = hasKnightFakeJumper
+    ? `\n\n⚡【优先级0（100% 确定度）：悍跳骑士处置】
+场上玩家 ${knightCounterClaimants.join('、')} 号声称自己是骑士。
+骑士身份全局唯一——任何声称骑士的其他玩家必然撒谎（身份独占规则）。
+立即决斗该玩家：命中率100%，无需积累额外证据。
+优先级0覆盖优先级A/B/C——只要存在悍跳骑士，优先处理。`
+    : '';
+
   // R93: 骑士领袖历史读取（DAY→DAY 闭环补完：Step0 ④ 读取上轮领袖指令，修复感知-执行分裂）
   const knightLeaderReadHint = (hasUsedDuel && ctx.dayCount > 1)
     ? `   ④ 读取上轮领袖指令（thought 中完成）：查 identity_table 中含"D${ctx.dayCount - 1}领袖指令"字样的条目：
@@ -130,11 +140,12 @@ export const getKnightDaySpeechPrompt = (ctx, params) => {
       路径A（候选存活）：结合今天新信息（发言漏洞/死亡验证/验人结果）更新候选优先级，正常进入决斗评估流程
       路径B（候选已被投票出局）：好人阵营已消灭该目标，决斗资源节省；identity_table 追加"→已投票出局（好人方向一致）" → 触发续战搜索
       路径C（候选已被狼夜杀）：目标已确认为好人，原决斗线索丢失；identity_table 追加"→已被狼击杀（铁好人确认）" → 触发续战搜索
-   ② 续战搜索（路径B/C 触发）：按优先级 A > B > C 在存活玩家中重新扫描：
+   ② 续战搜索（路径B/C 触发）：按优先级 0 > A > B > C 在存活玩家中重新扫描：
+      决斗优先级0（100%）：场上是否有玩家声称骑士？（knightCounterClaimants）若有，立即决斗，无需进入后续优先级
       决斗优先级A（阈值≥${thresholdA}%）：场上是否有新的预言家对跳局面？
       决斗优先级B（阈值≥${thresholdB}%）：是否有可疑假金水玩家需要破除？
       决斗优先级C（紧急救场）：是否有即将被错误投出的真神职需要搏命救场？
-      将首个满足阈值的候选 reason 追加"→重启决斗候选：[优先级A/B/C]，[新依据]"
+      将首个满足阈值的候选 reason 追加"→重启决斗候选：[优先级0/A/B/C]，[新依据]"
    ③ 历史候选是决策起点，不是硬约束——若新信息推翻旧候选，更新并在 thought 中说明原因
 ${knightLeaderReadHint}`
     : '0. 【第一天】无历史决斗候选记录——直接根据当前局势推断决斗候选目标';
@@ -220,7 +231,8 @@ ${duelStatus}${endgameNote}
   - 根据决斗结果重新排坑，指挥好人阵营推人顺序
   - 保护真预言家，带领好人找狼
 
-【决斗决策系统（三级优先级）】
+【决斗决策系统（四级优先级）】${knightP0Hint}
+
 ✦ 优先级A（捍卫真言）- 确定度 ≥ ${thresholdA}%：
   - 场上出现两名预言家对跳
   - 通过逻辑分析确定其中一人是狼
@@ -251,6 +263,7 @@ ${knightPersonalityLens}
 【思维链（必须完成）】
 ${knightHistoryStep}
 ${knightPeaceNightStep}${knightLeaderStep}Step1: 场上局势分析
+  - 首先检查优先级0：场上是否有玩家声称骑士？（knightCounterClaimants列表）若有，优先级0决斗，跳过A/B/C评估
   - 是"双预言家对跳"还是"单边预言家"？
   - 哪些玩家声称是预言家？
   - 他们的验人逻辑是否合理？

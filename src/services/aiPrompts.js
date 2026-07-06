@@ -1633,6 +1633,12 @@ export const generateUserPrompt = (actionType, gameState, params = {}) => {
                         .filter(c => c.type === 'jump_seer' && c.playerId !== currentPlayer?.id)
                         .map(c => c.playerId)
                     : [],
+                // R125: 骑士悍跳检测（骑士DAY_SPEECH优先级0决斗专用）
+                knightCounterClaimants: playerRole === '骑士'
+                    ? (gameState.claimHistory || [])
+                        .filter(c => c.type === 'jump_knight' && c.playerId !== currentPlayer?.id)
+                        .map(c => c.playerId)
+                    : [],
                 // 警长身份（影响发言策略：需要在发言结尾给出警长指路/投票方向）
                 isSheriff: currentPlayer?.isSheriff || false,
                 // R67/R68/R69：个性类型（村民/预言家/女巫/猎人/守卫 DAY_SPEECH 个性化发言风格注入）

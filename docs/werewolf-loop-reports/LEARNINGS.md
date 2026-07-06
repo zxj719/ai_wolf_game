@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-07-06 Round 125] 骑士悍跳骑士 Priority 0 决斗检测——身份独占规则形成 100% 命中决斗
+
+- **完成状态**：`aiPrompts.js` roleParams 新增 `knightCounterClaimants`（骑士门控，过滤 `jump_knight` 类型 claimHistory）；`knight.js` 解构新参数 + `knightP0Hint` 变量（有悍跳骑士时条件化注入，空数组时 `''` 零副作用）+ 决斗决策系统标题 `三级 → 四级优先级` + 续战搜索排序 `A>B>C → 0>A>B>C` + Step1 优先级0检查行。全量测试 2290/2290（+16 new R125 tests T1-T16）✅；`round67VillagerPersonalityLens` roleParams 窗口 2200→2600 级联修复；build ✅（WerewolfModule 261.12 kB）；check-build ✅（0 localhost 泄露）。
+- **骑士 Priority 0 设计原则（R125-A）**：骑士身份独占（全局唯一），任何声称骑士的其他玩家必然撒谎——这是所有决斗场景中确定性最高（100%）的私有信息。数据层 `claimHistory` 的 `jump_knight` 类型已存在（`publicFacts.js` 已定义），只缺决策编码。Priority 0 覆盖 A/B/C，无需任何概率评估即可决斗。**与预言家 `counterClaimants` 完全对称**：同样是「身份独占 → 他人声称 = 100% 假」→ 同样在 roleParams 中注入同类检测变量。
+- **roleParams 窗口级联规律（R125-B）**：每次在 `roleParams` 构建块中间（非末尾）新增字段，若字段占用约 5 行（~200-250 chars），末尾字段（如 `personalityType`、`isSheriff`）可能超出现有测试窗口。**铁律：新增 roleParams 字段后必须运行全量测试**；若 R67 或类似 roleParams 测试失败，将其窗口增加 300-400 chars（当前 2200→2600）。快速定位：失败测试的错误输出会显示被截断的 roleParams 内容末尾，确认截断点在何处后按需扩窗。
+- **条件化注入零副作用设计（R125-C）**：`knightP0Hint` 在 `knightCounterClaimants.length === 0` 时返回 `''`，确保非骑士、无悍跳场景完全不影响提示词大小。参数 `knightCounterClaimants = []` 默认空数组，不依赖调用方传参。这是「有意缺失时零副作用，有数据时精确注入」设计模式的典型应用。
+- **测试**：2290/2290（+16 new R125 tests T1-T16；round67 窗口 2200→2600；1 pre-existing chatSocket failure 无关）；build ✅（WerewolfModule 261.12 kB）；check-build ✅。
+- **下轮优先**：平衡性调整（用户决策 pending：Option A/B/C），或骑士悍跳场景实战验证。
+
+---
+
 ### [2026-07-06 Round 124] 村民 DAY_VOTE 三维信息聚合框架——补齐最后一个无专属策略的好人角色
 
 - **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 `villagerVoteStrategy`（457 chars，三维打分框架：信息价值 × 行为一致 × 逻辑链完整）+ return 链插入 `playerRole === '村民' ? villagerVoteStrategy`（在女巫分支之后、通用 fallback 之前）。DAY_VOTE block 16779 → 17486 chars（+707 chars）；`输出JSON格式:` 偏移 17246，DV_WINDOW=18000 余量 754 chars。全量测试 2274/2274（+20 new R124 tests T1-T20）✅；build ✅（WerewolfModule 260.63 kB）。

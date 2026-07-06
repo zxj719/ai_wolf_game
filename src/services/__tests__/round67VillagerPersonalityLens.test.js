@@ -130,7 +130,8 @@ describe('R67: roleParams 中 personalityType 字段注入', () => {
     const roleParamsMarker = "const roleParams = {";
     // 使用 lastIndexOf 避免假定义
     const roleParamsStart = src.lastIndexOf(roleParamsMarker);
-    const roleParamsBlock = src.slice(roleParamsStart, roleParamsStart + 2200);
+    // R125: +5行 knightCounterClaimants → window 扩至 2600
+    const roleParamsBlock = src.slice(roleParamsStart, roleParamsStart + 2600);
 
     test('T16: roleParams 构建区存在', () => {
         expect(roleParamsStart).toBeGreaterThan(0);
