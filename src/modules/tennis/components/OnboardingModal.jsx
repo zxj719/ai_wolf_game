@@ -177,7 +177,7 @@ function ModesTab() {
 const TAB_CONTENT = { counter: CounterTab, energy: EnergyTab, tell: TellTab, modes: ModesTab };
 
 export function OnboardingModal({ onClose }) {
-  const [tab, setTab] = useState('counter');
+  const [tab, setTab] = useState('tell');
   const Content = TAB_CONTENT[tab];
 
   const handleClose = () => {

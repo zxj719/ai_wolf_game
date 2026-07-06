@@ -445,8 +445,11 @@
 }
 .tennis-scope .bt-tell b { color: #9a4513; }
 .tennis-scope .bt-tell .bt-tell-counter {
-  display: block; font-size: .70rem; font-style: normal;
-  color: #1e4d38; opacity: .90; margin-top: 4px;
+  display: flex; align-items: center; gap: 4px;
+  font-size: .78rem; font-style: normal; font-weight: 700;
+  color: #7c1d0c; margin-top: 8px; padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.60); border-radius: 6px;
+  border-left: 3px solid #c0510a;
 }
 .tennis-scope .bt-hand { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
 .tennis-scope .bt-tp {
@@ -701,7 +704,7 @@
   width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
   font-size: 1.15rem; background: rgba(242,238,224,.1); border: 2px solid rgba(242,238,224,.35);
 }
-.tennis-scope .bt-tell small { display: block; font-style: normal; color: var(--muted); margin-top: 3px; }
+.tennis-scope .bt-tell small { display: block; font-style: normal; margin-top: 3px; }
 
 /* ============ D 段：坚持/刷分小游戏 ============ */
 .tennis-scope .mg-sky { min-height: 260px; overflow: hidden; cursor: pointer; touch-action: none; }
