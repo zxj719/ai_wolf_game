@@ -1996,3 +1996,17 @@
 **教训 R128-C：LAST_WORDS 角色专属分支覆盖完成状态（R128 后）**
 - 完成后 LAST_WORDS 覆盖矩阵：狼人（R54）、预言家（R54+警长流）、女巫（R54）、猎人（R128：身份推理表+警长协同）、守卫（R54）、骑士（R54）、摄梦人（R54）、魔术师（R54）均有专属分支，好人 fallback（村民等）有 identity_table 基础指引。
 - 猎人是 LAST_WORDS 中最后一个从"纯通用文本"升级为"专属分支"的神职（其他神职在 R54 已完成初步专属化）。
+
+---
+
+## R129 教训（2026-07-06）
+
+**教训 R129-A：LW_WINDOW 窗口哨兵升级需同步两个测试文件**
+- LW_WINDOW 常量声明在 `round111LastWordsContextBlock.test.js`（主哨兵）和 `round128HunterLastWordsSheriffCoordination.test.js`（副哨兵）各有一份。
+- 升级时两个文件的常量声明和 T10 断言描述文字必须同步更新，否则测试描述与实际约束不符（静默文档漂移）。
+- **检查命令**：`grep -rn "LW_WINDOW" src/services/__tests__/` 列出所有哨兵文件。
+
+**教训 R129-B：纯测试基础设施修改的验证基准**
+- 本轮改动仅涉及测试窗口常量，aiPrompts.js 未变动。
+- 验证标志：WerewolfModule bundle 大小与上轮完全一致（262.19 kB），可作为"无运行时改动"的快速确认指标。
+- 当 bundle 大小变化超过 ±0.5 kB 时，说明确实有 aiPrompts.js 内容变更，需重新检查窗口余量。

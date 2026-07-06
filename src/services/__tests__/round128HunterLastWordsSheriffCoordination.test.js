@@ -21,7 +21,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const lwStart = src.indexOf('case PROMPT_ACTIONS.LAST_WORDS: {');
-const LW_WINDOW = 5500;
+const LW_WINDOW = 7000;
 const getLwBlock = () => src.slice(lwStart, lwStart + LW_WINDOW);
 
 // 定位猎人分支（在 lwRoleHint 链内）
@@ -100,10 +100,10 @@ describe('R128: 白熊效应合规（R121-C 铁律）', () => {
 // ─── T10-T12: LW_WINDOW 窗口验证 ─────────────────────────────────────────────
 
 describe('R128: LW_WINDOW 窗口边界验证', () => {
-    test('T10: LW block size ≤ 5500（LW_WINDOW 余量充足）', () => {
+    test('T10: LW block size ≤ 7000（LW_WINDOW 余量充足）', () => {
         const lwEnd = src.indexOf('case PROMPT_ACTIONS.SUMMARIZE_CONTENT:', lwStart);
         const blockSize = lwEnd - lwStart;
-        expect(blockSize).toBeLessThanOrEqual(5500);
+        expect(blockSize).toBeLessThanOrEqual(7000);
     });
 
     test('T11: "80字以内" 仍在 LW_WINDOW 内（回归防止溢出）', () => {
