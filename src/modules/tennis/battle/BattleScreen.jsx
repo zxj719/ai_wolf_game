@@ -214,7 +214,7 @@ function FxOverlay({ state }) {
       if (r.clutch) setFx({ key: Date.now(), type: 'clutch', text: '⚡ CLUTCH！⚡', gold: true });
       else if (r.hawkeyeSaved) setFx({ key: Date.now(), type: 'super', text: '🦅 鹰眼改判！' });
       else if (r.counterMul > 1 && r.win) setFx({ key: Date.now(), type: 'counter', text: '效果拔群！🎯', greenFlash: true });
-      else if (r.counterMul < 1 && !r.win) setFx({ key: Date.now(), type: 'bad', text: '被克制……' });
+      else if (r.counterMul < 1 && !r.win) setFx({ key: Date.now(), type: 'bad', text: '被克制……', redFlash: true });
     }
   }, [state.lastRally, state.matchStats.aces, state.ultimateUsed, state.ultimateName]);
 
@@ -229,6 +229,7 @@ function FxOverlay({ state }) {
     <>
       {fx.gold && <div className="fx-goldflash" />}
       {fx.greenFlash && <div className="fx-greenflash" />}
+      {fx.redFlash && <div className="fx-redflash" />}
       <div className={`fx-burst ${fx.type}`}>{fx.text}</div>
     </>
   );
@@ -250,7 +251,7 @@ function RallyLog({ state }) {
           {MOVES[r.oppMove].name} {Math.round(r.oPower)}
         </span>
       </div>
-      <p className={`${r.win ? 'res-win' : 'res-lose'}${r.counterMul > 1 && r.win && !r.hawkeyeSaved ? ' counter-win' : ''}`}>
+      <p className={`${r.win ? 'res-win' : 'res-lose'}${r.counterMul > 1 && r.win && !r.hawkeyeSaved ? ' counter-win' : ''}${r.counterMul < 1 && !r.win ? ' counter-lose' : ''}`}>
         {r.hawkeyeSaved ? '🦅 鹰眼挑战成功！这球重打！'
           : r.counterMul > 1 && quip ? `效果拔群！${quip}`
           : r.counterMul < 1 ? '被克制了……节奏完全被打乱。'

@@ -777,9 +777,16 @@
 @keyframes tennis-greenflash {
   0% { opacity: 0; } 15% { opacity: .9; } 100% { opacity: 0; }
 }
+@keyframes tennis-redflash {
+  0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; }
+}
 @keyframes counter-glow {
   0% { background: rgba(74,222,128,.22); }
   100% { background: rgba(74,222,128,.07); }
+}
+@keyframes counter-dim {
+  0% { background: rgba(239,68,68,.18); }
+  100% { background: rgba(239,68,68,.05); }
 }
 @keyframes tennis-shake {
   0%, 100% { transform: translateX(0); }
@@ -806,16 +813,26 @@
   background: radial-gradient(ellipse at center, rgba(74,222,128,.38), transparent 65%);
   animation: tennis-greenflash .9s ease forwards;
 }
+.tennis-scope .fx-redflash {
+  position: fixed; inset: 0; z-index: 79; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(239,68,68,.28), transparent 65%);
+  animation: tennis-redflash .9s ease forwards;
+}
 .tennis-scope .bt-rallylog .counter-win {
   background: rgba(74,222,128,.07); border-left: 3px solid rgba(74,222,128,.5);
   border-radius: 0 5px 5px 0; padding: 4px 8px;
   animation: counter-glow .7s ease forwards;
 }
+.tennis-scope .bt-rallylog .counter-lose {
+  background: rgba(239,68,68,.05); border-left: 3px solid rgba(239,68,68,.4);
+  border-radius: 0 5px 5px 0; padding: 4px 8px;
+  animation: counter-dim .7s ease forwards;
+}
 .tennis-scope .fx-shake { animation: tennis-shake .45s ease; }
 @media (prefers-reduced-motion: reduce) {
-  .tennis-scope .fx-burst, .tennis-scope .fx-goldflash, .tennis-scope .fx-greenflash { animation: none; opacity: 0; }
+  .tennis-scope .fx-burst, .tennis-scope .fx-goldflash, .tennis-scope .fx-greenflash, .tennis-scope .fx-redflash { animation: none; opacity: 0; }
   .tennis-scope .fx-shake { animation: none; }
-  .tennis-scope .bt-rallylog .counter-win { animation: none; }
+  .tennis-scope .bt-rallylog .counter-win, .tennis-scope .bt-rallylog .counter-lose { animation: none; }
   .tennis-scope .bt-combined-hint.critical { animation: none; }
 }
 
