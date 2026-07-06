@@ -1867,3 +1867,113 @@
 - 预言家不同：seerChecks 是直接验证结果（100% 可信），不需要借助 identity_table "确认"。
 - **正确设计**：预言家的 Step0 应说"你的查验记录是第一优先依据，优先级高于 identity_table 推断"，而非"查看 identity_table 再参考金水"。
 - **通用模式**：当私有信息是直接验证（100%可信）时，用"第一优先依据"措辞；当私有信息是推断（守护频次、行为分析）时，用"参考 + 叠加"措辞。
+
+---
+
+## Round 123 新增教训（2026-07-05）
+
+**教训 R123-A：BP_WINDOW 批量升级触发条件 — 余量 ≤ 173 chars 时同批次升级全部 BADGE_PASS 测试文件**
+- BADGE_PASS block 从 6802 增至 8327 chars（+1525），旧 BP_WINDOW=8500 余量从 ~173 降至溢出。
+- **铁律**：每次往 bpHint / bpIdentityStep / bpDreamweaverHint 追加内容后，立即用以下命令检查余量：
+  `node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.lastIndexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:'); const block=s.slice(a,a+12000); console.log('BP offset:', block.indexOf('输出JSON格式:'), '余量:', 10000-block.indexOf('输出JSON格式:'))"`
+- 余量 ≤ 500 时预防性批量升级所有 `BP_WINDOW` 出现的测试文件（grep 找到：`round113`、`round117`、`round122`、`round123` 等）。
+- 本轮操作：BP_WINDOW 8500→10000（5 个测试文件同批次升级）。
+
+**教训 R123-B：SHERIFF_VOTE→LAST_WORDS 联合块大小哨兵（R115 T20）需随 BADGE_PASS 增长同步更新**
+- R115 T20 检测"SHERIFF_VOTE 到 LAST_WORDS 的联合块大小 ≤ 15000 chars"。
+- BADGE_PASS 属于该联合块范围，每次 BADGE_PASS 增长超过原来余量时 T20 必须同步更新上限。
+- **定位命令**：`grep -rn "15000\|17000\|block.*length" src/services/__tests__/round115*.test.js`
+- 本轮：R115 T20 上限 15000→17000（BADGE_PASS +1525 导致联合块达到 15623）。
+
+**教训 R123-C：摄梦人 BADGE_PASS 设计原则 — 入梦行为记录 > identity_table NLP 推断**
+- `dreamedPlayers` 是摄梦人主动选择承受"同生共死"风险的目标，多次入梦 = 信任行为记录（ground truth）。
+- 与守卫守护频次（R113）在认识论层次等价：**直接行为记录 > identity_table 推断**。
+- `bpDreamweaverHint` 使用 `badgeableSet` 过滤（仅存活且在传徽候选集中的玩家），避免注入无效死亡玩家 ID。
+
+---
+
+## Round 124 新增教训（2026-07-06）
+
+**教训 R124-A：村民 DAY_VOTE 三维框架设计原则（信息价值 × 行为一致 × 逻辑链完整 + 率先带票）**
+- 村民无私有信息，从公共信息中提取结构化依据：① 信息价值（发言中有无可追溯依据）② 行为一致（跨轮投票一致性）③ 逻辑链完整（论证是否自洽）。
+- 「率先带票」是关键设计：村民分票是帮狼人分散阵营火力的最常见失误；有充分依据时应主动带票而非跟投。
+- **正向描述铁律**：所有三维都用正向排名（"最高分优先"），而非"绝对不投/排除法"。
+
+**教训 R124-B：Monte Carlo 模拟 vs LLM 实际差距揭示提示词质量是平衡性核心变量**
+- 模拟理论好人胜率 97-98%（N=1000 局，8p/2w），LLM 实际狼胜率 84-90%（Wang 2025 对照）。
+- ~15% 差距 = 真实 LLM 村民/神职的决策质量损耗，根因是村民投票缺结构化指引（已由 R124 三维框架修复）。
+- **推论**：每次给神职/村民增加专属结构化框架，都是在缩小这个 15% 差距；平衡性评估的先决条件是提示词质量对称。
+
+**教训 R124-C：注释中不得拼写白熊效应违禁词汇（R121-C 铁律再确认）**
+- R121-C 已规定：代码注释中描述白熊效应时用"无负向禁令词汇"，具体违禁词只能出现在测试文件的 `.not.toContain()` 中。
+- **本轮复现风险**：villagerVoteStrategy 常量包含"帮助狼人分散阵营火力"等描述——这是正面描述（反面例子），不构成白熊效应触发（✅）。
+- 铁律：凡提示词文本本身包含"不要/绝不/禁止"开头的规则，一律改为正向表述。
+
+**教训 R124-D：DV_WINDOW 余量警告 — 净增量 > 余量时需升级至下一档**
+- R124 新增 villagerVoteStrategy（457 chars），DV_WINDOW=18000 余量从 754 降至接近零（JSON offset 17246+457 ≈ 17703，余量 297）。
+- R126 升级 DV_WINDOW 18000→20000（同轮因 R126 +1083 chars 触发）。
+- **铁律**：每次修改 DAY_VOTE block 后立即检查余量；余量 < 500 chars 时预防性升级至 `当前 + 2000`。
+
+---
+
+## Round 125 新增教训（2026-07-06）
+
+**教训 R125-A：骑士 Priority 0 设计模式 — claimHistory 驱动的对跳检测，确定性 100% 私有信息**
+- `claimHistory` 中 `type === 'jump_knight'` 的非自身玩家 = 身份独占推断（骑士全局唯一，任何他人声称必为假）。
+- **设计原则**：当私有信息对应的推断确定性为 100% 时，该优先级必须高于所有概率性优先级（A/B/C）。
+- 角色门控：`playerRole === '骑士'` 确保非骑士角色不注入 `knightCounterClaimants`（与 `counterClaimants` 的 `'预言家'` 门控完全对称）。
+- 传参路径：`aiPrompts.js` roleParams → `knight.js` 参数解构 → `knightP0Hint` 条件变量 → 决斗决策模板。
+
+**教训 R125-B：roleParams 窗口级联 — 向 roleParams 注入追加参数后需检查所有滑动窗口测试**
+- R125 新增 `knightCounterClaimants` 5 行（~230 chars），将 `personalityType` 推出 `round67` 测试的 2200-char roleParams 窗口。
+- **铁律**：每次在 aiPrompts.js 的 roleParams 块末尾新增参数后，执行：
+  `grep -rn "roleParams\|personalityType\|slice.*roleParams" src/services/__tests__/round*.test.js | grep -i "window\|slice\|2[0-9][0-9][0-9]"`
+  找到所有包含 roleParams 滑动窗口的测试并更新大小。
+- 本轮修复：`round67VillagerPersonalityLens.test.js` roleParams 窗口 2200→2600。
+
+---
+
+## Round 126 新增教训（2026-07-06）
+
+**教训 R126-A：摄梦人 DAY_VOTE 读写闭环设计原则（频次累计 + 存活过滤 + 冷启动回退）**
+- `dreamweaverHistory.dreamedPlayers` 允许重复 ID（多轮入梦同一玩家自动累计频次），是零歧义的主动判定记录。
+- 三重安全设计：① `dvDWAliveIdSet` 排除已出局玩家（避免投死人）② 频次排序 Top3 展示 ③ 无历史时回退原 NLP fallback（第一天冷启动零副作用）。
+- **认识论原则**：入梦频次 > identity_table NLP 推断（同 R123-C，在 DAY_VOTE 层面再次验证）。
+
+**教训 R126-B：两分支条件表达式模式（anchor branch + NLP fallback）适用于有冷启动状态的角色**
+- 模式：`const strategy = hasAnchorData ? anchorBranch : nlpFallback`
+- `anchorBranch`：注入直接私有数据（入梦频次、守护历史、查验记录）
+- `nlpFallback`：原有的 identity_table NLP 解析框架（第一天无数据时保底）
+- 适用条件：私有历史数据在游戏开始后逐轮累积（非静态常量），且第一天 cold-start 需要不同策略。
+- 本轮摄梦人应用；同样适用于将来若守卫或女巫需要区分"有历史"/"无历史"的投票策略分支。
+
+**教训 R126-C：DV_WINDOW 升级触发条件已验证（净增量 > 余量 → 溢出 → 升级至 current + 2000）**
+- R126 新增 ~1083 chars，DV_WINDOW=18000 余量 754 < 1083，触发溢出。
+- 升级操作：7 个测试文件中 `DV_WINDOW = 18000` → `20000`（批量 grep 定位：`grep -rn "DV_WINDOW" src/services/__tests__/`）。
+- 升级后 JSON offset 18329，余量 1671 chars（DV_WINDOW=20000）。
+
+**教训 R126-D：round72 测试文件的辅助函数依赖常量模板字符串形式，改为条件表达式后需更新提取逻辑**
+- `getDreamweaverStrategyContent()` 原设计：从 aiPrompts.js 字符串中提取 `dreamweaverVoteStrategy` 常量声明（使用 `indexOf` 找模板字符串起点）。
+- R126 改为两分支条件表达式后，不再是单一常量字符串，原提取逻辑失效。
+- **修复模式**：改为子字符串搜索 NLP fallback 分支中的稳定片段（如 `连梦候选`），而非依赖常量声明格式。
+- **通用规则**：当测试辅助函数依赖"常量声明格式"而非"内容语义"时，重构为语义内容搜索（`indexOf` 稳定子串），确保提示词结构变化不破坏测试提取逻辑。
+
+---
+
+## Round 127 新增教训（2026-07-06）
+
+**教训 R127-A：猎人 BADGE_PASS 设计原则 — 枪击 × 传徽协同（两张牌互补，勿合一）**
+- 猎人死亡时同时触发两个输出：① 开枪（带走嫌疑目标）② 警徽移交（给可信好人延续 1.5 票权重）。
+- **核心约束**：传徽不应传给枪击目标——两张牌指向同一人等于双重消耗，失去协同价值；正确策略是让两张牌各自发挥最大效用（枪→嫌疑最高者，徽→最可信好人）。
+- 无 `hunterHistory` 私有历史结构注入，但角色本身的双输出约束即为独特策略依据，不需要历史数据也能提供有价值的差异化指导。
+
+**教训 R127-B：bpIdentityStep/bpHint 链末附近插入分支时必须同步更新上游测试的滑动窗口**
+- R113 T12 检测 `bpIdentityStep` "others fallback" 文字，窗口为 `+1600`；R127 +230 chars 将 fallback 推至 offset 1613，需升级至 `+1900`。
+- R117 T18 检测 `bpHint` `好人警长` fallback 文字，窗口为 `+900`；R127 +190 chars 将 fallback 推至 offset 1063，需升级至 `+1300`。
+- **铁律（再确认 R122-A）**：每次在 bpIdentityStep/bpHint 链末尾附近插入新分支后，立即 grep 所有测试文件中以 `bpIdentityStep`/`bpHint` 为起点的滑动窗口断言，找到检测 "others/好人 fallback" 的窗口值并更新。
+- **快速定位**：`grep -rn "bpIdentityStep\|bpHint" src/services/__tests__/*.test.js | grep "stepIdx\|hintIdx\|stepBlock\|hintBlock"`
+
+**教训 R127-C：BADGE_PASS 全角色覆盖完成状态（R127 后）**
+- 完成后覆盖矩阵：狼人/女巫/守卫/骑士/魔术师/预言家/摄梦人 均有私有信息注入，猎人有博弈约束注入，村民走通用 fallback（有意设计）。
+- 猎人 bpIdentityStep 不注入私有历史，而是编码角色级博弈约束（枪+徽协同）——这是 BADGE_PASS 中唯一"角色行为约束驱动"而非"私有历史驱动"的专属分支。
+- BP_WINDOW 余量：1330 chars（DV_WINDOW=10000），下轮 BADGE_PASS 净增量 > 1300 chars 时需升级至 12000。

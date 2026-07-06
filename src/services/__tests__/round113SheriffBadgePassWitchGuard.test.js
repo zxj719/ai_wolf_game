@@ -109,7 +109,8 @@ describe('R113: bpIdentityStep 四路径优先级链', () => {
         const blk = getBpBlock();
         const stepIdx = blk.indexOf('const bpIdentityStep =');
         // R123: +摄梦人分支 (~230 chars)，others fallback 移至 ~1377，窗口 1200→1600
-        const stepBlock = blk.slice(stepIdx, stepIdx + 1600);
+        // R127: +猎人分支 (~230 chars)，others fallback 移至 ~1613，窗口 1600→1900
+        const stepBlock = blk.slice(stepIdx, stepIdx + 1900);
         expect(stepBlock).toContain('读取历史身份推理（传徽决策依据）');
     });
 });

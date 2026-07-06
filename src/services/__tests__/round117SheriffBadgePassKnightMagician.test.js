@@ -187,7 +187,8 @@ describe('R117: R113 回归 — 女巫/守卫路径仍完整', () => {
     test('T18: bpHint 仍包含女巫 + 守卫 + 狼人 + 好人 fallback 四个原有分支', () => {
         const blk = getBpBlock();
         const hintIdx = blk.indexOf('const bpHint =');
-        const hintBlock = blk.slice(hintIdx, hintIdx + 900);
+        // R127: +猎人分支 (~190 chars)，好人警长 fallback 移至 ~1063，窗口 900→1300
+        const hintBlock = blk.slice(hintIdx, hintIdx + 1300);
         expect(hintBlock).toContain('女巫警长');
         expect(hintBlock).toContain('守卫警长');
         expect(hintBlock).toContain('狼人警长');
