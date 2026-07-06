@@ -173,7 +173,21 @@ console.log(`全史诗 → 胜率 ${fullEq.winRate}%（手残补偿量化：noob
 const noobNo = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'noob', oppChar: 'Ross', oppBand: [55, 65], strategy: 'energySaver' });
 const noobEq = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'noob', oppChar: 'Ross', oppBand: [55, 65], strategy: 'energySaver',
   equip: { sta: 7, skill: 7, mind: 7, energyMax: 20, special: {} } });
-console.log(`noob 裸装 ${noobNo.winRate}% → noob 全史诗 ${noobEq.winRate}%`);
+console.log(`noob 裸装 ${noobNo.winRate}% → noob 全史诗 ${noobEq.winRate}%（对手 60-70，不含新手保护）`);
+
+// ★ 正确的新手场景：真实对手段（新手保护 -15 后：rand(40,90)-15=25-75，均值50）
+console.log('\n═══ 5b) 新手保护期下装备影响（对手 25-75，模拟真实新手游戏体验）═══');
+const noviceNoEq = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'noob', oppChar: 'Ross', oppBand: [25, 75], strategy: 'energySaver' });
+const noviceEq = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'noob', oppChar: 'Ross', oppBand: [25, 75], strategy: 'energySaver',
+  equip: { sta: 7, skill: 7, mind: 7, energyMax: 20, special: {} } });
+console.log(`noob 裸装（新手保护中） → 胜率 ${noviceNoEq.winRate}%`);
+console.log(`noob 全史诗（新手保护中） → 胜率 ${noviceEq.winRate}%（${(parseFloat(noviceEq.winRate) - parseFloat(noviceNoEq.winRate)).toFixed(1)}pp 提升）`);
+// 告别新手保护后（第4场，对手恢复全段 40-90 均值 65）
+const postNoviceNo = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'noob', oppChar: 'Ross', oppBand: [40, 90], strategy: 'energySaver' });
+const postNoviceEq = runCell({ playerChar: '诚', build: BUILDS.balanced, skill: 'noob', oppChar: 'Ross', oppBand: [40, 90], strategy: 'energySaver',
+  equip: { sta: 7, skill: 7, mind: 7, energyMax: 20, special: {} } });
+console.log(`noob 裸装（保护期后，全段对手） → 胜率 ${postNoviceNo.winRate}%`);
+console.log(`noob 全史诗（保护期后，全段对手） → 胜率 ${postNoviceEq.winRate}%`);
 
 console.log('\n═══ 6) 关键分挑战影响（avg 玩家，坚持过关率 25%/55%/85% 对比）═══');
 for (const p of [0.25, 0.55, 0.85]) {

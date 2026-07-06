@@ -7,7 +7,7 @@
 
 const KEY = 'tennis_novice_games_v1';
 
-export const NOVICE_GAME_THRESHOLD = 3;
+export const NOVICE_GAME_THRESHOLD = 5;
 export const NOVICE_STAT_PENALTY = 15;
 
 export function getNoviceGamesPlayed() {
