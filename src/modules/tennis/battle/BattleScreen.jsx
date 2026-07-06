@@ -381,6 +381,22 @@ function FirstMatchHint({ opponent, playerMoves }) {
   );
 }
 
+/** 低体力警报：体力 <30 且角色有切削（唯一回体招）时，提示玩家用切削续命。 */
+function LowEnergyHint({ pEnergy, phase, playerMoves }) {
+  if (phase !== 'cards') return null;
+  if (pEnergy >= 30) return null;
+  if (!playerMoves?.includes('slice')) return null;
+  const tier = pEnergy < 15 ? 'critical' : 'warn';
+  return (
+    <div className={`bt-low-energy-hint ${tier}`}>
+      <span className="bt-leh-icon">{pEnergy < 15 ? '🚨' : '⚠️'}</span>
+      <span className="bt-leh-text">
+        体力告急（{Math.round(pEnergy)}）！「{MOVES.slice.name}」耗体 −3 可回体续命
+      </span>
+    </div>
+  );
+}
+
 /**
  * @param {{player, opponent, deckInstances, ultimate?, twists?, equip?, playerMoves,
  *          isFirstMatch?: boolean,
@@ -504,6 +520,7 @@ export function BattleScreen({
               <FirstMatchHint opponent={opponent} playerMoves={playerMoves} />
             )}
             <OppCoachHint matchStats={state.matchStats} score={state.score} phase={state.phase} playerMoves={playerMoves} />
+            <LowEnergyHint pEnergy={state.pEnergy} phase={state.phase} playerMoves={playerMoves} />
             <CrisisHint matchStats={state.matchStats} score={state.score} phase={state.phase} playerMoves={playerMoves} />
             <HandCards deck={state.deck} onPlay={(idx) => dispatch({ type: 'PLAY_CARD', idx })} />
             <MovePicker
