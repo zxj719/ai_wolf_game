@@ -3282,7 +3282,12 @@ ${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}
                      : '解药尚存，毒药已用';
                  lwRoleHint = `你是女巫：【药品状态】${medState}。告知场上最高嫌疑的狼人；简述你的用药决策逻辑，帮助好人继续追查。`;
              } else if (playerRole === '猎人') {
-                 lwRoleHint = '你是猎人：明确宣告你最高度怀疑的狼人目标（即使此刻无法开枪，留下线索能让好人接棒追查）；若你即将触发开枪，直接说明目标和理由。';
+                 // R128: 猎人 LAST_WORDS 专属分支 — identity_table 枪击锚点 + 警长协同提示
+                 const hunterIsSheriff = hasPoliceFlow && (currentPlayer?.isSheriff ?? false);
+                 const hunterBadgeHint = hunterIsSheriff
+                     ? '\n🎖️【你也是警长】遗言中同时声明传徽意向（传给哪位可信好人）——枪与徽各自指向不同目标，两张牌发挥最大协同价值。'
+                     : '';
+                 lwRoleHint = `你是猎人：先查看【你之前的身份推理表】——confidence 最高且 suspect 为"狼人"的玩家是最有依据的枪击目标；明确宣告你最高度怀疑的狼人及你的逻辑依据（即使此刻无法开枪，清晰线索让好人接棒追查）；若你即将触发开枪，明确说明目标。${hunterBadgeHint}`;
              } else if (playerRole === '守卫') {
                  lwRoleHint = '你是守卫：公开你的完整守护记录（每晚守了谁），帮助好人识别可能的谎言（如有人自称被守护但实际没有）；指出你最高度怀疑的狼人。';
              } else if (playerRole === '骑士') {

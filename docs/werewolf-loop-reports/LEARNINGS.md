@@ -1977,3 +1977,22 @@
 - 完成后覆盖矩阵：狼人/女巫/守卫/骑士/魔术师/预言家/摄梦人 均有私有信息注入，猎人有博弈约束注入，村民走通用 fallback（有意设计）。
 - 猎人 bpIdentityStep 不注入私有历史，而是编码角色级博弈约束（枪+徽协同）——这是 BADGE_PASS 中唯一"角色行为约束驱动"而非"私有历史驱动"的专属分支。
 - BP_WINDOW 余量：1330 chars（DV_WINDOW=10000），下轮 BADGE_PASS 净增量 > 1300 chars 时需升级至 12000。
+
+---
+
+## Round 128 新增教训（2026-07-06）
+
+**教训 R128-A：猎人 LAST_WORDS 专属分支设计原则 — identity_table 枪击锚点 + hasPoliceFlow 警长协同**
+- 猎人无私有历史结构（无 hunterHistory），但有 identity_table 积累的场上嫌疑判断：`confidence 最高且 suspect 为"狼人"` 的玩家是最有依据的枪击目标（比临场印象更可靠）。
+- 当猎人兼任警长（hasPoliceFlow && isSheriff）时，遗言应同时声明传徽意向：`hunterBadgeHint` 是遗言内容提示（非传徽决策），与 BADGE_PASS 目的不同但协同一致——遗言中的声明帮助好人理解猎人的枪+徽意图分配。
+- **关键区别**：BADGE_PASS 是结构化 JSON 输出（targetId），LAST_WORDS 是自然语言输出（speech content）。hunterBadgeHint 在遗言内容层面传递协同意图，实际传徽决策由后续 BADGE_PASS prompt 完成。
+
+**教训 R128-B：LW_WINDOW 余量警告 — 净增量 > 200 chars 时需升级至 7000**
+- R128 新增 +417 chars，LW_WINDOW=5500 余量从 631 降至 214 chars。
+- **铁律**：每次修改 LAST_WORDS block 前先执行余量检查：
+  `node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.LAST_WORDS: {'); const b=s.indexOf('case PROMPT_ACTIONS.SUMMARIZE_CONTENT:',a); console.log('LW size:', b-a, '余量:', 5500-(b-a))"`
+- 余量 < 300 chars 时预防性升级：`grep -rn "LW_WINDOW" src/services/__tests__/round111LastWordsContextBlock.test.js` 找到文件并将 5500→7000。
+
+**教训 R128-C：LAST_WORDS 角色专属分支覆盖完成状态（R128 后）**
+- 完成后 LAST_WORDS 覆盖矩阵：狼人（R54）、预言家（R54+警长流）、女巫（R54）、猎人（R128：身份推理表+警长协同）、守卫（R54）、骑士（R54）、摄梦人（R54）、魔术师（R54）均有专属分支，好人 fallback（村民等）有 identity_table 基础指引。
+- 猎人是 LAST_WORDS 中最后一个从"纯通用文本"升级为"专属分支"的神职（其他神职在 R54 已完成初步专属化）。
