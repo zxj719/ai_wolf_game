@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-06 Round 124] 村民 DAY_VOTE 三维信息聚合框架——补齐最后一个无专属策略的好人角色
+
+- **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 `villagerVoteStrategy`（457 chars，三维打分框架：信息价值 × 行为一致 × 逻辑链完整）+ return 链插入 `playerRole === '村民' ? villagerVoteStrategy`（在女巫分支之后、通用 fallback 之前）。DAY_VOTE block 16779 → 17486 chars（+707 chars）；`输出JSON格式:` 偏移 17246，DV_WINDOW=18000 余量 754 chars。全量测试 2274/2274（+20 new R124 tests T1-T20）✅；build ✅（WerewolfModule 260.63 kB）。
+- **村民-信息聚合三维框架设计（R124-A）**：村民无私有信息，是 DAY_VOTE 中信息最弱的群体，但占典型 10p/3w 游戏中 3 席（好人阵营约 1/2）。补充框架依据 Wang 2025（arxiv:2408.17177）：三维打分——① 信息价值（提出新推断 vs 划水）② 行为一致（当前发言与历史一致性）③ 逻辑链完整（结论有清晰因果链）。最高优先锚点：预言家查杀→率先跟投；对跳局面→选论据更完整/更早公开的那方。**设计亮点**：引入"率先带票"行动指引，对抗"好人分票=助狼"的分散投票现象（好人阵营最常见的集体行为失败模式）。
+- **平衡模拟发现（R124-B）**：Monte Carlo 模拟（N=1000，真实力学：后期狼人随机袭击/女巫概率救援/投票噪声/预言家对抗性查验）得出理论好人胜率 97-98%，但实际 LLM 游戏狼人胜率 84-90%。**差距根因：提示词质量不对称**——狼人提示词（R61 等）编码了强力策略框架，但好人阵营村民（3席）仅有 1 行通用 fallback，每轮投票缺乏结构化指引。本轮修复补齐这一最大短板。
+- **注释中不拼写白熊词汇（R124-C 再确认 R121-C 铁律）**：初版注释写 `无"绝不/禁止"负向禁令词汇` → T9（R124自测）和 T11（R71回归测试）同时 FAIL，因为注释落在 getVillagerVoteSection() 和 getStyleBlock() 两个测试提取范围之内。修复：注释改为 `无负向禁令词汇`。**铁律（再确认）**：代码注释中描述白熊合规时，用"无负向禁令词汇"代替列举具体词汇；具体词汇只能出现在 `.not.toContain()` 测试代码中。
+- **DV_WINDOW 余量监控（R124-D）**：当前余量 754 chars（`18000 - 17246 = 754`）。下一轮若再追加 > 700 chars 的 DAY_VOTE 内容，则需将 DV_WINDOW 全量升级 18000 → 20000。**快速检测命令**：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.lastIndexOf('case PROMPT_ACTIONS.DAY_VOTE:'); const block=s.slice(a,a+20000); console.log('JSON offset:', block.indexOf('输出JSON格式:'), '余量:', 18000-block.indexOf('输出JSON格式:'))"`
+- **测试**：2274/2274（+20 new R124 tests T1-T20；1 pre-existing chatSocket failure 无关）；build ✅（WerewolfModule 260.63 kB）；check-build ✅（0 localhost 泄露）。
+- **下轮优先**：平衡性调整（10p/3w 狼胜率 84-90%，需用户决策 Option A 增加神职/Option B 减少投票噪声/Option C 提高预言家命中率）；或验证村民三维框架实际效果（观察 identity_table 中 thought 是否出现三维打分）。
+
+---
+
 ### [2026-07-05 Round 123] 摄梦人 SHERIFF_BADGE_PASS 专属分支——全 8 神职 BADGE_PASS 覆盖完成
 
 - **完成状态**：`aiPrompts.js` BADGE_PASS case 新增 `bpDreamweaverHistory`（gameState.dreamweaverHistory 安全读取）、`bpDreamweaverDreamed`（dreamedPlayers 数组）、`dwDreamCounts`（频次计数）、`topDreamed`（top-2 入梦候选）、`bpDreamweaverHint`（空串时零副作用）；`bpIdentityStep` 新增第 8 路径（摄梦人：入梦最频繁者 > identity_table）；`bpHint` 新增第 8 路径（摄梦人警长）；return 模板追加 `${bpDreamweaverHint}`。BADGE_PASS block 6802 → 8327 chars（+1525）；BP_WINDOW 全量升级 8500→10000。全量测试 2254/2254 ✅；干跑 25/25 ✅；build ✅（WerewolfModule 260.19 kB）。
