@@ -24,7 +24,7 @@
  * T17  回归 — seerVoteStrategy 仍在（R119 未破坏）
  * T18  回归 — dvMagIsRevealed 仍在（R118 未破坏）
  * T19  回归 — wolfDefenseTrigger 仍在（R65 未破坏）
- * T20  回归 — 输出JSON格式: 仍在 18000 窗口内（R121 窗口修复后）
+ * T20  回归 — 输出JSON格式: 仍在 20000 窗口内（R126 升级 DV_WINDOW 18000→20000）
  */
 
 import { readFileSync } from 'fs';
@@ -32,8 +32,8 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'utf-8');
 
-// Window: 18000 chars (block size ~16786 × ~107%, sufficient for 输出JSON格式: at offset ~16546)
-const DV_WINDOW = 18000;
+// Window: 20000 chars (upgraded R126: R126 added ~1083 chars, DV_WINDOW 18000→20000, 余量 1671)
+const DV_WINDOW = 20000;
 
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');
@@ -189,7 +189,7 @@ describe('R121 女巫 DAY_VOTE 读写闭环', () => {
         expect(block).toContain('wolfDefenseTrigger');
     });
 
-    test('T20 回归 — 输出JSON格式: 在 18000 窗口内', () => {
+    test('T20 回归 — 输出JSON格式: 在 20000 窗口内（R126 升级）', () => {
         const block = getDayVoteBlock();
         const jsonFmtIdx = block.indexOf('输出JSON格式:');
         expect(jsonFmtIdx).toBeGreaterThan(-1);

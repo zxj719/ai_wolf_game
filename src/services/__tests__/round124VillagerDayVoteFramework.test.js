@@ -24,7 +24,7 @@
  * T16  回归 — guardVoteStrategy 仍在（R120 未破坏）
  * T17  回归 — seerVoteStrategy 仍在（R119 未破坏）
  * T18  回归 — wolfDefenseTrigger 仍在（R65 未破坏）
- * T19  回归 — 输出JSON格式: 仍在 18000 窗口内（R124 窗口哨兵）
+ * T19  回归 — 输出JSON格式: 仍在 20000 窗口内（R126 升级 DV_WINDOW 18000→20000）
  * T20  villagerVoteStrategy 字符长度在合理范围内（300-900 chars，避免块溢出）
  */
 
@@ -33,8 +33,8 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'utf-8');
 
-// DV_WINDOW: 18000 (block size ~17493 after R124, 输出JSON at ~17253)
-const DV_WINDOW = 18000;
+// DV_WINDOW: 20000 (upgraded R126: block size ~18580 after R126, 输出JSON at ~18329, 余量 1671)
+const DV_WINDOW = 20000;
 
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');
@@ -161,7 +161,7 @@ describe('Round 124: 村民 DAY_VOTE 三维信息聚合框架', () => {
         expect(block).toContain('wolfDefenseTrigger');
     });
 
-    test('T19 回归 — 输出JSON格式: 在 18000 窗口内（R124 窗口哨兵）', () => {
+    test('T19 回归 — 输出JSON格式: 在 20000 窗口内（R126 升级窗口哨兵）', () => {
         const block = getDayVoteBlock();
         const jsonFmtIdx = block.indexOf('输出JSON格式:');
         expect(jsonFmtIdx).toBeGreaterThan(0);

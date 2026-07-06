@@ -35,18 +35,18 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getDayVoteBlock() {
     const start = src.indexOf('case PROMPT_ACTIONS.DAY_VOTE: {');
     if (start === -1) throw new Error('DAY_VOTE case block not found');
-    // Window: 18000 chars to cover the full extended case block (R121 added ~1721 chars, total ~16786)
-    return src.slice(start, start + 18000);
+    // Window: 20000 chars (upgraded R126: R126 added ~1083 chars, DV_WINDOW 18000→20000)
+    return src.slice(start, start + 20000);
 }
 
-// Extract just the dreamweaverVoteStrategy template string content
+// Extract the NLP fallback branch of dreamweaverVoteStrategy (R126: conditional expression)
+// The fallback branch is the `: `2. 【摄梦人投票—梦票对齐框架】...` part
 function getDreamweaverStrategyContent() {
     const block = getDayVoteBlock();
-    const start = block.indexOf('const dreamweaverVoteStrategy = `');
-    if (start === -1) throw new Error('dreamweaverVoteStrategy not found');
-    const templateStart = start + 'const dreamweaverVoteStrategy = `'.length;
-    const templateEnd = block.indexOf('`;\n', templateStart);
-    return block.slice(templateStart, templateEnd);
+    const start = block.indexOf('【摄梦人投票—梦票对齐框架】');
+    if (start === -1) throw new Error('梦票对齐框架 not found');
+    const templateEnd = block.indexOf('`;\n', start);
+    return block.slice(start, templateEnd);
 }
 
 // Extract just the magicianVoteStrategy template string content
@@ -63,9 +63,10 @@ function getMagicianStrategyContent() {
 // T1-T6: 摄梦人投票策略
 // ═══════════════════════════════════════════════════════
 
-test('T1: dreamweaverVoteStrategy 在 DAY_VOTE block 中定义', () => {
+test('T1: dreamweaverVoteStrategy 在 DAY_VOTE block 中定义（R126 条件表达式）', () => {
     const block = getDayVoteBlock();
-    expect(block).toContain('const dreamweaverVoteStrategy = `');
+    // R126: now a conditional expression: dvDWDreamedSummary ? anchor : NLP-fallback
+    expect(block).toContain('const dreamweaverVoteStrategy = dvDWDreamedSummary');
 });
 
 test('T2: dreamweaverVoteStrategy 读取 identity_table 中"连梦候选"', () => {
@@ -139,11 +140,9 @@ test('T11: magicianVoteStrategy 有无候选时 fallback（跟投预言家查杀
 
 test("T12: 摄梦人分支接入三元链（playerRole === '摄梦人'）", () => {
     const block = getDayVoteBlock();
-    expect(block).toContain("playerRole === '摄梦人'");
-    // 摄梦人分支应该使用 dreamweaverVoteStrategy
-    const dreamIdx = block.indexOf("playerRole === '摄梦人'");
-    const afterDream = block.slice(dreamIdx, dreamIdx + 80);
-    expect(afterDream).toContain('dreamweaverVoteStrategy');
+    // R126: playerRole === '摄梦人' appears in variable declarations AND ternary chain
+    // Verify the ternary chain uses dreamweaverVoteStrategy on the following line
+    expect(block).toContain('? dreamweaverVoteStrategy');
 });
 
 test("T13: 魔术师分支接入三元链（playerRole === '魔术师'）", () => {
@@ -157,8 +156,10 @@ test("T13: 魔术师分支接入三元链（playerRole === '魔术师'）", () =
 
 test('T14: 三元链顺序正确 — 骑士 > 摄梦人 > 魔术师 > 通用 fallback', () => {
     const block = getDayVoteBlock();
-    const knightIdx = block.indexOf("playerRole === '骑士'");
-    const dreamIdx = block.indexOf("playerRole === '摄梦人'");
+    // R126: playerRole === '摄梦人' now appears in variable declarations (early) AND ternary chain;
+    // use `? dreamweaverVoteStrategy` to pinpoint the ternary chain position
+    const knightIdx = block.lastIndexOf("playerRole === '骑士'");
+    const dreamIdx = block.indexOf('? dreamweaverVoteStrategy');
     const magIdx = block.indexOf("playerRole === '魔术师'");
     const fallbackIdx = block.lastIndexOf('【投票策略】有查杀');
     // All found

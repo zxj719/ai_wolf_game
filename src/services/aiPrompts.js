@@ -2579,9 +2579,22 @@ Step5: 确定入梦目标
    b) 场景评估：能推票出局 → 全力推票（投票出局比决斗更省资源，保留决斗用于更高价值时刻）；无法翻转票型 → 仍然投他，积累好人阵营公共认知，伺机决斗
    c) 无"决斗候选"标注时：跟投预言家查杀 > 发言逻辑最崩塌的玩家 > 历史热力最高的目标`;
 
-            // 摄梦人投票策略：DAY_SPEECH积累的"连梦候选"与投票方向对齐（梦票对齐原则，R72）
-            // 进攻模式连梦候选 → 投票优先淘汰（节省入梦能力）；防御候选不投（是需要保护的核心好人）
-            const dreamweaverVoteStrategy = `2. 【摄梦人投票—梦票对齐框架】
+            // 摄梦人 DAY_VOTE 读写闭环（R126）：从 dreamweaverHistory 提取入梦频次作投票排除锚点
+            // 设计依据：入梦频次最高的存活玩家 = 摄梦人多轮判定的最强狼嫌疑（私有信息直接注入，无需NLP解析）
+            // 与守卫(R120)/预言家(R119)/女巫(R121)读写闭环同构
+            const dvDWHistory = playerRole === '摄梦人' ? (gameState.dreamweaverHistory || {}) : {};
+            const dvDWDreamedRaw = playerRole === '摄梦人' ? (dvDWHistory.dreamedPlayers || []) : [];
+            const dvDWAliveIdSet = new Set(alivePlayers.map(p => p.id));
+            const dvDWFreqMap = {};
+            dvDWDreamedRaw.forEach(id => { if (dvDWAliveIdSet.has(id)) dvDWFreqMap[id] = (dvDWFreqMap[id] || 0) + 1; });
+            const dvDWTopDreamed = Object.entries(dvDWFreqMap).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, cnt]) => `${id}号(入梦${cnt}次)`);
+            const dvDWDreamedSummary = dvDWTopDreamed.length > 0 ? `入梦频次最高：${dvDWTopDreamed.join('、')}` : '';
+            const dreamweaverVoteStrategy = dvDWDreamedSummary
+                ? `2. 【摄梦人投票—入梦频次锚点框架（R126）】你的夜间入梦记录是直接私有信息，优先级高于所有推理：
+   a) 🌙入梦频次锚点（直接数据）：${dvDWDreamedSummary}——入梦次数越多代表你多轮判定的最强进攻目标，投票首选频次最高存活玩家（梦票对齐：投票出局 > 夜间再入梦，更省资源）
+   b) 场景评估：今天能推票出局 → 全力推票（直接淘汰）；无法翻转票型 → 仍然投他，积累好人阵营公共认知，夜间再入梦强化
+   c) 兜底优先级（入梦数据未覆盖的玩家）：① 预言家查杀 → ② 发言逻辑最崩塌者 → ③ 历史热力最高目标`
+                : `2. 【摄梦人投票—梦票对齐框架】
    a) 先查【身份推理表】(identity_table) 中 reason 含"连梦候选"的存活玩家——这是你多轮积累的最强进攻目标，投票首选与入梦方向对齐（梦票对齐：投票出局 > 夜间入梦连梦，前者更省资源）
    b) 场景评估：今天能推票出局 → 全力推票（直接淘汰，不需消耗入梦能力）；今天无法翻转票型 → 仍然投他，积累好人阵营公共认知，夜间再入梦强化追杀
    c) 防御保护候选（reason含"防御入梦候选"）的玩家方向相反——他们是需要保护的核心好人，投票选他们等于主动淘汰关键盟友，请投向进攻方向候选或查杀目标

@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-07-06 Round 126] 摄梦人 DAY_VOTE 读写闭环——dreamweaverHistory 入梦频次作投票锚点
+
+- **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 6 个变量（`dvDWHistory/dvDWDreamedRaw/dvDWAliveIdSet/dvDWFreqMap/dvDWTopDreamed/dvDWDreamedSummary`），`dreamweaverVoteStrategy` 改为两分支条件表达式（有入梦历史 → anchor branch，无历史 → NLP fallback）；DV_WINDOW 18000 → 20000（7 个测试文件全量升级）；round72 test 4 处回归修复（T1/辅助函数/T12/T14）。全量测试 2310/2310（+20 new R126 tests T1-T20）✅；build ✅（WerewolfModule 261.70 kB）；check-build ✅（0 localhost 泄露）。**标志意义：所有 8 神职 DAY_VOTE 专属策略现已全部使用直接结构数据注入（NLP 解析→结构注入完成）**。
+- **摄梦人频次闭环设计原则（R126-A）**：`dreamweaverHistory.dreamedPlayers` 是历史入梦目标 ID 数组（允许重复，重复代表多轮选择同一目标）。频次计算流程：① `dvDWAliveIdSet` 过滤死亡玩家 → ② `dvDWFreqMap` forEach 累计 → ③ `.sort(desc).slice(0,3)` 取前3 → ④ `id号(入梦N次)` 格式化。**关键设计：重复入梦同一玩家必须累计而非去重**，累计频次 = 多轮主动判定的置信度代理变量（与守卫 `guardHistory` 频次模式完全对称，与 BADGE_PASS `dwDreamCounts` R123 同构）。
+- **两分支条件表达式模式（R126-B）**：适用于有冷启动状态的角色（第一天无历史数据）：`const strategy = historySummary ? \`...anchor...\` : \`...NLP-fallback...\``。Branch A 在有私有数据时触发（优先级：直接数据 >> NLP 推断）；Branch B 在冷启动时回退 NLP 框架（保留原有逻辑零副作用）。**重要：冷启动回退不是"降级"，是"安全网"——第一天任何角色都没有历史，框架必须能在空数据下优雅退化**。
+- **DV_WINDOW 升级触发机制已验证（R126-C）**：R126 净增量 ~1083 chars，`输出JSON格式:` 偏移从 17246 升至 18329，超出旧窗口 329 chars（余量 754 - 1083 = -329）。触发升级：7 个 test 文件 DV_WINDOW 18000 → 20000；新余量 1671 chars。**铁律（R124-D 确认）：每次 DAY_VOTE 新增后必须跑窗口检测命令；余量 < 500 时提前升级**。下轮 DAY_VOTE 增量 > 1600 chars 时升级至 22000：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.lastIndexOf('case PROMPT_ACTIONS.DAY_VOTE:'); const block=s.slice(a,a+22000); console.log('JSON offset:', block.indexOf('输出JSON格式:'), '余量:', 20000-block.indexOf('输出JSON格式:'))"`
+- **round72 条件表达式兼容模式（R126-D）**：`getDreamweaverStrategyContent()` 原实现依赖 `const dreamweaverVoteStrategy = \`` 这一固定前缀提取模板字符串；改为条件表达式后前缀变为 `const dreamweaverVoteStrategy = dvDWDreamedSummary`，辅助函数需重写。**修复模式：改为按子字符串锚点搜索 NLP fallback 分支** — `block.indexOf('【摄梦人投票—梦票对齐框架】')`，不依赖变量声明语法形式。T12（三元链接入）改用 `? dreamweaverVoteStrategy` 作锚点；T14（顺序检测）用 `? dreamweaverVoteStrategy` 代替 `playerRole === '摄梦人'`（后者现在有多个出现，首次在变量声明区）。**通用铁律：测试辅助函数中的"提取模板字符串"逻辑，如依赖 `const X = \`` 固定前缀，在角色 X 改为条件表达式时会静默失效（抛异常而非断言失败）——应改为锚定语义内容而非语法形式**。
+- **测试**：2310/2310（+20 new R126 tests T1-T20；round72 T1/辅助函数/T12/T14 修复；7 测试文件 DV_WINDOW 18000→20000；1 pre-existing chatSocket failure 无关）；build ✅（WerewolfModule 261.70 kB）；check-build ✅。
+- **下轮优先**：平衡性调整（用户决策 pending：Option A 增加神职/Option B 减少投票噪声/Option C 提高预言家命中率）；或摄梦人入梦频次锚点实战验证（观察 DAY_VOTE thought 中频次数据是否出现）。
+
+---
+
 ### [2026-07-06 Round 125] 骑士悍跳骑士 Priority 0 决斗检测——身份独占规则形成 100% 命中决斗
 
 - **完成状态**：`aiPrompts.js` roleParams 新增 `knightCounterClaimants`（骑士门控，过滤 `jump_knight` 类型 claimHistory）；`knight.js` 解构新参数 + `knightP0Hint` 变量（有悍跳骑士时条件化注入，空数组时 `''` 零副作用）+ 决斗决策系统标题 `三级 → 四级优先级` + 续战搜索排序 `A>B>C → 0>A>B>C` + Step1 优先级0检查行。全量测试 2290/2290（+16 new R125 tests T1-T16）✅；`round67VillagerPersonalityLens` roleParams 窗口 2200→2600 级联修复；build ✅（WerewolfModule 261.12 kB）；check-build ✅（0 localhost 泄露）。
