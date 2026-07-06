@@ -266,34 +266,81 @@ function RallyLog({ state }) {
   );
 }
 
-/** 非关键分读招教练：对手已用某招 ≥2 次时低调提示克制招；若玩家无对应克制招则改为均势提示。关键分由 CrisisHint 接管，两者互斥。 */
-function OppCoachHint({ matchStats, score, phase, playerMoves }) {
+/**
+ * 读招教练 + 低体力合并提示（非关键分 cards 阶段）。
+ * 防止两条 hint 同时堆叠；关键分统一由 CrisisHint 接管。
+ * 四路分支：两个都触发 / 只有教练 / 只有体力 / 都无（null）。
+ */
+function CombinedHint({ matchStats, score, phase, playerMoves, pEnergy }) {
   if (phase !== 'cards' || isKeyPoint(score)) return null;
+
+  // ── 读招教练条件 ──
   const usage = matchStats?.oppMoveUsage ?? {};
   const top = Object.entries(usage).sort((a, b) => b[1] - a[1])[0];
-  if (!top || top[1] < 2) return null;
-  const [moveId, count] = top;
-  const counter = COUNTER_FOR[moveId];
-  if (!counter) return null;
-  const canCounter = playerMoves?.includes(counter);
-  if (!canCounter) {
+  const counter0 = top && top[1] >= 2 ? COUNTER_FOR[top[0]] : null;
+  const hasOppHint = !!counter0;
+  const moveId = hasOppHint ? top[0] : null;
+  const count = hasOppHint ? top[1] : 0;
+  const counter = counter0;
+  const canCounter = counter && playerMoves?.includes(counter);
+
+  // ── 低体力条件 ──
+  const hasLowEnergy = pEnergy < 30 && playerMoves?.includes('slice');
+  const tier = pEnergy < 15 ? 'critical' : 'warn';
+
+  // ── 两个都触发 → 合并为一条 ──
+  if (hasOppHint && hasLowEnergy) {
+    const sliceCounters = counter === 'slice';
     return (
-      <div className="bt-coach-hint bt-coach-balanced">
-        <span className="bt-coach-icon">⚡</span>
-        <span className="bt-coach-text">
-          对手惯用「{MOVES[moveId]?.name}」(×{count})，均势——读招节省体力
+      <div className={`bt-combined-hint ${tier}`}>
+        <span className="bt-ch-icon">{pEnergy < 15 ? '🚨' : '⚠️'}</span>
+        <span className="bt-ch-text">
+          体力告急（{Math.round(pEnergy)}）！「切削球」-3 续命
+          {sliceCounters
+            ? <>，<b>且</b>克制对手惯用「{MOVES[moveId]?.name}」(×{count})——一举两得</>
+            : canCounter
+              ? <>；对手惯用「{MOVES[moveId]?.name}」(×{count})，出「{MOVES[counter]?.name}」可克制</>
+              : <>；对手惯用「{MOVES[moveId]?.name}」(×{count})，读招节省体力</>}
         </span>
       </div>
     );
   }
-  return (
-    <div className="bt-coach-hint">
-      <span className="bt-coach-icon">🎯</span>
-      <span className="bt-coach-text">
-        对手惯用「{MOVES[moveId]?.name}」(×{count})，出「{MOVES[counter]?.name}」可克制
-      </span>
-    </div>
-  );
+
+  // ── 只有读招教练 ──
+  if (hasOppHint) {
+    if (!canCounter) {
+      return (
+        <div className="bt-coach-hint bt-coach-balanced">
+          <span className="bt-coach-icon">⚡</span>
+          <span className="bt-coach-text">
+            对手惯用「{MOVES[moveId]?.name}」(×{count})，均势——读招节省体力
+          </span>
+        </div>
+      );
+    }
+    return (
+      <div className="bt-coach-hint">
+        <span className="bt-coach-icon">🎯</span>
+        <span className="bt-coach-text">
+          对手惯用「{MOVES[moveId]?.name}」(×{count})，出「{MOVES[counter]?.name}」可克制
+        </span>
+      </div>
+    );
+  }
+
+  // ── 只有低体力 ──
+  if (hasLowEnergy) {
+    return (
+      <div className={`bt-low-energy-hint ${tier}`}>
+        <span className="bt-leh-icon">{pEnergy < 15 ? '🚨' : '⚠️'}</span>
+        <span className="bt-leh-text">
+          体力告急（{Math.round(pEnergy)}）！「{MOVES.slice.name}」耗体 −3 可回体续命
+        </span>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 /** 关键分读招提示：仅在 isKeyPoint + cards 阶段 + 对手已用某招 ≥2 次时显示；玩家无克制招时改为均势提示。 */
@@ -382,21 +429,6 @@ function FirstMatchHint({ opponent, playerMoves }) {
   );
 }
 
-/** 低体力警报：体力 <30 且角色有切削（唯一回体招）时，提示玩家用切削续命。 */
-function LowEnergyHint({ pEnergy, phase, playerMoves }) {
-  if (phase !== 'cards') return null;
-  if (pEnergy >= 30) return null;
-  if (!playerMoves?.includes('slice')) return null;
-  const tier = pEnergy < 15 ? 'critical' : 'warn';
-  return (
-    <div className={`bt-low-energy-hint ${tier}`}>
-      <span className="bt-leh-icon">{pEnergy < 15 ? '🚨' : '⚠️'}</span>
-      <span className="bt-leh-text">
-        体力告急（{Math.round(pEnergy)}）！「{MOVES.slice.name}」耗体 −3 可回体续命
-      </span>
-    </div>
-  );
-}
 
 /**
  * @param {{player, opponent, deckInstances, ultimate?, twists?, equip?, playerMoves,
@@ -520,8 +552,7 @@ export function BattleScreen({
             {isFirstMatch && state.rallyCount === 1 && (
               <FirstMatchHint opponent={opponent} playerMoves={playerMoves} />
             )}
-            <OppCoachHint matchStats={state.matchStats} score={state.score} phase={state.phase} playerMoves={playerMoves} />
-            <LowEnergyHint pEnergy={state.pEnergy} phase={state.phase} playerMoves={playerMoves} />
+            <CombinedHint matchStats={state.matchStats} score={state.score} phase={state.phase} playerMoves={playerMoves} pEnergy={state.pEnergy} />
             <CrisisHint matchStats={state.matchStats} score={state.score} phase={state.phase} playerMoves={playerMoves} />
             <HandCards deck={state.deck} onPlay={(idx) => dispatch({ type: 'PLAY_CARD', idx })} />
             <MovePicker

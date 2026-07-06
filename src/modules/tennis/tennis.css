@@ -508,6 +508,19 @@
 .tennis-scope .bt-leh-icon { font-size: .85rem; flex-shrink: 0; }
 .tennis-scope .bt-leh-text { font-size: .68rem; color: rgba(251,146,60,.95); font-weight: 600; line-height: 1.4; }
 .tennis-scope .bt-low-energy-hint.critical .bt-leh-text { color: rgba(252,165,165,.95); }
+/* 合并提示（低体力 + 读招教练同时触发） */
+.tennis-scope .bt-combined-hint {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 6px 10px; margin-bottom: 9px; border-radius: 8px;
+  background: rgba(251,146,60,.10); border: 1px solid rgba(251,146,60,.35);
+}
+.tennis-scope .bt-combined-hint.critical {
+  background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.40);
+  animation: tennis-bounce 1.0s ease infinite;
+}
+.tennis-scope .bt-ch-icon { font-size: .85rem; flex-shrink: 0; margin-top: 1px; }
+.tennis-scope .bt-ch-text { font-size: .68rem; color: rgba(251,146,60,.95); font-weight: 600; line-height: 1.4; }
+.tennis-scope .bt-combined-hint.critical .bt-ch-text { color: rgba(252,165,165,.95); }
 .tennis-scope .bt-first-match-hint {
   display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
   padding: 7px 10px; margin-bottom: 10px; border-radius: 8px;
@@ -803,6 +816,7 @@
   .tennis-scope .fx-burst, .tennis-scope .fx-goldflash, .tennis-scope .fx-greenflash { animation: none; opacity: 0; }
   .tennis-scope .fx-shake { animation: none; }
   .tennis-scope .bt-rallylog .counter-win { animation: none; }
+  .tennis-scope .bt-combined-hint.critical { animation: none; }
 }
 
 /* ===== 五连胜庆祝动效 (StreakBurst) ===== */
