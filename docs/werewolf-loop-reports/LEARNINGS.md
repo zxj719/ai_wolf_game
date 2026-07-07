@@ -2067,3 +2067,41 @@
 - 升级操作：将 `const BP_WINDOW = N;` 改为 `const BP_WINDOW = N+2000;`（步进 2000 chars），同步更新 T12/T14 等描述文字（句中的 "BP_WINDOW=N" 字面量），追加历史注释（`R131: block X→N+2000`）
 - 本次涉及文件：round113/round117/round122/round123/round127/round130（共 6 个）
 - 验证：运行测试确认所有 BP_WINDOW 相关断言仍通过
+
+---
+
+## R132 教训（2026-07-07）
+
+**教训 R132-A：猎人 DAY_SPEECH 三层平安夜推断完整闭合**
+- 两连 confidence -30~40 枪靶候选移除；三连 confidence -35~45 枪靶彻底排除。
+- 平安夜推断矩阵（DAY_SPEECH + NIGHT 双侧）全角色完整（R132 后）：狼人/预言家/女巫/守卫/村民/猎人/骑士/摄梦人/魔术师 均覆盖。
+- **铁律**：下轮无需再检查平安夜推断覆盖状态，矩阵已关闭。
+
+**教训 R132-B：Hunter block 窗口级联规律**
+- round56/round69 均使用固定窗口 4500/4000；每次猎人 DAY_SPEECH 新增后必须检测：
+  `node -e "const s = require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const roleMapStart = s.indexOf('const ROLE_DAY_SPEECH_PROMPTS'); const hunterFnStart = s.indexOf(\"    '猎人': (ctx, params) => {\", roleMapStart); const guardFnStart = s.indexOf(\"    '守卫': (ctx, params) => {\", hunterFnStart); console.log('hunter block:', s.slice(hunterFnStart, guardFnStart).length)"`
+- 当 block size 超过 round56/round69 窗口时立即更新（当前 5134，窗口 5500，余量 366）。
+
+**教训 R132-C：Priority C（骑士/摄梦人/魔术师平安夜覆盖）已全部完整，跨轮建议可安全关闭**
+
+---
+
+## R133 教训（2026-07-07）
+
+**教训 R133-A：LAST_WORDS 警长传徽声明提示 7 神职全覆盖（R133 后完整）**
+- 覆盖状态：预言家（R54 ④警徽流建议）、猎人（R128 🎖️hunterBadgeHint）、守卫/女巫/骑士/摄梦人/魔术师（R133 新增）
+- 设计原则：LAST_WORDS（自然语言展示）与 BADGE_PASS（结构化 JSON 决策）互补，不重叠。
+- 各角色使用私有信息锚点：女巫→银水好人、守卫→守护频次、骑士→金水候选、摄梦人→入梦频次、魔术师→交换记录。
+- 条件门控：`hasPoliceFlow && (currentPlayer?.isSheriff ?? false)` 保证非警长死亡时静默。
+- **铁律**：下轮无需再补全 LAST_WORDS badge hint，7个神职已全覆盖。
+
+**教训 R133-B：round54 使用内联 5500 窗口而非 LW_WINDOW 常量**
+- 失败模式：LAST_WORDS 块增大后，round54 T13/T14（好人 fallback 检测，offset 6342/6413）超出内联 5500 窗口。
+- 修复方法：`replace_all: true` 替换所有 `lwStart + 5500` → `lwStart + 9000`（共 12 处）。
+- **检查命令（每次 LAST_WORDS 有大量增加后）**：`grep -n "lwStart + " src/services/__tests__/round54ReadLoopLasWordsDaySpeech.test.js` 确认所有窗口值均不小于 LW block size。
+
+**教训 R133-C：LW_WINDOW 升级铁律（升级至 9000）**
+- 触发条件：`LW block size - LW_WINDOW < 500 chars`（放宽至 500 安全线，避免R133状况再次触发）
+- 升级步进：+2000（7000→9000→11000）
+- 三个文件必须同步：round111（`const LW_WINDOW = N`）、round128（`const LW_WINDOW = N` + T10 描述）、round54（`lwStart + 旧值` 全部 replace_all）
+- 验证：`node -e "const s = require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a = s.indexOf('case PROMPT_ACTIONS.LAST_WORDS:'); const b = s.indexOf('case PROMPT_ACTIONS.SUMMARIZE_CONTENT:',a); console.log('LW size:', b-a, '余量:', 9000-(b-a))"`

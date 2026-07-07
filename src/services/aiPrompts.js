@@ -3324,7 +3324,11 @@ ${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}
                      : hasSave && hasPoison ? '解药和毒药均未使用'
                      : !hasSave ? '解药已用，毒药尚存'
                      : '解药尚存，毒药已用';
-                 lwRoleHint = `你是女巫：【药品状态】${medState}。告知场上最高嫌疑的狼人；简述你的用药决策逻辑，帮助好人继续追查。`;
+                 // R133: 女巫警长遗言传徽声明提示
+                 const witchBadgeHint = hasPoliceFlow && (currentPlayer?.isSheriff ?? false)
+                     ? '\n🎖️【你也是警长】遗言中同时声明传徽意向——银水好人（你亲手救过的存活玩家）优先，其次是金水候选；声明传徽帮好人延续票权。'
+                     : '';
+                 lwRoleHint = `你是女巫：【药品状态】${medState}。告知场上最高嫌疑的狼人；简述你的用药决策逻辑，帮助好人继续追查。${witchBadgeHint}`;
              } else if (playerRole === '猎人') {
                  // R128: 猎人 LAST_WORDS 专属分支 — identity_table 枪击锚点 + 警长协同提示
                  const hunterIsSheriff = hasPoliceFlow && (currentPlayer?.isSheriff ?? false);
@@ -3333,13 +3337,21 @@ ${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}
                      : '';
                  lwRoleHint = `你是猎人：先查看【你之前的身份推理表】——confidence 最高且 suspect 为"狼人"的玩家是最有依据的枪击目标；明确宣告你最高度怀疑的狼人及你的逻辑依据（即使此刻无法开枪，清晰线索让好人接棒追查）；若你即将触发开枪，明确说明目标。${hunterBadgeHint}`;
              } else if (playerRole === '守卫') {
-                 lwRoleHint = '你是守卫：公开你的完整守护记录（每晚守了谁），帮助好人识别可能的谎言（如有人自称被守护但实际没有）；指出你最高度怀疑的狼人。';
+                 // R133: 守卫警长遗言传徽声明提示
+                 const guardBadgeHint = hasPoliceFlow && (currentPlayer?.isSheriff ?? false)
+                     ? '\n🎖️【你也是警长】遗言中同时声明传徽意向——守护次数最多的存活好人是最可信候选（守护记录是你最私有的信任信号，优先于发言印象）。'
+                     : '';
+                 lwRoleHint = `你是守卫：公开你的完整守护记录（每晚守了谁），帮助好人识别可能的谎言（如有人自称被守护但实际没有）；指出你最高度怀疑的狼人。${guardBadgeHint}`;
              } else if (playerRole === '骑士') {
                  const hasUsedDuel = currentPlayer?.hasUsedDuel ?? false;
                  const duelStatus = hasUsedDuel
                      ? '你的决斗已使用——将你最终观察到的场上身份判断传递出去，让好人接棒'
                      : '你的决斗未使用——告诉好人你最确信的狼人目标，他们可以用投票接替你本应用的决斗机会';
-                 lwRoleHint = `你是骑士：${duelStatus}。基于你全程观察的发言和投票，指出你最高度怀疑的狼人（必须说明逻辑依据）。`;
+                 // R133: 骑士警长遗言传徽声明提示
+                 const knightBadgeHint = hasPoliceFlow && (currentPlayer?.isSheriff ?? false)
+                     ? '\n🎖️【你也是警长】遗言中同时声明传徽意向——传给发言判断最可信的好人；若有金水候选则优先（你的行动记录是公信力背书，清晰声明徽的去向）。'
+                     : '';
+                 lwRoleHint = `你是骑士：${duelStatus}。基于你全程观察的发言和投票，指出你最高度怀疑的狼人（必须说明逻辑依据）。${knightBadgeHint}`;
              } else if (playerRole === '摄梦人') {
                  const dwHistory = gameState.dreamweaverHistory || {};
                  const dreamedPlayers = dwHistory.dreamedPlayers || [];
@@ -3350,7 +3362,11 @@ ${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}
                  const historyText = dreamedPlayers.length > 0
                      ? `入梦历史：${dreamedPlayers.join(',')}号`
                      : '无入梦记录';
-                 lwRoleHint = `你是摄梦人：${syncWarning} ${historyText}。公开你的完整入梦名单，帮助好人还原死讯逻辑（谁被你保护过、谁是连梦击杀）；指出你最高度怀疑的狼人。`;
+                 // R133: 摄梦人警长遗言传徽声明提示
+                 const dwBadgeHint = hasPoliceFlow && (currentPlayer?.isSheriff ?? false)
+                     ? '\n🎖️【你也是警长】遗言中同时声明传徽意向——入梦次数最多的存活好人是首选（你愿为之承担同生共死=高度信任）；传徽与入梦名单一同公开帮好人验证逻辑链。'
+                     : '';
+                 lwRoleHint = `你是摄梦人：${syncWarning} ${historyText}。公开你的完整入梦名单，帮助好人还原死讯逻辑（谁被你保护过、谁是连梦击杀）；指出你最高度怀疑的狼人。${dwBadgeHint}`;
              } else if (playerRole === '魔术师') {
                  const magHistory = gameState?.magicianHistory || { swappedPlayers: [], lastSwap: null };
                  const lastSwap = magHistory.lastSwap;
@@ -3361,7 +3377,11 @@ ${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}
                  const allSwapped = magHistory.swappedPlayers?.length > 0
                      ? `整局被交换过的玩家：${magHistory.swappedPlayers.join(',')}号`
                      : '';
-                 lwRoleHint = `你是魔术师：${swapText}。${allSwapped ? allSwapped + '。' : ''}公开你的完整交换记录是修正场上逻辑偏差的唯一途径；同时指出你最高度怀疑的狼人。`;
+                 // R133: 魔术师警长遗言传徽声明提示
+                 const magBadgeHint = hasPoliceFlow && (currentPlayer?.isSheriff ?? false)
+                     ? '\n🎖️【你也是警长】遗言中同时声明传徽意向——可将关键交换记录与传徽意向一同公开帮好人修正逻辑链；传给交换记录最确认的可信好人或金水候选。'
+                     : '';
+                 lwRoleHint = `你是魔术师：${swapText}。${allSwapped ? allSwapped + '。' : ''}公开你的完整交换记录是修正场上逻辑偏差的唯一途径；同时指出你最高度怀疑的狼人。${magBadgeHint}`;
              } else {
                  lwRoleHint = '你是好人：先查看【你之前的身份推理表】——confidence 最高的玩家是你整局积累的最高嫌疑人，比临场印象更可靠。将其作为遗言核心内容：明确指出最可疑的1-2人，同时说明你最信任谁（帮好人建立信任链）。信息密度优先，帮助场上好人继续追查。';
              }

@@ -87,23 +87,23 @@ describe('R54: LAST_WORDS 好人 fallback identity_table 读取', () => {
 
     // 在 LAST_WORDS 块内搜索好人 fallback（else 分支）
     test('T11: 好人 fallback 包含"身份推理表"指导', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         // else 分支 lwRoleHint 赋值中包含"身份推理表"
         expect(segment).toContain('身份推理表');
     });
 
     test('T12: 好人 fallback 包含 confidence 最高的指导', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('confidence 最高');
     });
 
     test('T13: 好人 fallback 包含"整局积累"或"积累"相关词', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('整局积累');
     });
 
     test('T14: 好人 fallback 仍保留"帮助场上好人继续追查"', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('帮助场上好人继续追查');
     });
 });
@@ -112,12 +112,12 @@ describe('R54: LAST_WORDS 好人 fallback identity_table 读取', () => {
 
 describe('R54: LAST_WORDS 狼人分支 identity_table 读取', () => {
     test('T15: 狼人 lwRoleHint 包含"身份推理表"', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('身份推理表');
     });
 
     test('T16: 狼人分支包含 confidence 最高（威胁最大）指导', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         // 寻找狼人分支内的 confidence 词
         const wolfBranchStart = segment.indexOf("playerRole === '狼人'");
         expect(wolfBranchStart).toBeGreaterThan(0);
@@ -127,12 +127,12 @@ describe('R54: LAST_WORDS 狼人分支 identity_table 读取', () => {
     });
 
     test('T17: 狼人分支保留"普通好人的视角"（不破坏原有策略）', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('普通好人的视角');
     });
 
     test('T18: 狼人分支不包含"高优先刀口"字面量（避免白熊效应 R30 规则）', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         const wolfBranchStart = segment.indexOf("playerRole === '狼人'");
         expect(wolfBranchStart).toBeGreaterThan(0);
         const wolfSegment = segment.slice(wolfBranchStart, wolfBranchStart + 600);
@@ -140,7 +140,7 @@ describe('R54: LAST_WORDS 狼人分支 identity_table 读取', () => {
     });
 
     test('T19: 狼人分支包含"遗言"语义锚（完整遗言语境）', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         const wolfBranchStart = segment.indexOf("playerRole === '狼人'");
         const wolfSegment = segment.slice(wolfBranchStart, wolfBranchStart + 600);
         expect(wolfSegment).toContain('遗言');
@@ -151,18 +151,18 @@ describe('R54: LAST_WORDS 狼人分支 identity_table 读取', () => {
 
 describe('R54: 回归测试（预言家/女巫/守卫等分支未受影响）', () => {
     test('T20: 预言家 LAST_WORDS 分支仍包含按夜次列出查验结果的指导', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('按夜次列出全部查验结果');
     });
 
     test('T21: 女巫 LAST_WORDS 分支仍包含药品状态（hasSave/hasPoison）', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('hasSave');
         expect(segment).toContain('hasPoison');
     });
 
     test('T22: 骑士 LAST_WORDS 分支仍包含 hasUsedDuel 判断', () => {
-        const segment = src.slice(lwStart, lwStart + 5500);
+        const segment = src.slice(lwStart, lwStart + 9000);
         expect(segment).toContain('hasUsedDuel');
     });
 

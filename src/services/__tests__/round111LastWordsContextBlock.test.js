@@ -19,7 +19,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const lwStart = src.indexOf('case PROMPT_ACTIONS.LAST_WORDS: {');
-const LW_WINDOW = 7000;
+const LW_WINDOW = 9000; // R133: block 6640→LW_WINDOW=9000（余量从360→2360）
 const getLwBlock = () => src.slice(lwStart, lwStart + LW_WINDOW);
 
 // ─── T1-T3: lwDay 声明 ────────────────────────────────────────────────────────
