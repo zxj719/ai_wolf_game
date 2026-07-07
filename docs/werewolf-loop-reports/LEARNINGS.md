@@ -4,6 +4,15 @@
 
 ---
 
+### [2026-07-07 Round 136] SHERIFF_SPEECH 狼人悍跳骑士 claims 字段指引（jump_knight 写→读闭环完成）
+
+- **R136-A jump_knight 闭环完整性铁律**：R135 给真骑士添加了 `ssKnightCounterClaimants` 对跳检测，但该检测依赖 `claimHistory` 中有 `jump_knight` 记录；而记录写入依赖狼人知道 `claims:{type:'jump_knight',duel:{targetId:X}}` 格式。**凡是给接收方（真骑士/真预言家）添加对跳检测机制，必须同步检查发起方（狼人）的 wolf ssHint 是否包含对应 claims 格式说明**。缺失任何一环，整个闭环无效。
+- **R136-B wolf ssHint 多路径维护原则**：wolf ssHint 当前为三路径（① 悍跳预言家 ② 悍跳骑士 ③ 好人竞选）。每次新增路径须：① 编号连续 ② JSON 输出模板的 claims 格式说明同步追加 ③ SS 余量验证。新增后 block 7520（+186），余量 1230 > 500 ✅。
+- **测试**：2448/2448（+19 new R136 tests T1-T11；build ✅，WerewolfModule 265.37 kB；check-build ✅，0 localhost 泄露）。
+- **下轮优先**：平衡性调整（Options A/B/C 待决策，狼胜率 84-90%）；或多狼竞选协调（避免两只狼悍跳同一身份）。
+
+---
+
 ### [2026-07-07 Round 135] SHERIFF_SPEECH 骑士竞选对跳检测（ssKnightCounterClaimants）
 
 - **R135-A 骑士对跳检测对称完成**：`ssKnightCounterClaimants`（骑士门控，过滤 `jump_knight` 排除自身）+ `knightSsCounterHint`（有对跳时注入底气压制提示），追加到骑士 ssHint 分支 `` `${knightSsHint}${knightSsCounterHint}` ``。与 R134 预言家逻辑完全对称，也与 R125 DAY_SPEECH 骑士检测对称。**预言家 + 骑士在 SHERIFF_SPEECH 阶段均已有完整的对跳感知机制**。
