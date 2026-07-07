@@ -476,6 +476,23 @@ export function BattleScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.score.sets[0], state.score.matchOver]);
 
+  // 对手赢盘鼓励提示：对手赢下某盘（非赛末）时短暂弹出鼓励
+  const prevOppSets = useRef(0);
+  const [oppSetBanner, setOppSetBanner] = useState(null);
+  useEffect(() => {
+    const cur = state.score.sets[1];
+    if (cur > prevOppSets.current && !state.score.matchOver) {
+      prevOppSets.current = cur;
+      const tied = state.score.sets[0] === cur;
+      setOppSetBanner({ tied, key: Date.now() });
+      const t = setTimeout(() => setOppSetBanner(null), 1400);
+      return () => clearTimeout(t);
+    }
+    prevOppSets.current = cur;
+    return undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.score.sets[1], state.score.matchOver]);
+
   // idle → 自动开始下一球（留 1.4s 看结算）
   useEffect(() => {
     if (state.phase !== 'idle' || state.score.matchOver) return undefined;
@@ -534,6 +551,13 @@ export function BattleScreen({
           <div className="bt-set-win-text">
             🎾 先下一城！
             <span className="bt-set-win-sub">第一盘胜</span>
+          </div>
+        </div>
+      )}
+      {oppSetBanner && (
+        <div className="bt-opp-set-overlay" key={oppSetBanner.key} aria-live="polite">
+          <div className="bt-opp-set-text">
+            {oppSetBanner.tied ? '💪 追平！决胜盘——绝不放弃！' : '💪 扳回来！下一盘加油！'}
           </div>
         </div>
       )}

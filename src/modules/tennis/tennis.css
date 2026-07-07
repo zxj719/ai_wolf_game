@@ -839,6 +839,7 @@
   .tennis-scope .bt-rallylog .counter-win, .tennis-scope .bt-rallylog .counter-lose { animation: none; }
   .tennis-scope .bt-combined-hint.critical { animation: none; }
   .tennis-scope .bt-set-win-text { animation: none !important; opacity: 1; }
+  .tennis-scope .bt-opp-set-text { animation: none !important; opacity: 1; }
 }
 
 /* ===== 盘胜庆祝横幅 (SetWinBanner) ===== */
@@ -872,6 +873,34 @@
   font-size: clamp(1rem, 3.2vw, 1.35rem);
   color: rgba(74,222,128,.72);
   letter-spacing: .08em;
+}
+
+/* ===== 对手赢盘鼓励横幅 (OppSetBanner) ===== */
+@keyframes bt-opp-set-pop {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(.88); }
+  18%  { opacity: 1; transform: translate(-50%,-50%) scale(1.06); }
+  35%  { transform: translate(-50%,-50%) scale(1); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(.97); }
+}
+.tennis-scope .bt-opp-set-overlay {
+  position: fixed; inset: 0; z-index: 86; pointer-events: none;
+}
+.tennis-scope .bt-opp-set-text {
+  position: absolute; left: 50%; top: 42%;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 6px;
+  padding: 18px 36px;
+  background: rgba(20,10,10,.87);
+  border: 2px solid rgba(239,68,68,.75);
+  border-radius: 18px;
+  font-family: var(--display);
+  font-size: clamp(1.4rem, 5.5vw, 2.2rem);
+  color: #f87171;
+  text-shadow: 0 0 20px rgba(239,68,68,.55);
+  animation: bt-opp-set-pop 1.4s ease forwards;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 
 /* ===== 五连胜庆祝动效 (StreakBurst) ===== */
