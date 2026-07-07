@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats, loadPrevPrepStats, computePlayerOppWinRates } from '../localBoard';
+import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats, loadPrevPrepStats, computePlayerOppWinRates, computeCounterEfficiency } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -791,5 +791,81 @@ describe('computePlayerOppWinRates', () => {
     ];
     const result = computePlayerOppWinRates(records, '莹');
     expect(result['Ross']).toEqual({ wins: 0, total: 2 });
+  });
+});
+
+describe('computeCounterEfficiency', () => {
+  it('空记录返回空数组', () => {
+    expect(computeCounterEfficiency([])).toEqual([]);
+  });
+
+  it('tr 不足 minRallies 的记录被跳过', () => {
+    const records = [
+      { p: '诚', pf: '🐯', o: 'Elza', sp: 2, so: 1, cw: 3, tr: 9 },
+    ];
+    expect(computeCounterEfficiency(records, { minRallies: 10 })).toEqual([]);
+  });
+
+  it('旧记录（无 tr 字段）被跳过', () => {
+    const records = [
+      { p: '诚', pf: '🐯', o: 'Elza', sp: 2, so: 1 },
+    ];
+    expect(computeCounterEfficiency(records)).toEqual([]);
+  });
+
+  it('正确计算单个玩家的效率', () => {
+    const records = [
+      { p: '诚', pf: '🐯', o: 'Elza', sp: 2, so: 1, cw: 4, tr: 20 },
+    ];
+    const result = computeCounterEfficiency(records);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('诚');
+    expect(result[0].eff).toBe(20.0);
+    expect(result[0].cw).toBe(4);
+    expect(result[0].tr).toBe(20);
+  });
+
+  it('多局累计后再计算效率', () => {
+    const records = [
+      { p: '诚', pf: '🐯', o: 'Elza', sp: 2, so: 1, cw: 2, tr: 15 },
+      { p: '诚', pf: '🐯', o: 'Ross', sp: 2, so: 0, cw: 3, tr: 10 },
+    ];
+    const result = computeCounterEfficiency(records);
+    expect(result).toHaveLength(1);
+    expect(result[0].cw).toBe(5);
+    expect(result[0].tr).toBe(25);
+    expect(result[0].eff).toBe(20.0);
+  });
+
+  it('多玩家按效率降序排列', () => {
+    const records = [
+      { p: '菲比', pf: '🐻', o: 'Ross', sp: 1, so: 2, cw: 2, tr: 20 },
+      { p: '诚', pf: '🐯', o: 'Elza', sp: 2, so: 1, cw: 5, tr: 20 },
+    ];
+    const result = computeCounterEfficiency(records);
+    expect(result[0].name).toBe('诚');
+    expect(result[0].eff).toBe(25.0);
+    expect(result[1].name).toBe('菲比');
+    expect(result[1].eff).toBe(10.0);
+  });
+
+  it('同效率时克制次数多者优先', () => {
+    const records = [
+      { p: '菲比', pf: '🐻', o: 'Ross', sp: 1, so: 2, cw: 4, tr: 20 },
+      { p: '诚', pf: '🐯', o: 'Elza', sp: 2, so: 1, cw: 6, tr: 30 },
+    ];
+    const result = computeCounterEfficiency(records);
+    expect(result[0].name).toBe('诚');
+    expect(result[1].name).toBe('菲比');
+  });
+
+  it('缺失 p 字段的记录被跳过', () => {
+    const records = [
+      { pf: '🐯', o: 'Elza', sp: 2, so: 1, cw: 5, tr: 20 },
+      { p: '莹', pf: '🌸', o: 'Ross', sp: 2, so: 0, cw: 3, tr: 12 },
+    ];
+    const result = computeCounterEfficiency(records);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('莹');
   });
 });

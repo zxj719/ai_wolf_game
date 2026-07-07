@@ -226,7 +226,11 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
     if (recordedRef.current) return;
     recordedRef.current = true;
 
-    saveLocalRecord({ player: p, opp: o, setsP: state.setsP, setsO: state.setsO });
+    saveLocalRecord({
+      player: p, opp: o, setsP: state.setsP, setsO: state.setsO,
+      countersWon: matchStats?.countersWon ?? 0,
+      totalRallies: matchStats?.rallyCount ?? 0,
+    });
 
     if (user) {
       saveTennisRecord({

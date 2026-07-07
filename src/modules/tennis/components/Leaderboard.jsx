@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { sortLocalRecords, computeWeeklyChamp } from '../localBoard';
+import { sortLocalRecords, computeWeeklyChamp, computeCounterEfficiency } from '../localBoard';
 import { CHARS } from '../gameData';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -144,6 +144,7 @@ function LocalBoard({ records, onClearLocal }) {
   const sorted = sortLocalRecords(filteredRecords);
   const activeChar = charFilter ? CHARS.find((c) => c.n === charFilter) : null;
   const weeklyChamp = computeWeeklyChamp(records);
+  const counterBoard = computeCounterEfficiency(records);
 
   return (
     <div>
@@ -194,6 +195,28 @@ function LocalBoard({ records, onClearLocal }) {
             ))}
           </tbody>
         </table>
+      )}
+
+      {counterBoard.length >= 2 && (
+        <div className="lb-sub-board">
+          <div className="lb-sub-title">🧩 读招王（克制命中率）</div>
+          <table className="lb-table">
+            <thead>
+              <tr><th>#</th><th>选手</th><th>克制率</th><th>克制 / 总拍</th></tr>
+            </thead>
+            <tbody>
+              {counterBoard.slice(0, 5).map((entry, i) => (
+                <tr key={entry.name} className={i === 0 ? 'top' : ''}>
+                  <td className="mono">{rankLabel(i)}</td>
+                  <td>{entry.face} <b>{entry.name}</b></td>
+                  <td className="mono">{entry.eff}%</td>
+                  <td className="mono">{entry.cw} / {entry.tr}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="lb-sub-hint">仅统计 10 拍以上对局 · 克制得分 ÷ 总拍数</p>
+        </div>
       )}
 
       {onClearLocal && (

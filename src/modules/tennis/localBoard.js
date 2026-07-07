@@ -29,8 +29,8 @@ export function loadLocalRecords() {
   }
 }
 
-/** 与原版同构的记录：{p, pf, o, of, sp, so, ms, g, d, ts} */
-export function saveLocalRecord({ player, opp, setsP, setsO }) {
+/** 与原版同构的记录：{p, pf, o, of, sp, so, ms, g, d, ts, cw?, tr?} */
+export function saveLocalRecord({ player, opp, setsP, setsO, countersWon, totalRallies }) {
   const rec = {
     p: player.name, pf: player.face,
     o: opp.name, of: opp.face,
@@ -40,6 +40,8 @@ export function saveLocalRecord({ player, opp, setsP, setsO }) {
       month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
     }),
     ts: Date.now(), // Unix ms，用于周度统计（老记录无此字段，自动落出周窗口）
+    cw: countersWon ?? 0,  // 克制得分（R143+，旧记录无此字段）
+    tr: totalRallies ?? 0, // 总拍数（R143+，旧记录无此字段）
   };
   const list = loadLocalRecords();
   list.push(rec);
@@ -333,5 +335,28 @@ export function sortLocalRecords(list) {
     (b.sp > b.so) - (a.sp > a.so) ||
     (b.sp - b.so) - (a.sp - a.so) ||
     a.ms - b.ms);
+}
+
+/**
+ * 计算各玩家的克制效率（cw / tr × 100%），返回按效率降序的列表。
+ * 只统计 tr >= minRallies 的记录（避免少样本噪音）；旧记录无 tr/cw 字段自动跳过。
+ * 同效率时，克制总次数多者优先（样本更可信）。
+ * 返回 [{ name, face, eff, cw, tr }, ...]，无满足条件记录时返回 []。
+ */
+export function computeCounterEfficiency(records, { minRallies = 10 } = {}) {
+  const map = {};
+  for (const r of records) {
+    if (!r.p || !r.tr || r.tr < minRallies) continue;
+    if (!map[r.p]) map[r.p] = { face: r.pf ?? '', cw: 0, tr: 0 };
+    map[r.p].cw += r.cw ?? 0;
+    map[r.p].tr += r.tr;
+  }
+  return Object.entries(map)
+    .map(([name, { face, cw, tr }]) => ({
+      name, face,
+      eff: tr > 0 ? +(cw / tr * 100).toFixed(1) : 0,
+      cw, tr,
+    }))
+    .sort((a, b) => b.eff - a.eff || b.cw - a.cw);
 }
 
