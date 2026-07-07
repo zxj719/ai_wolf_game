@@ -73,6 +73,8 @@ export function useDayFlow({
   killPlayer,
   recordVoteRound,
   recordNightAction,
+  // 柱三：结构化声明（警长竞选阶段跳身份写入 claimHistory）
+  recordClaim = null,
   // 警长机制
   enableSheriff = false,
   nightActionHistory = [],
@@ -210,6 +212,14 @@ export function useDayFlow({
       if (res?.speech) {
         addLog(`🎙️ [竞选] [${c.id}号] ${c.name}: ${res.speech}`, 'chat');
         if (gameMode === 'ai-only' && res.thought) addLog(`💭 [${c.id}号 竞选] ${res.thought}`, 'thought');
+      }
+      // 柱三：竞选发言中的身份声明即时写入 claimHistory，让后续候选人可检测到（R134）
+      if (Array.isArray(res?.claims) && recordClaim) {
+        res.claims.forEach(cl => {
+          if (!cl || typeof cl !== 'object' || !cl.type) return;
+          const { type, ...payload } = cl;
+          recordClaim({ day: dayCount, playerId: c.id, type, payload, timestamp: Date.now() });
+        });
       }
     }
 

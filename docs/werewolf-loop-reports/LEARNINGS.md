@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-07-07 Round 134] SHERIFF_SPEECH 竞选对跳检测 + claimHistory 实时录入
+
+- **R134-A 竞选声明 claimHistory 盲点根因**：`useDayFlow.js` 竞选循环未调用 `recordClaim`，导致对跳声明不进入 claimHistory，后续候选人和 DAY_SPEECH 均无法结构化感知。修复：在 SHERIFF_SPEECH 循环后解析 `res.claims` 调用 `recordClaim`（参数 `recordClaim = null` 默认值向前兼容）。**模式：凡新增 AI 响应解析流程，必须检查是否需要同步写入 claimHistory/speechHistory/nightActionHistory**。
+- **R134-B `recordSpeech` 幂等冲突规避**：`RECORD_SPEECH` 以 `(day, playerId)` 为唯一键，竞选候选人在 day 1 说话会占位，导致同日 DAY_SPEECH 被 first-write-wins 静默丢弃。本轮只录入 `claims`（`RECORD_CLAIM` 幂等键是 `(day, playerId, type)`，更细粒度，无此冲突）。**若将来需要录入竞选发言到 speechHistory，必须先修改 RECORD_SPEECH dedup 逻辑（加 `phase` 字段）**。
+- **R134-C T18 测试窗口 600→700**：useDayFlow 调用块约 622 chars，600 窗口截断 `recordClaim,`。**铁律：测试 useDayFlow 调用参数传入时，窗口至少设 700**（调用块比 useSpeechFlow 更长）。
+- **R134-D SS_WINDOW 升级铁律**：每次 SHERIFF_SPEECH 新增后运行检测命令（见 round134 报告）；余量 < 500 时升级（当前 7500，余量 750，安全 ✅）。下次步进至 8500。
+- **测试**：2418/2418（+19 new R134 tests T1-T19；round112 SS_WINDOW 6500→7500；干跑 25/25 ✅；build ✅，WerewolfModule 264.94 kB）。
+- **下轮优先**：平衡性调整（Options A/B/C 待决策）；或骑士 SHERIFF_SPEECH 对跳检测（`ssKnightCounterClaimants`，pattern 同 R125 DAY_SPEECH）。
+
+---
+
 ### [2026-07-07 Round 132] 猎人 DAY_SPEECH 两连+三连平安夜推断三层完整 — Prepend Injection 第 26 次
 
 - **R132-A 猎人平安夜推断三层闭合**：`isConsecutivePeacefulHunter`（D3+，N-2 平安夜，confidence -30~40，枪靶候选移除）+ `isTripleConsecutivePeacefulHunter`（D4+，N-3 平安夜，confidence -35~45，枪靶彻底排除）。Prepend Injection 第 26 次，与守卫/狼人/预言家/女巫/村民/骑士/摄梦人/魔术师同构。**猎人平安夜推断矩阵现为全角色最后一个缺口，R132 填补后平安夜推断矩阵全角色完整覆盖（DAY+NIGHT 双侧）**。

@@ -444,6 +444,7 @@ export default function WerewolfModule() {
     spokenCount, setSpokenCount, userPlayer, isThinking, setIsThinking,
     checkGameEnd, askAI, clearCurrentPhaseData, gameActiveRef,
     killPlayer, recordVoteRound, recordNightAction,
+    recordClaim,
     enableSheriff, nightActionHistory,
   });
 
