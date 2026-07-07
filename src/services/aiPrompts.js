@@ -3192,6 +3192,20 @@ ${ssHint}
                  }
              }
 
+             // R130: 猎人 SHERIFF_BADGE_PASS 专属提示词 — 枪击×传徽目标分离（结构化数据注入）
+             // killedTargets/goldWaterTargets 已在上方计算（seerChecks 过滤 badgeableSet）
+             let bpHunterHint = '';
+             if (playerRole === '猎人') {
+                 const wolfCandidates = killedTargets.map(c => `${c.targetId}号`);
+                 const goldCandidates = goldWaterTargets.map(c => `${c.targetId}号`);
+                 if (wolfCandidates.length > 0) {
+                     bpHunterHint += `\n🔫【猎人枪×徽协同 — 回避传徽】候选中含查杀目标 ${wolfCandidates.join('、')} → 这是出局时枪击首选；传徽给同一人等于两张牌合并打同一目标、协同价值归零。`;
+                 }
+                 if (goldCandidates.length > 0) {
+                     bpHunterHint += `\n🔫【猎人枪×徽协同 — 优先传徽】候选中含金水好人 ${goldCandidates.join('、')} → 传徽首选（枪打好人自废枪权，传给好人让1.5票持续发挥）。`;
+                 }
+             }
+
              // R64 读写闭环补完：好人警长死亡时读取 identity_table 积累的身份推理（传徽关键决策）
              // R113: 女巫/守卫 role-specific 优先级链（私有信息 > identity_table）
              // R117: 骑士/魔术师 role-specific 优先级链（能力状态 > identity_table）
@@ -3235,8 +3249,9 @@ ${ssHint}
                  : '你是好人警长：把警徽传给你最确信的好人。完全无法判断时撕掉警徽（-1）——错传给狼等于送1.5票。';
              return `你（警长）死亡，决定警徽去向。
 【可移交对象】${(badgeTargets || []).join(',')}号，或-1撕毁警徽。
-${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}${bpGuardHint}${bpKnightHint}${bpMagicianHint}${bpDreamweaverHint}
+${bpIdentityStep ? bpIdentityStep + '\n' : ''}${bpHint}${seerHint}${bpWitchHint}${bpGuardHint}${bpKnightHint}${bpMagicianHint}${bpDreamweaverHint}${bpHunterHint}
 输出JSON:{"targetId":数字或-1,"reason":"一句话理由","thought":"决策思考"}`;
+
         }
 
         case PROMPT_ACTIONS.LAST_WORDS: {

@@ -2010,3 +2010,28 @@
 - 本轮改动仅涉及测试窗口常量，aiPrompts.js 未变动。
 - 验证标志：WerewolfModule bundle 大小与上轮完全一致（262.19 kB），可作为"无运行时改动"的快速确认指标。
 - 当 bundle 大小变化超过 ±0.5 kB 时，说明确实有 aiPrompts.js 内容变更，需重新检查窗口余量。
+
+---
+
+## R130 教训（2026-07-07）
+
+**教训 R130-A：猎人 BADGE_PASS 结构化数据注入设计原则**
+- 猎人无私有历史结构（无 hunterHistory），但 BADGE_PASS 块顶部已计算 `killedTargets`（查杀候选 ∩ badgeableSet）和 `goldWaterTargets`（金水候选 ∩ badgeableSet），可直接复用。
+- `bpHunterHint` 注入格式：`🔫【猎人枪×徽协同 — 回避传徽】`（查杀候选）+ `🔫【猎人枪×徽协同 — 优先传徽】`（金水候选）
+- 条件门控：`if (playerRole === '猎人')`，仅在触发情况下注入，空数组时静默（不注入冗余文本）。
+- 模板插入位置：`${bpDreamweaverHint}${bpHunterHint}`（追加在摄梦人之后，独立注入点）。
+
+**教训 R130-B：BP_WINDOW 余量预警机制**
+- R130 后 BADGE_PASS 块为 9652 chars，余量仅 348 chars（安全线 300 chars）。
+- **铁律**：每次修改 BADGE_PASS block 前先执行余量检查：
+  `node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:'); const b=s.indexOf('case PROMPT_ACTIONS.',a+10); console.log('BP size:', b-a, '余量:', 10000-(b-a))"`
+- 余量 < 300 chars 时预防性升级：升级 `BP_WINDOW = 10000 → 12000`（更新 `round113SheriffBadgePassWitchGuard.test.js` + `round127HunterBadgePassBranch.test.js` 中的 BP_WINDOW 常量和 T14 断言描述）。
+
+**教训 R130-C：BADGE_PASS 私有数据块家族完整状态（R130 后）**
+- bpWitchHint（R113）：witchHistory.savedIds → 银水候选
+- bpGuardHint（R113）：guardHistory → 守护次数 top-2
+- bpKnightHint（R117）：currentPlayer.hasUsedDuel → 决斗状态
+- bpMagicianHint（R117）：magicianHistory + hasRevealed → 交换知识×身份暴露
+- bpDreamweaverHint（R123）：dreamweaverHistory.dreamedPlayers → 入梦次数 top-2
+- bpHunterHint（R130）：killedTargets + goldWaterTargets（已计算，直接复用）→ 枪×徽目标分离
+- **覆盖状态**：6 个神职私有数据块全部完成。预言家无专属数据块（seerChecks 已注入 seerHint 全局可见），村民/fallback 无数据块（符合设计）。
