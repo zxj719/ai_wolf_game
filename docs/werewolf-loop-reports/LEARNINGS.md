@@ -2035,3 +2035,25 @@
 - bpDreamweaverHint（R123）：dreamweaverHistory.dreamedPlayers → 入梦次数 top-2
 - bpHunterHint（R130）：killedTargets + goldWaterTargets（已计算，直接复用）→ 枪×徽目标分离
 - **覆盖状态**：6 个神职私有数据块全部完成。预言家无专属数据块（seerChecks 已注入 seerHint 全局可见），村民/fallback 无数据块（符合设计）。
+
+---
+
+## R131 教训（2026-07-07）
+
+**教训 R131-A：猎人 DAY_SPEECH 平安夜推断设计原则 — 枪靶排除反证逻辑**
+- 猎人的平安夜推断视角与其他角色本质不同：其他角色关注"谁被保护"，猎人关注"我的枪靶候选被证明是好人了吗"。
+- 核心反证：高票存活者 = 被狼刀却被守/救 = 更可能是好人 → 从枪靶优先列表降级（confidence 下调 15-25）。
+- 实现模式：条件门控（D2+ 且 lastNightInfo 含 "平安夜"），注入 `hunterPeaceNightStep`，插值位于 `${hunterDayHistoryStep}` 和 `Step1:` 之间。
+- 猎人仅实现单夜版本（无二阶/三阶），因为多连平安夜对枪靶列表的递增价值有限（单夜降级已足够，二阶只提供叠加确信度）。
+
+**教训 R131-B：DAY_SPEECH 8 角色平安夜推断覆盖状态（R131 后完整）**
+- 有平安夜推断的角色（主文件实现）：狼人(R83)、预言家(R81)、女巫(R82)、守卫(R81)、村民(R80)、猎人(R131)
+- 骑士/摄梦人/魔术师在 rolePrompts 模块中独立维护，需单独检查
+- **R131 后：主文件中的 6 个角色全部有平安夜推断步骤。**
+
+**教训 R131-C：BP_WINDOW 升级操作标准流程（6 文件批量升级模式）**
+- 触发条件：`BP block size - BP_WINDOW < 300 chars`（安全线 300 chars）
+- 定位命令：`grep -rn "BP_WINDOW" src/services/__tests__/` 列出所有哨兵文件
+- 升级操作：将 `const BP_WINDOW = N;` 改为 `const BP_WINDOW = N+2000;`（步进 2000 chars），同步更新 T12/T14 等描述文字（句中的 "BP_WINDOW=N" 字面量），追加历史注释（`R131: block X→N+2000`）
+- 本次涉及文件：round113/round117/round122/round123/round127/round130（共 6 个）
+- 验证：运行测试确认所有 BP_WINDOW 相关断言仍通过

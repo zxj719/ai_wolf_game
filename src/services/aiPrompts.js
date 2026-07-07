@@ -1349,19 +1349,34 @@ Step3: 我的投票应该投谁？（结合 Step0 历史候选：高威胁毒药
         if (hunterPersonalityType === 'aggressive') hunterSpeechLen = '40-60字';
         else if (hunterPersonalityType === 'cautious') hunterSpeechLen = '60-100字';
 
+        // R131: 猎人平安夜推断（枪靶排除逻辑）
+        // 其他角色（狼/预/巫/守/民）均有平安夜推断步骤，猎人独缺此分析视角
+        // 猎人视角独特性：平安夜高票存活者 = 被保护好人 → 应从枪靶优先列表降级（枪靶反证）
+        const isPeacefulNightHunter = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        let hunterPeaceNightStep = '';
+        if (isPeacefulNightHunter) {
+            const prevDay = ctx.dayCount - 1;
+            hunterPeaceNightStep = `⭕【猎人平安夜推断（thought 中完成；speech 只说"平安夜，继续分析局势"即可）】
+- 查 D${prevDay} 投票记录中票压最高的存活玩家——最可能是昨夜被狼刀但被守/救的目标
+- 枪靶排除推断：若你的开枪候选（identity_table "开枪优先级：高"玩家）与该高票存活者重合
+  → 被狼重点针对 = 更可能是好人，不是合适的枪靶
+  → identity_table 该玩家 confidence 下调 15-25，reason 追加"D${prevDay}平安夜：高票存活=被保护好人推断，枪靶优先级降级"
+- 若开枪候选不在高票存活者中：维持现有 identity_table 判断，平安夜对枪靶分析无新增信息\n`;
+        }
+
         return `${getBaseContext(ctx)}
 【猎人专属任务】白天发言 - 威慑狼人
 
 【猎人发言策略】
 1. 核心原则：你是好人阵营的"保险"——死了能带走一匹狼。活着时像村民一样分析。
-2. ⚠️ 不要分析平安夜的机制（"女巫救了""守卫守对了"）——普通村民不会这样说。只说"平安夜，信息有限"就够了。
+2. ⚠️ 不要分析平安夜的机制（"女巫救了""守卫守对了"）——普通村民不会这样说。只说"平安夜，继续分析局势"就够了。
 3. 威慑使用：被集火时暗示"你们确定要投我？"不直接说猎人。
 4. 主动分析：不要划水。直接分析已发言玩家的行为逻辑。
 5. 心中锁定：保持"如果我死了带走谁"的目标（thought 里记，不在 speech 说）。
 ${hunterPersonalityLens}
 【思维链】
 ${hunterDayHistoryStep}
-Step1: 我现在需要暴露猎人身份吗？（通常不需要，除非被集火）
+${hunterPeaceNightStep}Step1: 我现在需要暴露猎人身份吗？（通常不需要，除非被集火）
 Step2: 场上局势分析——谁在带节奏？谁的逻辑有漏洞？
 Step3: 如果我死了，最应该带走谁？（结合 Step0 历史候选评估；在 thought 中记录，不要在 speech 中说）
 Step4: 投票投谁？像一个有判断力的好人一样投票。

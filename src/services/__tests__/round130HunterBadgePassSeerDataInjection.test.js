@@ -23,14 +23,15 @@
  *   R117: 6389 chars → BP_WINDOW=8500
  *   R123: +1525 → 8327 chars → BP_WINDOW=10000
  *   R127: +424 → ~8751 chars → BP_WINDOW=10000 (余量1330)
- *   R130: +~600 → ~9351 chars → BP_WINDOW=10000 (余量~649)
+ *   R130: +~600 → 9652 chars → BP_WINDOW=10000 (余量348)
+ *   R131: BP_WINDOW 10000→12000 (余量升级，余量2348)
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const bpStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:');
-const BP_WINDOW = 10000;
+const BP_WINDOW = 12000;
 const getBpBlock = () => src.slice(bpStart, bpStart + BP_WINDOW);
 
 // ─── T1-T2: 块锚点 + R130 版本标识 ─────────────────────────────────────────
@@ -134,7 +135,7 @@ describe('R130: 白熊效应合规（R121-C 铁律）', () => {
 // ─── T12: BP_WINDOW 余量 ─────────────────────────────────────────────────────
 
 describe('R130: BP_WINDOW 余量充足', () => {
-    test('T12: BADGE_PASS 输出JSON偏移量 < BP_WINDOW=10000（余量充足）', () => {
+    test('T12: BADGE_PASS 输出JSON偏移量 < BP_WINDOW=12000（余量充足）', () => {
         const blk = src.slice(bpStart, bpStart + 20000);
         const jsonOffset = blk.indexOf('输出JSON');
         expect(jsonOffset).toBeGreaterThan(0);

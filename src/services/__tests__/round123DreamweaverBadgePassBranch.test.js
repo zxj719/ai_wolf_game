@@ -20,14 +20,15 @@
  *   R117: 8500 (block 6389 chars)
  *   R122: +480 → block ~6870
  *   R123: +1525 → block 8327 → BP_WINDOW = 10000 (8327 × 120%)
+ *   R131: block 9652 → BP_WINDOW = 12000 (余量升级)
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const bpStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:');
-// R123: block 8327 chars → 10000 ≥ 8327×120%
-const BP_WINDOW = 10000;
+// R123: block 8327→10000; R131: block 9652→12000
+const BP_WINDOW = 12000;
 const getBpBlock = () => src.slice(bpStart, bpStart + BP_WINDOW);
 
 // ─── T1-T2: 块锚点校验 ────────────────────────────────────────────────────────

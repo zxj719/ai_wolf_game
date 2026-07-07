@@ -20,7 +20,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const bpStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_BADGE_PASS:');
-const BP_WINDOW = 10000; // R117: 8500; R123: +摄梦人分支 block 8327 chars → 10000 ≥ 8327×120%
+const BP_WINDOW = 12000; // R117: 8500; R123: block 8327→10000; R131: block 9652→12000
 const getBpBlock = () => src.slice(bpStart, bpStart + BP_WINDOW);
 
 // ─── T1-T3: 锚点 + 基础变量声明 ──────────────────────────────────────────────
