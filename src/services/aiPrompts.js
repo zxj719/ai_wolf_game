@@ -2964,6 +2964,15 @@ ${badgeFlowLine}`;
              const seerSsCounterHint = ssCounterClaimants.length > 0
                  ? `\n⚡【对跳情境】${ssCounterClaimants.join('/')}号已在竞选中声称是预言家——核心反制：直接报出真实夜1查验结果（查了X号，金水/查杀），真实数据是唯一无法构造的信息差，自信阐明即可，无需花篇幅争论谁是真的。`
                  : '';
+             // R135: 骑士竞选对跳检测——对称 R134 预言家逻辑
+             const ssKnightCounterClaimants = playerRole === '骑士'
+                 ? (gameState.claimHistory || [])
+                     .filter(c => c.type === 'jump_knight' && c.playerId !== currentPlayer?.id)
+                     .map(c => c.playerId)
+                 : [];
+             const knightSsCounterHint = ssKnightCounterClaimants.length > 0
+                 ? `\n⚡【对跳情境】${ssKnightCounterClaimants.join('/')}号已在竞选中声称是骑士——核心反制：用底气压制，若已使用决斗可报目标作信任锚点；未决斗则以"主动魄力"框架坚守，无需争论身份真假。`
+                 : '';
              const ssHint = playerRole === '预言家'
                  ? `你是预言家：竞选发言 = 信息资产展示，说清3点即可赢得警徽：
 1. 首夜查验结果：X号是金水还是查杀（这是你最核心的竞选筹码）
@@ -2990,7 +2999,7 @@ ${badgeFlowLine}
                  : playerRole === '魔术师'
                  ? magicianSsHint
                  : playerRole === '骑士'
-                 ? knightSsHint
+                 ? `${knightSsHint}${knightSsCounterHint}`
                  : playerRole === '女巫'
                  ? witchSsHint
                  : playerRole === '守卫'

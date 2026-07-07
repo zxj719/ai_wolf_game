@@ -4,6 +4,15 @@
 
 ---
 
+### [2026-07-07 Round 135] SHERIFF_SPEECH 骑士竞选对跳检测（ssKnightCounterClaimants）
+
+- **R135-A 骑士对跳检测对称完成**：`ssKnightCounterClaimants`（骑士门控，过滤 `jump_knight` 排除自身）+ `knightSsCounterHint`（有对跳时注入底气压制提示），追加到骑士 ssHint 分支 `` `${knightSsHint}${knightSsCounterHint}` ``。与 R134 预言家逻辑完全对称，也与 R125 DAY_SPEECH 骑士检测对称。**预言家 + 骑士在 SHERIFF_SPEECH 阶段均已有完整的对跳感知机制**。
+- **R135-B SS_WINDOW 7500→8500**：R135 新增代码使 SHERIFF_SPEECH block 从 6750 → 7334 chars，7500 窗口余量降至 166（远低于 500 安全线）。按 R134-D 铁律升级至 8500（余量 1166 ✅）。两个 test 文件 round112/round134 的 SS_WINDOW 同步从 7500 → 8500。**铁律确认：每次 SHERIFF_SPEECH 新增后运行检测命令，余量 < 500 则 step → 8500 → 9500...**。
+- **测试**：2429/2429（+11 new R135 tests T1-T11；round112/round134 SS_WINDOW 7500→8500；干跑 25/25 ✅；build ✅，WerewolfModule 265.19 kB）。
+- **下轮优先**：平衡性调整（Options A/B/C 待决策，狼胜率 84-90% 仍偏高）；或 SHERIFF_SPEECH 狼人悍跳骑士时 `claims` 字段指引（与预言家悍跳 ① 对称）。
+
+---
+
 ### [2026-07-07 Round 134] SHERIFF_SPEECH 竞选对跳检测 + claimHistory 实时录入
 
 - **R134-A 竞选声明 claimHistory 盲点根因**：`useDayFlow.js` 竞选循环未调用 `recordClaim`，导致对跳声明不进入 claimHistory，后续候选人和 DAY_SPEECH 均无法结构化感知。修复：在 SHERIFF_SPEECH 循环后解析 `res.claims` 调用 `recordClaim`（参数 `recordClaim = null` 默认值向前兼容）。**模式：凡新增 AI 响应解析流程，必须检查是否需要同步写入 claimHistory/speechHistory/nightActionHistory**。
