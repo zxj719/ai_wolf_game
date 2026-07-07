@@ -454,6 +454,22 @@ export function BattleScreen({
   const timeScale = twists?.timeScale ?? 1;
   const windowBonus = state.pendingEffects.windowBonus + (reducedMotion ? 0.3 : 0);
 
+  // 盘胜庆祝横幅：玩家赢下某盘（非赛点）时短暂弹出
+  const prevPlayerSets = useRef(0);
+  const [setWinBanner, setSetWinBanner] = useState(null);
+  useEffect(() => {
+    const cur = state.score.sets[0];
+    if (cur > prevPlayerSets.current && !state.score.matchOver) {
+      prevPlayerSets.current = cur;
+      setSetWinBanner({ num: cur, key: Date.now() });
+      const t = setTimeout(() => setSetWinBanner(null), 1400);
+      return () => clearTimeout(t);
+    }
+    prevPlayerSets.current = cur;
+    return undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.score.sets[0], state.score.matchOver]);
+
   // idle → 自动开始下一球（留 1.4s 看结算）
   useEffect(() => {
     if (state.phase !== 'idle' || state.score.matchOver) return undefined;
@@ -507,6 +523,14 @@ export function BattleScreen({
 
   return (
     <div className="bt-screen">
+      {setWinBanner && (
+        <div className="bt-set-win-overlay" key={setWinBanner.key} aria-live="assertive">
+          <div className="bt-set-win-text">
+            🎾 先下一城！
+            <span className="bt-set-win-sub">第一盘胜</span>
+          </div>
+        </div>
+      )}
       <ScorePanel state={state} />
       <div className="bt-energies">
         <EnergyBar label={player.face} value={state.pEnergy} max={state.pEnergyMax} />
