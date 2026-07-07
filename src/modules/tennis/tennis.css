@@ -598,6 +598,10 @@
   animation: bt-tip-in .35s ease both;
 }
 @keyframes bt-tip-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: .75; transform: none; } }
+.tennis-scope .bt-rallylog .bt-counter-lost-count {
+  font-size: .71rem; color: rgba(239,68,68,.7); margin-top: 2px;
+  animation: bt-tip-in .35s ease both;
+}
 
 /* ============ v2 商店 / 家族挑战 / 绝技换装 ============ */
 .tennis-scope .shop-overlay {

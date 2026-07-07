@@ -263,6 +263,12 @@ function RallyLog({ state }) {
           💡 「{MOVES[r.oppMove].name}」被「{MOVES[counterForOpp].name}」克制
         </p>
       )}
+      {r.counterMul < 1 && !r.win && state.matchStats.counterLost >= 2 && (
+        <p className="bt-counter-lost-count">
+          本局被克制 ×{state.matchStats.counterLost}
+          {state.matchStats.counterLost >= 4 ? ' — 读招是打破僵局的关键！' : ' — 换招试试？'}
+        </p>
+      )}
     </div>
   );
 }
