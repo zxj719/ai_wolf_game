@@ -51,6 +51,43 @@ function AchievementUnlockBanner({ ids }) {
   );
 }
 
+function CounterDuelBar({ countersWon, counterLost }) {
+  const total = countersWon + counterLost;
+  if (total < 2) return null;
+  const ratio = countersWon / total;
+  let verdict, verdictColor;
+  if (ratio >= 0.6) {
+    verdict = '读招占优！克制贡献了本局关键分';
+    verdictColor = '#4ade80';
+  } else if (ratio >= 0.4) {
+    verdict = '势均力敌，继续保持读招意识';
+    verdictColor = '#fbbf24';
+  } else {
+    verdict = '被对手读穿，下局试试变换出招节奏';
+    verdictColor = '#f87171';
+  }
+  return (
+    <div className="counter-duel-bar">
+      <div className="cdb-title">🧩 克制对决</div>
+      <div className="cdb-layout">
+        <div className="cdb-side cdb-won">
+          <span className="cdb-num">{countersWon}</span>
+          <span className="cdb-lbl">克制得分</span>
+        </div>
+        <div className="cdb-bar">
+          {countersWon > 0 && <div className="cdb-fill-won" style={{ flex: countersWon }} />}
+          {counterLost > 0 && <div className="cdb-fill-lost" style={{ flex: counterLost }} />}
+        </div>
+        <div className="cdb-side cdb-lost">
+          <span className="cdb-lbl">被克失分</span>
+          <span className="cdb-num">{counterLost}</span>
+        </div>
+      </div>
+      <div className="cdb-verdict" style={{ color: verdictColor }}>{verdict}</div>
+    </div>
+  );
+}
+
 /** ⑤ 结局 + 战报 + 双榜。挂载时本地入榜 + 登录用户上传全网榜。 */
 export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats, newAchievements }) {
   const ending = ENDINGS[`${state.setsP}-${state.setsO}`];
@@ -314,12 +351,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
               </div>
             </div>
           )}
-          {matchStats.countersWon >= 2 && (
-            <p className="counter-hl">🎯 本场克制得分 {matchStats.countersWon} 次！</p>
-          )}
-          {(matchStats.counterLost ?? 0) >= 2 && (matchStats.counterLost ?? 0) > matchStats.countersWon && (
-            <p className="counter-lost-warn">🛡 被克 {matchStats.counterLost} 次，对手读招很准，下次注意变换出招节奏</p>
-          )}
+          <CounterDuelBar countersWon={matchStats.countersWon} counterLost={matchStats.counterLost ?? 0} />
           {topPlayerMoves.length > 0 && (
             <div className="player-moves-section">
               <div className="player-moves-title">🧠 你本场偏爱</div>

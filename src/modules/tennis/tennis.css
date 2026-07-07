@@ -1086,6 +1086,19 @@
 .tennis-scope .psb-desc { font-size: .68rem; color: var(--muted); font-family: var(--mono); opacity: .85; }
 .tennis-scope .counter-hl { text-align: center; margin: .6rem 0 0; font-size: .85rem; color: var(--clay); font-weight: 700; }
 .tennis-scope .counter-lost-warn { text-align: center; margin: .4rem 0 0; font-size: .82rem; color: var(--muted); font-style: italic; opacity: .9; }
+.tennis-scope .counter-duel-bar { margin: 14px 0 4px; padding: 10px 12px 8px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.tennis-scope .cdb-title { font-size: .73rem; font-weight: 600; color: rgba(242,238,224,.65); text-align: center; margin-bottom: 8px; }
+.tennis-scope .cdb-layout { display: flex; align-items: center; gap: 10px; }
+.tennis-scope .cdb-side { display: flex; flex-direction: column; align-items: center; min-width: 52px; }
+.tennis-scope .cdb-won { color: #4ade80; }
+.tennis-scope .cdb-lost { color: #f87171; }
+.tennis-scope .cdb-num { font-family: var(--mono); font-size: 1.4rem; font-weight: 700; line-height: 1; }
+.tennis-scope .cdb-lbl { font-size: .62rem; opacity: .8; text-align: center; margin-top: 2px; }
+.tennis-scope .cdb-bar { flex: 1; height: 10px; border-radius: 5px; overflow: hidden; background: rgba(255,255,255,.08); display: flex; }
+.tennis-scope .cdb-fill-won { background: linear-gradient(90deg, #16a34a, #4ade80); height: 100%; }
+.tennis-scope .cdb-fill-lost { background: linear-gradient(90deg, #f87171, #dc2626); height: 100%; }
+.tennis-scope .cdb-verdict { font-size: .73rem; font-weight: 500; text-align: center; margin-top: 7px; }
+@media (prefers-reduced-motion: reduce) { .tennis-scope .cdb-fill-won, .tennis-scope .cdb-fill-lost { transition: none; } }
 .tennis-scope .player-moves-section { margin-top: 14px; }
 .tennis-scope .player-moves-title { font-size: .72rem; color: var(--muted); margin-bottom: 8px; font-weight: 600; letter-spacing: .02em; }
 .tennis-scope .player-move-chip { flex: 1; min-width: 76px; display: flex; flex-direction: column; align-items: center; background: rgba(30,58,138,.10); border: 1px solid rgba(242,238,224,.08); border-radius: 10px; padding: 8px 6px 7px; }
