@@ -4,6 +4,16 @@
 
 ---
 
+### [2026-07-07 Round 132] 猎人 DAY_SPEECH 两连+三连平安夜推断三层完整 — Prepend Injection 第 26 次
+
+- **R132-A 猎人平安夜推断三层闭合**：`isConsecutivePeacefulHunter`（D3+，N-2 平安夜，confidence -30~40，枪靶候选移除）+ `isTripleConsecutivePeacefulHunter`（D4+，N-3 平安夜，confidence -35~45，枪靶彻底排除）。Prepend Injection 第 26 次，与守卫/狼人/预言家/女巫/村民/骑士/摄梦人/魔术师同构。**猎人平安夜推断矩阵现为全角色最后一个缺口，R132 填补后平安夜推断矩阵全角色完整覆盖（DAY+NIGHT 双侧）**。
+- **R132-B Hunter block 窗口级联规律**：猎人 DAY_SPEECH 函数体从 R131（约 4000 chars）增至 R132（5134 chars）。两个使用固定窗口的测试文件须同步：`round56` 4000→5500（`thinkChainIdx` 4277 超出 4000）；`round69` hunter window 4500→5500（`${hunterSpeechLen}` offset 4941 超出 4500）。**铁律：每次猎人 DAY_SPEECH 新增代码后，必须运行检测命令确认 block size 和 ${hunterSpeechLen} offset 在窗口内**。检测命令见 round132 报告。当前余量 366 chars（窗口 5500 - block 5134），安全线 300 ✅；下轮若新增 > 300 chars 则升至 6000。
+- **R132-C Priority C 已验证关闭**：骑士（knight.js R101 三层）、摄梦人（dreamweaver.js R108 三层）、魔术师（magician.js R110 三层）均已有平安夜推断步骤，跨轮建议「Priority C 检查这三个角色」可关闭，下轮不必再重复检查。
+- **测试**：2380/2380（+18 new R132 tests T1-T18；round56 窗口 4000→5500；round69 窗口 4500→5500；1 pre-existing chatSocket failure 无关）；干跑 25/25 ✅；build ✅（WerewolfModule 263.61 kB）；check-build ✅（0 localhost 泄露）。
+- **下轮优先**：平衡性调整（用户决策 pending：Option A/B/C）；或 BADGE_PASS / LAST_WORDS 边角场景审计。平安夜推断矩阵已完整，下轮无需再检查。
+
+---
+
 ### [2026-07-06 Round 126] 摄梦人 DAY_VOTE 读写闭环——dreamweaverHistory 入梦频次作投票锚点
 
 - **完成状态**：`aiPrompts.js` DAY_VOTE case 新增 6 个变量（`dvDWHistory/dvDWDreamedRaw/dvDWAliveIdSet/dvDWFreqMap/dvDWTopDreamed/dvDWDreamedSummary`），`dreamweaverVoteStrategy` 改为两分支条件表达式（有入梦历史 → anchor branch，无历史 → NLP fallback）；DV_WINDOW 18000 → 20000（7 个测试文件全量升级）；round72 test 4 处回归修复（T1/辅助函数/T12/T14）。全量测试 2310/2310（+20 new R126 tests T1-T20）✅；build ✅（WerewolfModule 261.70 kB）；check-build ✅（0 localhost 泄露）。**标志意义：所有 8 神职 DAY_VOTE 专属策略现已全部使用直接结构数据注入（NLP 解析→结构注入完成）**。

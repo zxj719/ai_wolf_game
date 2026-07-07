@@ -1349,14 +1349,28 @@ Step3: 我的投票应该投谁？（结合 Step0 历史候选：高威胁毒药
         if (hunterPersonalityType === 'aggressive') hunterSpeechLen = '40-60字';
         else if (hunterPersonalityType === 'cautious') hunterSpeechLen = '60-100字';
 
-        // R131: 猎人平安夜推断（枪靶排除逻辑）
-        // 其他角色（狼/预/巫/守/民）均有平安夜推断步骤，猎人独缺此分析视角
+        // R131: 猎人平安夜推断（枪靶排除逻辑）；R132: 两连+三连扩展（Prepend Injection 第 26 次）
         // 猎人视角独特性：平安夜高票存活者 = 被保护好人 → 应从枪靶优先列表降级（枪靶反证）
         const isPeacefulNightHunter = ctx.dayCount > 1 && ctx.lastNightInfo?.includes('平安夜');
+        const isConsecutivePeacefulHunter = ctx.dayCount >= 3 && isPeacefulNightHunter && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 2}:平安夜`);
+        const isTripleConsecutivePeacefulHunter = ctx.dayCount >= 4 && isConsecutivePeacefulHunter && ctx.fullGameTimeline?.includes(`N${ctx.dayCount - 3}:平安夜`);
         let hunterPeaceNightStep = '';
         if (isPeacefulNightHunter) {
             const prevDay = ctx.dayCount - 1;
-            hunterPeaceNightStep = `⭕【猎人平安夜推断（thought 中完成；speech 只说"平安夜，继续分析局势"即可）】
+            const prevPrevDay = ctx.dayCount >= 3 ? ctx.dayCount - 2 : 0;
+            const threePrevDay = ctx.dayCount >= 4 ? ctx.dayCount - 3 : 0;
+            let tripleConsecutivePeaceHintHunter = '';
+            if (isTripleConsecutivePeacefulHunter) {
+                tripleConsecutivePeaceHintHunter = `⭕【猎人三连平安夜三阶推断（N${threePrevDay}+N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成；speech 只说"三连平安夜，继续分析"即可）】
+- 三轮高票存活者若两次以上重合 → 三阶确认：该玩家几乎可确定为好人，立即从枪靶候选彻底清除
+  → identity_table 该玩家 confidence 下调 35-45，reason 追加"N${threePrevDay}+N${prevPrevDay}+N${prevDay}三连平安夜：三连高票存活=极高概率被连守，枪靶彻底排除"\n`;
+            }
+            const consecutivePeaceHintHunter = isConsecutivePeacefulHunter
+                ? `${tripleConsecutivePeaceHintHunter}⭕【猎人两连平安夜二阶推断（N${prevPrevDay}+N${prevDay}均无死亡；thought 中完成）】
+- 查 D${prevPrevDay} 和 D${prevDay} 投票记录：若两轮高票存活者相同 → 两连被守高概率确认
+  → identity_table 该玩家 confidence 下调 30-40，reason 追加"N${prevPrevDay}+N${prevDay}两连平安夜：两连高票存活=极可能被连守，枪靶候选移除"\n`
+                : '';
+            hunterPeaceNightStep = `${consecutivePeaceHintHunter}⭕【猎人平安夜推断（thought 中完成；speech 只说"平安夜，继续分析局势"即可）】
 - 查 D${prevDay} 投票记录中票压最高的存活玩家——最可能是昨夜被狼刀但被守/救的目标
 - 枪靶排除推断：若你的开枪候选（identity_table "开枪优先级：高"玩家）与该高票存活者重合
   → 被狼重点针对 = 更可能是好人，不是合适的枪靶

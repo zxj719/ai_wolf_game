@@ -26,8 +26,8 @@ const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 // '猎人': (ctx, params) => { 是函数体形式（R56 改动后），全文唯一
 const hunterFnMarker = "'猎人': (ctx, params) => {";
 const hunterFnStart = src.indexOf(hunterFnMarker);
-// 窗口：猎人函数体约 1100 chars → 窗口 1600
-const hunterBlock = src.slice(hunterFnStart, hunterFnStart + 4000);
+// 窗口：R132 猎人函数体 5134 chars（R132 两连+三连扩展后）→ 窗口 5500
+const hunterBlock = src.slice(hunterFnStart, hunterFnStart + 5500);
 
 // ─── 定位思维链段落（在 return 模板字符串内，含插值占位）─────────────────────
 // 注意：Step0 文本在 hunterDayHistoryStep 变量声明中（函数体顶部），

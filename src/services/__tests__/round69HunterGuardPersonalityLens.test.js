@@ -18,7 +18,8 @@ const src = readFileSync(resolve(process.cwd(), 'src/services/aiPrompts.js'), 'u
 function getHunterBlock() {
     const start = src.indexOf("'猎人': (ctx, params) =>");
     if (start === -1) throw new Error('猎人函数未找到');
-    return src.slice(start, start + 4500);
+    // R132: window expanded from 4500 (hunter block now 5134 chars; ${hunterSpeechLen} at ~4941)
+    return src.slice(start, start + 5500);
 }
 
 function getGuardBlock() {
