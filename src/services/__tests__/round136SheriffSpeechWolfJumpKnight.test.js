@@ -24,7 +24,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const ssStart = src.lastIndexOf('case PROMPT_ACTIONS.SHERIFF_SPEECH:');
-const SS_WINDOW = 8500;
+const SS_WINDOW = 9500;
 const getSsBlock = () => src.slice(ssStart, ssStart + SS_WINDOW);
 
 // ─── T1-T3: wolf ssHint ② 悍跳骑士路径存在 ──────────────────────────────────────

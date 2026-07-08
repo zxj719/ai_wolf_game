@@ -2973,6 +2973,25 @@ ${badgeFlowLine}`;
              const knightSsCounterHint = ssKnightCounterClaimants.length > 0
                  ? `\n⚡【对跳情境】${ssKnightCounterClaimants.join('/')}号已在竞选中声称是骑士——核心反制：用底气压制，若已使用决斗可报目标作信任锚点；未决斗则以"主动魄力"框架坚守，无需争论身份真假。`
                  : '';
+             // R137: 多狼竞选协调——检测其他狼队友的已有声明，指导分工策略
+             const ssOtherWolfCandidates = playerRole === '狼人'
+                 ? (candidateIds || []).filter(id =>
+                     String(id) !== String(currentPlayer?.id) &&
+                     players.find(p => String(p.id) === String(id) && p.role === '狼人'))
+                 : [];
+             const ssWolfClaimedSeer = ssOtherWolfCandidates.length > 0
+                 ? (gameState.claimHistory || [])
+                     .filter(c => c.type === 'jump_seer' && ssOtherWolfCandidates.some(id => String(c.playerId) === String(id)))
+                     .map(c => c.playerId)
+                 : [];
+             const ssWolfClaimedKnight = ssOtherWolfCandidates.length > 0
+                 ? (gameState.claimHistory || [])
+                     .filter(c => c.type === 'jump_knight' && ssOtherWolfCandidates.some(id => String(c.playerId) === String(id)))
+                     .map(c => c.playerId)
+                 : [];
+             const ssWolfCoordHint = ssOtherWolfCandidates.length > 0 && (ssWolfClaimedSeer.length > 0 || ssWolfClaimedKnight.length > 0)
+                 ? `\n【队友信息】${[...ssWolfClaimedSeer.map(id => `${id}号队友已走路径①（悍跳预言家）`), ...ssWolfClaimedKnight.map(id => `${id}号队友已走路径②（悍跳骑士）`)].join('；')}——两人取不同角度最优：路径③（好人竞选）是当前最佳选择，双角色多元覆盖让好人更难识别身份关联。claims 留 []`
+                 : '';
              const ssHint = playerRole === '预言家'
                  ? `你是预言家：竞选发言 = 信息资产展示，说清3点即可赢得警徽：
 1. 首夜查验结果：X号是金水还是查杀（这是你最核心的竞选筹码）
@@ -2983,7 +3002,7 @@ ${badgeFlowLine}`;
                  ? `你是狼人：根据你的竞选策略选择发言角度——
 ① 若悍跳预言家：构造可信的"查验结果"（和你真实知道的身份一致，不能和场上已有信息矛盾），描述流畅的心路历程，给出合理的警徽流计划；同时在 claims 字段声明：[{"type":"jump_seer","checks":[{"night":1,"targetId":X,"isWolf":true或false}]}]
 ② 若悍跳骑士：声称已向某人发起或准备发起决斗，给出具体决斗目标（选一个你知道是好人或村民的 ID 更可信）；在 claims 字段声明：[{"type":"jump_knight","duel":{"targetId":X}}]（X 为你"决斗"的目标玩家 ID）
-③ 若以好人身份竞选：展示分析能力，说出你对昨夜局势的判断和票型倾向——暗示你当选后能主导好人找出"狼人"（实际是在控制信息流）；claims 留 []`
+③ 若以好人身份竞选：展示分析能力，说出你对昨夜局势的判断和票型倾向——暗示你当选后能主导好人找出"狼人"（实际是在控制信息流）；claims 留 []${ssWolfCoordHint}`
                  : playerRole === '猎人'
                  ? `你是猎人：竞选发言 = 展示"持续威慑力"——让警下相信投你不亏，但**绝不能暴露猎人身份**。
 【隐性威慑框架（改编成自己的语言，不要照抄）】：

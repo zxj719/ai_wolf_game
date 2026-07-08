@@ -20,7 +20,7 @@ import { resolve } from 'path';
 
 const src = readFileSync(resolve(__dirname, '../aiPrompts.js'), 'utf8');
 const ssStart = src.indexOf('case PROMPT_ACTIONS.SHERIFF_SPEECH:');
-const SS_WINDOW = 8500;
+const SS_WINDOW = 9500;
 const getSsBlock = () => src.slice(ssStart, ssStart + SS_WINDOW);
 
 // ─── T1-T3: ssKnightCounterClaimants 变量声明与门控 ─────────────────────────────

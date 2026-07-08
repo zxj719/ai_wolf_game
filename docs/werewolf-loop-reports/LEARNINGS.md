@@ -4,6 +4,15 @@
 
 ---
 
+### [2026-07-08 Round 137] SHERIFF_SPEECH 多狼竞选协调（ssWolfCoordHint 分工策略）
+
+- **R137-A 多狼协调铁律**：两只狼同时竞选时，后发言的狼人需感知队友已声明的身份（从 `claimHistory` 读取 jump_seer/jump_knight），动态切换为好人竞选路径（路径③）实现分工。**凡是给狼人新增竞选悍跳路径（如未来新角色），必须同步检查 `ssWolfCoordHint` 逻辑是否需要感知该新路径**（否则分工建议不完整）。技术实现：`ssOtherWolfCandidates`（门控，非狼人时 []）→ `ssWolfClaimedSeer`/`ssWolfClaimedKnight`（检测已跳身份）→ `ssWolfCoordHint`（条件注入，无多狼/无已跳时 ''）。
+- **R137-B SS_WINDOW 升级铁律（更新）**：本轮 SS block 从 7520 增至 8894（+1374 chars），SS_WINDOW 8500→9500，余量 606。**铁律检测命令（每次 SHERIFF_SPEECH 新增后必跑）**：`node -e "const s=require('fs').readFileSync('src/services/aiPrompts.js','utf8'); const a=s.indexOf('case PROMPT_ACTIONS.SHERIFF_SPEECH:'); const end=s.indexOf('case PROMPT_ACTIONS.',a+1); console.log('block:',end-a,'余量:',9500-(end-a))"` 余量 < 500 时升级至 10500。涉及测试文件：round112/round134/round135/round136（共 4 个 SS_WINDOW 变量）。
+- **测试**：2465/2465（+12 new R137 tests T1-T12；干跑 25/25 ✅；build ✅，WerewolfModule 266.00 kB；check-build ✅，0 localhost 泄露）。
+- **下轮优先**：平衡性调整（Options A/B/C 待决策，狼胜率 84-90%）；或 LAST_WORDS 骑士遗言（骑士死亡时遗言揭示 jump_knight 悍跳者）。
+
+---
+
 ### [2026-07-07 Round 136] SHERIFF_SPEECH 狼人悍跳骑士 claims 字段指引（jump_knight 写→读闭环完成）
 
 - **R136-A jump_knight 闭环完整性铁律**：R135 给真骑士添加了 `ssKnightCounterClaimants` 对跳检测，但该检测依赖 `claimHistory` 中有 `jump_knight` 记录；而记录写入依赖狼人知道 `claims:{type:'jump_knight',duel:{targetId:X}}` 格式。**凡是给接收方（真骑士/真预言家）添加对跳检测机制，必须同步检查发起方（狼人）的 wolf ssHint 是否包含对应 claims 格式说明**。缺失任何一环，整个闭环无效。
