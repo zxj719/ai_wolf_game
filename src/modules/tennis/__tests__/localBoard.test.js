@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats, loadPrevPrepStats, computePlayerOppWinRates, computeCounterEfficiency } from '../localBoard';
+import { computeCharStats, findBestChar, findMainChar, saveLocalRecord, loadLocalRecords, clearLocalRecords, computeStreakCount, computeWeeklyChamp, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, savePrepHistory, loadLastPrepStats, loadPrevPrepStats, computePlayerOppWinRates, computeCounterEfficiency, computeTopRallyByChar } from '../localBoard';
 
 describe('computeCharStats', () => {
   it('未出战角色不出现在 map 中', () => {
@@ -867,5 +867,64 @@ describe('computeCounterEfficiency', () => {
     const result = computeCounterEfficiency(records);
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('莹');
+  });
+});
+
+describe('computeTopRallyByChar', () => {
+  it('空记录返回空 map', () => {
+    expect(computeTopRallyByChar([])).toEqual({});
+  });
+
+  it('无 tbr 字段的旧记录被跳过', () => {
+    const records = [
+      { p: '诚', o: 'Elza', sp: 2, so: 1, cw: 2, tr: 15 },
+    ];
+    expect(computeTopRallyByChar(records)).toEqual({});
+  });
+
+  it('单条记录正确返回角色最佳一击', () => {
+    const records = [
+      { p: '诚', o: 'Elza', sp: 2, so: 1, tbr: { mv: 'topspin', mult: 1.45, ctr: true, cl: false } },
+    ];
+    const result = computeTopRallyByChar(records);
+    expect(result['诚']).toEqual({ mv: 'topspin', mult: 1.45, ctr: true, cl: false });
+  });
+
+  it('同角色多条记录取最高倍率', () => {
+    const records = [
+      { p: '诚', o: 'Elza', sp: 2, so: 1, tbr: { mv: 'topspin', mult: 1.32, ctr: false, cl: false } },
+      { p: '诚', o: '菲比', sp: 2, so: 0, tbr: { mv: 'flatDrive', mult: 1.50, ctr: true, cl: true } },
+      { p: '诚', o: 'Ross', sp: 1, so: 2, tbr: { mv: 'smash', mult: 1.28, ctr: false, cl: false } },
+    ];
+    const result = computeTopRallyByChar(records);
+    expect(result['诚'].mult).toBe(1.50);
+    expect(result['诚'].mv).toBe('flatDrive');
+  });
+
+  it('不同角色独立计算，互不影响', () => {
+    const records = [
+      { p: '诚', o: 'Elza', sp: 2, so: 1, tbr: { mv: 'topspin', mult: 1.40, ctr: false, cl: false } },
+      { p: 'Elza', o: '诚', sp: 2, so: 0, tbr: { mv: 'slice', mult: 1.45, ctr: true, cl: false } },
+    ];
+    const result = computeTopRallyByChar(records);
+    expect(result['诚'].mult).toBe(1.40);
+    expect(result['Elza'].mult).toBe(1.45);
+  });
+
+  it('缺失 p 字段的记录被跳过', () => {
+    const records = [
+      { o: 'Elza', sp: 2, so: 1, tbr: { mv: 'topspin', mult: 1.50, ctr: false, cl: false } },
+      { p: '菲比', o: '诚', sp: 2, so: 0, tbr: { mv: 'volley', mult: 1.38, ctr: true, cl: false } },
+    ];
+    const result = computeTopRallyByChar(records);
+    expect(Object.keys(result)).toEqual(['菲比']);
+  });
+
+  it('cl 为 true 的 CLUTCH 最佳一击被正确保留', () => {
+    const records = [
+      { p: '丫', o: '莹', sp: 2, so: 1, tbr: { mv: 'lob', mult: 1.50, ctr: false, cl: true } },
+    ];
+    const result = computeTopRallyByChar(records);
+    expect(result['丫'].cl).toBe(true);
   });
 });

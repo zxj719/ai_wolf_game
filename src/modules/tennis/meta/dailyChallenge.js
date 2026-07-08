@@ -64,9 +64,9 @@ const DAILY_STATS_PREFIX = 'tennis_daily_stats_';
 
 /**
  * 记录今日一战个人数据（按玩家名分组，支持家庭多人共用浏览器）。
- * @param {{ playerName, won, setsP, setsO, aces, avgMultiplier, clutchWins, countersWon }} stats
+ * @param {{ playerName, won, setsP, setsO, aces, avgMultiplier, clutchWins, countersWon, topRally }} stats
  */
-export function saveDailyStats({ playerName, won, setsP, setsO, aces, avgMultiplier, clutchWins, countersWon }) {
+export function saveDailyStats({ playerName, won, setsP, setsO, aces, avgMultiplier, clutchWins, countersWon, topRally }) {
   const key = `${DAILY_STATS_PREFIX}${getTodayKey()}`;
   let data = {};
   try { data = JSON.parse(localStorage.getItem(key)) ?? {}; } catch { /* noop */ }
@@ -78,6 +78,9 @@ export function saveDailyStats({ playerName, won, setsP, setsO, aces, avgMultipl
     avgMultiplier: avgMultiplier ?? null,
     clutchWins: clutchWins ?? 0,
     countersWon: countersWon ?? 0,
+    topRally: (topRally?.pMultiplier > 0)
+      ? { mv: topRally.pMove, mult: +topRally.pMultiplier.toFixed(2), ctr: topRally.counterMul > 1 }
+      : null,
   };
   try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* 隐私模式等静默 */ }
 }

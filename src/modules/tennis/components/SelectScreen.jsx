@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { CHARS } from '../gameData';
 import { Leaderboard } from './Leaderboard';
 import { EQUIPMENT_SLOTS, SLOT_META, RARITY_META } from '../meta/equipment';
-import { loadLocalRecords, computeCharStats, findBestChar, findMainChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, computePlayerOppWinRates } from '../localBoard';
+import { loadLocalRecords, computeCharStats, findBestChar, findMainChar, computeCurrentWinStreak, computeRecentResults, computeOppRecentResults, computeOppWinStreak, computeOppLastBattleTs, computeOppBestWinStreak, sortOppChars, findRevengeOpportunity, computePlayerOppWinRates, computeTopRallyByChar } from '../localBoard';
 import { getDailyChallenge, isDailyChallengeCompleted, loadDailyStats, computeDailyRank, loadDailyStreak, DAILY_BONUS_COINS } from '../meta/dailyChallenge';
 import { CHAR_BUILDS, COUNTER_PAIRS, MOVES } from '../battle/moves';
 
@@ -47,6 +47,7 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
     return map;
   }, [records]);
   const charStatsMap = useMemo(() => computeCharStats(records), [records]);
+  const topRallyByChar = useMemo(() => computeTopRallyByChar(records), [records]);
   const bestChar = useMemo(() => findBestChar(charStatsMap), [charStatsMap]);
   const mainChar = useMemo(() => findMainChar(charStatsMap), [charStatsMap]);
   const currentWinStreak = useMemo(
@@ -191,6 +192,14 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
                 {cs && (
                   <span className="char-stat">出战 {cs.played} · 赢 {cs.won}</span>
                 )}
+                {topRallyByChar[c.n] && (
+                  <span
+                    className={`char-best-rally${topRallyByChar[c.n].cl ? ' cbr-clutch' : ''}`}
+                    title={`以${c.n}出战时最佳一击：${topRallyByChar[c.n].mult}×${topRallyByChar[c.n].ctr ? '（克制）' : ''}`}
+                  >
+                    ✨ {topRallyByChar[c.n].mult}×
+                  </span>
+                )}
                 {recentResultsMap[c.n] && (
                   <span className="char-trend" aria-label={`近${recentResultsMap[c.n].length}局`}>
                     {recentResultsMap[c.n].map((won, i) => (
@@ -307,6 +316,11 @@ export function SelectScreen({ onStart, onStartDaily, toast, boardProps, equipme
             )}
             {myDailyStats.avgMultiplier !== null && (
               <span className="my-daily-chip">操作 {myDailyStats.avgMultiplier}×</span>
+            )}
+            {myDailyStats.topRally && (
+              <span className="my-daily-chip my-daily-chip-best" title={`今日一战最佳一击：${myDailyStats.topRally.mult}×${myDailyStats.topRally.ctr ? '（克制）' : ''}`}>
+                ✨ 最佳一击 {myDailyStats.topRally.mult}×
+              </span>
             )}
           </div>
         )}

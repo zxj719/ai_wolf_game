@@ -231,6 +231,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
       player: p, opp: o, setsP: state.setsP, setsO: state.setsO,
       countersWon: matchStats?.countersWon ?? 0,
       totalRallies: matchStats?.rallyCount ?? 0,
+      topRally: matchStats?.topRally,
     });
 
     if (user) {

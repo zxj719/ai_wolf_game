@@ -29,8 +29,8 @@ export function loadLocalRecords() {
   }
 }
 
-/** 与原版同构的记录：{p, pf, o, of, sp, so, ms, g, d, ts, cw?, tr?} */
-export function saveLocalRecord({ player, opp, setsP, setsO, countersWon, totalRallies }) {
+/** 与原版同构的记录：{p, pf, o, of, sp, so, ms, g, d, ts, cw?, tr?, tbr?} */
+export function saveLocalRecord({ player, opp, setsP, setsO, countersWon, totalRallies, topRally }) {
   const rec = {
     p: player.name, pf: player.face,
     o: opp.name, of: opp.face,
@@ -43,6 +43,15 @@ export function saveLocalRecord({ player, opp, setsP, setsO, countersWon, totalR
     cw: countersWon ?? 0,  // 克制得分（R143+，旧记录无此字段）
     tr: totalRallies ?? 0, // 总拍数（R143+，旧记录无此字段）
   };
+  // tbr（topBestRally，R145+）：仅存展示所需 4 字段，旧记录无此字段自动跳过
+  if (topRally?.pMultiplier > 0) {
+    rec.tbr = {
+      mv: topRally.pMove,
+      mult: +topRally.pMultiplier.toFixed(2),
+      ctr: topRally.counterMul > 1,
+      cl: !!topRally.clutch,
+    };
+  }
   const list = loadLocalRecords();
   list.push(rec);
   store.setItem(LB_KEY, JSON.stringify(list.slice(-50))); // 最多留 50 条
@@ -335,6 +344,23 @@ export function sortLocalRecords(list) {
     (b.sp > b.so) - (a.sp > a.so) ||
     (b.sp - b.so) - (a.sp - a.so) ||
     a.ms - b.ms);
+}
+
+/**
+ * 按玩家角色计算历史最佳一击（最高 pMultiplier 赢球的招式与倍率）。
+ * 仅统计含 tbr 字段的记录（R145+ 新增）；旧记录自动跳过。
+ * 返回 { [charName]: { mv, mult, ctr, cl } }
+ */
+export function computeTopRallyByChar(records) {
+  const map = {};
+  for (const r of records) {
+    if (!r.p || !r.tbr) continue;
+    const cur = map[r.p];
+    if (!cur || r.tbr.mult > cur.mult) {
+      map[r.p] = r.tbr;
+    }
+  }
+  return map;
 }
 
 /**

@@ -1163,6 +1163,7 @@
 .tennis-scope .my-daily-result.win { color: #6ee7b7; }
 .tennis-scope .my-daily-result.loss { color: rgba(242,238,224,.55); }
 .tennis-scope .my-daily-chip { font-size: .7rem; font-family: var(--mono); background: rgba(242,238,224,.07); border: 1px solid rgba(242,238,224,.12); border-radius: 6px; padding: 2px 7px; color: var(--accent); }
+.tennis-scope .my-daily-chip-best { border-color: rgba(245,158,11,.35); color: #f59e0b; font-weight: 700; }
 .tennis-scope .my-daily-rank-chip { border-color: rgba(250,204,21,.3); color: #fbbf24; }
 .tennis-scope .my-daily-rank-first { background: rgba(250,204,21,.12); border-color: rgba(250,204,21,.5); color: #fde047; font-weight: 700; }
 
@@ -1171,6 +1172,8 @@
 .tennis-scope .roster .chip .ct-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .tennis-scope .roster .chip .ct-w { background: #4caf76; }
 .tennis-scope .roster .chip .ct-l { background: rgba(248,113,113,.55); }
+.tennis-scope .roster .chip .char-best-rally { display: block; font-size: .62rem; color: #f59e0b; font-weight: 700; font-family: var(--mono); margin-top: 3px; letter-spacing: .02em; }
+.tennis-scope .roster .chip .char-best-rally.cbr-clutch { color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,.5); }
 
 /* ===== 对手走势点 (opp-history-chip) ===== */
 .tennis-scope .opp-trend { display: flex; justify-content: center; gap: 3px; margin-top: 4px; }

@@ -224,6 +224,7 @@ export default function TennisRoute() {
           : null,
         clutchWins: matchStats.clutchWins ?? 0,
         countersWon: matchStats.countersWon ?? 0,
+        topRally: matchStats?.topRally,
       });
       if (win) {
         markDailyChallengeCompleted();
