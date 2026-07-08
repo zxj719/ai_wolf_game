@@ -188,8 +188,9 @@ export default function TennisRoute() {
   const unlockedUltNames = new Set([ownUltimate, ...progress.unlockedMoves].filter(Boolean));
 
   // 单局快打结束：盘分回填 + 掉落/金币入永久层 + 遥测上报
-  const onSingleMatchOver = useCallback(({ score, matchStats, rallyCount, durationS }) => {
+  const onSingleMatchOver = useCallback(({ score, matchStats, rallyCount, rallyLog, durationS }) => {
     setLastMatchStats({ ...matchStats, rallyCount, durationS });
+    setLastRallyLog(rallyLog ?? []);
     incrementNoviceGames();
     sendMatchTelemetry({
       mode: 'single', character: state.player.name, opponent: state.opp.name,
@@ -253,6 +254,7 @@ export default function TennisRoute() {
 
   // 结算屏统计摘要（单局快打结束后由 onSingleMatchOver 存入）
   const [lastMatchStats, setLastMatchStats] = useState(null);
+  const [lastRallyLog, setLastRallyLog] = useState([]);
   // 本局新解锁的成就 id 列表（传给 ResultScreen 显示弹出卡片）
   const [newAchievements, setNewAchievements] = useState([]);
 
@@ -443,6 +445,7 @@ export default function TennisRoute() {
             onRecorded={refreshBoards}
             boardProps={boardProps}
             matchStats={lastMatchStats}
+            rallyLog={lastRallyLog}
             newAchievements={newAchievements}
           />
         )}

@@ -200,3 +200,58 @@ describe('battleReducer 球级流程', () => {
     expect(s.phase).toBe('over');
   });
 });
+
+describe('matchStats.topRally 本场最佳一击追踪', () => {
+  function resolveRally(s, { multiplier = 1.0, moveId = 'flatDrive', oppRoll = 1 } = {}) {
+    s = toPick(s);
+    s = battleReducer(s, { type: 'PICK_MOVE', moveId });
+    s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier });
+    s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: oppRoll, noiseP: 0, noiseO: 0 });
+    return s;
+  }
+
+  it('初始状态 topRally 为 null', () => {
+    expect(freshBattle().matchStats.topRally).toBeNull();
+  });
+
+  it('赢球时 topRally 更新为该 lastRally', () => {
+    let s = resolveRally(freshBattle(), { multiplier: 1.2, oppRoll: 1 });
+    expect(s.lastRally.win).toBe(true);
+    expect(s.matchStats.topRally).toBe(s.lastRally);
+    expect(s.matchStats.topRally.pMultiplier).toBe(1.2);
+  });
+
+  it('更高倍率的赢球替换 topRally', () => {
+    let s = resolveRally(freshBattle(), { multiplier: 1.0, oppRoll: 1 });
+    const firstTop = s.matchStats.topRally;
+    s = toPick(s);
+    s = battleReducer(s, { type: 'PICK_MOVE', moveId: 'flatDrive' });
+    s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier: 1.5 });
+    s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 1, noiseP: 0, noiseO: 0 });
+    expect(s.lastRally.win).toBe(true);
+    expect(s.matchStats.topRally).not.toBe(firstTop);
+    expect(s.matchStats.topRally.pMultiplier).toBe(1.5);
+  });
+
+  it('输球时不更新 topRally', () => {
+    // topspin 被 Elza 的 slice 克（oCounter=1.5）；oppRoll=20 确保对手赢
+    let s = toPick(freshBattle());
+    s = battleReducer(s, { type: 'PICK_MOVE', moveId: 'topspin' });
+    s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier: 1.5 });
+    s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 20, noiseP: 0, noiseO: 0 });
+    expect(s.lastRally.win).toBe(false);
+    expect(s.matchStats.topRally).toBeNull();
+  });
+
+  it('低于现有 topRally 倍率的赢球不覆盖', () => {
+    let s = resolveRally(freshBattle(), { multiplier: 1.5, oppRoll: 1 });
+    const topBefore = s.matchStats.topRally;
+    s = toPick(s);
+    s = battleReducer(s, { type: 'PICK_MOVE', moveId: 'flatDrive' });
+    s = battleReducer(s, { type: 'MINIGAME_DONE', multiplier: 0.8 });
+    s = battleReducer(s, { type: 'RESOLVE', oppPerformRoll: 1, noiseP: 0, noiseO: 0 });
+    if (s.lastRally.win) {
+      expect(s.matchStats.topRally).toBe(topBefore);
+    }
+  });
+});

@@ -8,6 +8,7 @@ import { achievementById } from '../meta/achievements';
 import { Leaderboard } from './Leaderboard';
 import { FeedbackWidget } from './FeedbackWidget';
 import { StreakBurst } from './StreakBurst';
+import { MatchReplayCard } from './MatchReplayCard';
 
 const MOVE_ICONS = {
   flatDrive: '💥', smash: '🔨', topspin: '🌀', slice: '✂️',
@@ -89,7 +90,7 @@ function CounterDuelBar({ countersWon, counterLost }) {
 }
 
 /** ⑤ 结局 + 战报 + 双榜。挂载时本地入榜 + 登录用户上传全网榜。 */
-export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats, newAchievements }) {
+export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardProps, matchStats, rallyLog, newAchievements }) {
   const ending = ENDINGS[`${state.setsP}-${state.setsO}`];
   const { player: p, opp: o } = state;
   const playerWon = state.setsP > state.setsO;
@@ -356,6 +357,7 @@ export function ResultScreen({ state, dispatch, user, toast, onRecorded, boardPr
             </div>
           )}
           <CounterDuelBar countersWon={matchStats.countersWon} counterLost={matchStats.counterLost ?? 0} />
+          <MatchReplayCard rallyLog={rallyLog} matchStats={matchStats} />
           {topPlayerMoves.length > 0 && (
             <div className="player-moves-section">
               <div className="player-moves-title">🧠 你本场偏爱</div>

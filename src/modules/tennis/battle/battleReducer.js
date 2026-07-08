@@ -77,7 +77,7 @@ export function createBattle({ player, opponent, deckInstances, rng, ultimate, t
     activeUltimate: null,
     lastRally: null,
     rallyLog: [],
-    matchStats: { aces: 0, countersWon: 0, counterLost: 0, clutchWins: 0, moveUsage: {}, oppMoveUsage: {}, mgSum: 0, mgCount: 0 },
+    matchStats: { aces: 0, countersWon: 0, counterLost: 0, clutchWins: 0, moveUsage: {}, oppMoveUsage: {}, mgSum: 0, mgCount: 0, topRally: null },
   };
 }
 
@@ -339,12 +339,17 @@ export function battleReducer(state, action) {
         tie: Math.abs(pPower - oPower) < 1e-9,
         reflected, mindDuel, keyPoint, clutch,
       };
+      const prevTopRally = state.matchStats.topRally;
+      const topRally = win && state.pMultiplier > (prevTopRally?.pMultiplier ?? 0)
+        ? lastRally
+        : prevTopRally;
       const matchStats = {
         ...state.matchStats,
         countersWon: state.matchStats.countersWon + (win && pCounter > 1 ? 1 : 0),
         counterLost: state.matchStats.counterLost + (!win && oCounter > 1 ? 1 : 0),
         clutchWins: state.matchStats.clutchWins + (clutch ? 1 : 0),
         oppMoveUsage: { ...state.matchStats.oppMoveUsage, [oppMove]: (state.matchStats.oppMoveUsage[oppMove] ?? 0) + 1 },
+        topRally,
       };
       const settled = {
         ...state,
