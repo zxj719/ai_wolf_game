@@ -2,6 +2,26 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-07-31] 机器人学习板块修复：深色一致性 / 流程图配色 / zen 开关
+
+### Bug 修复
+
+- **深色下仍有两团光晕**：`styles/base.css` 的装饰光晕挂在 `html:not([data-theme="dark"]) body::before/after` 上，而讲义的深色只写在 iframe 自己的 `<html>` 上，外层文档读不到。`RoboticsRoute` 现在同源读取 iframe 主题并镜像到外层 `<html data-theme>`（MutationObserver + `prefers-color-scheme` 监听，换页重挂，卸载时回滚且不覆盖用户中途的手动切换），工具栏也随之套上同主题 `ThemeScope`。
+- **流程图白底白字**：mermaid 把调色板烤进 SVG 的 `fill`，但 `htmlLabels: true` 让标签文字是 foreignObject 里的 HTML、`color` 继承页面实时 `--fg`。此前只有点主题按钮才会重画，系统主题自行变化（Windows 夜间模式等）时 SVG 停在旧调色板、文字却跟着变白，浅色 `clusterBkg` 上叠近白文字 → 不可读。`site.js` 补上 `prefers-color-scheme` 变化监听重画（已手动锁定 `data-theme` 时不响应）。
+- **zen 开关压住目录标题**：`.nav-toggle` 原本 `fixed` 在左上角，正好盖住侧栏标题。移到明暗按钮正下方同一列（`top: 3.2rem; right: .8rem`），并从「☰ 目录 / ✕ 收起」改名为「☯ zen / ✕ zen」。
+- **目录移除「附录 · Livox 实机」**（该页尚未撰写）。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/robotics/RoboticsRoute.jsx` | 修改 | iframe → 外层主题镜像；工具栏套 ThemeScope |
+| `public/robotics/assets/site.js` | 修改 | 系统主题变化重画 mermaid；zen 改名 |
+| `public/robotics/assets/style.css` | 修改 | zen 按钮移至明暗按钮下方；zen 态正文右侧留白 |
+| `public/robotics/*.html` | 修改 | 侧栏移除 Livox 附录 |
+
+> 讲义源文件同步改在 `Tutorials4intern/docs`，`public/robotics/` 是复制产物，两边一致。
+
 ## [2026-07-31] 机器人学习板块（ROS2 入门讲义）
 
 ### 新功能

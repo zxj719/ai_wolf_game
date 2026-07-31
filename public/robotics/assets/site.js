@@ -24,8 +24,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function applyNav() {
       layout.classList.toggle('nav-collapsed', collapsed);
-      navBtn.textContent = collapsed ? '☰ 目录' : '✕ 收起';
+      // 按钮显示"点下去会得到什么"，与主题按钮同一套说法：
+      // 目录展开时点它进入 zen（专注阅读），已在 zen 里则点它退出。
+      navBtn.textContent = collapsed ? '✕ zen' : '☯ zen';
       navBtn.setAttribute('aria-expanded', String(!collapsed));
+      navBtn.setAttribute('aria-label', collapsed ? '退出 zen 模式，显示目录' : '进入 zen 模式，隐藏目录');
     }
     navBtn.addEventListener('click', function () {
       collapsed = !collapsed;
@@ -136,6 +139,21 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   window.t4iRenderMermaid = renderMermaid;
   renderMermaid();
+
+  // 系统主题变化（Windows 夜间模式、浏览器定时深色）时必须重画。
+  // 图的配色是渲染那一刻烤进 SVG 的 fill；而 htmlLabels 让标签文字是
+  // foreignObject 里的 HTML，color 继承页面当前的 --fg。系统一翻，
+  // CSS 立刻跟着 @media 变、SVG 却停在旧调色板，就会出现
+  // 「白底白字」（浅色的 clusterBkg 配上深色模式的近白文字）。
+  // 只在没有手动锁定主题时响应——有 data-theme 时媒体查询本就不生效。
+  var scheme = window.matchMedia('(prefers-color-scheme: dark)');
+  function onSchemeChange() {
+    if (document.documentElement.getAttribute('data-theme')) { return; }
+    paint();
+    renderMermaid();
+  }
+  if (scheme.addEventListener) { scheme.addEventListener('change', onSchemeChange); }
+  else if (scheme.addListener) { scheme.addListener(onSchemeChange); }  // Safari < 14
 
   document.querySelectorAll('main.page pre').forEach(function (pre) {
     var btn = document.createElement('button');

@@ -64,9 +64,10 @@ nav.sidebar a:hover, nav.sidebar a.current { color: var(--accent); font-weight: 
 /* 收起侧栏。正文随即占满整个宽度，窄屏或放大字号时尤其需要 */
 .layout.nav-collapsed nav.sidebar { display: none; }
 
-/* 目录开关，固定在左上角 */
+/* zen（专注阅读）开关。放在明暗按钮正下方同一列：
+   原本固定在左上角，会压住侧栏标题。 */
 .nav-toggle {
-  position: fixed; top: .8rem; left: .8rem; z-index: 60;
+  position: fixed; top: 3.2rem; right: .8rem; z-index: 60;
   font: inherit; font-size: .85rem; line-height: 1;
   padding: .45rem .7rem; cursor: pointer;
   background: var(--code-bg); color: var(--fg);
@@ -84,9 +85,10 @@ main.page {
   max-width: 78ch; padding: 2rem 2.5rem;
   margin-left: auto; margin-right: auto;
 }
-/* 收起侧栏 = 读者要更多横向空间（通常是为了看宽流程图），把上限放开 */
+/* zen = 读者要更多横向空间（通常是为了看宽流程图），把上限放开。
+   右侧留出按钮那一列的宽度，正文才不会被浮在上面的按钮压到。 */
 .layout.nav-collapsed main.page {
-  max-width: 1400px; padding-left: 3.8rem;
+  max-width: 1400px; padding-right: 6rem;
 }
 
 section.block { margin-bottom: 2.5rem; }
