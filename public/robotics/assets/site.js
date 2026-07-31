@@ -62,6 +62,17 @@ document.addEventListener('DOMContentLoaded', function () {
   paint();
   document.body.appendChild(btn);
 
+  // 返回主页。target="_top" 是关键：讲义在站内是嵌在 iframe 里的，
+  // 不加的话只会把 iframe 内部导航到首页，外面那层壳还在，变成页面套页面。
+  var homeBtn = document.createElement('a');
+  homeBtn.className = 'home-btn';
+  homeBtn.href = '/';
+  homeBtn.target = '_top';
+  homeBtn.textContent = '⌂ 主页';
+  homeBtn.setAttribute('aria-label', '返回主页');
+  homeBtn.title = '返回主页';
+  document.body.appendChild(homeBtn);
+
   // ---- mermaid 图 ----
   // mermaid 会把 <pre class="mermaid"> 的内容替换成 SVG，所以先把原始文本
   // 存进 data-src，切换主题时才能拿回来重画。
@@ -172,5 +183,31 @@ document.addEventListener('DOMContentLoaded', function () {
   var here = location.pathname.split('/').pop() || 'index.html';
   document.querySelectorAll('nav.sidebar a').forEach(function (a) {
     if (a.getAttribute('href') === here) { a.classList.add('current'); }
+  });
+
+  // 今日目标可勾选，进度存 localStorage（按 页面+列表序号+条目序号 记）
+  document.querySelectorAll('ul.goals').forEach(function (list, listIdx) {
+    list.querySelectorAll(':scope > li').forEach(function (li, i) {
+      var key = 't4i-goal:' + here + ':' + listIdx + ':' + i;
+      if (localStorage.getItem(key) === '1') { li.classList.add('done'); }
+      li.addEventListener('click', function () {
+        li.classList.toggle('done');
+        localStorage.setItem(key, li.classList.contains('done') ? '1' : '0');
+      });
+    });
+  });
+
+  // 课后回顾选择题：点击选项即勾选，同一题内单选。只做标记，不判对错——
+  // 对错自己开"答案与解析"核对
+  document.querySelectorAll('ol.quiz > li > ol').forEach(function (opts) {
+    opts.querySelectorAll(':scope > li').forEach(function (li) {
+      li.addEventListener('click', function () {
+        var was = li.classList.contains('picked');
+        opts.querySelectorAll(':scope > li').forEach(function (o) {
+          o.classList.remove('picked');
+        });
+        if (!was) { li.classList.add('picked'); }   // 再点一次取消勾选
+      });
+    });
   });
 });

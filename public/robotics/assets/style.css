@@ -5,8 +5,9 @@
 :root {
   color-scheme: light dark;
   --bg: #ffffff; --fg: #1a1a1a; --muted: #5a6068;
-  --accent: #0b6bcb; --code-bg: #f4f6f8; --border: #e0e0e0;
+  --accent: #0b6bcb; --code-bg: #f4f6f8; --border: #b8bfc7;
   --ok: #1a7f37; --warn: #9a6700; --err: #c62828;
+  --mmd-node: #e8f0fe; --mmd-node-border: #0b6bcb; --mmd-cluster: #f4f6f8;
 }
 
 /* 跟随系统 */
@@ -15,6 +16,7 @@
     --bg: #14171a; --fg: #e8eaed; --muted: #9aa0a6;
     --accent: #64b5f6; --code-bg: #1e2227; --border: #2c3136;
     --ok: #4caf50; --warn: #ffb300; --err: #ef5350;
+    --mmd-node: #1e2a38; --mmd-node-border: #64b5f6; --mmd-cluster: #1a1e24;
   }
 }
 
@@ -23,14 +25,16 @@
 :root[data-theme="light"] {
   color-scheme: light;
   --bg: #ffffff; --fg: #1a1a1a; --muted: #5a6068;
-  --accent: #0b6bcb; --code-bg: #f4f6f8; --border: #e0e0e0;
+  --accent: #0b6bcb; --code-bg: #f4f6f8; --border: #b8bfc7;
   --ok: #1a7f37; --warn: #9a6700; --err: #c62828;
+  --mmd-node: #e8f0fe; --mmd-node-border: #0b6bcb; --mmd-cluster: #f4f6f8;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #14171a; --fg: #e8eaed; --muted: #9aa0a6;
   --accent: #64b5f6; --code-bg: #1e2227; --border: #2c3136;
   --ok: #4caf50; --warn: #ffb300; --err: #ef5350;
+  --mmd-node: #1e2a38; --mmd-node-border: #64b5f6; --mmd-cluster: #1a1e24;
 }
 
 * { box-sizing: border-box; }
@@ -79,6 +83,19 @@ nav.sidebar a:hover, nav.sidebar a.current { color: var(--accent); font-weight: 
 .nav-toggle { opacity: .85; }
 .nav-toggle:hover { opacity: 1; }
 
+/* 返回主页。同一列第三个，排在 zen 下面。
+   用 <a target="_top"> 而不是按钮：讲义嵌在站内 iframe 里时，
+   _top 会把最外层文档带回首页；单独打开时就是一个普通链接。 */
+.home-btn {
+  position: fixed; top: 5.6rem; right: .8rem; z-index: 60;
+  font: inherit; font-size: .85rem; line-height: 1;
+  padding: .45rem .7rem; cursor: pointer; text-decoration: none;
+  display: inline-block; opacity: .85;
+  background: var(--code-bg); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.home-btn:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+
 main.page {
   flex: 1; min-width: 0;
   /* 正常阅读时限制行长，太长的行会看丢 */
@@ -118,6 +135,45 @@ pre.mermaid {
 pre.mermaid svg { height: auto; }
 /* 渲染完成前先藏起来，避免一闪而过地露出原始文本 */
 pre.mermaid:not([data-processed]) { color: transparent; }
+
+/* 图的配色改由 CSS 决定，而不是只靠渲染时烤进 SVG 的 fill。
+   原因：mermaid.render() 会把当时主题的颜色写死成属性；页面主题之后
+   再变（系统夜间模式、右上角手动切换、嵌在站内 iframe 里被外层同步），
+   CSS 立刻跟着变、旧 SVG 却停在旧调色板，就会出现「白底白字」——
+   浅色的方块底配上深色模式的近白文字。用变量覆盖之后，图的颜色
+   永远和页面当前主题一致，哪怕这张图是上一个主题下画出来的。
+   themeVariables 仍然保留：首屏那一版就是对的，避免闪一下再纠正。 */
+pre.mermaid svg .node rect,
+pre.mermaid svg .node polygon,
+pre.mermaid svg .node circle,
+pre.mermaid svg .node path,
+pre.mermaid svg rect.basic,
+pre.mermaid svg .label-container {
+  fill: var(--mmd-node); stroke: var(--mmd-node-border);
+}
+pre.mermaid svg .cluster rect {
+  fill: var(--mmd-cluster); stroke: var(--border);
+}
+/* 标签文字：htmlLabels 走 foreignObject（吃 color），
+   纯 SVG 文本走 <text>（吃 fill），两条都要给。 */
+pre.mermaid svg .nodeLabel,
+pre.mermaid svg .edgeLabel,
+pre.mermaid svg .cluster-label,
+pre.mermaid svg foreignObject div,
+pre.mermaid svg foreignObject span {
+  color: var(--fg);
+}
+pre.mermaid svg text,
+pre.mermaid svg .cluster-label text {
+  fill: var(--fg);
+}
+/* 连线标签的底色要盖住穿过它的箭头线，必须跟页面底色一致 */
+pre.mermaid svg .edgeLabel rect,
+pre.mermaid svg .edgeLabel foreignObject div { background-color: var(--bg); fill: var(--bg); }
+/* 箭头与连线跟着正文的次级色，别停留在旧主题 */
+pre.mermaid svg .edgePath path.path,
+pre.mermaid svg .flowchart-link { stroke: var(--muted); }
+pre.mermaid svg marker path { fill: var(--muted); stroke: var(--muted); }
 /* 附加内容：默认折叠，不打断主线 */
 details.aside {
   border: 1px solid var(--border); border-radius: 6px;
@@ -153,6 +209,15 @@ th { background: var(--code-bg); }
 td:first-child { white-space: nowrap; }
 ul.goals { list-style: none; padding-left: 0; }
 ul.goals li::before { content: "\2610 "; color: var(--accent); font-weight: bold; }
+ul.goals li { cursor: pointer; }
+ul.goals li.done::before { content: "\2611 "; color: var(--ok); }
+ul.goals li.done { color: var(--muted); }
+
+/* 课后回顾选择题：选项可点击勾选 */
+ol.quiz > li { margin-bottom: 1.2rem; }
+ol.quiz > li > ol > li { cursor: pointer; border-radius: 4px; padding: .1rem .4rem; }
+ol.quiz > li > ol > li:hover { background: var(--code-bg); }
+ol.quiz > li > ol > li.picked { background: var(--code-bg); box-shadow: inset 2px 0 0 var(--accent); }
 img.diagram, svg.diagram { max-width: 100%; height: auto; display: block; margin: 1rem 0; }
 footer.page-foot { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
 /* 窄屏：单一断点，同时处理布局方式和留白。
@@ -173,5 +238,7 @@ footer.page-foot { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid va
   .layout.nav-collapsed main.page {
     max-width: none; padding: 1.2rem;
   }
-  .layout.nav-collapsed main.page { padding-left: 3.6rem; }
+  /* 两个按钮固定在右上角，正文右侧要让出这一列，否则标题会被压住。
+     （按钮曾在左上角，那时留的是 padding-left；移到右侧后必须跟着改。） */
+  main.page, .layout.nav-collapsed main.page { padding-right: 5.5rem; }
 }

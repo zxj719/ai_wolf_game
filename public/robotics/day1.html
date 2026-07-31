@@ -21,6 +21,12 @@
   <p class="callout"><strong>预计 4 小时。</strong>今天你会做出第一个能跑的 ROS2 程序：两个节点，
   一个说、一个听。ROS2 里所有复杂系统——包括第 2 周的 Nav2 导航——都是这个模式堆出来的。</p>
 
+  <p class="callout">从今天起要正经写代码了，<strong>推荐用 VS Code</strong>
+  （<code>sudo snap install code --classic</code>，或从官网下 <code>.deb</code> 用 Day 0 学的
+  <code>dpkg -i</code> 装）。它能一次打开整个工作空间、带 Python 补全和括号缩进提示，
+  比在终端里用 <code>nano</code> 改文件省事得多。本讲义贴出文件内容时，
+  默认你是在编辑器里看它们，不再每次都写 <code>cat</code> 命令。</p>
+
   <section class="block" id="goals">
     <h2>今日目标</h2>
     <ul class="goals">
@@ -65,9 +71,33 @@ flowchart LR
   <section class="block" id="concept">
     <h2>概念讲解</h2>
 
+    <h3>0. 先认识 <code>ros2</code> 这条命令</h3>
+    <p>Day 0 装好 ROS2 之后，你就有了一条 <code>ros2</code> 命令。它自己什么也不做，
+    真正干活的是<strong>子命令</strong>——第一个词决定这次要操作什么东西：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>子命令</th><th>操作对象</th><th>今天用到的</th></tr>
+      <tr><td><code>ros2 pkg</code></td><td>包</td>
+          <td><code>ros2 pkg create</code> 建包、<code>ros2 pkg executables</code> 看包里有哪些可执行</td></tr>
+      <tr><td><code>ros2 run</code></td><td>单个节点</td>
+          <td><code>ros2 run 包名 可执行名</code>，启动<strong>一个</strong>节点，占住这个终端</td></tr>
+      <tr><td><code>ros2 node</code></td><td>正在运行的节点</td>
+          <td><code>ros2 node list</code> 看有谁在跑</td></tr>
+      <tr><td><code>ros2 topic</code></td><td>话题（下面第 5 节讲）</td>
+          <td><code>list</code> / <code>echo</code> / <code>info</code> / <code>hz</code>，本日的排查主力</td></tr>
+      <tr><td><code>ros2 launch</code></td><td>一组节点</td>
+          <td><strong>Day 2 才用</strong>。一条命令按配置文件同时拉起多个节点，
+              省掉"开五个终端各敲一次 <code>ros2 run</code>"</td></tr>
+    </table>
+    </div>
+    <p class="callout">规律：<code>ros2 &lt;名词&gt; &lt;动词&gt;</code>。忘了某个子命令有哪些用法，
+    加 <code>--help</code> 就行，比如 <code>ros2 topic --help</code>。
+    今天只用 <code>run</code>，因为只有两个节点；节点一多就该换 <code>launch</code> 了。</p>
+
     <h3>1. 为什么需要 workspace 和 package</h3>
-    <p>先问问题：你写了一个节点，怎么让 <code>ros2 run</code> 找得到它？怎么告诉系统"我这段代码需要
-    <code>rclpy</code> 才能跑"？别人拿到你的代码，怎么知道该装什么依赖？</p>
+    <p>先问问题：你写好了一个节点，它只是一个 <code>.py</code> 文件。系统怎么知道它能被
+    <code>ros2 run</code> 启动？怎么知道"这段代码需要 <code>rclpy</code> 才能跑"？
+    别人拿到你的代码，怎么知道该装什么依赖？</p>
     <p><strong>Package（包）</strong>就是这些问题的答案：它是一个带说明书的代码目录。说明书写清楚
     包叫什么、依赖什么、里面哪些函数应该变成可执行命令。ROS2 靠这份说明书把你的代码接入系统。</p>
     <p><strong>Workspace（工作空间）</strong>再上一层：它是一堆包的容器，加上编译产物。
@@ -81,6 +111,14 @@ flowchart LR
     <p class="callout"><code>build/</code>、<code>install/</code>、<code>log/</code> 三个目录由
     <code>colcon build</code> 自动生成。<strong>不要手动改它们，也不要提交到 git。</strong>
     删掉它们再重新编译永远是安全的——这也是"编译出了奇怪问题"时的第一招。</p>
+    <p class="callout danger"><strong><code>colcon build</code> 只在 workspace 根目录跑——
+    就是那个"里面有 <code>src/</code>"的目录。</strong>它会把 <code>build/</code>、
+    <code>install/</code>、<code>log/</code> 建在你<strong>当前所在的目录</strong>下，
+    并且只编译当前目录下 <code>src/</code> 里的包。所以在 <code>src/</code> 里面跑，
+    或者在家目录里随手跑一下，都会在那儿留下三个目录，而且往往一个包都没编译到
+    （<code>Summary: 0 packages finished</code>）。<strong>敲这条命令前先
+    <code>pwd</code> 和 <code>ls</code> 确认一眼</strong>：看到 <code>src</code> 才是对的地方。
+    已经建歪了就把那三个目录删掉：<code>rm -rf build install log</code>，它们随时可以重建。</p>
 
     <h3>2. 包里每个文件是干什么的</h3>
 <svg class="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 340" role="img"
@@ -217,12 +255,16 @@ flowchart LR
     写死一个反而会互相干扰。所以每开一个新终端，都要手动
     <code>cd ~/ws_intern &amp;&amp; source install/setup.bash</code>。</p>
 
-    <h3>5. Topic：为什么不直接调用对方的函数</h3>
-    <p>先问为什么。假设雷达节点测到了距离，要告诉导航节点。最直接的想法是"雷达节点调用导航节点的函数"。
+    <h3>5. 话题（Topic）：节点之间怎么传数据</h3>
+    <p>节点各自跑在自己的进程里，数据得有个办法送过去。先问为什么不用最直接的办法：
+    假设雷达节点测到了距离，要告诉导航节点，最容易想到的是"雷达节点调用导航节点的函数"。
     但这样有几个问题：雷达必须知道导航节点在哪、叫什么；如果又来一个建图节点也想要这个数据，
     雷达代码就得改；导航节点崩了，雷达也会跟着出错。</p>
-    <p><strong>Topic 模型换了个思路：发布者只管往一个"频道"上扔数据，谁想要谁来订阅。</strong>
-    双方互相不知道对方存在，只需要约定好<strong>频道名</strong>和<strong>数据格式</strong>。</p>
+    <p>ROS2 的答案是<strong>话题（Topic）</strong>——一个带名字的数据频道。
+    <strong>发布者（Publisher）只管往频道上扔数据，谁想要谁来订阅（Subscriber）。</strong>
+    双方互相不知道对方存在，只需要约定好<strong>话题名</strong>和<strong>消息类型</strong>
+    （数据格式，比如今天用的 <code>std_msgs/msg/Int32</code>）。
+    这三个词——话题、Publisher、Subscriber——是今天的核心，后面五天天天出现。</p>
 <pre class="mermaid">
 sequenceDiagram
     participant T as talker 节点
@@ -243,6 +285,15 @@ sequenceDiagram
       <li><strong>解耦</strong>：订阅者没启动、或者崩了，发布者照常运行</li>
       <li><strong>不补发历史</strong>：订阅者只能收到它启动<em>之后</em>的消息（默认行为）</li>
     </ul>
+    <p class="callout danger"><strong>"谁想要谁来订阅"也意味着：你没打算给的人，只要话题名对上，
+    也能收到、也能往里发。</strong>同一个局域网里，如果别人的程序恰好用了同名话题
+    （<code>/scan</code>、<code>/imu</code>、<code>/cmd_vel</code> 这类通用名字尤其容易撞），
+    双方的节点会互相看见：多出来的订阅者会分走带宽、多出来的发布者会往同一个话题里掺数据。
+    真实现象通常不是报错，而是<strong>雷达点云突然掉帧甚至断流、话题频率莫名其妙地不稳</strong>——
+    因为一份数据被多送了几路，或者两个发布者在同一个话题上打架。
+    两个办法躲开：<strong>换 <code>ROS_DOMAIN_ID</code></strong>（Day 0 第四节讲过，
+    域号不同的节点互相看不见，最省事）；或者<strong>给自己的话题加 namespace 前缀</strong>，
+    比如 <code>/robot1/scan</code>。Day 3 会展开讲怎么排查这类"数据被别人搅了"的问题。</p>
 
     <h3>6. 话题连通的三个条件</h3>
     <p>"两个节点都在跑，但就是收不到消息"是 Day 1 最常见的问题。原因一定是下面三个之一：</p>
@@ -309,57 +360,28 @@ ros2 pkg create hello_pkg --build-type ament_python --dependencies rclpy std_msg
     写成 <code>--dependencies rclpy std_msgs hello_pkg</code> 会报
     <code>the following arguments are required: package_name</code>——
     包名被当成第三个依赖吃掉了。包名放最前面就不存在这种歧义。</p>
+    <p>它会刷出十几行 <code>creating ...</code>，逐行读没有意义。<strong>只需确认三行</strong>——
+    它们对应你命令里给的三个东西：</p>
     <div class="expected">
-<pre><code>going to create a new package
-package name: hello_pkg
-destination directory: /home/agx/ws_demo/src
-package format: 3
-version: 0.0.0
-description: TODO: Package description
-maintainer: ['agx &lt;you@example.com&gt;']
-licenses: ['TODO: License declaration']
+<pre><code>package name: hello_pkg
 build type: ament_python
-dependencies: ['rclpy', 'std_msgs']
-creating folder ./hello_pkg
-creating ./hello_pkg/package.xml
-creating source folder
-creating folder ./hello_pkg/hello_pkg
-creating ./hello_pkg/setup.py
-creating ./hello_pkg/setup.cfg
-creating folder ./hello_pkg/resource
-creating ./hello_pkg/resource/hello_pkg
-creating ./hello_pkg/hello_pkg/__init__.py
-creating folder ./hello_pkg/test
-creating ./hello_pkg/test/test_copyright.py
-creating ./hello_pkg/test/test_flake8.py
-creating ./hello_pkg/test/test_pep257.py
-
-[WARNING]: Unknown license 'TODO: License declaration'.  This has been set in the package.xml, but no LICENSE file has been created.</code></pre>
+dependencies: ['rclpy', 'std_msgs']</code></pre>
     </div>
-    <p>最后那条 <code>[WARNING]</code> <strong>可以忽略</strong>，它只是提醒你没填开源许可证。
-    本课程不发布代码，不用管。</p>
+    <p>末尾还有一条 <code>[WARNING]: Unknown license ...</code>，
+    <strong>可以忽略</strong>，它只是提醒你没填开源许可证。本课程不发布代码，不用管。</p>
 
-    <p>看看生成了什么：</p>
+    <p>现在用 VS Code 打开工作空间，在左边的文件树里看它生成了什么：</p>
 <pre><code>cd ~/ws_demo
-find src/hello_pkg | sort</code></pre>
-    <div class="expected">
-<pre><code>src/hello_pkg
-src/hello_pkg/hello_pkg
-src/hello_pkg/hello_pkg/__init__.py
-src/hello_pkg/package.xml
-src/hello_pkg/resource
-src/hello_pkg/resource/hello_pkg
-src/hello_pkg/setup.cfg
-src/hello_pkg/setup.py
-src/hello_pkg/test
-src/hello_pkg/test/test_copyright.py
-src/hello_pkg/test/test_flake8.py
-src/hello_pkg/test/test_pep257.py</code></pre>
-    </div>
-    <p>对照上面第 2 节的表格，每个文件你现在应该都能说出用途了。</p>
+code .</code></pre>
+    <p>你会看到 <code>src/hello_pkg/</code> 下正是第 2 节那张图的结构：
+    <code>package.xml</code>、<code>setup.py</code>、<code>setup.cfg</code>、
+    <code>resource/hello_pkg</code>、<code>hello_pkg/__init__.py</code>，
+    外加一个本课程用不到的 <code>test/</code>。对照第 2 节的表格，
+    每个文件你现在应该都能说出用途了。</p>
 
     <h3>第 2 步：打开生成的 <code>package.xml</code> 看一眼</h3>
-<pre><code>cat src/hello_pkg/package.xml</code></pre>
+    <p>在编辑器里点开 <code>src/hello_pkg/package.xml</code>（也可以
+    <code>cat src/hello_pkg/package.xml</code>）：</p>
     <div class="expected">
 <pre><code>&lt;?xml version="1.0"?&gt;
 &lt;package format="3"&gt;
@@ -506,8 +528,14 @@ def main():
     因为可执行文件是 build 时按这份清单生成的。</p>
 
     <h3>第 6 步：编译</h3>
+    <p>先回到 workspace 根目录，确认自己站对了地方再敲编译命令：</p>
 <pre><code>cd ~/ws_demo
-colcon build</code></pre>
+ls</code></pre>
+    <div class="expected">
+<pre><code>src</code></pre>
+    </div>
+    <p>看到 <code>src</code> 就对了（第 1 节讲过：<code>colcon build</code> 只在这里跑）。</p>
+<pre><code>colcon build</code></pre>
     <div class="expected">
 <pre><code>Starting &gt;&gt;&gt; hello_pkg
 Finished &lt;&lt;&lt; hello_pkg [2.71s]
@@ -754,6 +782,20 @@ finally:
         <td><code>colcon build</code> 报奇怪的错，改回去也不好</td>
         <td>编译产物脏了</td>
         <td><code>rm -rf build install log</code> 然后重新 <code>colcon build</code>。这三个目录随时可删</td>
+      </tr>
+      <tr>
+        <td><code>colcon build</code> 输出 <code>Summary: 0 packages finished</code>，
+            还在当前目录多出 <code>build</code> <code>install</code> <code>log</code></td>
+        <td>站错了目录——不在 workspace 根目录（<code>src/</code> 里面、家目录里都会这样）</td>
+        <td><code>rm -rf build install log</code> 删掉这次留下的，
+            <code>cd</code> 到能 <code>ls</code> 出 <code>src</code> 的那一层再编</td>
+      </tr>
+      <tr>
+        <td>话题频率忽高忽低、点云掉帧或断流，代码却没问题</td>
+        <td>同一局域网、同一 <code>ROS_DOMAIN_ID</code> 下，别人的节点用了同名话题，
+            多出来的发布者/订阅者在同一个话题上互相干扰</td>
+        <td><code>ros2 topic info &lt;话题&gt;</code> 看两端数量是否比预期多；
+            改用自己的 <code>ROS_DOMAIN_ID</code>，或给话题加 namespace 前缀（Day 3 展开）</td>
       </tr>
     </table>
     </div>
