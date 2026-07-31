@@ -5,6 +5,7 @@ import { TokenManager } from './TokenManager';
 import { UserStats } from './UserStats';
 import {
   ArrowUpRight,
+  Bot,
   BookOpenText,
   Check,
   ChevronRight,
@@ -51,6 +52,7 @@ export function Dashboard({
   onEnterSites,
   onEnterChords,
   onEnterTennis,
+  onEnterRobotics,
   onEnterNovel,
   onEnterChat,
   onEnterThinkingLibrary,
@@ -218,6 +220,10 @@ export function Dashboard({
                 <button type="button" onClick={onEnterTennis} className="mac-button mac-button-secondary">
                   <Medal size={16} />
                   家庭网球
+                </button>
+                <button type="button" onClick={onEnterRobotics} className="mac-button mac-button-secondary">
+                  <Bot size={16} />
+                  机器人学习
                 </button>
                 <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
                   <PenLine size={16} />

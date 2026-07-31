@@ -1,0 +1,858 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 1 · 建包与第一个话题 · ROS2 入门</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<div class="layout">
+<nav class="sidebar">
+  <strong>ROS2 入门 · 第 1 周</strong>
+  <a href="index.html">总览</a>
+  <a href="day0.html">Day 0 · 课前预习</a>
+  <a href="day1.html">Day 1 · 建包与话题</a>
+  <a href="day2.html">Day 2 · 包结构与 launch</a>
+  <a href="day3.html">Day 3 · 话题深入与实机</a>
+  <a href="day4.html">Day 4 · Gazebo 与 URDF</a>
+  <a href="day5.html">Day 5 · 综合考核</a>
+  <a href="appendix-livox.html">附录 · Livox 实机</a>
+</nav>
+
+<main class="page">
+  <h1>Day 1 · 建包与第一个话题</h1>
+  <p class="callout"><strong>预计 4 小时。</strong>今天你会做出第一个能跑的 ROS2 程序：两个节点，
+  一个说、一个听。ROS2 里所有复杂系统——包括第 2 周的 Nav2 导航——都是这个模式堆出来的。</p>
+
+  <section class="block" id="goals">
+    <h2>今日目标</h2>
+    <ul class="goals">
+      <li>说得清 workspace 和 package 各自解决什么问题，而不只是"照着建"</li>
+      <li>包里每个文件是干什么的，尤其 <code>package.xml</code> 和 <code>setup.py</code> 的分工</li>
+      <li>说得清 <code>colcon build</code> 到底产出了什么，为什么改完代码要重新编译</li>
+      <li>理解 <code>source install/setup.bash</code> 和 Day 0 那次 source 是同一回事</li>
+      <li>写出 Publisher 和 Subscriber 节点，并能讲清楚回调是被谁调用的</li>
+      <li>会用 <code>ros2 topic</code> / <code>ros2 node</code> / <code>ros2 pkg</code> 排查"为什么收不到消息"</li>
+      <li>完成 Day 1 考核，评分脚本 60 分以上</li>
+    </ul>
+  </section>
+
+  <section class="block" id="overview">
+    <h2>今日全景</h2>
+    <p>今天的内容分两条线：<strong>左边是"代码怎么变成能跑的程序"，右边是"两个程序怎么通信"。</strong>
+    先看关系，再逐个展开。</p>
+<pre class="mermaid">
+flowchart LR
+    R(["Day 1"])
+
+    R --> B["从代码到可执行"]
+    B --> B1["workspace 与 package&lt;br/&gt;为什么要分这两层"]
+    B --> B2["包里每个文件的职责"]
+    B --> B3["colcon build 产出了什么"]
+    B --> B4["source install/setup.bash"]
+    B --> B5["ros2 run 怎么找到程序"]
+
+    R --> T["节点之间怎么通信"]
+    T --> T1["Topic 发布订阅模型"]
+    T --> T2["话题连通的三个条件"]
+    T --> T3["Publisher 节点结构"]
+    T --> T4["Subscriber 与回调"]
+
+    R --> D["排查手段"]
+    D --> D1["ros2 topic list / echo / info / hz"]
+    D --> D2["ros2 node list / info"]
+    D --> D3["ros2 pkg executables"]
+</pre>
+  </section>
+
+  <section class="block" id="concept">
+    <h2>概念讲解</h2>
+
+    <h3>1. 为什么需要 workspace 和 package</h3>
+    <p>先问问题：你写了一个节点，怎么让 <code>ros2 run</code> 找得到它？怎么告诉系统"我这段代码需要
+    <code>rclpy</code> 才能跑"？别人拿到你的代码，怎么知道该装什么依赖？</p>
+    <p><strong>Package（包）</strong>就是这些问题的答案：它是一个带说明书的代码目录。说明书写清楚
+    包叫什么、依赖什么、里面哪些函数应该变成可执行命令。ROS2 靠这份说明书把你的代码接入系统。</p>
+    <p><strong>Workspace（工作空间）</strong>再上一层：它是一堆包的容器，加上编译产物。
+    你可以有多个 workspace 互不干扰。</p>
+<pre><code>~/ws_intern/          ← workspace
+├── src/              ← 你写的包都放这里，这是唯一你该手动改的目录
+│   └── day1_exam/    ← 一个 package
+├── build/            ← colcon 编译时的中间产物
+├── install/          ← 编译结果，source 的就是这里
+└── log/              ← 编译日志，出错时可以翻</code></pre>
+    <p class="callout"><code>build/</code>、<code>install/</code>、<code>log/</code> 三个目录由
+    <code>colcon build</code> 自动生成。<strong>不要手动改它们，也不要提交到 git。</strong>
+    删掉它们再重新编译永远是安全的——这也是"编译出了奇怪问题"时的第一招。</p>
+
+    <h3>2. 包里每个文件是干什么的</h3>
+<svg class="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 340" role="img"
+     aria-label="ament_python 包目录结构说明图">
+  <style>
+    .pkg-t { font-family: ui-monospace, Consolas, monospace; font-size: 14px; fill: currentColor; }
+    .pkg-n { font-family: system-ui, sans-serif; font-size: 12.5px; fill: currentColor; opacity: .75; }
+    .pkg-k { font-weight: 700; }
+    .pkg-line { stroke: currentColor; stroke-opacity: .35; stroke-width: 1; }
+    .pkg-arrow { stroke: currentColor; stroke-opacity: .45; stroke-width: 1; stroke-dasharray: 3 3; }
+  </style>
+
+  <text class="pkg-t pkg-k" x="10" y="24">day1_exam/</text>
+  <text class="pkg-n" x="330" y="24">← 包目录，名字随意</text>
+
+  <text class="pkg-t" x="34" y="52">├── package.xml</text>
+  <text class="pkg-n" x="330" y="52">包名、依赖、构建类型</text>
+  <line class="pkg-arrow" x1="200" y1="47" x2="325" y2="47"/>
+
+  <text class="pkg-t" x="34" y="80">├── setup.py</text>
+  <text class="pkg-n" x="330" y="80">可执行入口、要安装什么</text>
+  <line class="pkg-arrow" x1="200" y1="75" x2="325" y2="75"/>
+
+  <text class="pkg-t" x="34" y="108">├── setup.cfg</text>
+  <text class="pkg-n" x="330" y="108">告诉 colcon 可执行装到哪</text>
+  <line class="pkg-arrow" x1="200" y1="103" x2="325" y2="103"/>
+
+  <text class="pkg-t" x="34" y="136">├── resource/</text>
+  <text class="pkg-t" x="66" y="160">│   └── day1_exam</text>
+  <text class="pkg-n" x="330" y="148">空文件，让 ament 索引到这个包</text>
+  <line class="pkg-arrow" x1="230" y1="155" x2="325" y2="148"/>
+
+  <text class="pkg-t pkg-k" x="34" y="192">└── day1_exam/</text>
+  <text class="pkg-n" x="330" y="192">Python 包，名字必须等于包名</text>
+  <line class="pkg-arrow" x1="200" y1="187" x2="325" y2="187"/>
+
+  <text class="pkg-t" x="66" y="220">├── __init__.py</text>
+  <text class="pkg-n" x="330" y="220">空文件，标记这是 Python 包</text>
+  <line class="pkg-arrow" x1="220" y1="215" x2="325" y2="215"/>
+
+  <text class="pkg-t" x="66" y="248">├── talker.py</text>
+  <text class="pkg-n" x="330" y="248">你的节点代码</text>
+  <line class="pkg-arrow" x1="220" y1="243" x2="325" y2="243"/>
+
+  <text class="pkg-t" x="66" y="276">└── listener.py</text>
+
+  <line class="pkg-line" x1="10" y1="298" x2="610" y2="298"/>
+  <text class="pkg-n" x="10" y="320">目录名 day1_exam 与 package.xml 里的 name、setup.py 里的 package_name 三者必须一致，</text>
+  <text class="pkg-n" x="10" y="336">否则 import 时报 ModuleNotFoundError。</text>
+</svg>
+    <p>逐个说清楚：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>文件</th><th>作用</th><th>不写会怎样</th></tr>
+      <tr>
+        <td><code>package.xml</code></td>
+        <td>包的身份证：包名、版本、维护者、<strong>依赖哪些别的包</strong>、构建类型</td>
+        <td>ROS2 不认这是一个包，<code>colcon build</code> 直接忽略它</td>
+      </tr>
+      <tr>
+        <td><code>setup.py</code></td>
+        <td>Python 打包说明：<strong>哪个目录是代码</strong>、
+            <strong>哪些函数要变成可执行命令</strong>、还要安装哪些文件</td>
+        <td>能编译但装不出可执行文件，<code>ros2 run</code> 报 <code>No executable found</code></td>
+      </tr>
+      <tr>
+        <td><code>setup.cfg</code></td>
+        <td>告诉 colcon 把可执行文件装到 <code>lib/&lt;包名&gt;/</code> 下</td>
+        <td><code>ros2 run</code> 找不到程序</td>
+      </tr>
+      <tr>
+        <td><code>resource/&lt;包名&gt;</code></td>
+        <td>一个<strong>空文件</strong>，作用是让 ament 的索引能登记到这个包</td>
+        <td>包不出现在 <code>ros2 pkg list</code> 里</td>
+      </tr>
+      <tr>
+        <td><code>&lt;包名&gt;/__init__.py</code></td>
+        <td>空文件，标记这个目录是一个 Python 包，可以被 <code>import</code></td>
+        <td><code>ModuleNotFoundError</code></td>
+      </tr>
+      <tr>
+        <td><code>&lt;包名&gt;/*.py</code></td>
+        <td>你的节点代码</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><code>test/</code></td>
+        <td><code>ros2 pkg create</code> 自动生成的代码风格检查</td>
+        <td>本课程用不到，可以不管</td>
+      </tr>
+    </table>
+    </div>
+    <p class="callout danger"><strong>三个名字必须完全一致</strong>：包目录下那个 Python 子目录名、
+    <code>package.xml</code> 里的 <code>&lt;name&gt;</code>、<code>setup.py</code> 里的
+    <code>package_name</code>。不一致的后果是<strong>编译能过、运行时才报 <code>ModuleNotFoundError</code></strong>，
+    非常难查。</p>
+
+    <h3>3. <code>colcon build</code> 到底做了什么</h3>
+    <p>很多人以为 Python 不用编译，所以 <code>colcon build</code> 是多余的。不是的——
+    它做的不是"编译"，而是<strong>安装</strong>：把你 <code>src/</code> 里的源码，
+    按 <code>setup.py</code> 的说明，复制/链接到 <code>install/</code> 里，
+    并在那里生成真正的可执行文件。</p>
+<pre class="mermaid">
+flowchart TD
+    A["src/day1_exam/&lt;br/&gt;你写的源码"] --> B["colcon build 读 package.xml&lt;br/&gt;确认包名与构建类型"]
+    B --> C["按 setup.py 的说明处理"]
+    C --> D["build/&lt;br/&gt;中间产物，可随时删"]
+    C --> E["install/day1_exam/lib/day1_exam/talker&lt;br/&gt;真正的可执行文件"]
+    C --> F["install/day1_exam/lib/python3.10/&lt;br/&gt;site-packages/day1_exam/&lt;br/&gt;你的 .py 被装到这里"]
+    C --> G["install/setup.bash&lt;br/&gt;把上面这些位置写进环境变量的脚本"]
+    G --> H["source install/setup.bash"]
+    H --> I["ros2 run day1_exam talker&lt;br/&gt;这时才能找到"]
+</pre>
+    <p class="callout danger"><strong>这就是"改了代码没生效"的原因。</strong>
+    <code>ros2 run</code> 跑的是 <code>install/</code> 里的那份副本，不是你正在编辑的
+    <code>src/</code>。改完必须重新 <code>colcon build</code>。</p>
+    <p>有个省事的办法：<code>colcon build --symlink-install</code>。它把
+    <code>install/</code> 里的文件做成指向 <code>src/</code> 的<strong>符号链接</strong>而不是复制，
+    以后改 <code>.py</code> 内容立刻生效，不用重编。<strong>但改
+    <code>setup.py</code>（比如加了新的可执行）仍然必须重新 build。</strong></p>
+
+    <h3>4. 为什么还要 source 一次</h3>
+    <p>Day 0 你 source 过 <code>/opt/ros/humble/setup.bash</code>，那是让系统认识 ROS2 自带的东西。
+    现在 <code>source install/setup.bash</code> 是同一个机制，只不过这次是让系统认识<strong>你自己写的包</strong>。</p>
+<pre class="mermaid">
+flowchart LR
+    A["新开一个终端&lt;br/&gt;什么都不认识"] --> B["source /opt/ros/humble/setup.bash"]
+    B --> C["认识 ROS2 自带的 400 多个包&lt;br/&gt;ros2 命令可用"]
+    C --> D["source ~/ws_intern/install/setup.bash"]
+    D --> E["额外认识你自己的 day1_exam&lt;br/&gt;ros2 run day1_exam talker 可用"]
+</pre>
+    <p class="callout">Day 0 已经把第一条写进 <code>~/.bashrc</code> 了，所以新终端自动就有 ROS2。
+    但<strong>第二条通常不写进 bashrc</strong>——因为你可能有多个 workspace，
+    写死一个反而会互相干扰。所以每开一个新终端，都要手动
+    <code>cd ~/ws_intern &amp;&amp; source install/setup.bash</code>。</p>
+
+    <h3>5. Topic：为什么不直接调用对方的函数</h3>
+    <p>先问为什么。假设雷达节点测到了距离，要告诉导航节点。最直接的想法是"雷达节点调用导航节点的函数"。
+    但这样有几个问题：雷达必须知道导航节点在哪、叫什么；如果又来一个建图节点也想要这个数据，
+    雷达代码就得改；导航节点崩了，雷达也会跟着出错。</p>
+    <p><strong>Topic 模型换了个思路：发布者只管往一个"频道"上扔数据，谁想要谁来订阅。</strong>
+    双方互相不知道对方存在，只需要约定好<strong>频道名</strong>和<strong>数据格式</strong>。</p>
+<pre class="mermaid">
+sequenceDiagram
+    participant T as talker 节点
+    participant D as DDS 网络
+    participant L1 as listener 节点
+    participant L2 as 另一个订阅者
+    Note over T,L2: 双方互不认识，只认话题名和消息类型
+    T->>D: publish(Int32 data=5) 到 /day1/counter
+    D->>L1: 投递
+    D->>L2: 同一份数据也投给它
+    L1->>L1: on_msg 回调被调用
+    L2->>L2: 它自己的回调被调用
+    Note over T: talker 不知道有几个订阅者<br/>也不关心
+</pre>
+    <p>这带来三个特性，后面每天都会用到：</p>
+    <ul>
+      <li><strong>一对多</strong>：一个发布者，任意多个订阅者，发布者代码不用改</li>
+      <li><strong>解耦</strong>：订阅者没启动、或者崩了，发布者照常运行</li>
+      <li><strong>不补发历史</strong>：订阅者只能收到它启动<em>之后</em>的消息（默认行为）</li>
+    </ul>
+
+    <h3>6. 话题连通的三个条件</h3>
+    <p>"两个节点都在跑，但就是收不到消息"是 Day 1 最常见的问题。原因一定是下面三个之一：</p>
+<pre class="mermaid">
+flowchart TD
+    A{"话题名完全一致吗"} -- 否 --> A1["ros2 topic list 看实际名字&lt;br/&gt;注意开头的斜杠"]
+    A -- 是 --> B{"消息类型一致吗"}
+    B -- 否 --> B1["ros2 topic info 看类型&lt;br/&gt;Int32 和 Int64 是两回事"]
+    B -- 是 --> C{"QoS 兼容吗"}
+    C -- 否 --> C1["Day 3 会讲&lt;br/&gt;Day 1 用默认值不会遇到"]
+    C -- 是 --> D["能通"]
+</pre>
+    <p>今天你只需要盯前两个。<strong>排查顺序永远是：先 <code>ros2 topic list</code> 确认名字，
+    再 <code>ros2 topic info</code> 确认类型和两端数量。</strong></p>
+
+    <h3>7. 节点的程序结构</h3>
+    <p>回想 Day 0 的"类 + 回调"。每个 ROS2 节点都是同一个形状：</p>
+<pre class="mermaid">
+flowchart TD
+    A["rclpy.init()&lt;br/&gt;初始化 ROS2 运行时"] --> B["node = MyNode()&lt;br/&gt;触发 __init__"]
+    B --> C["__init__ 里做四件事"]
+    C --> C1["super().__init__('节点名')&lt;br/&gt;向 ROS2 注册自己"]
+    C --> C2["create_publisher(...)&lt;br/&gt;要发消息就建这个"]
+    C --> C3["create_subscription(..., 回调)&lt;br/&gt;要收消息就建这个"]
+    C --> C4["create_timer(周期, 回调)&lt;br/&gt;要周期性做事就建这个"]
+    C1 --> D["rclpy.spin(node)&lt;br/&gt;交出控制权，开始等"]
+    C2 --> D
+    C3 --> D
+    C4 --> D
+    D --> E{"有事发生吗"}
+    E -- 定时器到点 --> F["调用你的 timer 回调"]
+    E -- 消息到达 --> G["调用你的消息回调"]
+    F --> E
+    G --> E
+    E -- "Ctrl+C" --> H["destroy_node()&lt;br/&gt;rclpy.shutdown()"]
+</pre>
+    <p class="callout"><strong>看清楚 <code>rclpy.spin()</code> 的位置。</strong>
+    它之后的代码在 Ctrl+C 之前永远不会执行。所有"持续做的事"都必须写成回调，
+    交给 <code>spin</code> 去调用——不能写成 <code>while True</code> 循环。</p>
+  </section>
+
+  <section class="block" id="hands-on">
+    <h2>跟我做</h2>
+    <p>用示例包 <code>day1_demo</code> 走一遍完整流程。源码在仓库的
+    <code>examples/day1_demo/</code>，卡住时拿来对照。</p>
+    <p>先把整套流程看完，再逐步执行。<strong>这六步就是以后每天的开发循环</strong>，
+    Day 2 起不再逐步解释：</p>
+<pre class="mermaid">
+flowchart LR
+    A["1 建包&lt;br/&gt;ros2 pkg create"] --> B["2 写节点代码&lt;br/&gt;编辑 *.py 与 setup.py"]
+    B --> C["3 编译&lt;br/&gt;colcon build"]
+    C --> D["4 加载环境&lt;br/&gt;source install/setup.bash"]
+    D --> E["5 运行&lt;br/&gt;ros2 run 包名 可执行名"]
+    E --> F["6 内省排查&lt;br/&gt;ros2 topic / node"]
+    F -. 改代码后回到 3 .-> C
+</pre>
+
+    <h3>第 1 步：建 workspace 和 package</h3>
+<pre><code>mkdir -p ~/ws_demo/src
+cd ~/ws_demo/src
+ros2 pkg create hello_pkg --build-type ament_python --dependencies rclpy std_msgs</code></pre>
+    <p class="callout danger"><strong>包名紧跟在 <code>pkg create</code> 后面写，选项放包名之后。</strong>
+    <code>--dependencies</code> 可以接收多个值，会把后面所有词都当成依赖：
+    写成 <code>--dependencies rclpy std_msgs hello_pkg</code> 会报
+    <code>the following arguments are required: package_name</code>——
+    包名被当成第三个依赖吃掉了。包名放最前面就不存在这种歧义。</p>
+    <div class="expected">
+<pre><code>going to create a new package
+package name: hello_pkg
+destination directory: /home/agx/ws_demo/src
+package format: 3
+version: 0.0.0
+description: TODO: Package description
+maintainer: ['agx &lt;you@example.com&gt;']
+licenses: ['TODO: License declaration']
+build type: ament_python
+dependencies: ['rclpy', 'std_msgs']
+creating folder ./hello_pkg
+creating ./hello_pkg/package.xml
+creating source folder
+creating folder ./hello_pkg/hello_pkg
+creating ./hello_pkg/setup.py
+creating ./hello_pkg/setup.cfg
+creating folder ./hello_pkg/resource
+creating ./hello_pkg/resource/hello_pkg
+creating ./hello_pkg/hello_pkg/__init__.py
+creating folder ./hello_pkg/test
+creating ./hello_pkg/test/test_copyright.py
+creating ./hello_pkg/test/test_flake8.py
+creating ./hello_pkg/test/test_pep257.py
+
+[WARNING]: Unknown license 'TODO: License declaration'.  This has been set in the package.xml, but no LICENSE file has been created.</code></pre>
+    </div>
+    <p>最后那条 <code>[WARNING]</code> <strong>可以忽略</strong>，它只是提醒你没填开源许可证。
+    本课程不发布代码，不用管。</p>
+
+    <p>看看生成了什么：</p>
+<pre><code>cd ~/ws_demo
+find src/hello_pkg | sort</code></pre>
+    <div class="expected">
+<pre><code>src/hello_pkg
+src/hello_pkg/hello_pkg
+src/hello_pkg/hello_pkg/__init__.py
+src/hello_pkg/package.xml
+src/hello_pkg/resource
+src/hello_pkg/resource/hello_pkg
+src/hello_pkg/setup.cfg
+src/hello_pkg/setup.py
+src/hello_pkg/test
+src/hello_pkg/test/test_copyright.py
+src/hello_pkg/test/test_flake8.py
+src/hello_pkg/test/test_pep257.py</code></pre>
+    </div>
+    <p>对照上面第 2 节的表格，每个文件你现在应该都能说出用途了。</p>
+
+    <h3>第 2 步：打开生成的 <code>package.xml</code> 看一眼</h3>
+<pre><code>cat src/hello_pkg/package.xml</code></pre>
+    <div class="expected">
+<pre><code>&lt;?xml version="1.0"?&gt;
+&lt;package format="3"&gt;
+  &lt;name&gt;hello_pkg&lt;/name&gt;
+  &lt;version&gt;0.0.0&lt;/version&gt;
+  &lt;description&gt;TODO: Package description&lt;/description&gt;
+  &lt;maintainer email="you@example.com"&gt;agx&lt;/maintainer&gt;
+  &lt;license&gt;TODO: License declaration&lt;/license&gt;
+
+  &lt;depend&gt;rclpy&lt;/depend&gt;
+  &lt;depend&gt;std_msgs&lt;/depend&gt;
+
+  &lt;test_depend&gt;ament_copyright&lt;/test_depend&gt;
+  &lt;test_depend&gt;ament_flake8&lt;/test_depend&gt;
+  &lt;test_depend&gt;ament_pep257&lt;/test_depend&gt;
+  &lt;test_depend&gt;python3-pytest&lt;/test_depend&gt;
+
+  &lt;export&gt;
+    &lt;build_type&gt;ament_python&lt;/build_type&gt;
+  &lt;/export&gt;
+&lt;/package&gt;</code></pre>
+    </div>
+    <p>刚才命令行里写的 <code>--dependencies rclpy std_msgs</code>
+    变成了这里的两行 <code>&lt;depend&gt;</code>。<code>&lt;build_type&gt;ament_python&lt;/build_type&gt;</code>
+    则是 <code>--build-type</code> 的结果——colcon 靠它决定用 Python 的方式还是 CMake 的方式处理这个包。</p>
+
+    <h3>第 3 步：写 Publisher</h3>
+    <p>新建 <code>src/hello_pkg/hello_pkg/simple_talker.py</code>：</p>
+<pre><code>import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Int32
+
+
+class SimpleTalker(Node):
+    def __init__(self):
+        # 'simple_talker' 是节点名，ros2 node list 里看到的就是它
+        super().__init__('simple_talker')
+
+        # 消息类型、话题名、队列深度
+        self.pub = self.create_publisher(Int32, 'demo/counter', 10)
+
+        self.count = 0
+
+        # 每 0.5 秒调用一次 self.on_timer。0.5 秒 = 2 Hz
+        self.timer = self.create_timer(0.5, self.on_timer)
+
+        self.get_logger().info('simple_talker 已启动，正在发布 demo/counter')
+
+    def on_timer(self):
+        """定时器回调。rclpy 每 0.5 秒调用一次，我们自己从不调用它。"""
+        msg = Int32()
+        msg.data = self.count
+        self.pub.publish(msg)
+        self.get_logger().info(f'发布：{msg.data}')
+        self.count += 1
+
+
+def main():
+    rclpy.init()
+    node = SimpleTalker()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:   # Ctrl+C 时干净退出，不打印一堆红字
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()</code></pre>
+    <p>逐行对照第 7 节那张程序框图：<code>rclpy.init()</code> → 建对象（触发
+    <code>__init__</code>，里面注册节点名、建 publisher、建 timer）→ <code>rclpy.spin()</code>
+    交出控制权 → 回调被反复调用 → Ctrl+C 后清理。</p>
+
+    <p>关于 <code>create_publisher(Int32, 'demo/counter', 10)</code> 的第三个参数
+    <strong>队列深度</strong>：如果订阅者处理不过来，最多缓存 10 条，再多就丢掉最老的。
+    Day 3 讲 QoS 时会展开，现在填 10 就行。</p>
+
+    <p>想知道 <code>Int32</code> 里到底有什么字段：</p>
+<pre><code>ros2 interface show std_msgs/msg/Int32</code></pre>
+    <div class="expected">
+<pre><code># This was originally provided as an example message.
+# It is deprecated as of Foxy
+# It is recommended to create your own semantically meaningful message.
+# However if you would like to continue using this please use the equivalent in example_msgs.
+
+int32 data</code></pre>
+    </div>
+    <p>只有一个字段 <code>data</code>，类型是 32 位整数。所以代码里写
+    <code>msg.data = self.count</code>。</p>
+    <p class="callout">那段"deprecated"的注释不用管。ROS2 官方建议正式项目自定义有语义的消息类型
+    （比如 <code>BatteryLevel</code> 而不是 <code>Int32</code>），但学习阶段用它最省事。
+    <code>std_msgs</code> 里的类型在实际项目中仍然到处都是。</p>
+
+    <h3>第 4 步：写 Subscriber</h3>
+    <p>新建 <code>src/hello_pkg/hello_pkg/simple_listener.py</code>：</p>
+<pre><code>import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Int32
+
+
+class SimpleListener(Node):
+    def __init__(self):
+        super().__init__('simple_listener')
+
+        # 类型、话题名、回调函数、队列深度
+        # 话题名和类型都必须与发布者一致，否则收不到
+        self.sub = self.create_subscription(Int32, 'demo/counter', self.on_msg, 10)
+
+        self.get_logger().info('simple_listener 已启动，正在订阅 demo/counter')
+
+    def on_msg(self, msg):
+        """每来一条消息，rclpy 调用一次，并把消息作为参数传进来。"""
+        self.get_logger().info(f'收到：{msg.data}')
+
+
+def main():
+    rclpy.init()
+    node = SimpleListener()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()</code></pre>
+    <p>注意这里<strong>没有定时器</strong>。<code>on_msg</code> 什么时候被调用，
+    完全取决于"有没有消息到达"。这就是 Day 0 讲的回调模型。</p>
+    <p class="callout danger"><code>self.on_msg</code> <strong>不能写成
+    <code>self.on_msg()</code></strong>。加了括号是"现在就执行它"，
+    但此刻并没有消息可传，会直接报错。回想 Day 0 第 8 节。</p>
+
+    <h3>第 5 步：注册可执行文件</h3>
+    <p>光有 <code>.py</code> 文件不够，<code>ros2 run</code> 找不到它。打开
+    <code>src/hello_pkg/setup.py</code>，把 <code>entry_points</code> 那段改成：</p>
+<pre><code>entry_points={
+    # 左边是 ros2 run &lt;包名&gt; &lt;这个名字&gt;，右边是 模块路径:函数名
+    'console_scripts': [
+        'simple_talker = hello_pkg.simple_talker:main',
+        'simple_listener = hello_pkg.simple_listener:main',
+    ],
+},</code></pre>
+    <p>读法：<code>simple_talker</code> 这个命令，对应 <code>hello_pkg</code> 包里
+    <code>simple_talker</code> 模块的 <code>main</code> 函数。冒号左边是模块，右边是函数名。</p>
+    <p class="callout danger"><strong>改了 <code>entry_points</code> 必须重新
+    <code>colcon build</code></strong>，<code>--symlink-install</code> 也救不了——
+    因为可执行文件是 build 时按这份清单生成的。</p>
+
+    <h3>第 6 步：编译</h3>
+<pre><code>cd ~/ws_demo
+colcon build</code></pre>
+    <div class="expected">
+<pre><code>Starting &gt;&gt;&gt; hello_pkg
+Finished &lt;&lt;&lt; hello_pkg [2.71s]
+
+Summary: 1 package finished [3.26s]</code></pre>
+    </div>
+    <p>包多了以后，只编译某一个：<code>colcon build --packages-select hello_pkg</code>。</p>
+
+    <p>看看多出了什么：</p>
+<pre><code>ls -1</code></pre>
+    <div class="expected">
+<pre><code>build
+install
+log
+src</code></pre>
+    </div>
+    <p>再看看 <code>install/</code> 里到底装了什么——这能让第 3 节那张图变得具体：</p>
+<pre><code>find install/hello_pkg -maxdepth 4 -type d | sort | head -8</code></pre>
+    <div class="expected">
+<pre><code>install/hello_pkg
+install/hello_pkg/lib
+install/hello_pkg/lib/python3.10
+install/hello_pkg/lib/python3.10/site-packages
+install/hello_pkg/lib/python3.10/site-packages/hello_pkg
+install/hello_pkg/lib/python3.10/site-packages/hello_pkg-0.0.0-py3.10.egg-info
+install/hello_pkg/share
+install/hello_pkg/share/ament_index</code></pre>
+    </div>
+    <p>你的 <code>.py</code> 被装进了 <code>site-packages/hello_pkg/</code>，
+    可执行文件在 <code>lib/hello_pkg/</code>，包的元信息在 <code>share/</code>。
+    <strong><code>ros2 run</code> 读的是这里，不是 <code>src/</code>。</strong></p>
+
+    <h3>第 7 步：source 并运行</h3>
+<pre><code>source install/setup.bash
+ros2 run hello_pkg simple_talker</code></pre>
+    <div class="expected">
+<pre><code>[INFO] [1785307457.022230606] [simple_talker]: simple_talker 已启动，正在发布 demo/counter
+[INFO] [1785307457.502121568] [simple_talker]: 发布：0
+[INFO] [1785307458.002081134] [simple_talker]: 发布：1
+[INFO] [1785307458.502210606] [simple_talker]: 发布：2
+[INFO] [1785307459.002384974] [simple_talker]: 发布：3</code></pre>
+    </div>
+    <p>方括号里依次是时间戳和节点名。时间戳相差 0.5 秒，正是定时器周期。</p>
+
+    <h3>第 8 步：另开终端跑 Subscriber</h3>
+    <p><strong>新终端里要 source 两次</strong>（ROS2 环境已由 <code>.bashrc</code> 自动完成，
+    workspace 这次要手动）：</p>
+<pre><code>cd ~/ws_demo
+source install/setup.bash
+ros2 run hello_pkg simple_listener</code></pre>
+    <div class="expected">
+<pre><code>[INFO] [1785307464.378162001] [simple_listener]: simple_listener 已启动，正在订阅 demo/counter
+[INFO] [1785307464.505077692] [simple_listener]: 收到：4
+[INFO] [1785307465.005096554] [simple_listener]: 收到：5
+[INFO] [1785307465.505340297] [simple_listener]: 收到：6</code></pre>
+    </div>
+    <p class="callout"><strong>注意它是从 4 开始收的，不是从 0。</strong>
+    talker 早就在发了，subscriber 只能收到它启动<em>之后</em>的消息。
+    这印证了第 5 节说的"不补发历史"。</p>
+
+    <h3>第 9 步：用命令行观察系统</h3>
+    <p>再开第三个终端。这几条命令你后面每天都会用。</p>
+
+<pre><code>ros2 topic list</code></pre>
+    <div class="expected">
+<pre><code>/demo/counter
+/parameter_events
+/rosout</code></pre>
+    </div>
+    <p><code>/parameter_events</code> 和 <code>/rosout</code> 是 ROS2 自带的，永远都在，忽略。
+    <strong>注意你代码里写的是 <code>'demo/counter'</code>（没有开头斜杠），
+    实际出现的是 <code>/demo/counter</code></strong>——ROS2 自动补上了。
+    Day 3 讲 namespace 时会说清这个规则。</p>
+
+<pre><code>ros2 topic echo /demo/counter --once</code></pre>
+    <div class="expected">
+<pre><code>data: 14
+---</code></pre>
+    </div>
+    <p>去掉 <code>--once</code> 会持续打印，Ctrl+C 停止。<code>---</code> 是消息之间的分隔线。</p>
+
+<pre><code>ros2 topic info /demo/counter</code></pre>
+    <div class="expected">
+<pre><code>Type: std_msgs/msg/Int32
+Publisher count: 1
+Subscription count: 0</code></pre>
+    </div>
+    <p class="callout"><strong>这是排查"收不到消息"的第一条命令。</strong>
+    类型对不对？发布者和订阅者的数量对不对？
+    上面这次 <code>Subscription count: 0</code> 是因为当时 listener 没在跑。</p>
+
+<pre><code>ros2 topic hz /demo/counter</code></pre>
+    <div class="expected">
+<pre><code>WARNING: topic [/demo/counter] does not appear to be published yet
+average rate: 2.000
+	min: 0.500s max: 0.500s std dev: 0.00015s window: 3</code></pre>
+    </div>
+    <p class="callout">开头那行 <code>WARNING</code> <strong>是正常的</strong>，不是错误——
+    它只是说"还没收到第一条，等等"。后面出现 <code>average rate</code> 就说明测到了。
+    这里是 2.000 Hz，和定时器的 0.5 秒对上了。</p>
+
+<pre><code>ros2 node list</code></pre>
+    <div class="expected">
+<pre><code>/simple_talker</code></pre>
+    </div>
+
+<pre><code>ros2 node info /simple_talker</code></pre>
+    <div class="expected">
+<pre><code>/simple_talker
+  Subscribers:
+
+  Publishers:
+    /demo/counter: std_msgs/msg/Int32
+    /parameter_events: rcl_interfaces/msg/ParameterEvent
+    /rosout: rcl_interfaces/msg/Log
+  Service Servers:
+    /simple_talker/describe_parameters: rcl_interfaces/srv/DescribeParameters
+    ...</code></pre>
+    </div>
+    <p>能看到这个节点发布什么、订阅什么。查"我的节点到底连上没有"很好用。</p>
+
+<pre><code>ros2 pkg executables hello_pkg</code></pre>
+    <p>列出某个包里所有能 <code>ros2 run</code> 的名字。<strong>当你不确定
+    <code>entry_points</code> 有没有生效时，用这条命令确认。</strong>比如 ROS2 自带的包：</p>
+    <div class="expected">
+<pre><code>demo_nodes_py add_two_ints_client
+demo_nodes_py add_two_ints_client_async
+demo_nodes_py add_two_ints_server
+demo_nodes_py listener
+demo_nodes_py listener_qos
+demo_nodes_py listener_serialized</code></pre>
+    </div>
+  </section>
+
+  <section class="block" id="python-refill">
+    <h2>Python 补给站</h2>
+    <p>今天真正用到的语法，都在 Day 0 讲过，这里对照节点代码复习一遍。</p>
+
+    <h3>1. 继承 <code>Node</code> 与 <code>super().__init__()</code></h3>
+<pre><code>class SimpleTalker(Node):        # 继承 ROS2 的 Node
+    def __init__(self):
+        super().__init__('simple_talker')   # 把节点名交给父类去注册</code></pre>
+    <p>Day 0 第 7 节练过：漏了 <code>super().__init__()</code>，父类的初始化没跑，
+    后面用 <code>self.create_publisher</code> 就会失败。<strong>括号里那个字符串是节点名，
+    不是类名也不是文件名</strong>——<code>ros2 node list</code> 显示的就是它。</p>
+
+    <h3>2. 回调不加括号</h3>
+<pre><code>self.create_timer(0.5, self.on_timer)              # 对
+self.create_subscription(Int32, 't', self.on_msg, 10)   # 对
+
+self.create_timer(0.5, self.on_timer())            # 错
+self.create_subscription(Int32, 't', self.on_msg(), 10) # 错</code></pre>
+    <p>加括号 = 现在执行它、把返回值（<code>None</code>）交出去。
+    不加括号 = 把函数本身交出去，让 rclpy 在合适的时机调用。</p>
+
+    <h3>3. <code>self.</code> 保存状态</h3>
+<pre><code>def __init__(self):
+    self.count = 0        # 存进对象，后面的回调还能用到
+    self.pub = self.create_publisher(...)   # 也要存起来
+
+def on_timer(self):
+    self.count += 1       # 每次调用都在上次基础上累加</code></pre>
+    <p class="callout danger">如果写成 <code>count = 0</code>（没有 <code>self.</code>），
+    它只是 <code>__init__</code> 里的局部变量，函数一结束就没了，
+    <code>on_timer</code> 里访问会报 <code>NameError</code>。
+    <strong>publisher 也必须存进 <code>self.</code></strong>——
+    不存的话它可能被 Python 回收，话题就悄悄断了。</p>
+
+    <h3>4. f-string 打日志</h3>
+<pre><code>self.get_logger().info(f'发布：{msg.data}')</code></pre>
+    <p><code>self.get_logger()</code> 是 <code>Node</code> 提供的，
+    比 <code>print()</code> 好：带时间戳和节点名，而且能被 ROS2 的日志系统统一收集。
+    <strong>本课程一律用它，不要用 <code>print()</code>。</strong></p>
+
+    <h3>5. <code>try / except / finally</code></h3>
+<pre><code>try:
+    rclpy.spin(node)          # 一直阻塞，直到 Ctrl+C
+except KeyboardInterrupt:     # Ctrl+C 触发的就是这个异常
+    pass                      # 什么都不做，安静退出
+finally:
+    node.destroy_node()       # 不管怎么退出，清理都要做
+    rclpy.shutdown()</code></pre>
+    <p>不写 <code>except KeyboardInterrupt</code> 的话，Ctrl+C 会打印一大段红色堆栈，
+    看着像出了错，其实只是你按了停止。</p>
+  </section>
+
+  <section class="block" id="errors">
+    <h2>常见报错对照表</h2>
+    <p>先看这张表，再改代码。<strong>两个最像的报错要分清</strong>：
+    <code>Package not found</code> 是没 source，<code>No executable found</code> 是包找到了但命令名不对。</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>你看到的</th><th>真正的原因</th><th>怎么解决</th></tr>
+      <tr>
+        <td><code>Package 'hello_pkg' not found</code></td>
+        <td>当前终端没 <code>source install/setup.bash</code>，或不在 workspace 根目录 source 的</td>
+        <td><code>cd ~/ws_demo &amp;&amp; source install/setup.bash</code>。每个新终端都要做</td>
+      </tr>
+      <tr>
+        <td><code>No executable found</code></td>
+        <td>包找到了，但这个可执行名不存在。<code>entry_points</code> 写错，或改完没重新 build</td>
+        <td><code>ros2 pkg executables hello_pkg</code> 看实际有哪些名字，
+            然后核对 <code>setup.py</code> 并 <code>colcon build</code></td>
+      </tr>
+      <tr>
+        <td><code>the following arguments are required: package_name</code></td>
+        <td><code>ros2 pkg create</code> 时把包名写在了 <code>--dependencies</code> 后面，被当成依赖吃掉了</td>
+        <td>包名紧跟子命令：<code>ros2 pkg create 包名 --build-type ament_python --dependencies rclpy std_msgs</code></td>
+      </tr>
+      <tr>
+        <td><code>ModuleNotFoundError: No module named 'hello_pkg'</code></td>
+        <td>Python 子目录名与 <code>package_name</code> 不一致，或缺 <code>__init__.py</code></td>
+        <td>确认三个名字一致（第 2 节），且子目录里有 <code>__init__.py</code></td>
+      </tr>
+      <tr>
+        <td>改了代码但行为没变</td>
+        <td><code>ros2 run</code> 跑的是 <code>install/</code> 的副本</td>
+        <td>重新 <code>colcon build</code>；或用 <code>--symlink-install</code>
+            （但改 <code>setup.py</code> 仍要重编）</td>
+      </tr>
+      <tr>
+        <td>两个节点都在跑，就是收不到</td>
+        <td>话题名或消息类型不一致</td>
+        <td><code>ros2 topic list</code> 核名字，<code>ros2 topic info &lt;话题&gt;</code>
+            核类型和两端数量。见第 6 节的排查树</td>
+      </tr>
+      <tr>
+        <td><code>ros2 topic hz</code> 一直只有 WARNING</td>
+        <td>话题名写错，或发布者没在跑</td>
+        <td>先 <code>ros2 topic list</code>。注意 <code>demo/counter</code> 与
+            <code>/demo/counter</code> 在命令行里必须写全称（带斜杠）</td>
+      </tr>
+      <tr>
+        <td><code>AttributeError: 'SimpleTalker' object has no attribute 'pub'</code></td>
+        <td><code>__init__</code> 里忘了 <code>self.pub = ...</code>，或漏了 <code>super().__init__()</code></td>
+        <td>检查 <code>__init__</code> 里每个 <code>self.xxx = ...</code> 是否都写了</td>
+      </tr>
+      <tr>
+        <td>Ctrl+C 后打印一大段红色堆栈</td>
+        <td>没捕获 <code>KeyboardInterrupt</code></td>
+        <td>按第 5 节的 <code>try/except/finally</code> 结构写 <code>main()</code></td>
+      </tr>
+      <tr>
+        <td><code>colcon build</code> 报奇怪的错，改回去也不好</td>
+        <td>编译产物脏了</td>
+        <td><code>rm -rf build install log</code> 然后重新 <code>colcon build</code>。这三个目录随时可删</td>
+      </tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="block" id="review">
+    <h2>课后回顾</h2>
+    <p>几道典型选择题，先作答再展开答案；答错的回到括号里的小节重读。
+    考核题面由带教老师另行下发。</p>
+    <ol class="quiz">
+      <li>
+        <p><code>ros2 run day1_exam talker</code> 报 <code>Package 'day1_exam' not found</code>，最可能的原因是？</p>
+        <ol type="A">
+        <li><code>entry_points</code> 写错了</li>
+        <li>这个终端没有 <code>source install/setup.bash</code></li>
+        <li>节点名写错了</li>
+        <li>没有用 <code>--symlink-install</code></li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>找不到<strong>包</strong>是环境没加载；如果报的是 <code>No executable found</code>，才是包找到了但 <code>entry_points</code> 不对或没重新 build（第 6 节报错表）。这两条报错必须能立刻区分。</p>
+        </details>
+      </li>
+      <li>
+        <p>为什么每开一个新终端都要重新 <code>source install/setup.bash</code>？</p>
+        <ol type="A">
+        <li>ROS2 的 bug</li>
+        <li>环境变量只活在设置它的那个 shell 里，新终端是新进程，什么都没继承到你的改动</li>
+        <li>install/ 目录每次都会变</li>
+        <li>colcon 要求</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>Day 0 的 3.3 讲过：source 只影响当前 shell。写进 <code>~/.bashrc</code> 可以让每个新终端自动做这件事。</p>
+        </details>
+      </li>
+      <li>
+        <p>要 5 Hz 发布，<code>create_timer</code> 的第一个参数填？</p>
+        <ol type="A">
+        <li><code>5</code></li>
+        <li><code>0.5</code></li>
+        <li><code>0.2</code></li>
+        <li><code>50</code></li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C。</strong>参数是<strong>周期（秒）</strong>不是频率：1 / 5 Hz = 0.2 秒。填 5 就成了 5 秒一次（0.2 Hz），评分频率项直接不过。</p>
+        </details>
+      </li>
+      <li>
+        <p>改了 <code>talker.py</code> 再 <code>ros2 run</code>，行为没变化。为什么？</p>
+        <ol type="A">
+        <li>Python 有缓存</li>
+        <li><code>ros2 run</code> 跑的是 <code>install/</code> 里的副本，改的是 <code>src/</code>，中间还差一次 <code>colcon build</code></li>
+        <li>必须重启终端</li>
+        <li>必须先杀掉旧节点</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>编译的本质是把 src/ 按 setup.py 的说明复制进 install/（第 3 节）。<code>--symlink-install</code> 能省掉改 .py 后的重编，但改 setup.py 仍要重新 build。</p>
+        </details>
+      </li>
+      <li>
+        <p>把 <code>self.create_timer(0.2, self.on_timer)</code> 写成 <code>self.create_timer(0.2, self.on_timer())</code> 会怎样？</p>
+        <ol type="A">
+        <li>完全一样</li>
+        <li>语法错误</li>
+        <li><code>on_timer</code> 被立刻执行一次，其返回值 <code>None</code> 被当成回调交出去，定时器永远不会正常触发</li>
+        <li>定时器会跑得更快</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C。</strong>加括号 = 现在就调用；不加括号 = 把函数本身交出去，让 rclpy 到点再调（第 5 节，Day 0 的 5.9）。</p>
+        </details>
+      </li>
+    </ol>
+    <p class="callout">配套 notebook：<code>lessons/lesson1.ipynb</code>。里面可以不启动完整节点就单独试 rclpy 的各个部件，还能实测「漏写 <code>self.</code>」之类的错误。</p>
+  </section>
+
+  <section class="block" id="further">
+    <h2>延伸阅读</h2>
+    <ul>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-Your-First-ROS2-Package.html">官方：创建你的第一个包</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Writing-A-Simple-Py-Publisher-And-Subscriber.html">官方：编写 Publisher 与 Subscriber（Python）</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Understanding-ROS2-Topics/Understanding-ROS2-Topics.html">官方：理解 Topics</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Understanding-ROS2-Nodes/Understanding-ROS2-Nodes.html">官方：理解 Nodes</a></li>
+      <li><a href="https://ros2-tutorial.readthedocs.io/en/latest/python_package_build.html">参考教程：Python Package/Build</a></li>
+      <li><a href="https://ros2-tutorial.readthedocs.io/en/latest/python_node.html">参考教程：Python Node</a></li>
+    </ul>
+    <p class="callout danger">参考教程站按 Ubuntu 24.04 + ROS2 Jazzy 写的，命令与本课程有出入。
+    <strong>概念看它，命令照本课程。</strong></p>
+  </section>
+
+  <footer class="page-foot">
+    考核过线之后 → <a href="day2.html">Day 2 · 包结构、library 与 launch</a>
+  </footer>
+</main>
+</div>
+
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/site.js"></script>

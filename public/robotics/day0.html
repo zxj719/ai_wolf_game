@@ -1,0 +1,1913 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 0 · 课前预习 · ROS2 入门</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<div class="layout">
+<nav class="sidebar">
+  <strong>ROS2 入门 · 第 1 周</strong>
+  <a href="index.html">总览</a>
+  <a href="day0.html">Day 0 · 课前预习</a>
+  <a href="day1.html">Day 1 · 建包与话题</a>
+  <a href="day2.html">Day 2 · 包结构与 launch</a>
+  <a href="day3.html">Day 3 · 话题深入与实机</a>
+  <a href="day4.html">Day 4 · Gazebo 与 URDF</a>
+  <a href="day5.html">Day 5 · 综合考核</a>
+  <a href="appendix-livox.html">附录 · Livox 实机</a>
+</nav>
+
+<main class="page">
+  <h1>Day 0 · 课前预习</h1>
+  <p class="callout"><strong>预计 4 小时。</strong>开课前自己完成，不占用 5 个正式工作日。
+  跳过它，Day 1 你会同时被"什么是类"和"什么是 Node"夹击。</p>
+
+  <p class="callout danger"><strong>本教程全部内容在 Ubuntu 22.04（或更高）上使用。</strong>
+  Windows 与 macOS 不适用；可以用虚拟机或双系统，但仿真环节虚拟机性能吃紧，推荐实机安装。</p>
+
+  <p>这份讲义先讲<strong>为什么</strong>，再讲<strong>怎么做</strong>。你是自学，身边没人可问；
+  只会照抄命令的人，一旦遇到讲义没覆盖的情况就寸步难行。</p>
+
+  <p><strong>页面各模块的读法</strong>（全教程通用）：</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>模块</th><th>含义</th></tr>
+    <tr><td>正文</td><td>主线，逐条做完，顺序不能跳</td></tr>
+    <tr><td>带 <strong>▸</strong> 的折叠块</td><td>补充，想深入时展开，跳过不影响后续</td></tr>
+    <tr><td>代码块</td><td>要输入的命令或代码，右上角有复制按钮，不含提示符</td></tr>
+    <tr><td><span style="color:var(--ok)">绿色左边框</span>的代码块</td><td>预期输出，来自真实运行。和你看到的对不上时先停下排查</td></tr>
+    <tr><td><span style="color:var(--warn)">黄色</span>色块</td><td>提醒：容易忽略、之后会用到的信息</td></tr>
+    <tr><td><span style="color:var(--err)">红色</span>色块</td><td>警告：做错会有实际损失（清空文件、断网、环境损坏）</td></tr>
+    <tr><td>「阶段成果」行</td><td>主线任务的验收点，做到这里应该得到什么</td></tr>
+    <tr><td>流程图 / 表格</td><td>流程图给因果与排查顺序，表格给并列事实，都是正文的一部分</td></tr>
+  </table>
+  </div>
+
+  <section class="block" id="goals">
+    <h2>今日目标</h2>
+    <ul class="goals">
+      <li>掌握一组够用的 Linux 命令：定位、查看、创建、重定向、管道</li>
+      <li>理解软件怎么进入系统：<code>apt</code> 管依赖，<code>dpkg</code> 管单个 <code>.deb</code></li>
+      <li>说清环境变量、<code>PATH</code>、<code>source</code> 三者的关系</li>
+      <li>看懂 <code>ip addr</code> 的输出，会判断两台设备在不在同一子网、
+          ping 不通时能定位到哪一层；知道串口设备靠波特率而非 IP 通信</li>
+      <li>掌握写 ROS2 节点所需的 Python：导入、类、<code>self</code>、继承、回调</li>
+      <li>装好 ROS2 Humble，自测脚本五项全绿：
+          <code>python3 grading/selfcheck_day0.py</code>（不计分，只判断能否进 Day 1）</li>
+    </ul>
+  </section>
+
+  <section class="block" id="overview">
+    <h2>今日全景与主线任务</h2>
+
+    <p>今天所有知识点都服务于一个目标：<strong>把一台裸 Ubuntu 变成能开工的 ROS2 开发机。</strong>
+    各节之间是递进关系，每节结束时都有一项可以验证的成果。</p>
+
+<pre class="mermaid">
+flowchart TD
+    S(["裸 Ubuntu"]) --> A["第一节　Linux 基础命令"]
+    A --> A1["成果：建立 ~/ros2_lab，写出环境报告"]
+    A1 --> B["第二节　apt 与 dpkg"]
+    B --> B1["成果：ROS2 安装到 /opt/ros/humble"]
+    B1 --> C["第三节　环境变量与 source"]
+    C --> C1["成果：ros2 命令可用，且每次开终端自动生效"]
+    C1 --> N["第四节　网络基础"]
+    N --> N1["成果：能判断设备是否互通，为 Day 3 接雷达做准备"]
+    N1 --> E["第五节　Python 基础"]
+    E --> E1["成果：写出第一个 类 + 回调 的程序"]
+    E1 --> F(["自测 5/5，进入 Day 1"])
+</pre>
+
+    <p class="milestone">今天结束时，<code>~/ros2_lab/</code> 下会有两个文件：
+    记录本机环境的 <code>env_report.txt</code>，以及你自己写的 <code>node_shape.py</code>。</p>
+  </section>
+
+  <section class="block" id="linux">
+    <h2>一、Linux 基础命令</h2>
+
+    <p>ROS2 的一切都在终端里发生。这一节把后面五天要用的命令一次讲完，分四组：
+    <strong>定位、查看、创建、组合</strong>。用到时不再重复解释。</p>
+
+    <h3>1.1 终端在做什么</h3>
+    <p><strong>终端</strong>是那个黑框窗口，只负责显示文字、接收键盘输入。真正干活的是里面运行的
+    <strong>Shell</strong>（Ubuntu 默认 <code>bash</code>）：读你的命令、找到对应程序、把它跑起来。</p>
+<pre class="mermaid">
+flowchart LR
+    A["你敲 ls -l"] --> B["bash 拆开&lt;br/&gt;命令 ls，参数 -l"]
+    B --> C["按 PATH 里的目录&lt;br/&gt;逐个找名叫 ls 的程序"]
+    C --> D{"找到了吗"}
+    D -- 是 --> E["运行它&lt;br/&gt;结果打到终端"]
+    D -- 否 --> F["command not found"]
+</pre>
+    <p class="callout"><strong>记住右下角这条。</strong>后面你会无数次遇到
+    <code>ros2: command not found</code>。它的含义永远是"bash 按 <code>PATH</code> 找遍了，
+    没找到叫 <code>ros2</code> 的程序"，<strong>不等于"ROS2 没装"</strong>。
+    第三节会讲这两者怎么区分。</p>
+
+    <details class="aside">
+      <summary>补充：为什么 <code>cd</code> 查不到路径</summary>
+      <p>有少数命令不是独立程序，而是 bash 自己的功能，叫<strong>内建命令</strong>。</p>
+<pre><code>which python3
+type cd</code></pre>
+      <div class="expected">
+<pre><code>/usr/bin/python3
+cd 是 shell 内建</code></pre>
+      </div>
+      <p><code>which</code> 报出外部程序的路径；<code>cd</code> 没有路径，因为它属于 bash 本身。
+      这也解释了一个常见困惑：写脚本帮你 <code>cd</code> 是没用的——脚本跑在子进程里，
+      它切的是自己的目录，你的终端不受影响。同样的道理下一节讲 <code>source</code> 时还会用到。</p>
+      <p>英文界面下这里显示 <code>cd is a shell builtin</code>。本讲义输出抓自中文环境。</p>
+    </details>
+
+    <h3>1.2 定位：我在哪，去哪里</h3>
+    <p><strong>提示符本身就告诉你在哪。</strong>Ubuntu 默认的提示符格式是
+    <code>用户名@主机名:当前目录$</code>：</p>
+<pre><code>agx@ubuntu:~$</code></pre>
+    <p>读法：用户是 <code>agx</code>，机器叫 <code>ubuntu</code>，当前在 <code>~</code>（家目录）。
+    本讲义的输出抓自一台用户名为 <code>agx</code> 的实验机——<strong>你的机器上显示的是你自己的
+    用户名和主机名</strong>，后面所有含 <code>agx</code> 或 <code>/home/agx</code> 的输出同理。
+    切换目录后提示符会跟着变，不需要额外命令去查。
+    结尾的 <code>$</code> 表示普通用户；如果是 <code>#</code>，说明你在 root 身份下，要格外小心。</p>
+    <p class="callout">本讲义的命令块只写你要输入的部分，不带提示符。
+    看到 <code>cd ~/ros2_lab</code> 就是让你敲这一行。</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>作用</th></tr>
+      <tr><td><code>cd 目录</code></td><td>切换到该目录</td></tr>
+      <tr><td><code>cd ..</code></td><td>回到上一级</td></tr>
+      <tr><td><code>cd</code>（不带参数）</td><td>回家目录</td></tr>
+      <tr><td><code>whoami</code></td><td>当前用户名</td></tr>
+    </table>
+    </div>
+    <p>Linux 的文件挂在一棵树上，树根是 <code>/</code>：</p>
+<pre class="mermaid">
+flowchart TD
+    R["/ 根"] --> H["/home 用户的家"]
+    R --> U["/usr 系统软件&lt;br/&gt;python3 在 /usr/bin"]
+    R --> O["/opt 第三方大型软件&lt;br/&gt;ROS2 装在这里"]
+    R --> E["/etc 配置文件&lt;br/&gt;apt 软件源在这里"]
+    R --> T["/tmp 临时文件，重启即失"]
+    H --> M["/home/agx 你的家&lt;br/&gt;简写为 ~"]
+</pre>
+    <p><strong>绝对路径</strong>以 <code>/</code> 开头，从树根算起，在哪执行都指同一处；
+    <strong>相对路径</strong>从当前目录算起。<code>.</code> 是当前目录，<code>..</code> 是上一级，
+    <code>~</code> 是家目录。</p>
+
+    <h3>1.3 查看：目录里有什么</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>作用</th></tr>
+      <tr><td><code>ls</code></td><td>列出文件名</td></tr>
+      <tr><td><code>ls -l</code></td><td>加上权限、大小、修改时间</td></tr>
+      <tr><td><code>ls -a</code></td><td>连隐藏文件一起列（名字以 <code>.</code> 开头的）</td></tr>
+      <tr><td><code>cat 文件</code></td><td>把文件内容打到终端</td></tr>
+      <tr><td><code>head -n 5 文件</code></td><td>只看前 5 行</td></tr>
+      <tr><td><code>tail -n 5 文件</code></td><td>只看后 5 行</td></tr>
+    </table>
+    </div>
+    <p class="callout"><code>-a</code> 很重要。<code>~/.bashrc</code> 这类配置文件都是隐藏的，
+    不加 <code>-a</code> 你会以为它不存在。第三节要改的就是它。</p>
+
+    <details class="aside">
+      <summary>补充：<code>ls -l</code> 开头那串 <code>-rw-rw-r--</code> 怎么读</summary>
+      <p>共 10 个字符。第 1 个表示类型，后 9 个分三组表示权限。</p>
+      <div class="table-wrap">
+      <table>
+        <tr><th>位置</th><th>含义</th></tr>
+        <tr><td>第 1 位</td><td><code>-</code> 普通文件，<code>d</code> 目录，<code>l</code> 符号链接</td></tr>
+        <tr><td>第 2–4 位</td><td>文件<strong>主人</strong>的权限</td></tr>
+        <tr><td>第 5–7 位</td><td><strong>同组用户</strong>的权限</td></tr>
+        <tr><td>第 8–10 位</td><td><strong>其他所有人</strong>的权限</td></tr>
+      </table>
+      </div>
+      <p>每组三位固定是 <code>r</code> 读 / <code>w</code> 写 / <code>x</code> 执行，
+      <code>-</code> 表示没有该权限。所以 <code>-rw-rw-r--</code> = 普通文件，
+      主人和同组可读写，其他人只读。</p>
+      <p><code>x</code> 对目录的含义是"可以进入"，不是"可以执行"。
+      装 <code>.deb</code> 那节会再遇到 <code>x</code>。</p>
+    </details>
+
+    <h3>1.4 创建与重定向：把输出存进文件</h3>
+    <p>先认识 <code>echo</code>：把你给它的文字原样打出来。它和 <code>cat</code> 是一对——
+    <strong><code>echo</code> 打的是你写在命令里的字符串，<code>cat</code> 打的是文件的内容</strong>：</p>
+<pre><code>echo "hello"</code></pre>
+    <div class="expected">
+<pre><code>hello</code></pre>
+    </div>
+    <p>默认情况下命令的输出打在屏幕上。<strong>重定向</strong>可以把它改存到文件里——
+    <code>echo</code> 配上重定向，就是往文件里写一行字的最短路径，第三节改
+    <code>~/.bashrc</code> 用的正是这一招。</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>符号</th><th>作用</th><th>风险</th></tr>
+      <tr><td><code>mkdir -p 路径</code></td><td>建目录，<code>-p</code> 表示缺几层建几层</td><td>—</td></tr>
+      <tr><td><code>命令 &gt; 文件</code></td><td><strong>覆盖</strong>写入：先清空文件，再写</td><td><strong>原内容全没</strong></td></tr>
+      <tr><td><code>命令 &gt;&gt; 文件</code></td><td><strong>追加</strong>写入：保留原内容，加在末尾</td><td>安全</td></tr>
+    </table>
+    </div>
+    <p class="callout danger">改配置文件时<strong>永远用 <code>&gt;&gt;</code></strong>。
+    差一个字符，<code>&gt;</code> 会把你的 <code>~/.bashrc</code> 清空。第三节马上要用到。</p>
+
+    <h3>1.5 组合：管道</h3>
+    <p><strong>管道 <code>|</code></strong> 把左边命令的输出，直接交给右边命令当输入。
+    这让每个小命令可以拼成一条流水线。</p>
+    <p>最常配管道用的是 <code>grep 关键词</code>：只留下含关键词的行。</p>
+    <p>例子：<code>/etc/os-release</code> 记录着系统版本信息，有十几行。
+    只想看版本号那一行：</p>
+<pre><code>cat /etc/os-release | grep VERSION_ID</code></pre>
+    <div class="expected">
+<pre><code>VERSION_ID="22.04"</code></pre>
+    </div>
+    <p>读法是从左往右：把整个文件打出来 → 只留含 <code>VERSION_ID</code> 的行。
+    这个形态后面天天用：<code>dpkg -l | grep ros-humble</code> 查装了哪些 ROS2 包、
+    <code>ros2 topic list | grep imu</code> 在一大串话题里找传感器的那几个。</p>
+
+    <h3>1.6 动手：搭出工作台</h3>
+    <p class="milestone">建立 <code>~/ros2_lab/</code>，并在其中写出本机的环境报告。</p>
+
+<pre><code>mkdir -p ~/ros2_lab
+cd ~/ros2_lab</code></pre>
+    <p>提示符会跟着变，这就是你已经进去的确认：</p>
+    <div class="expected">
+<pre><code>agx@ubuntu:~$ mkdir -p ~/ros2_lab
+agx@ubuntu:~$ cd ~/ros2_lab
+agx@ubuntu:~/ros2_lab$</code></pre>
+    </div>
+
+    <p>先用 <code>&gt;</code> 建立报告文件。<code>lsb_release</code> 打印 Ubuntu 的发行版信息，
+    <code>-d</code> 表示只要描述行（description）：</p>
+<pre><code>lsb_release -d &gt; env_report.txt
+cat env_report.txt</code></pre>
+    <div class="expected">
+<pre><code>Description:	Ubuntu 22.04.5 LTS</code></pre>
+    </div>
+
+    <p>再用 <code>&gt;&gt;</code> 追加两行。<code>uname</code> 打印内核与硬件信息，
+    <code>-m</code> 表示只要机器（machine）架构：</p>
+<pre><code>python3 --version &gt;&gt; env_report.txt
+uname -m &gt;&gt; env_report.txt
+cat env_report.txt</code></pre>
+    <div class="expected">
+<pre><code>Description:	Ubuntu 22.04.5 LTS
+Python 3.10.12
+aarch64</code></pre>
+    </div>
+    <p><code>uname -m</code> 是 CPU 架构。台式机通常是 <code>x86_64</code>，
+    这份输出抓自一台 Jetson，所以是 <code>aarch64</code>。</p>
+
+    <p>下面验证 <code>&gt;</code> 的覆盖行为：</p>
+<pre><code>echo "只剩这一行" &gt; env_report.txt
+cat env_report.txt</code></pre>
+    <div class="expected">
+<pre><code>只剩这一行</code></pre>
+    </div>
+    <p>三行内容全没了。把它重建回来：</p>
+<pre><code>lsb_release -d &gt; env_report.txt
+python3 --version &gt;&gt; env_report.txt
+uname -m &gt;&gt; env_report.txt
+cat env_report.txt</code></pre>
+    <div class="expected">
+<pre><code>Description:	Ubuntu 22.04.5 LTS
+Python 3.10.12
+aarch64</code></pre>
+    </div>
+
+    <p>确认文件已生成：</p>
+<pre><code>ls -l</code></pre>
+    <div class="expected">
+<pre><code>总计 4
+-rw-rw-r-- 1 agx agx 55  7月 30 04:30 env_report.txt</code></pre>
+    </div>
+    <h3>1.7 CPU 架构：为什么 <code>uname -m</code> 的结果很重要</h3>
+    <p>上面报告里那行 <code>aarch64</code> 是 CPU 的<strong>指令集架构</strong>。
+    它决定了<strong>哪些软件包能装在这台机器上</strong>——第二节装 ROS2 时会直接用到。</p>
+    <p>两大阵营，各有两个名字，指的是同一件事：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>阵营</th><th><code>uname -m</code> 的叫法</th><th>软件包里的叫法</th><th>典型设备</th></tr>
+      <tr>
+        <td>Intel / AMD</td><td><code>x86_64</code></td><td><code>amd64</code></td>
+        <td>台式机、笔记本、绝大多数服务器</td>
+      </tr>
+      <tr>
+        <td>ARM 64 位</td><td><code>aarch64</code></td><td><code>arm64</code></td>
+        <td>手机、树莓派、NVIDIA Jetson、Apple 芯片的 Mac</td>
+      </tr>
+    </table>
+    </div>
+    <p>同一台机器，两条命令给出的名字不同，但说的是一回事：</p>
+<pre><code>uname -m
+dpkg --print-architecture</code></pre>
+    <div class="expected">
+<pre><code>aarch64
+arm64</code></pre>
+    </div>
+    <p class="callout danger"><strong>软件包不能跨架构安装。</strong>
+    给 <code>amd64</code> 编译的 <code>.deb</code> 装不到 <code>arm64</code> 机器上，反之亦然。
+    第二节讲 <code>dpkg -I</code> 时，输出里的 <code>Architecture</code> 字段就是用来核对这个的。
+    Python 源码本身与架构无关，但它依赖的编译好的库（包括 ROS2 的大部分组件）有关。</p>
+
+    <details class="aside">
+      <summary>补充：NVIDIA 的几条产品线，以及和普通 PC 的区别</summary>
+      <p>机器人领域常听到 Jetson、AGX、DGX、Thor 这些名字，容易混。它们的定位差别很大：</p>
+      <div class="table-wrap">
+      <table>
+        <tr><th>平台</th><th>CPU 架构</th><th>用在哪</th><th>特点</th></tr>
+        <tr>
+          <td><strong>普通 PC / 工作站</strong></td><td><code>x86_64</code></td>
+          <td>开发、训练模型</td>
+          <td>算力强、功耗高、体积大。<strong>你写代码用的就是这个</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Jetson 系列</strong><br/>（Nano / Xavier / Orin，
+              <code>AGX</code> 是其中的高端型号）</td>
+          <td><code>aarch64</code></td>
+          <td><strong>装在机器人本体上</strong></td>
+          <td>CPU 与 GPU 集成在一块模块上，功耗几十瓦，可以电池供电。
+              代价是算力弱于同代桌面 GPU</td>
+        </tr>
+        <tr>
+          <td><strong>DGX 系列</strong></td><td><code>x86_64</code></td>
+          <td>数据中心，大规模训练</td>
+          <td>整机柜级别，多张高端计算卡，功耗数千瓦。<strong>不会装到机器人上</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Thor</strong></td><td><code>aarch64</code></td>
+          <td>新一代车载与机器人平台</td>
+          <td>定位是 Orin 的后继，面向对算力要求更高的自动驾驶与具身智能场景</td>
+        </tr>
+      </table>
+      </div>
+      <p><strong>对本课程的实际影响：</strong>你在 <code>x86_64</code> 台式机上开发，
+      而机器人上跑的很可能是 <code>aarch64</code> 的 Jetson。
+      你写的 Python 节点代码两边通用，<strong>但 apt 装的包、Docker 镜像必须分架构准备</strong>。
+      本讲义的实测输出抓自一台 Jetson AGX Orin，所以你会看到 <code>aarch64</code>；
+      在你自己的台式机上应该是 <code>x86_64</code>，这不是错误。</p>
+    </details>
+  </section>
+
+  <section class="block" id="install">
+    <h2>二、软件从哪来：apt 与 dpkg</h2>
+
+    <h3>2.1 为什么需要包管理器</h3>
+    <p>ROS2 由几百个互相依赖的包组成，每个又依赖一堆系统库。手工下载编译的话，
+    你要自己解决"A 要 B 的 2.1 版，C 要 B 的 2.3 版"这类冲突——这叫<strong>依赖地狱</strong>，
+    靠人做不完。</p>
+    <p>Ubuntu 用两层工具解决它，分工明确：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th></th><th><code>dpkg</code></th><th><code>apt</code></th></tr>
+      <tr><td>层级</td><td>底层</td><td>上层，建在 dpkg 之上</td></tr>
+      <tr><td>管什么</td><td><strong>单个 <code>.deb</code> 文件</strong>的解包、安装、记账</td>
+          <td><strong>从软件源找包、算依赖、批量下载</strong>，再交给 dpkg 装</td></tr>
+      <tr><td>会自动装依赖吗</td><td>不会，缺依赖就报错停下</td><td>会</td></tr>
+      <tr><td>什么时候用</td><td>手里已经有一个 <code>.deb</code> 文件</td><td>绝大多数时候</td></tr>
+    </table>
+    </div>
+
+<pre class="mermaid">
+flowchart LR
+    A["软件源&lt;br/&gt;packages.ros.org"] -->|"apt update&lt;br/&gt;取回目录清单"| B["本地包索引"]
+    B --> C["apt install&lt;br/&gt;算出全部依赖"]
+    C --> D["下载一批 .deb"]
+    D --> E["校验 GPG 签名"]
+    E --> F["逐个交给 dpkg 解包安装"]
+    F --> G["dpkg 记账&lt;br/&gt;哪个文件属于哪个包"]
+</pre>
+
+    <h3>2.2 四个必须分清的概念</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>概念</th><th>是什么</th><th>为什么需要</th></tr>
+      <tr>
+        <td><strong>软件源</strong></td>
+        <td>存放软件包的服务器地址，记在 <code>/etc/apt/sources.list.d/</code></td>
+        <td>Ubuntu 自带的源里<strong>没有</strong> ROS2，装之前必须先把 ROS 的源加进去</td>
+      </tr>
+      <tr>
+        <td><code>apt update</code></td>
+        <td>只刷新"目录清单"，不装任何东西</td>
+        <td>加完新源必须跑一次，否则 apt 不知道新源里有什么，
+            会报 <code>Unable to locate package</code></td>
+      </tr>
+      <tr>
+        <td><strong>GPG 密钥</strong></td>
+        <td>验证下载的包确实来自它声称的来源、没被篡改</td>
+        <td>你在让别人的代码以管理员权限进入系统。没有它 apt 会直接拒绝</td>
+      </tr>
+      <tr>
+        <td><code>sudo</code></td>
+        <td>以管理员（root）身份执行这一条命令</td>
+        <td>装软件要写 <code>/opt</code>、<code>/usr</code>，普通用户没权限</td>
+      </tr>
+    </table>
+    </div>
+    <p class="callout danger"><strong><code>sudo</code> 意味着这条命令可以对系统做任何事，包括毁掉它。</strong>
+    养成习惯：敲 <code>sudo</code> 前先把整行读一遍，尤其是从网上复制来的。
+    本课程只有装软件需要 <code>sudo</code>。</p>
+
+    <h3>2.3 装 ROS2 Humble</h3>
+    <p class="callout">安装步骤以
+    <a href="https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html">Humble 官方安装文档</a>
+    为准。ROS2 的软件源地址和密钥获取方式偶有变动，若下面的命令与官方文档不一致，按官方文档执行。</p>
+
+    <p>先确认系统版本。ROS2 每个发行版只配特定的 Ubuntu：<strong>Humble 配 22.04</strong>，
+    20.04 和 24.04 都装不上。</p>
+<pre><code>lsb_release -a</code></pre>
+    <div class="expected">
+<pre><code>Distributor ID:	Ubuntu
+Description:	Ubuntu 22.04.5 LTS
+Release:	22.04
+Codename:	jammy</code></pre>
+    </div>
+    <p>代号 <code>jammy</code> 下一步加软件源时要用。</p>
+
+    <p><strong>① 启用 universe 分区</strong>（社区维护区，ROS2 的部分依赖在这里）：</p>
+<pre><code>sudo apt install software-properties-common
+sudo add-apt-repository universe</code></pre>
+
+    <p><strong>② 装 GPG 密钥</strong>：</p>
+<pre><code>sudo apt update &amp;&amp; sudo apt install curl -y
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+  -o /usr/share/keyrings/ros-archive-keyring.gpg</code></pre>
+
+    <p><strong>③ 添加 ROS2 软件源</strong>：</p>
+<pre><code>echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
+http://packages.ros.org/ros2/ubuntu $(. /etc/os-release &amp;&amp; echo $UBUNTU_CODENAME) main" \
+  | sudo tee /etc/apt/sources.list.d/ros2.list &gt; /dev/null</code></pre>
+    <p>拆开看：<code>$(dpkg --print-architecture)</code> 自动填 CPU 架构；
+    <code>signed-by=</code> 指定用刚才那个密钥验证；
+    <code>$(. /etc/os-release &amp;&amp; echo $UBUNTU_CODENAME)</code> 自动填 <code>jammy</code>。
+    末尾用 <code>tee</code> 而不是 <code>&gt;</code>，是因为
+    <strong><code>&gt;</code> 由 bash 执行，<code>sudo</code> 管不到它</strong>，
+    直接写 <code>/etc</code> 会 <code>Permission denied</code>。</p>
+    <p>写完打开看一眼，确认内容对：</p>
+<pre><code>cat /etc/apt/sources.list.d/ros2.list</code></pre>
+
+    <p><strong>④ 刷新索引并安装</strong>：</p>
+<pre><code>sudo apt update
+sudo apt install ros-humble-desktop python3-colcon-common-extensions</code></pre>
+    <p><code>ros-humble-desktop</code> 是 ROS2 核心 + rviz2 + 示例。
+    <code>python3-colcon-common-extensions</code> 是编译工具 colcon，
+    <strong>它不属于 ROS 的包，必须单独装</strong>——漏了它 Day 1 会卡在
+    <code>colcon: command not found</code>。这一步要下载一两个 G。</p>
+
+    <p class="milestone">ROS2 已安装到 <code>/opt/ros/humble</code>。
+    但现在敲 <code>ros2</code> 仍然会说找不到——第三节解决。</p>
+
+    <h3>2.4 <code>dpkg</code>：手上有一个 <code>.deb</code> 时</h3>
+    <p>有些软件（厂商驱动、内部工具）不在任何软件源里，只给你一个 <code>.deb</code> 文件。
+    Day 3 的 Livox 雷达驱动就可能是这种情况。这时要用 <code>dpkg</code>。</p>
+
+    <p><strong>装之前先看清楚它是什么。</strong>这两条命令都不需要 <code>sudo</code>，
+    因为它们只读文件、不改系统：</p>
+<pre><code>dpkg -I tree_2.0.2-1_arm64.deb</code></pre>
+    <div class="expected">
+<pre><code> 新格式的 Debian 软件包，格式版本 2.0。
+ 大小 47220 字节：主控包=754 字节。
+ Package: tree
+ Version: 2.0.2-1
+ Architecture: arm64
+ Installed-Size: 105
+ Depends: libc6 (&gt;= 2.34)
+ Section: utils</code></pre>
+    </div>
+    <p>三件事要核对：<strong><code>Architecture</code> 必须和你的机器一致</strong>
+    （<code>uname -m</code> 的结果，台式机是 <code>amd64</code>）；
+    <code>Depends</code> 列出它需要什么；<code>Version</code> 是版本。</p>
+
+<pre><code>dpkg -c tree_2.0.2-1_arm64.deb</code></pre>
+    <div class="expected">
+<pre><code>drwxr-xr-x root/root         0 2022-02-17 07:55 ./
+drwxr-xr-x root/root         0 2022-02-17 07:55 ./usr/
+drwxr-xr-x root/root         0 2022-02-17 07:55 ./usr/bin/
+-rwxr-xr-x root/root     72960 2022-02-17 07:55 ./usr/bin/tree
+drwxr-xr-x root/root         0 2022-02-17 07:55 ./usr/share/
+drwxr-xr-x root/root         0 2022-02-17 07:55 ./usr/share/doc/</code></pre>
+    </div>
+    <p><code>-c</code> 列出它会往系统里放哪些文件。<strong>装陌生来源的 <code>.deb</code> 前先看这个</strong>，
+    确认它不会往奇怪的地方写东西。注意 <code>./usr/bin/tree</code> 的权限是
+    <code>-rwxr-xr-x</code>——带 <code>x</code>，所以装完就能当命令执行。</p>
+
+    <p><strong>安装的完整流程：</strong></p>
+<pre><code># 1. 确认文件在，看清楚名字和大小
+ls -l ./tree_2.0.2-1_arm64.deb
+
+# 2. 安装。-i 是 install
+sudo dpkg -i ./tree_2.0.2-1_arm64.deb
+
+# 3. 如果上一步报缺依赖，用 apt 补齐后自动完成安装
+sudo apt install -f
+
+# 4. 验证：文件装进去了吗，命令能用吗
+dpkg -L tree | head
+which tree</code></pre>
+    <p class="callout"><strong>第 3 步是关键。</strong><code>dpkg</code> 不会自动装依赖，
+    缺依赖时它会把包留在"已解包但未配置"的半成品状态并报错。
+    <code>sudo apt install -f</code>（<code>-f</code> = fix-broken）会把缺的依赖补上、
+    并完成那个半成品包的配置。<strong>看到 dpkg 报依赖错误，不要重复 <code>dpkg -i</code>，
+    直接跑这条。</strong></p>
+
+    <details class="aside">
+      <summary>补充：关于 <code>.deb</code> 的执行权限</summary>
+      <p><code>.deb</code> 是数据文件，<strong>不需要</strong>给它加执行权限——
+      你不是运行它，而是让 <code>dpkg</code> 读它。
+      如果有人让你对 <code>.deb</code> 执行 <code>chmod +x</code>，那是把它和
+      <code>.run</code> / <code>.sh</code> 安装包搞混了。</p>
+      <p>真正需要 <code>chmod +x</code> 的是<strong>脚本</strong>。比如本仓库的 <code>serve.sh</code>：</p>
+<pre><code>chmod +x serve.sh    # 给文件主人加上执行权限
+ls -l serve.sh       # 第 2-4 位会从 rw- 变成 rwx
+./serve.sh</code></pre>
+      <p>没加执行权限就运行，会报 <code>Permission denied</code>。
+      也可以绕过：<code>bash serve.sh</code>——这是让 bash 去读它，而不是执行它，
+      和 <code>dpkg</code> 读 <code>.deb</code> 是同一个道理。</p>
+    </details>
+
+    <details class="aside">
+      <summary>补充：三条查包的命令</summary>
+      <p>系统出问题时很有用。都不需要 <code>sudo</code>。</p>
+<pre><code>dpkg -s coreutils</code></pre>
+      <div class="expected">
+<pre><code>Package: coreutils
+Essential: yes
+Status: install ok installed
+Priority: required
+Architecture: arm64</code></pre>
+      </div>
+      <p><code>Status: install ok installed</code> 表示装好且配置完成。
+      如果显示 <code>half-configured</code> 或 <code>half-installed</code>，
+      就是上面说的半成品状态，用 <code>sudo apt install -f</code> 修。</p>
+<pre><code>dpkg -L coreutils | head -6</code></pre>
+      <div class="expected">
+<pre><code>/.
+/bin
+/bin/cat
+/bin/chgrp
+/bin/chmod
+/bin/chown</code></pre>
+      </div>
+      <p>原来 <code>cat</code>、<code>chmod</code> 这些命令都来自 <code>coreutils</code> 一个包。</p>
+<pre><code>dpkg -S /bin/ls</code></pre>
+      <div class="expected">
+<pre><code>coreutils: /bin/ls</code></pre>
+      </div>
+      <p>反过来查：这个文件是哪个包装的。</p>
+    </details>
+  </section>
+
+  <section class="block" id="env">
+    <h2>三、环境变量与 <code>source</code></h2>
+
+    <p>ROS2 已经装在 <code>/opt/ros/humble</code> 了，但敲 <code>ros2</code> 还是找不到。
+    这一节解决它，顺带讲清后面五天最高频的坑。</p>
+
+    <h3>3.1 三个概念，自上而下</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>概念</th><th>一句话</th></tr>
+      <tr><td><strong>环境变量</strong></td>
+          <td>一组只活在<strong>当前这个终端</strong>里的设置，程序启动时会读它们</td></tr>
+      <tr><td><strong><code>PATH</code></strong></td>
+          <td>其中最重要的一个：一串目录，bash 就是按它去找你敲的命令</td></tr>
+      <tr><td><strong><code>source</code></strong></td>
+          <td>把一个脚本<strong>就地</strong>执行，让它设的变量留在当前终端里</td></tr>
+    </table>
+    </div>
+
+    <h3>3.2 <code>PATH</code>：bash 去哪找程序</h3>
+<pre><code>echo $PATH | tr ':' '\n' | head -6</code></pre>
+    <div class="expected">
+<pre><code>/usr/local/sbin
+/usr/local/bin
+/usr/sbin
+/usr/bin
+/sbin
+/bin</code></pre>
+    </div>
+    <p>（<code>tr ':' '\n'</code> 把冒号换成换行，只为看得清楚。）
+    <strong><code>/opt/ros/humble/bin</code> 不在这个列表里，所以 <code>ros2</code> 找不到。</strong>
+    把它加进去的，正是下一步的 <code>source</code>。</p>
+
+    <h3>3.3 <code>source</code> 与直接执行的区别</h3>
+    <p>关键在于：<strong>每个程序跑在自己的进程里，进程之间的环境变量互不影响。</strong></p>
+    <p>直接执行一个脚本，bash 会<strong>另开一个子进程</strong>去跑；脚本里设的变量活在子进程里，
+    它一退出就全没了，你的终端毫无变化。<code>source 脚本</code>（也可写成 <code>. 脚本</code>）
+    则<strong>不开子进程</strong>，就在当前 shell 里执行一遍，于是变量留了下来。</p>
+<pre class="mermaid">
+flowchart TD
+    subgraph X["bash setup.bash（直接执行）"]
+        A1["终端：没有 ROS2"] --> A2["另开子进程"]
+        A2 --> A3["子进程里 PATH 加上了 ROS2"]
+        A3 --> A4["子进程退出，改动消失"]
+        A4 --> A5["终端：还是没有 ROS2"]
+    end
+    subgraph Y["source setup.bash"]
+        B1["终端：没有 ROS2"] --> B2["不开子进程，就地执行"]
+        B2 --> B3["终端：有 ROS2 了"]
+    end
+</pre>
+
+    <p>亲手验证一次。先看 source 之前：</p>
+<pre><code>echo "ROS_DISTRO=[$ROS_DISTRO]"</code></pre>
+    <div class="expected">
+<pre><code>ROS_DISTRO=[]</code></pre>
+    </div>
+    <p>再看 source 之后：</p>
+<pre><code>source /opt/ros/humble/setup.bash
+echo "ROS_DISTRO=[$ROS_DISTRO]"</code></pre>
+    <div class="expected">
+<pre><code>ROS_DISTRO=[humble]</code></pre>
+    </div>
+    <p class="callout danger"><strong>推论：<code>source</code> 只对当前终端窗口生效。</strong>
+    新开一个终端、或关掉重开，它又是空的。后面五天里只要新开终端就必须重新 source，
+    否则 <code>ros2</code> 命令找不到、你自己写的包"不存在"。这不是 bug。</p>
+
+    <h3>3.4 source 之后多了什么</h3>
+<pre><code>printenv | grep '^ROS_' | sort</code></pre>
+    <div class="expected">
+<pre><code>ROS_DISTRO=humble
+ROS_LOCALHOST_ONLY=0
+ROS_PYTHON_VERSION=3
+ROS_VERSION=2</code></pre>
+    </div>
+    <p>逐行解释：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>变量</th><th>含义</th><th>什么时候你会碰它</th></tr>
+      <tr>
+        <td><code>ROS_DISTRO=humble</code></td>
+        <td>当前 source 的是哪个发行版</td>
+        <td>脚本用它判断环境对不对。<code>selfcheck_day0.py</code> 查的就是这个</td>
+      </tr>
+      <tr>
+        <td><code>ROS_VERSION=2</code></td>
+        <td>ROS 大版本号，区别于 ROS1</td>
+        <td>兼容两代的脚本靠它分支。本课程始终是 2</td>
+      </tr>
+      <tr>
+        <td><code>ROS_PYTHON_VERSION=3</code></td>
+        <td>用 Python 3</td>
+        <td>基本不用管。ROS1 时代还有 Python 2 的历史包袱</td>
+      </tr>
+      <tr>
+        <td><code>ROS_LOCALHOST_ONLY=0</code></td>
+        <td><code>0</code> = 节点可以跨机器通信；<code>1</code> = 只在本机内</td>
+        <td>两个变量分工记住：<strong>只在本机跑仿真时设 <code>1</code></strong>，最干净，
+            谁也干扰不了你；<strong>要接雷达实机、或多台机器通信时必须为 <code>0</code></strong>，
+            这时用 <code>ROS_DOMAIN_ID</code> 和别人隔开（4.6 与 Day 3 讲）</td>
+      </tr>
+    </table>
+    </div>
+
+    <p class="milestone"><code>ros2</code> 命令在当前终端可用。
+    验证一下：<code>which ros2</code> 应该输出 <code>/opt/ros/humble/bin/ros2</code>。</p>
+
+    <h3>3.5 让它每次都自动生效</h3>
+    <p>每开一个终端都手动 source 并不现实。<code>~/.bashrc</code> 是一个特殊文件：
+    <strong>每次打开新终端，bash 都会自动 source 它一次。</strong>
+    把那行写进去，就等于让它自动执行。</p>
+
+    <p><strong>先打开查看文件原有内容，再决定怎么改：</strong></p>
+<pre><code>nano ~/.bashrc</code></pre>
+    <p><code>nano</code> 是最简单的终端编辑器。底部那排提示里 <code>^X</code> 的
+    <code>^</code> 就是 <code>Ctrl</code>。</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>按键</th><th>作用</th></tr>
+      <tr><td>方向键 / <code>PageUp</code> <code>PageDown</code></td><td>移动、翻页</td></tr>
+      <tr><td><code>Ctrl</code>+<code>W</code></td><td>搜索</td></tr>
+      <tr><td><code>Alt</code>+<code>/</code></td><td>跳到文件末尾</td></tr>
+      <tr><td><code>Ctrl</code>+<code>O</code> 回车</td><td>保存</td></tr>
+      <tr><td><code>Ctrl</code>+<code>X</code></td><td>退出</td></tr>
+    </table>
+    </div>
+    <p>翻一遍你会看到：里面已经有几十行 Ubuntu 预置的内容——设置提示符颜色、
+    定义 <code>ll</code> 之类的别名、加载补全。<strong>这些都别动。</strong>
+    确认末尾没有 ROS 相关的行之后，<code>Ctrl</code>+<code>X</code> 退出。</p>
+
+    <p><strong>现在再追加。</strong>你已经知道文件原本有内容，所以必须用 <code>&gt;&gt;</code>：</p>
+<pre><code>echo "source /opt/ros/humble/setup.bash" &gt;&gt; ~/.bashrc</code></pre>
+
+    <p>确认加成功了：</p>
+<pre><code>tail -3 ~/.bashrc</code></pre>
+    <p>最后一行应该就是你刚加的那句。</p>
+
+    <p class="callout"><strong>刚改完的 <code>.bashrc</code> 对当前终端不生效</strong>，
+    因为它只在终端启动时被读一次。要么关掉重开，要么手动 <code>source ~/.bashrc</code>。
+    这又是一次"source 只影响当前 shell"。</p>
+
+    <p>验证：<strong>新开一个终端</strong>，什么都不做，直接敲：</p>
+<pre><code>echo $ROS_DISTRO</code></pre>
+    <div class="expected">
+<pre><code>humble</code></pre>
+    </div>
+
+    <p class="milestone">新开终端时 ROS2 环境自动加载。
+    顺手把这件事记进报告：<code>echo "ROS2: $ROS_DISTRO" &gt;&gt; ~/ros2_lab/env_report.txt</code></p>
+  </section>
+
+  <section class="block" id="network">
+    <h2>四、网络基础</h2>
+
+    <p>上一节最后那个 <code>ROS_LOCALHOST_ONLY</code> 引出一个问题：<strong>什么算"同一个网络"？</strong>
+    这一节回答它。你会在三个地方用到：</p>
+    <ul>
+      <li><strong>Day 3</strong>：Livox 雷达用网线接主机，两边 IP 必须在同一子网，否则一个包都收不到</li>
+      <li>多台机器一起跑 ROS2 时，节点能不能互相发现，取决于它们在不在同一个局域网</li>
+      <li>IMU 这类设备常走串口而不是网口，接法完全不同</li>
+    </ul>
+
+    <h3>4.1 IP 地址与子网掩码</h3>
+    <p><strong>IP 地址</strong>是设备在网络里的门牌号，四段数字，每段 0–255。
+    <strong>子网掩码</strong>回答一个问题：<strong>这个门牌号里，哪几段代表"小区"，哪几段代表"门牌"？</strong>
+    同一个小区的设备可以直接对话，跨小区就得经过路由器转发。</p>
+
+    <div class="table-wrap">
+    <table>
+      <tr><th>子网掩码</th><th>简写</th><th>前几段固定</th><th>同一子网的范围</th></tr>
+      <tr>
+        <td><code>255.255.255.0</code></td><td><code>/24</code></td><td>前 3 段</td>
+        <td><code>192.168.160.0</code> ~ <code>192.168.160.255</code>，共 256 个</td>
+      </tr>
+      <tr>
+        <td><code>255.255.252.0</code></td><td><code>/22</code></td><td>前 2 段 + 第 3 段的高 6 位</td>
+        <td><code>172.16.20.0</code> ~ <code>172.16.23.255</code>，共 1024 个</td>
+      </tr>
+      <tr>
+        <td><code>255.0.0.0</code></td><td><code>/8</code></td><td>第 1 段</td>
+        <td><code>127.0.0.0</code> ~ <code>127.255.255.255</code></td>
+      </tr>
+    </table>
+    </div>
+
+    <p><strong>最常见的是 <code>/24</code>，也最好判断：前三段相同就是同一子网。</strong>
+    比如主机 <code>192.168.160.200</code> 和雷达 <code>192.168.160.10</code>，
+    前三段都是 <code>192.168.160</code>，能通；
+    换成雷达 <code>192.168.123.10</code>，前三段不同，直接不通。</p>
+
+    <p class="callout"><code>/22</code> 这类非整段掩码要格外小心。若一台主机是
+    <code>172.16.22.51/22</code>，它的同子网范围横跨 <code>172.16.20.x</code> 到
+    <code>172.16.23.x</code> <strong>四个整段</strong>——<code>172.16.21.58</code> 与它是邻居，
+    尽管第三段不同。<strong>判断是否同一子网必须依据掩码，不能只看前三段是否相同。</strong></p>
+
+    <h3>4.2 看自己的网络</h3>
+    <p>两条命令，作用一样：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>说明</th></tr>
+      <tr><td><code>ip addr</code></td><td><strong>推荐</strong>。Ubuntu 自带，一定有</td></tr>
+      <tr><td><code>ifconfig</code></td>
+          <td>老命令，资料多。<strong>Ubuntu 22.04 默认不装</strong>，需要
+              <code>sudo apt install net-tools</code></td></tr>
+    </table>
+    </div>
+
+    <p>先看简表，一眼扫清楚有哪些网卡：</p>
+<pre><code>ip -br addr</code></pre>
+    <div class="expected">
+<pre><code>lo               UNKNOWN        127.0.0.1/8 ::1/128
+wlP1p1s0         UP             172.16.22.51/22 fe80::33a5:f8d2:a2da:4fbf/64
+eno1             DOWN
+enxdc326210a989  UNKNOWN        192.168.160.201/24 fe80::c01:d920:c480:9e90/64
+enxe466e5820705  UNKNOWN        192.168.160.200/24 fe80::3f9c:5d89:5e79:5430/64
+docker0          DOWN           172.17.0.1/16</code></pre>
+    </div>
+
+    <p>这份输出抓自一台机载计算机——<strong>你的机器上网卡的数量、名字、IP 都会不同</strong>，
+    台式机上通常只有 <code>lo</code>、一个有线（<code>enp…</code>）、一个无线（<code>wlp…</code>）三行。
+    要学的是认出每一行是什么：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>名字</th><th>是什么</th><th>本机情况</th></tr>
+      <tr>
+        <td><code>lo</code></td>
+        <td><strong>本地回环</strong>，永远是 <code>127.0.0.1</code>。
+            机器自己跟自己通信用，不经过任何硬件</td>
+        <td>永远在。<code>localhost</code> 就是它的别名</td>
+      </tr>
+      <tr>
+        <td><code>eno1</code> / <code>eth0</code></td>
+        <td><strong>板载物理网口</strong>，就是机箱上那个 RJ45 插口</td>
+        <td><code>DOWN</code>——<strong>没插网线</strong>，所以也没有 IP</td>
+      </tr>
+      <tr>
+        <td><code>enx</code> 开头的一长串</td>
+        <td><strong>USB 转网口</strong>。后面那串是网卡的 MAC 地址</td>
+        <td>两个，各自拿到 <code>192.168.160.x/24</code>，接着设备</td>
+      </tr>
+      <tr>
+        <td><code>wl</code> 开头</td>
+        <td><strong>无线网卡</strong>（<code>wlan0</code>、<code>wlP1p1s0</code> 都是）</td>
+        <td><code>UP</code>，DHCP 分到 <code>172.16.22.51/22</code></td>
+      </tr>
+      <tr>
+        <td><code>docker0</code></td>
+        <td>Docker 建的<strong>虚拟网桥</strong>，不是真硬件</td>
+        <td>装了 Docker 就会有。<strong>跟你的雷达无关，别被它迷惑</strong></td>
+      </tr>
+    </table>
+    </div>
+
+    <p class="callout"><strong>网卡名不是固定的。</strong>教程里常见的 <code>eth0</code>、
+    <code>wlan0</code> 是老式命名；现在 Ubuntu 用"可预测命名"，会变成
+    <code>eno1</code>、<code>enp3s0</code>、<code>wlP1p1s0</code> 这种。
+    <strong>看前缀就够了</strong>：<code>en</code> = 有线，<code>wl</code> = 无线，
+    <code>lo</code> = 回环。</p>
+
+    <p class="callout"><strong>WiFi 的 IP 会变。</strong>它由路由器动态分配（DHCP），
+    重连、重启或租约到期后可能换一个。昨天还连得上的机器今天连不上，
+    先到它跟前用 <code>ip -br addr</code> 或 <code>ifconfig</code> 查<strong>当前的</strong> IP，
+    别信记忆里的旧地址。给雷达配的网口静态 IP 没有这个问题（4.5 节）。</p>
+
+    <details class="aside">
+      <summary>补充：<code>ifconfig</code> 单个网卡的完整输出怎么读</summary>
+<pre><code>ifconfig wlP1p1s0</code></pre>
+      <div class="expected">
+<pre><code>wlP1p1s0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;  mtu 1500
+        inet 172.16.22.51  netmask 255.255.252.0  broadcast 172.16.23.255
+        inet6 fe80::33a5:f8d2:a2da:4fbf  prefixlen 64  scopeid 0x20&lt;link&gt;
+        ether 60:ff:9e:77:61:c3  txqueuelen 1000  (以太网)
+        RX packets 165511  bytes 70912743 (70.9 MB)
+        RX errors 0  dropped 254  overruns 0  frame 0
+        TX packets 91897  bytes 111342441 (111.3 MB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0</code></pre>
+      </div>
+      <div class="table-wrap">
+      <table>
+        <tr><th>字段</th><th>含义</th></tr>
+        <tr><td><code>UP</code></td><td>网卡被启用了（软件层面）</td></tr>
+        <tr><td><code>RUNNING</code></td><td><strong>物理链路通了</strong>——网线插好了、或 WiFi 连上了。
+            <strong>只有 UP 没有 RUNNING，多半是网线没插好</strong></td></tr>
+        <tr><td><code>inet</code></td><td>IPv4 地址</td></tr>
+        <tr><td><code>netmask</code></td><td>子网掩码，判断谁是邻居</td></tr>
+        <tr><td><code>ether</code></td><td>MAC 地址，网卡的硬件编号，全球唯一</td></tr>
+        <tr><td><code>mtu 1500</code></td><td>单个数据包最大字节数，以太网标准值</td></tr>
+        <tr><td><code>RX / TX packets</code></td><td>收 / 发的包数。
+            <strong>排错时看这里：一直是 0 说明根本没通信</strong></td></tr>
+        <tr><td><code>RX errors / dropped</code></td><td>错包、丢包数。持续增长说明线缆或干扰有问题</td></tr>
+      </table>
+      </div>
+      <p>在 <code>ip addr</code> 里，对应的标志是 <code>&lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt;</code>，
+      其中 <code>LOWER_UP</code> 等价于 <code>RUNNING</code>；
+      没插线时显示 <code>NO-CARRIER</code>——本机 <code>eno1</code> 就是这样。</p>
+    </details>
+
+    <h3>4.3 LAN 与物理连接</h3>
+    <p><strong>LAN</strong>（局域网）就是一组能直接互相通信的设备，靠交换机或路由器连在一起。
+    机器人上常见两种接法：</p>
+<pre class="mermaid">
+flowchart LR
+    subgraph W["WiFi 局域网 172.16.20.0/22"]
+      PC["你的台式机&lt;br/&gt;172.16.22.30"]
+      AGX["机载计算机&lt;br/&gt;172.16.22.51"]
+      RT["路由器 / AP&lt;br/&gt;172.16.20.1"]
+      PC --- RT
+      AGX --- RT
+    end
+    subgraph L["网线直连 192.168.160.0/24"]
+      AGX2["机载计算机网口&lt;br/&gt;192.168.160.200"]
+      LID["雷达&lt;br/&gt;192.168.160.10"]
+      AGX2 --- LID
+    end
+    AGX -.同一台机器.- AGX2
+</pre>
+    <p>一台机器可以<strong>同时</strong>在多个网络里，每张网卡一个 IP——上面那台机载计算机就是：
+    WiFi 上是 <code>172.16.22.51</code>，网口上是 <code>192.168.160.200</code>。
+    雷达只认得后者。</p>
+
+    <p><strong>网口上的两个小灯。</strong>常见约定：<strong>右侧灯是链路指示</strong>——
+    亮表示链路通，闪烁表示正在传数据；<strong>左侧灯是速率指示</strong>——
+    橙色是百兆，绿色是千兆。灯全黑先查网线和对端上电。</p>
+    <p class="callout">个别网卡的灯位和颜色约定有出入，拿不准时直接问系统：</p>
+<pre><code>cat /sys/class/net/enxe466e5820705/speed</code></pre>
+    <div class="expected">
+<pre><code>100</code></pre>
+    </div>
+    <p>单位是 Mbps。<code>100</code> 是百兆，<code>1000</code> 是千兆。
+    <strong>返回 <code>-1</code> 或报错说明链路没通</strong>（没插线、或对端没上电）。
+    一次看全部网卡：</p>
+<pre><code>for i in /sys/class/net/*; do
+  echo "$(basename $i): $(cat $i/operstate) $(cat $i/speed 2>/dev/null)"
+done</code></pre>
+    <div class="expected">
+<pre><code>docker0: down -1
+eno1: down -1
+enxdc326210a989: unknown 100
+enxe466e5820705: unknown 100
+lo: unknown
+wlP1p1s0: up</code></pre>
+    </div>
+    <p>无线网卡没有 <code>speed</code> 这个概念，所以是空的。
+    <strong>雷达出点云卡顿时，先来这儿确认是不是跑在百兆上。</strong></p>
+
+    <h3>4.4 ping 不通怎么查</h3>
+    <p><code>ping</code> 是最基本的连通性测试。<strong>它的三种失败方式含义完全不同</strong>，
+    分清了就能定位问题在哪一层。</p>
+
+    <p><strong>情况一：通。</strong></p>
+<pre><code>ping -c 2 172.16.20.1</code></pre>
+    <div class="expected">
+<pre><code>64 bytes from 172.16.20.1: icmp_seq=1 ttl=64 time=7.97 ms
+64 bytes from 172.16.20.1: icmp_seq=2 ttl=64 time=1.87 ms
+
+--- 172.16.20.1 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms</code></pre>
+    </div>
+    <p><code>time</code> 是往返延迟。局域网内正常是零点几到几毫秒。</p>
+
+    <p><strong>情况二：<code>Destination Host Unreachable</code>。</strong></p>
+<pre><code>ping -c 2 172.16.22.250</code></pre>
+    <div class="expected">
+<pre><code>From 172.16.22.51 icmp_seq=1 Destination Host Unreachable
+From 172.16.22.51 icmp_seq=2 Destination Host Unreachable
+
+--- 172.16.22.250 ping statistics ---
+2 packets transmitted, 0 received, +2 errors, 100% packet loss</code></pre>
+    </div>
+    <p class="callout"><strong>这条信息比静默丢包更有价值。</strong>它说明"<strong>路由是通的</strong>——
+    对方和我在同一子网，我在这个网段里喊了，但没人应答"。
+    通常是对方没开机、IP 设错了、或者网线没插。</p>
+
+    <p><strong>情况三：什么都没有，直接 100% 丢包。</strong></p>
+<pre><code>ping -c 2 192.168.123.1</code></pre>
+    <div class="expected">
+<pre><code>PING 192.168.123.1 (192.168.123.1) 56(84) bytes of data.
+
+--- 192.168.123.1 ping statistics ---
+2 packets transmitted, 0 received, 100% packet loss, time 1021ms</code></pre>
+    </div>
+    <p class="callout danger"><strong>连一行错误都没有，才是最典型的"子网配错了"。</strong>
+    本机在 <code>172.16.22.x</code> 和 <code>192.168.160.x</code> 上，
+    <code>192.168.123.1</code> 两个都不属于，包被丢给默认网关然后石沉大海。
+    <strong>Day 3 接雷达时 ping 不通，多数属于这一种。</strong></p>
+
+    <p>按这个顺序查：</p>
+<pre class="mermaid">
+flowchart TD
+    A["ping 目标不通"] --> B{"ping 127.0.0.1 通吗"}
+    B -- 不通 --> B1["系统网络栈坏了&lt;br/&gt;极罕见，重启"]
+    B -- 通 --> C{"ip -br addr&lt;br/&gt;对应网卡有 IP 吗"}
+    C -- 没有 --> C1["网卡没配 IP&lt;br/&gt;或没插线&lt;br/&gt;看 4.5 节配置"]
+    C -- 有 --> D{"自己的 IP 和目标&lt;br/&gt;在同一子网吗"}
+    D -- 不在 --> D1["典型的静默 100% 丢包&lt;br/&gt;改到同一子网，看 4.5 节"]
+    D -- 在 --> E{"报 Host Unreachable 吗"}
+    E -- 是 --> E1["路由没问题&lt;br/&gt;查对方：上电了吗&lt;br/&gt;IP 对吗 网线插好了吗"]
+    E -- 否 --> F{"cat /sys/class/net/网卡/operstate"}
+    F -- down --> F1["物理链路没通&lt;br/&gt;换网线 换口试试"]
+    F -- up --> G["查防火墙&lt;br/&gt;或对方禁 ping"]
+</pre>
+
+    <details class="aside">
+      <summary>补充：<code>ip neigh</code>——看看同子网里谁应答过</summary>
+<pre><code>ip neigh</code></pre>
+      <div class="expected">
+<pre><code>172.16.20.1 dev wlP1p1s0 lladdr c4:a5:59:30:44:b1 STALE
+192.168.160.162 dev enxdc326210a989 lladdr 34:df:20:0b:2b:25 REACHABLE
+172.16.21.58 dev wlP1p1s0 lladdr bc:f4:d4:3e:b6:cd REACHABLE
+192.168.160.162 dev enxe466e5820705  FAILED</code></pre>
+      </div>
+      <p>这是 ARP 邻居表，记录"哪个 IP 对应哪块网卡的 MAC"。
+      <code>REACHABLE</code> = 刚通过话；<code>STALE</code> = 以前通过，现在没验证；
+      <strong><code>FAILED</code> = 喊了没人应</strong>。
+      最后一行说明 <code>192.168.160.162</code> 在另一个网口上找不到——
+      这正好对应 <code>Destination Host Unreachable</code>。</p>
+    </details>
+
+    <h3>4.5 把主机改到同一子网</h3>
+    <p>这是 Day 3 接雷达前必做的一步。<strong>设备的 IP 通常是厂商写死的</strong>
+    （比如某些雷达固定在 <code>192.168.123.x</code> 网段），改不了，
+    所以只能把主机挪过去。</p>
+
+    <p><strong>先确认设备的 IP 和网段</strong>——查它的说明书或标签，别猜。假设是
+    <code>192.168.123.10</code>，掩码 <code>255.255.255.0</code>，
+    那主机需要一个 <code>192.168.123.x</code> 的地址（<code>x</code> 别和设备撞车）。</p>
+
+    <p><strong>临时方案</strong>（重启后失效，适合先验证能不能通）：</p>
+<pre><code># 1. 确认网线插在哪个网卡上，找 state UP 且没有 IP 的那个
+ip -br addr
+
+# 2. 给它加一个 IP。注意 /24 就是掩码 255.255.255.0
+sudo ip addr add 192.168.123.100/24 dev eno1
+
+# 3. 确保网卡启用
+sudo ip link set eno1 up
+
+# 4. 验证
+ip -br addr show eno1
+ping -c 3 192.168.123.10</code></pre>
+    <p class="callout">用 <code>ip addr add</code> 是<strong>增加</strong>一个 IP，
+    不会顶掉原有的。所以主机可以一边用 WiFi 上网，一边用网口连雷达。
+    想撤销：把 <code>add</code> 换成 <code>del</code>。</p>
+
+    <p><strong>永久方案</strong>：用桌面右上角的网络设置，
+    找到对应的有线连接 → IPv4 → 方式选"手动" → 填地址
+    <code>192.168.123.100</code>、掩码 <code>255.255.255.0</code>、网关留空。
+    <strong>网关一定要留空</strong>——这条线只用来连雷达，不走它上网；
+    填了网关会把默认路由抢过去，导致整机断网。</p>
+
+    <p class="callout danger"><strong>不要通过 SSH 远程执行网络配置命令。</strong>
+    改错一步就可能切断你正在使用的连接，届时只能到机器跟前接键盘恢复。
+    在本机操作，或确保出问题时能物理接触到设备。</p>
+
+    <h3>4.6 ROS2 在网络上如何通信</h3>
+
+    <p>前面五小节讲的是"两台机器的 IP 能不能互通"。<strong>IP 通了只是前提</strong>，
+    ROS2 节点能不能互相发现，还要再过三关。</p>
+
+    <h4>DDS：ROS2 的通信底座</h4>
+    <p>ROS2 <strong>没有中心节点</strong>。它不像 ROS1 那样需要先起一个 <code>roscore</code>，
+    而是让每个节点自己在网络上广播"我在这，我发布这些话题"，同时监听别人的广播。
+    这套机制由 <strong>DDS</strong>（Data Distribution Service）提供，
+    ROS2 只是在它之上包了一层。</p>
+    <p>这个设计的直接后果：<strong>只要在同一个局域网、同一个域内，节点就会自动互相发现，
+    不需要任何配置。</strong>方便，但也意味着你的节点会被同网段的其他人看到。</p>
+
+<pre class="mermaid">
+flowchart TD
+    A["你的 ROS2 节点"] --> B["rclpy / rclcpp"]
+    B --> C["RMW 抽象层&lt;br/&gt;统一接口，屏蔽下面的差异"]
+    C --> D1["rmw_fastrtps_cpp&lt;br/&gt;Fast DDS"]
+    C --> D2["rmw_cyclonedds_cpp&lt;br/&gt;Cyclone DDS"]
+    C --> D3["rmw_connextdds&lt;br/&gt;RTI Connext"]
+    D1 --> E["UDP 组播 / 单播"]
+    D2 --> E
+    D3 --> E
+    E --> F["网线 或 WiFi"]
+</pre>
+
+    <p><strong>RMW</strong>（ROS MiddleWare）是中间那层抽象。ROS2 不绑定某一个 DDS 实现，
+    换一个实现不用改代码，只改一个环境变量。查看当前用的是哪个：</p>
+<pre><code>ros2 doctor --report | grep -A2 "RMW MIDDLEWARE"</code></pre>
+    <div class="expected">
+<pre><code>   RMW MIDDLEWARE
+middleware name    : rmw_fastrtps_cpp</code></pre>
+    </div>
+    <p><strong>Humble 的默认实现是 Fast DDS</strong>（<code>rmw_fastrtps_cpp</code>）。
+    环境变量 <code>RMW_IMPLEMENTATION</code> 为空时用的就是它。</p>
+
+    <div class="table-wrap">
+    <table>
+      <tr><th>实现</th><th>环境变量取值</th><th>说明</th></tr>
+      <tr>
+        <td><strong>Fast DDS</strong></td><td><code>rmw_fastrtps_cpp</code></td>
+        <td>Humble 默认，装 ROS2 时自带</td>
+      </tr>
+      <tr>
+        <td><strong>Cyclone DDS</strong></td><td><code>rmw_cyclonedds_cpp</code></td>
+        <td>需另装 <code>ros-humble-rmw-cyclonedds-cpp</code>。
+            配置简单、在大数据量下表现稳定，不少机器人厂商偏好它</td>
+      </tr>
+      <tr>
+        <td><strong>RTI Connext</strong></td><td><code>rmw_connextdds</code></td>
+        <td>商业产品，多用于对认证有要求的场合</td>
+      </tr>
+    </table>
+    </div>
+    <p>切换方式（切换前必须先装对应的包）：</p>
+<pre><code>export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp</code></pre>
+    <p class="callout danger"><strong>通信双方的 RMW 实现必须一致。</strong>
+    不同 DDS 实现虽然都遵循 DDS 标准，但在实际互通上常有问题——
+    一端用 Fast DDS、另一端用 Cyclone DDS，很可能<strong>互相看不见，而且不报任何错</strong>。
+    行业内不同厂商的默认选择并不统一（例如宇树的机器人常用 Cyclone DDS，
+    而不少平台沿用 Fast DDS），<strong>对接别家设备时，第一件事就是确认两边用的是不是同一个</strong>。</p>
+
+    <h4><code>ROS_DOMAIN_ID</code>：把自己和别人隔开</h4>
+    <p>同一个局域网里如果有多人同时跑 ROS2，默认情况下大家的节点会互相发现，
+    话题混在一起。<code>ROS_DOMAIN_ID</code> 就是用来分隔的：
+    <strong>只有域号相同的节点才能看见彼此。</strong></p>
+    <p>实际验证一下。在一个终端里用域 41 启动一个节点：</p>
+<pre><code>export ROS_DOMAIN_ID=41
+ros2 run demo_nodes_py talker</code></pre>
+    <p>另开终端，在<strong>同一个域</strong>里查看：</p>
+<pre><code>export ROS_DOMAIN_ID=41
+ros2 node list
+ros2 topic list</code></pre>
+    <div class="expected">
+<pre><code>/talker
+
+/chatter
+/parameter_events
+/rosout</code></pre>
+    </div>
+    <p>再换一个域号查看，<strong>同一台机器上的同一个节点，就此消失</strong>：</p>
+<pre><code>export ROS_DOMAIN_ID=42
+ros2 node list
+ros2 topic list</code></pre>
+    <div class="expected">
+<pre><code>
+/parameter_events
+/rosout</code></pre>
+    </div>
+    <p>节点列表是空的，话题里也没有 <code>/chatter</code>——只剩两个每个域都有的内置话题。</p>
+    <p class="callout"><strong>取值范围是 0 到 232。</strong>域号会被换算成 UDP 端口号，
+    超出范围会直接报错：</p>
+    <div class="expected">
+<pre><code>Calculated port number is too high. Probably the domainId is over 232 or portBase is too high.</code></pre>
+    </div>
+    <p><strong>默认值是 0。</strong>这意味着不做任何设置时，同网段所有人都在域 0 里挤着。
+    多人协作时约定各用各的域号，是最省事的隔离办法。</p>
+
+    <h4><code>ROS_LOCALHOST_ONLY</code>：彻底不上网</h4>
+    <p>第三节见过这个变量。设成 <code>1</code> 时，节点只通过本地回环通信，
+    <strong>完全不对外广播</strong>：</p>
+<pre><code>export ROS_LOCALHOST_ONLY=1</code></pre>
+    <p>两个变量的分工用一句话记：<strong>本机仿真用 <code>ROS_LOCALHOST_ONLY=1</code>，
+    接实机、跨机器用 <code>ROS_DOMAIN_ID</code>。</strong>前者适合只在本机开发、
+    或局域网噪声太大先把自己隔离出来排查；代价是<strong>跨机器通信随之失效</strong>——
+    接了雷达实机、或机器人上的节点要连你桌面的 rviz2 时，它必须是 0，
+    这时靠域号把你和别人分开。</p>
+
+    <h4>多机通信：连到机器人上</h4>
+    <p>典型场景是你在台式机上开发，机器人上跑着一台机载计算机。第一步永远是确认网络层通，
+    把地址换成对方的 IP：</p>
+<pre><code>ping -c 3 172.16.20.1</code></pre>
+    <div class="expected">
+<pre><code>64 bytes from 172.16.20.1: icmp_seq=1 ttl=64 time=3.07 ms
+64 bytes from 172.16.20.1: icmp_seq=2 ttl=64 time=3.48 ms
+64 bytes from 172.16.20.1: icmp_seq=3 ttl=64 time=3.04 ms
+
+--- 172.16.20.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+rtt min/avg/max/mdev = 3.038/3.194/3.479/0.201 ms</code></pre>
+    </div>
+    <p>局域网内跨设备的往返延迟通常是几毫秒。<strong>如果延迟到了几十上百毫秒，
+    或者出现丢包，先解决网络再谈 ROS2</strong>——传感器数据量大，网络不稳会直接表现为话题卡顿。</p>
+
+    <p>通了之后登上去操作：</p>
+<pre><code>ssh agx@172.16.22.51</code></pre>
+    <p>登录成功的标志是提示符换成了对方机器的用户名与主机名：</p>
+    <div class="expected">
+<pre><code>agx@ubuntu:~$</code></pre>
+    </div>
+    <p class="callout">本课程实验机地址 <code>172.16.22.51</code>，用户名 <code>agx</code>，
+    密码向带你的人索取。<strong>这台机器上运行着其他人的程序。</strong>
+    登录后只在自己的目录内操作，不要结束不认识的进程，不要修改系统配置。</p>
+
+    <p>如果 <code>ping</code> 通了、<code>ssh</code> 也能登，但两台机器的 ROS2
+    <strong>依然看不到对方的节点</strong>，按这个顺序排查：</p>
+<pre class="mermaid">
+flowchart TD
+    A["ros2 node list 看不到对方"] --> B{"ping 对方 IP 通吗"}
+    B -- 不通 --> B1["先解决网络&lt;br/&gt;回到 4.4 节"]
+    B -- 通 --> C{"两边 ROS_DOMAIN_ID 相同吗"}
+    C -- 不同 --> C1["echo $ROS_DOMAIN_ID 对照&lt;br/&gt;改成一致"]
+    C -- 相同 --> D{"两边 ROS_LOCALHOST_ONLY&lt;br/&gt;都是 0 吗"}
+    D -- 有 1 --> D1["设成 0&lt;br/&gt;或直接 unset"]
+    D -- 都是 0 --> E{"两边 RMW 实现相同吗"}
+    E -- 不同 --> E1["ros2 doctor --report 对照&lt;br/&gt;统一 RMW_IMPLEMENTATION"]
+    E -- 相同 --> F["查防火墙&lt;br/&gt;DDS 用 UDP 组播&lt;br/&gt;部分交换机会拦截"]
+</pre>
+    <p class="callout danger"><strong>环境变量只对设置它的那个终端生效。</strong>
+    在机器人上 <code>export ROS_DOMAIN_ID=41</code> 之后新开一个 SSH 会话，
+    那个新会话仍然是默认的 0。要么写进 <code>~/.bashrc</code>，
+    要么每个终端都设一次——这和第三节讲的 <code>source</code> 是同一个道理。</p>
+
+    <h3>4.7 串口：另一种连设备的方式</h3>
+    <p>不是所有设备都走网口。IMU、GPS、舵机控制板这类<strong>数据量小、要求实时</strong>的设备，
+    通常走串口。两者的区别值得记住：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th></th><th>网口（雷达）</th><th>串口（IMU）</th></tr>
+      <tr><td>寻址方式</td><td>IP 地址</td><td><strong>设备文件路径</strong>，如 <code>/dev/ttyUSB0</code></td></tr>
+      <tr><td>要配什么</td><td>IP、子网掩码</td><td><strong>波特率</strong>、数据位、校验位、停止位</td></tr>
+      <tr><td>能接几个</td><td>一个网口接一整个网络</td><td>一根线一个设备</td></tr>
+      <tr><td>典型速率</td><td>100 / 1000 Mbps</td><td>115200 bps 量级，慢三四个数量级</td></tr>
+    </table>
+    </div>
+
+    <p><strong>先找到设备文件。</strong>插上设备前后各跑一次，多出来的那个就是：</p>
+<pre><code>ls -l /dev/ttyUSB* /dev/ttyACM* /dev/ttyTHS* 2&gt;/dev/null</code></pre>
+    <div class="expected">
+<pre><code>crwxrwxrwx 1 root dialout 166, 0  7月 30 04:24 /dev/ttyACM0
+crw-rw---- 1 root dialout 240, 1  6月  5 17:40 /dev/ttyTHS1
+crw-rw---- 1 root dialout 240, 2  6月  5 17:40 /dev/ttyTHS2</code></pre>
+    </div>
+    <div class="table-wrap">
+    <table>
+      <tr><th>名字</th><th>来自哪</th></tr>
+      <tr><td><code>/dev/ttyUSB*</code></td><td>USB 转串口芯片（CH340、CP2102、FTDI 等），最常见</td></tr>
+      <tr><td><code>/dev/ttyACM*</code></td><td>自带 USB 接口的设备（很多 IMU、Arduino）</td></tr>
+      <tr><td><code>/dev/ttyTHS*</code></td><td>板载硬件串口，Jetson 上是这个名字；PC 上通常是 <code>/dev/ttyS*</code></td></tr>
+    </table>
+    </div>
+
+    <p><strong>权限。</strong>注意上面每一行结尾的组是 <code>dialout</code>，权限是
+    <code>crw-rw----</code>——只有 root 和 <code>dialout</code> 组的成员能读写。
+    <strong>普通用户直接打开会 <code>Permission denied</code>。</strong>
+    先确认自己在不在这个组：</p>
+<pre><code>groups</code></pre>
+    <div class="expected">
+<pre><code>agx adm dialout cdrom sudo audio dip video plugdev render i2c lpadmin gdm sambashare weston-launch gpio jtop lrx</code></pre>
+    </div>
+    <p>列表里有 <code>dialout</code> 就没问题。没有的话加进去：</p>
+<pre><code>sudo usermod -aG dialout $USER</code></pre>
+    <p class="callout danger"><strong>加完组必须重新登录才生效</strong>（注销再登录，或重启）。
+    在当前终端里 <code>groups</code> 仍然看不到它——组信息在登录时就确定了，
+    和 <code>source</code> 只影响当前 shell 是同一类道理。
+    <strong>不要用 <code>sudo</code> 跑你的 ROS2 节点来绕过这个</strong>，
+    那会让整个节点以 root 身份运行，后患很多。</p>
+
+    <p><strong>波特率与协议。</strong>串口两端必须<strong>事先约定好</strong>参数，
+    没有自动协商——这点和网口完全不同。</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>参数</th><th>含义</th><th>常见值</th></tr>
+      <tr><td><strong>波特率</strong></td><td>每秒传多少位。两端必须完全一致</td>
+          <td><code>9600</code>、<code>115200</code>、<code>230400</code>、<code>921600</code></td></tr>
+      <tr><td>数据位</td><td>一帧里有效数据几位</td><td><code>8</code></td></tr>
+      <tr><td>校验位</td><td>用于检错。<code>N</code> 无校验 / <code>E</code> 偶 / <code>O</code> 奇</td><td><code>N</code></td></tr>
+      <tr><td>停止位</td><td>一帧结束的标记</td><td><code>1</code></td></tr>
+    </table>
+    </div>
+    <p>这四项常缩写成 <strong><code>115200 8N1</code></strong>，意思是
+    "波特率 115200、8 数据位、无校验、1 停止位"。<strong>绝大多数 IMU 都是 8N1</strong>，
+    真正要确认的是波特率——查设备手册，或者试。</p>
+    <p class="callout"><strong>波特率设错的典型症状：能读到数据，但全是乱码。</strong>
+    因为采样时机对不上，位被切错了。<strong>读不到任何数据</strong>则通常是设备文件选错、
+    没权限、或线接反了（TX 要接对方的 RX）。</p>
+
+    <p>用 <code>stty</code> 查看和设置当前参数：</p>
+<pre><code>stty -F /dev/ttyUSB0            # 查看
+stty -F /dev/ttyUSB0 115200     # 设成 115200</code></pre>
+
+    <p><strong>协议是厂商定的。</strong>波特率只解决"怎么把二进制位传过来"，
+    传过来的这堆字节<strong>怎么解释</strong>是另一回事。
+    典型的 IMU 数据帧长这样：</p>
+<pre class="mermaid">
+flowchart LR
+    A["帧头&lt;br/&gt;0x55 0xAA&lt;br/&gt;标记一帧开始"] --> B["长度&lt;br/&gt;后面有几字节"]
+    B --> C["数据区&lt;br/&gt;加速度 x y z&lt;br/&gt;角速度 x y z&lt;br/&gt;每个 2 或 4 字节"]
+    C --> D["校验和&lt;br/&gt;前面所有字节相加&lt;br/&gt;用来验证没传错"]
+</pre>
+    <p>每个字段占几字节、是有符号还是无符号、高位在前还是低位在前、
+    原始值要乘以什么系数才是真实物理量——<strong>这些只有设备手册知道</strong>。
+    好在常见 IMU 一般都有现成的 ROS2 驱动包，你不用自己解析；
+    但当数据看着不对时，你得知道该去手册里查什么。</p>
+
+    <p class="milestone">把网络信息一并记入报告，Day 3 接雷达时可直接对照。
+    <code>ip -br addr &gt;&gt; ~/ros2_lab/env_report.txt</code></p>
+  </section>
+
+  <section class="block" id="python">
+    <h2>五、Python 基础</h2>
+
+    <p>这一节只讲写 ROS2 节点<strong>真正需要</strong>的部分。
+    每段代码都值得亲手跑一遍、改了参数再跑一遍。动手的地方是配套 notebook
+    <code>lessons/lesson0.ipynb</code>——它跑在你机器的真实 Python 环境里，
+    输出和你将来写节点时看到的完全一致。</p>
+
+    <h3>5.1 模块导入</h3>
+    <p>先讲导入，因为后面每个例子、以及 Day 1 的每个节点，第一行都是它。</p>
+    <p>两种写法，你在 ROS2 代码里都会见到：</p>
+<pre><code>import os
+
+print(os.path.join("/home/agx", "ros2_lab", "notes.txt"))   # 拼路径
+print(os.path.basename("/opt/ros/humble/setup.bash"))       # 取文件名
+print(os.path.dirname("/opt/ros/humble/setup.bash"))        # 取所在目录</code></pre>
+    <div class="expected">
+<pre><code>/home/agx/ros2_lab/notes.txt
+setup.bash
+/opt/ros/humble</code></pre>
+    </div>
+    <p><code>import os</code> 之后，用 <code>os.</code> 前缀访问里面的东西。</p>
+
+<pre><code>from os.path import join, basename
+
+print(join("~", "ros2_lab"))
+print(basename("/tmp/a/b/c.py"))</code></pre>
+    <div class="expected">
+<pre><code>~/ros2_lab
+c.py</code></pre>
+    </div>
+    <p><code>from ... import ...</code> 把名字直接拿进来，不用前缀。</p>
+    <p>对照 Day 1 的节点开头，就是这两种写法：</p>
+<pre><code>import rclpy                       # 之后写 rclpy.init()
+from rclpy.node import Node        # 之后直接写 Node
+from std_msgs.msg import Int32     # 之后直接写 Int32</code></pre>
+
+    <h3>5.2 变量与类型</h3>
+    <p>Python 不用声明类型，赋值时自动确定。<code>type()</code> 能查看。</p>
+<pre><code>name = "turtle1"       # 字符串
+count = 3              # 整数
+speed = 1.5            # 浮点数
+is_moving = True       # 布尔值
+
+print(name, "->", type(name))
+print(count, "->", type(count))
+print(speed, "->", type(speed))
+print(is_moving, "->", type(is_moving))</code></pre>
+    <div class="expected">
+<pre><code>turtle1 -> &lt;class 'str'&gt;
+3 -> &lt;class 'int'&gt;
+1.5 -> &lt;class 'float'&gt;
+True -> &lt;class 'bool'&gt;</code></pre>
+    </div>
+
+    <p>两种除法要分清：</p>
+<pre><code>print("7 // 2 =", 7 // 2)    # 整除，丢掉小数
+print("7 / 2  =", 7 / 2)     # 普通除法</code></pre>
+    <div class="expected">
+<pre><code>7 // 2 = 3
+7 / 2  = 3.5</code></pre>
+    </div>
+
+    <p><strong>Day 1 立刻要用</strong>：定时器参数填的是<strong>周期（秒）</strong>，不是频率。</p>
+<pre><code>hz = 5
+print("频率", hz, "Hz")
+print("周期", 1 / hz, "秒")</code></pre>
+    <div class="expected">
+<pre><code>频率 5 Hz
+周期 0.2 秒</code></pre>
+    </div>
+
+    <h3>5.3 字符串与 f-string</h3>
+    <p>用加号拼字符串很笨，还得手动转类型：</p>
+<pre><code>topic = "/day1/counter"
+value = 42
+
+print("话题 " + topic + " 收到 " + str(value))</code></pre>
+    <div class="expected">
+<pre><code>话题 /day1/counter 收到 42</code></pre>
+    </div>
+
+    <p>f-string 干净得多：字符串前加 <code>f</code>，<code>{}</code> 里的表达式会被求值插入。</p>
+<pre><code>topic = "/day1/counter"
+value = 42
+
+print(f"话题 {topic} 收到 {value}")</code></pre>
+    <div class="expected">
+<pre><code>话题 /day1/counter 收到 42</code></pre>
+    </div>
+
+    <p><code>{值:.3f}</code> 表示保留三位小数，打印传感器数据时常用：</p>
+<pre><code>print(f"{1/3}")
+print(f"{1/3:.3f}")</code></pre>
+    <div class="expected">
+<pre><code>0.3333333333333333
+0.333</code></pre>
+    </div>
+
+    <p class="callout danger"><strong>但拼路径不要用加号，也不要用 f-string。</strong>
+    手工拼容易多一个或少一个斜杠，而且不同系统的分隔符不一样。
+    用 <code>os.path.join</code>，它会替你处理：</p>
+<pre><code>import os
+
+home = "/home/agx"
+sub = "ros2_lab"
+
+print("手工拼：", home + "/" + sub + "/notes.txt")
+print("os.path：", os.path.join(home, sub, "notes.txt"))</code></pre>
+    <div class="expected">
+<pre><code>手工拼： /home/agx/ros2_lab/notes.txt
+os.path： /home/agx/ros2_lab/notes.txt</code></pre>
+    </div>
+    <p>这次结果一样，但只要 <code>home</code> 末尾多一个斜杠，手工拼就会出现
+    <code>//</code>。Day 2 用 <code>get_package_share_directory()</code> 拼配置文件路径时，
+    一律用 <code>os.path.join</code>。</p>
+
+    <h3>5.4 列表与字典</h3>
+    <p><strong>列表</strong>按位置存一串东西：</p>
+<pre><code>topics = ["/scan", "/imu", "/odom"]
+
+print(topics)
+print("第一个 ", topics[0])     # 下标从 0 开始
+print("最后一个", topics[-1])   # 负数从后往前数
+print("共几个 ", len(topics))</code></pre>
+    <div class="expected">
+<pre><code>['/scan', '/imu', '/odom']
+第一个  /scan
+最后一个 /odom
+共几个  3</code></pre>
+    </div>
+
+<pre><code>topics = ["/scan", "/imu", "/odom"]
+topics.append("/cmd_vel")
+print(topics)</code></pre>
+    <div class="expected">
+<pre><code>['/scan', '/imu', '/odom', '/cmd_vel']</code></pre>
+    </div>
+
+    <p><strong>字典</strong>按名字存"键 → 值"：</p>
+<pre><code>rates = {"/scan": 10, "/imu": 100, "/odom": 50}
+print(rates["/imu"])</code></pre>
+    <div class="expected">
+<pre><code>100</code></pre>
+    </div>
+
+<pre><code>rates = {"/scan": 10, "/imu": 100, "/odom": 50}
+
+for t, hz in rates.items():
+    print(f"{t:&lt;8} {hz:&gt;4} Hz   周期 {1/hz:.3f} 秒")</code></pre>
+    <div class="expected">
+<pre><code>/scan      10 Hz   周期 0.100 秒
+/imu      100 Hz   周期 0.010 秒
+/odom      50 Hz   周期 0.020 秒</code></pre>
+    </div>
+    <p>Day 5 的 Nav2 参数文件，本质就是嵌套的字典。</p>
+
+    <h3>5.5 控制流与缩进</h3>
+    <p class="callout danger"><strong>Python 用缩进划分代码块，不用大括号。</strong>
+    同一块里每行缩进必须一致，约定 4 个空格。缩进错了直接报
+    <code>IndentationError</code>，这是新手最常见的语法错误。别混用空格和 Tab。</p>
+<pre><code>hz = 5
+
+if hz &gt; 10:
+    print("高频")
+elif hz &gt; 1:
+    print("中等")
+else:
+    print("低频")</code></pre>
+    <div class="expected">
+<pre><code>中等</code></pre>
+    </div>
+
+<pre><code>for i in range(3):     # range(3) 给出 0, 1, 2
+    print("第", i, "次")</code></pre>
+    <div class="expected">
+<pre><code>第 0 次
+第 1 次
+第 2 次</code></pre>
+    </div>
+
+    <h3>5.6 函数</h3>
+<pre><code>def period_of(hz):
+    """三引号里是文档字符串，写给人看的。"""
+    return 1.0 / hz
+
+
+print(period_of(5))
+print(period_of(100))</code></pre>
+    <div class="expected">
+<pre><code>0.2
+0.01</code></pre>
+    </div>
+
+    <p>参数可以有默认值，调用时也可以按名字传：</p>
+<pre><code>def describe(topic, hz=10):
+    return f"{topic} 以 {hz} Hz 发布"
+
+
+print(describe("/scan"))                  # 用默认值
+print(describe("/imu", 100))              # 按位置传
+print(describe(topic="/odom", hz=50))     # 按名字传，更清楚</code></pre>
+    <div class="expected">
+<pre><code>/scan 以 10 Hz 发布
+/imu 以 100 Hz 发布
+/odom 以 50 Hz 发布</code></pre>
+    </div>
+    <p>"按名字传参"在 ROS2 里到处都是，比如
+    <code>Node(package=..., executable=...)</code>。</p>
+
+    <h3>5.7 类与对象</h3>
+    <p><strong>每个 ROS2 节点都是一个类。</strong>类把"状态"和"操作状态的方法"打包在一起。</p>
+<pre class="mermaid">
+flowchart TD
+    A["class Counter:"] --> B["__init__&lt;br/&gt;创建对象时自动执行&lt;br/&gt;准备初始状态"]
+    A --> C["tick 方法&lt;br/&gt;定义行为，不会自己运行"]
+    B --> D["self.n = start&lt;br/&gt;self 指向这个对象自己&lt;br/&gt;存进去的东西对象一直带着"]
+    E["a = Counter()"] --> F["得到一个独立对象"]
+    G["b = Counter(100)"] --> H["另一个独立对象&lt;br/&gt;有自己的 n"]
+</pre>
+<pre><code>class Counter:
+    def __init__(self, start=0):
+        # 创建对象时自动执行。self 指向"这个对象自己"
+        self.n = start
+
+    def tick(self):
+        # 方法。它不会自己运行，必须有人调用
+        self.n += 1
+        return self.n
+
+
+c = Counter()
+print(c.tick())
+print(c.tick())</code></pre>
+    <div class="expected">
+<pre><code>1
+2</code></pre>
+    </div>
+
+    <p>每个对象的状态互相独立：</p>
+<pre><code>class Counter:
+    def __init__(self, start=0):
+        self.n = start
+
+    def tick(self):
+        self.n += 1
+        return self.n
+
+
+a = Counter()
+b = Counter(start=100)
+a.tick()
+b.tick()
+print("a.n =", a.n)
+print("b.n =", b.n)</code></pre>
+    <div class="expected">
+<pre><code>a.n = 1
+b.n = 101</code></pre>
+    </div>
+
+    <p class="callout danger"><strong>漏掉 <code>self.</code> 是高频错误。</strong>
+    在 notebook 里跑一遍下面这段，看看它报什么异常——Day 1 遇到时你就认识了：</p>
+<pre><code>class Broken:
+    def __init__(self):
+        n = 0          # 少了 self.，这只是个局部变量
+
+    def tick(self):
+        n += 1         # 想改上面那个，但根本访问不到
+        return n
+
+
+try:
+    Broken().tick()
+except Exception as e:
+    print(type(e).__name__)</code></pre>
+    <div class="expected">
+<pre><code>UnboundLocalError</code></pre>
+    </div>
+    <p>你的机器上（Python 3.10）完整报错是：</p>
+    <div class="expected">
+<pre><code>UnboundLocalError: local variable 'n' referenced before assignment</code></pre>
+    </div>
+    <p class="callout">这里只打印异常类型，是因为<strong>这条消息的措辞在不同 Python 版本下不一样</strong>
+    ——3.11 起改成了
+    <code>cannot access local variable 'n' where it is not associated with a value</code>。
+    含义完全相同。你的机器是 3.10，以上面那条为准。</p>
+
+    <h3>5.8 继承与 <code>super()</code></h3>
+    <p>Day 1 你写的每个节点都是 <code>class Talker(Node):</code>，继承 ROS2 的 <code>Node</code>。</p>
+<pre><code>class Base:
+    def __init__(self, name):
+        self.name = name
+
+    def hello(self):
+        return f"我是 {self.name}"
+
+
+class Child(Base):
+    def __init__(self, name, extra):
+        super().__init__(name)      # 先把父类该做的事交给父类
+        self.extra = extra
+
+    def hello(self):
+        return super().hello() + f"，还有 {self.extra}"
+
+
+print(Base("基础").hello())
+print(Child("我的节点", "一个 publisher").hello())</code></pre>
+    <div class="expected">
+<pre><code>我是 基础
+我是 我的节点，还有 一个 publisher</code></pre>
+    </div>
+
+    <p class="callout danger"><strong><code>super().__init__(...)</code> 不能漏。</strong>
+    Day 1 里 <code>super().__init__('talker')</code> 是在告诉 <code>Node</code> 父类
+    "把我注册到 ROS2 网络，名字叫 talker"。漏了它，报错离真正的原因很远：</p>
+<pre><code>class Base:
+    def __init__(self, name):
+        self.name = name
+
+    def hello(self):
+        return f"我是 {self.name}"
+
+
+class NoSuper(Base):
+    def __init__(self):
+        pass       # 忘了 super().__init__(...)
+
+
+try:
+    print(NoSuper().hello())
+except Exception as e:
+    print(type(e).__name__, ":", e)</code></pre>
+    <div class="expected">
+<pre><code>AttributeError : 'NoSuper' object has no attribute 'name'</code></pre>
+    </div>
+
+    <h3>5.9 回调：把函数交出去</h3>
+    <p>这是理解 ROS2 的钥匙。<strong>你写好一个函数，交给别人，别人在合适的时机调用它；
+    你自己从不调用它。</strong></p>
+<pre><code>def call_n_times(func, n):
+    """func 是别人给的函数，我们负责在合适的时机调用。"""
+    for i in range(n):
+        func(i)
+
+
+def on_tick(i):
+    print("  on_tick 收到 i =", i)
+
+
+call_n_times(on_tick, 3)     # 注意：on_tick 后面没有括号</code></pre>
+    <div class="expected">
+<pre><code>  on_tick 收到 i = 0
+  on_tick 收到 i = 1
+  on_tick 收到 i = 2</code></pre>
+    </div>
+
+    <p><strong>加不加括号，天差地别：</strong></p>
+<pre><code>def f():
+    return "f 的返回值"
+
+
+print("f   ->", type(f).__name__)   # 函数本身
+print("f() ->", f())                # 现在执行它，取返回值</code></pre>
+    <div class="expected">
+<pre><code>f   -> function
+f() -> f 的返回值</code></pre>
+    </div>
+
+    <p><strong>现在把这两件事合起来，看清 <code>rclpy.spin()</code> 到底在做什么。</strong>
+    下面用纯 Python 模拟它——Day 1 的真实节点，结构与此完全一致：</p>
+<pre><code>class FakeNode:
+    def __init__(self, name):
+        self.name = name
+        self.callbacks = []
+
+    def create_timer(self, callback):
+        # 只是把函数存起来，并不调用它
+        self.callbacks.append(callback)
+
+
+def fake_spin(node, rounds):
+    """rclpy.spin() 干的就是这件事：
+    不停地替你调用注册过的回调，直到你按 Ctrl+C。"""
+    print(f"  [spin] 开始为节点 {node.name} 转圈")
+    for _ in range(rounds):
+        for cb in node.callbacks:
+            cb()
+    print("  [spin] 收到 Ctrl+C，退出")
+
+
+node = FakeNode("talker")
+count = {"n": 0}
+
+
+def on_timer():
+    count["n"] += 1
+    print(f"  发布：{count['n']}")
+
+
+node.create_timer(on_timer)     # 交出去，不加括号
+fake_spin(node, 3)</code></pre>
+    <div class="expected">
+<pre><code>  [spin] 开始为节点 talker 转圈
+  发布：1
+  发布：2
+  发布：3
+  [spin] 收到 Ctrl+C，退出</code></pre>
+    </div>
+    <p>对照 Day 1 的真实代码，只是把 <code>FakeNode</code> 换成 rclpy 的 <code>Node</code>、
+    <code>fake_spin</code> 换成 <code>rclpy.spin()</code>：</p>
+<pre><code>self.timer = self.create_timer(0.2, self.on_timer)   # 交出回调
+rclpy.spin(node)                                     # 交出控制权</code></pre>
+    <p class="callout"><code>rclpy.spin()</code> 会一直阻塞到 Ctrl+C。
+    <strong>它之后的代码在那之前不会执行</strong>，所以"持续要做的事"必须写成回调，
+    不能写成 <code>while True</code> 循环。</p>
+
+    <h3>5.10 异常处理</h3>
+<pre><code>try:
+    1 / 0
+except ZeroDivisionError as e:
+    print("抓到：", e)
+finally:
+    print("finally 一定执行")</code></pre>
+    <div class="expected">
+<pre><code>抓到： division by zero
+finally 一定执行</code></pre>
+    </div>
+    <p><code>finally</code> 不管有没有出异常都会执行，所以清理代码放这儿最保险。
+    Day 1 每个节点的 <code>main()</code> 都是这个结构：</p>
+<pre><code>try:
+    rclpy.spin(node)          # 一直阻塞
+except KeyboardInterrupt:     # Ctrl+C 触发的就是这个异常
+    pass                      # 安静退出，不打印红色堆栈
+finally:
+    node.destroy_node()       # 不管怎么退出，清理都要做
+    rclpy.shutdown()</code></pre>
+
+    <p class="milestone">在 <code>~/ros2_lab/</code> 下新建 <code>node_shape.py</code>，
+    把 5.9 那段 <code>FakeNode</code> + <code>fake_spin</code> 的代码<strong>默写一遍</strong>
+    （可以看着改，但别复制粘贴），跑通它。
+    <code>cd ~/ros2_lab &amp;&amp; nano node_shape.py</code>，写完 <code>python3 node_shape.py</code>。</p>
+  </section>
+
+  <section class="block" id="errors">
+    <h2>常见报错对照表</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>你看到的</th><th>真正的原因</th><th>怎么解决</th></tr>
+      <tr>
+        <td><code>ros2: command not found</code></td>
+        <td>当前终端没 source。<strong>不一定是没装</strong></td>
+        <td>先 <code>source /opt/ros/humble/setup.bash</code>；
+            再不行用 <code>ls /opt/ros/humble</code> 确认到底装没装</td>
+      </tr>
+      <tr>
+        <td><code>colcon: command not found</code></td>
+        <td>只装了 ROS2，漏了 colcon——它是独立的包</td>
+        <td><code>sudo apt install python3-colcon-common-extensions</code></td>
+      </tr>
+      <tr>
+        <td><code>E: Unable to locate package ros-humble-desktop</code></td>
+        <td>软件源没加成功，或加完没 <code>apt update</code></td>
+        <td><code>cat /etc/apt/sources.list.d/ros2.list</code> 核对内容，
+            然后 <code>sudo apt update</code></td>
+      </tr>
+      <tr>
+        <td><code>NO_PUBKEY</code> / <code>signatures couldn't be verified</code></td>
+        <td>GPG 密钥没装好，apt 拒绝来源不明的包</td>
+        <td>重做 2.3 步骤 ② 下载 <code>ros.key</code></td>
+      </tr>
+      <tr>
+        <td><code>dpkg: dependency problems</code></td>
+        <td><code>dpkg -i</code> 装的包缺依赖，停在半成品状态</td>
+        <td><code>sudo apt install -f</code>。<strong>不要重复 <code>dpkg -i</code></strong></td>
+      </tr>
+      <tr>
+        <td><code>Permission denied</code></td>
+        <td>在写没有权限的目录，或脚本没有执行权限</td>
+        <td>写系统目录用 <code>sudo</code>；跑脚本用 <code>chmod +x</code> 或 <code>bash 脚本</code></td>
+      </tr>
+      <tr>
+        <td>新终端里 <code>ros2</code> 又用不了</td>
+        <td><code>source</code> 只影响当前终端</td>
+        <td>把 source 写进 <code>~/.bashrc</code>（3.5 节）</td>
+      </tr>
+      <tr>
+        <td>写进 <code>.bashrc</code> 了，当前终端还是不行</td>
+        <td><code>.bashrc</code> 只在终端启动时读一次</td>
+        <td>关掉重开，或 <code>source ~/.bashrc</code></td>
+      </tr>
+      <tr>
+        <td><code>ModuleNotFoundError: No module named 'rclpy'</code></td>
+        <td>用的 Python 不是系统那个（常见于 conda 抢占 <code>python3</code>）</td>
+        <td><code>which python3</code> 应为 <code>/usr/bin/python3</code>；
+            先 <code>conda deactivate</code></td>
+      </tr>
+      <tr>
+        <td><code>IndentationError</code></td>
+        <td>Python 缩进不一致，或混用空格和 Tab</td>
+        <td>统一 4 个空格。编辑器里开"显示空白字符"</td>
+      </tr>
+      <tr>
+        <td><code>UnboundLocalError</code></td>
+        <td>方法里漏写了 <code>self.</code></td>
+        <td>见 5.7 节最后那个例子</td>
+      </tr>
+      <tr>
+        <td>ping 100% 丢包，<strong>一行错误都没有</strong></td>
+        <td>目标和你不在同一子网，包被丢给默认网关后消失</td>
+        <td><code>ip -br addr</code> 看自己的网段，按 4.5 节把主机加到目标所在子网</td>
+      </tr>
+      <tr>
+        <td><code>Destination Host Unreachable</code></td>
+        <td><strong>路由是对的</strong>，同子网里喊了但没人应答</td>
+        <td>查对方：上电没、IP 对不对、网线插好没。<code>ip neigh</code> 会显示 <code>FAILED</code></td>
+      </tr>
+      <tr>
+        <td>网卡有名字但没 IP，标着 <code>NO-CARRIER</code></td>
+        <td>物理链路没通——网线没插好，或对端没上电</td>
+        <td>换线换口试；<code>cat /sys/class/net/网卡名/operstate</code> 应为 <code>up</code></td>
+      </tr>
+      <tr>
+        <td>打开串口报 <code>Permission denied</code></td>
+        <td>当前用户不在 <code>dialout</code> 组</td>
+        <td><code>sudo usermod -aG dialout $USER</code>，然后<strong>注销重新登录</strong>。
+            不要改用 <code>sudo</code> 跑节点</td>
+      </tr>
+      <tr>
+        <td>串口能读到数据，但全是乱码</td>
+        <td>波特率设错了，采样时机对不上</td>
+        <td>查设备手册确认波特率，常见是 <code>115200</code>。
+            用 <code>stty -F /dev/ttyUSB0 115200</code> 改</td>
+      </tr>
+      <tr>
+        <td>两台机器网络通，<code>ros2 node list</code> 却看不到对方</td>
+        <td><code>ROS_DOMAIN_ID</code> 不一致，或一端设了
+            <code>ROS_LOCALHOST_ONLY=1</code>，或两端 RMW 实现不同</td>
+        <td>按 4.6 节的排查树逐项对照。<strong>这三种都不报错，只是静默地看不见</strong></td>
+      </tr>
+      <tr>
+        <td><code>Calculated port number is too high</code></td>
+        <td><code>ROS_DOMAIN_ID</code> 超过了 232</td>
+        <td>改成 0–232 范围内的值</td>
+      </tr>
+      <tr>
+        <td>局域网里冒出别人的节点和话题</td>
+        <td>大家都在默认的域 0 里</td>
+        <td>约定各用各的 <code>ROS_DOMAIN_ID</code>；只在本机开发时设
+            <code>ROS_LOCALHOST_ONLY=1</code></td>
+      </tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="block" id="review">
+    <h2>课后回顾</h2>
+    <p>几道典型选择题，先作答再展开答案；答错的回到括号里的小节重读。
+    考核题面由带教老师另行下发。</p>
+    <ol class="quiz">
+      <li>
+        <p>敲 <code>ros2</code> 报 <code>ros2: command not found</code>，这说明什么？</p>
+        <ol type="A">
+        <li>ROS2 没有安装</li>
+        <li>bash 按 <code>PATH</code> 找不到名叫 <code>ros2</code> 的程序，和装没装是两回事</li>
+        <li>ROS2 版本不对</li>
+        <li>必须用 root 身份运行</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>查 <code>ls /opt/ros/humble</code>：目录在，就是装了没 source（3.3）；目录不在，才是真没装（1.1、3.2）。</p>
+        </details>
+      </li>
+      <li>
+        <p>想把一行配置追加到 <code>~/.bashrc</code> 末尾，该用哪个？</p>
+        <ol type="A">
+        <li><code>echo "…" &gt; ~/.bashrc</code></li>
+        <li><code>echo "…" &gt;&gt; ~/.bashrc</code></li>
+        <li>两个都行</li>
+        <li><code>cat "…" &gt;&gt; ~/.bashrc</code></li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong><code>&gt;</code> 是覆盖写入，会把整个文件清空只剩你这一行（1.4）。<code>cat</code> 打的是文件内容，不能这样传字符串（1.4）。</p>
+        </details>
+      </li>
+      <li>
+        <p><code>source setup.bash</code> 和 <code>bash setup.bash</code> 的区别是？</p>
+        <ol type="A">
+        <li>没有区别</li>
+        <li><code>source</code> 在当前 shell 里就地执行，设的变量留下来；<code>bash</code> 另开子进程执行，变量随子进程退出而消失</li>
+        <li><code>source</code> 更快</li>
+        <li><code>bash</code> 需要可执行权限，所以更安全</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>这就是每开一个新终端都要重新 source 的原因（3.3）。</p>
+        </details>
+      </li>
+      <li>
+        <p>主机 <code>192.168.160.200/24</code>，雷达 <code>192.168.123.10</code>。ping 雷达会看到什么？</p>
+        <ol type="A">
+        <li>能通</li>
+        <li><code>Destination Host Unreachable</code></li>
+        <li>一行错误都没有，最后 100% packet loss</li>
+        <li>提示子网掩码错误</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C。</strong>掩码 /24 前三段必须相同才同子网；不同子网的包被丢给网关后石沉大海，静默丢包正是「子网配错」的典型指纹（4.1、4.4）。</p>
+        </details>
+      </li>
+      <li>
+        <p>只在本机跑仿真、不想被同网段的人干扰，最干净的做法是？</p>
+        <ol type="A">
+        <li><code>export ROS_DOMAIN_ID=99</code></li>
+        <li><code>export ROS_LOCALHOST_ONLY=1</code></li>
+        <li>拔网线</li>
+        <li>把 WiFi 改成静态 IP</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>本机仿真用 <code>ROS_LOCALHOST_ONLY=1</code>，彻底不对外广播；要接雷达实机或多机通信时它必须为 0，改用 <code>ROS_DOMAIN_ID</code> 隔离（3.4、4.6）。</p>
+        </details>
+      </li>
+      <li>
+        <p>串口 IMU 能读到数据但全是乱码，最可能的原因是？</p>
+        <ol type="A">
+        <li>线接反了</li>
+        <li>没加入 dialout 组</li>
+        <li>波特率两端不一致</li>
+        <li>设备文件选错了</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C。</strong>波特率错 = 采样时机错位，位被切错，表现为「有数据但乱码」；读不到任何数据才去查线序、权限、设备文件（4.7）。</p>
+        </details>
+      </li>
+    </ol>
+    <p class="callout">配套 notebook：<code>lessons/lesson0.ipynb</code>，可以逐格运行、改参数做实验。</p>
+  </section>
+
+  <section class="block" id="further">
+    <h2>延伸阅读</h2>
+    <ul>
+      <li><a href="https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html">Humble 官方安装文档</a>——安装以它为准</li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Configuring-ROS2-Environment.html">官方：配置 ROS2 环境</a></li>
+      <li><a href="https://ros2-tutorial.readthedocs.io/en/latest/preamble_ubuntu_python.html">参考教程：Preamble - Ubuntu and Python</a></li>
+      <li><a href="https://ros2-tutorial.readthedocs.io/en/latest/preamble_python_best_practices.html">参考教程：Preamble - Python Best Practices</a></li>
+      <li><a href="https://docs.python.org/zh-cn/3/tutorial/classes.html">Python 官方教程：类</a>（中文）</li>
+    </ul>
+    <p class="callout danger">参考教程站按 Ubuntu 24.04 + ROS2 Jazzy 写的，命令与本课程有出入。
+    <strong>概念看它，命令照本课程。</strong></p>
+  </section>
+
+  <footer class="page-foot">
+    五项全绿之后 → <a href="day1.html">Day 1 · 建包与第一个话题</a>
+  </footer>
+</main>
+</div>
+
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/site.js"></script>

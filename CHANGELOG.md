@@ -2,6 +2,31 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-07-31] 机器人学习板块（ROS2 入门讲义）
+
+### 新功能
+
+- **机器人学习**: 首页新增与「家庭网球」平级的入口，进入 `/robotics` 打开 ROS2 入门讲义 Day 0。讲义为静态 HTML，自带明暗主题与 Day 0–5 侧边栏导航，外层只包一条「返回主页 / 新标签打开」工具栏，不改动讲义源文件。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `public/robotics/*.html` | 新建 | 讲义页面，源自 `Tutorials4intern/docs`（day0/day1/day2/index） |
+| `public/robotics/assets/` | 新建 | 讲义样式、脚本与 vendor 的 mermaid |
+| `src/modules/robotics/index.js` | 新建 | 模块描述符，`home.order: 26`（紧随 tennis 的 25） |
+| `src/modules/robotics/RoboticsRoute.jsx` | 新建 | 讲义外壳：工具栏 + 全高 iframe |
+| `src/shell/paths.js` | 修改 | 新增 `ROUTES.ROBOTICS = '/robotics'` |
+| `src/shell/ModuleRegistry.js` | 修改 | 注册 robotics 模块 |
+| `src/modules/home/HomeRoute.jsx` | 修改 | 新增 `onEnterRobotics` 桥接 |
+| `src/components/Dashboard.jsx` | 修改 | 家庭网球之后新增「机器人学习」按钮（`Bot` 图标） |
+
+### 技术细节
+
+- **路由与静态资产不冲突**：`serveStaticAsset()` 只把「末段带点号」的路径交给 `env.ASSETS`。因此 `/robotics` 走 SPA 路由，`/robotics/day0.html` 走静态资产，同名目录安全。
+- **不复制 `docs/superpowers/`**：那是内部 plans/specs，不应公开。
+- **讲义原样嵌入**：iframe 而非改写成 React，避免 95KB 讲义在转换中失真，也让源仓库更新只需重新复制。
+- 已知缺口：讲义侧边栏的 Day 3 / Day 4 / Day 5 / 附录 尚未撰写，线上会返回 404（上游内容问题，非本次改动引入）。
 ## [2026-07-05] 狼人杀 Round 118 — 骑士/魔术师 DAY_VOTE 私有信息注入
 
 ### 新功能

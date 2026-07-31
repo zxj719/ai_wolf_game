@@ -1,0 +1,540 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 2 · 包结构、library 与 launch · ROS2 入门</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<div class="layout">
+<nav class="sidebar">
+  <strong>ROS2 入门 · 第 1 周</strong>
+  <a href="index.html">总览</a>
+  <a href="day0.html">Day 0 · 课前预习</a>
+  <a href="day1.html">Day 1 · 建包与话题</a>
+  <a href="day2.html">Day 2 · 包结构与 launch</a>
+  <a href="day3.html">Day 3 · 话题深入与实机</a>
+  <a href="day4.html">Day 4 · Gazebo 与 URDF</a>
+  <a href="day5.html">Day 5 · 综合考核</a>
+  <a href="appendix-livox.html">附录 · Livox 实机</a>
+</nav>
+
+<main class="page">
+  <h1>Day 2 · 包结构、library 与 launch</h1>
+  <p class="callout"><strong>预计 4 小时。</strong>Day 1 的两个节点能跑了，
+  但它是"作业"不是"工程"。今天把它改造成正规工程的样子——真实机器人项目
+  （包括第 2 周的 Nav2）全都长这个形状：逻辑在 library、参数在 YAML、启动靠 launch。</p>
+
+  <section class="block" id="goals">
+    <h2>今日目标</h2>
+    <ul class="goals">
+      <li>把 <code>package.xml</code> 和 <code>setup.py</code> 的每一项都讲得出用途</li>
+      <li>会把与 ROS2 无关的逻辑抽成包内 library，两个节点共用</li>
+      <li>会声明、读取参数，并让参数值来自 YAML 文件而不是代码</li>
+      <li>写出一键启动多节点的 launch 文件，理解它怎么找到东西</li>
+      <li>说得清相对话题名与绝对话题名在 namespace 下的差别</li>
+      <li>完成 Day 2 考核，评分脚本 60 分以上</li>
+    </ul>
+  </section>
+
+  <section class="block" id="overview">
+    <h2>今日全景与主线任务</h2>
+    <p><strong>主线任务：把 Day 1 的数据链路改造成一条命令能启动的工程。</strong>
+    改造有三步，每一步解决 Day 1 留下的一个具体毛病：</p>
+<pre class="mermaid">
+flowchart TD
+    S(["Day 1 的包：能跑，但是三处硬伤"])
+    S --> A["毛病 1：乘 2 的逻辑写死在节点里&lt;br/&gt;→ 第二节：抽成 math_lib，两个节点共用"]
+    A --> B["毛病 2：倍数、频率写死在代码里&lt;br/&gt;→ 第三节：declare_parameter + YAML"]
+    B --> C["毛病 3：启动要开 N 个终端&lt;br/&gt;→ 第四节：launch 一条命令全拉起"]
+    C --> E(["ros2 launch day2_demo day2.launch.py&lt;br/&gt;两个节点、参数、namespace 一步到位"])
+</pre>
+    <p>第一节先把包的"说明书"彻底读懂——后面三步全在改这两份说明书，
+    不懂它们就只能瞎猜。示例包完整源码在仓库的 <code>examples/day2_demo/</code>，
+    跟做时把它放进 <code>~/ws_demo/src/</code>，卡住时拿来对照。</p>
+    <p class="milestone">今天结束时，你有一个 <code>day2_demo</code> 风格的包：
+    <code>ros2 launch</code> 一条命令启动，改参数不用碰代码。</p>
+  </section>
+
+  <section class="block" id="anatomy">
+    <h2>一、包的完整解剖</h2>
+    <p>Day 1 说过 <code>package.xml</code> 是身份证、<code>setup.py</code> 是打包说明。
+    今天要往包里加 launch 文件和参数文件，这两份说明书必须逐项看懂。</p>
+
+    <h3>1.1 <code>package.xml</code>：给 ROS2 和 rosdep 看的</h3>
+<pre><code>&lt;package format="3"&gt;
+  &lt;name&gt;day2_demo&lt;/name&gt;
+  &lt;version&gt;0.0.0&lt;/version&gt;
+  &lt;description&gt;Day 2 示例&lt;/description&gt;
+  &lt;maintainer email="intern@example.com"&gt;intern&lt;/maintainer&gt;
+  &lt;license&gt;Apache-2.0&lt;/license&gt;
+
+  &lt;depend&gt;rclpy&lt;/depend&gt;
+  &lt;depend&gt;std_msgs&lt;/depend&gt;
+
+  &lt;exec_depend&gt;ros2launch&lt;/exec_depend&gt;
+
+  &lt;export&gt;
+    &lt;build_type&gt;ament_python&lt;/build_type&gt;
+  &lt;/export&gt;
+&lt;/package&gt;</code></pre>
+    <p>依赖标签有三种，区别在于<strong>什么时候需要它</strong>：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>标签</th><th>含义</th><th>例子</th></tr>
+      <tr><td><code>&lt;build_depend&gt;</code></td>
+          <td>只在<strong>编译时</strong>需要</td>
+          <td>C++ 包的头文件依赖。纯 Python 包几乎用不到</td></tr>
+      <tr><td><code>&lt;exec_depend&gt;</code></td>
+          <td>只在<strong>运行时</strong>需要</td>
+          <td><code>ros2launch</code>：编译用不上它，跑 <code>ros2 launch</code> 时才要</td></tr>
+      <tr><td><code>&lt;depend&gt;</code></td>
+          <td>编译、运行都需要，<strong>等于上面两个一起写</strong></td>
+          <td><code>rclpy</code>、<code>std_msgs</code>。拿不准就用它</td></tr>
+    </table>
+    </div>
+    <p>这些声明有两个真实作用：<code>colcon</code> 靠它决定包的编译顺序；
+    <code>rosdep</code> 靠它自动安装缺的系统依赖。写漏了不一定立刻报错，
+    但换一台机器部署时就会缺东西。</p>
+
+    <details class="aside">
+      <summary>补充：<code>ament_cmake</code> 包长什么样（阅读材料，不要求会写）</summary>
+      <p>C++ 包的构建类型是 <code>ament_cmake</code>，说明书是 <code>CMakeLists.txt</code>，
+      角色相当于 <code>setup.py</code>。你会在两个场合遇到它：
+      读别人的 C++ 包（比如 Livox 驱动），以及<strong>自定义消息接口</strong>——
+      接口包必须是 <code>ament_cmake</code> 类型，即使项目其余部分全是 Python。
+      本课程用不到自定义接口，认得出来即可。</p>
+    </details>
+
+    <h3>1.2 <code>setup.py</code>：逐项讲清</h3>
+    <p>这是今天的主战场。<code>day2_demo</code> 的完整版：</p>
+<pre><code>import os
+from glob import glob
+
+from setuptools import setup
+
+package_name = 'day2_demo'
+
+setup(
+    name=package_name,
+    version='0.0.0',
+    packages=[package_name],
+    data_files=[
+        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+        # 下面两行是本日核心：把 launch/ 与 config/ 装进 share 目录。
+        # 不写它们，colcon build 不报错，但 ros2 launch 找不到 launch 文件。
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+    ],
+    install_requires=['setuptools'],
+    zip_safe=True,
+    maintainer='intern',
+    maintainer_email='intern@example.com',
+    description='Day 2 示例：library 复用、launch、namespace 与参数文件',
+    license='Apache-2.0',
+    entry_points={
+        'console_scripts': [
+            'talker = day2_demo.talker:main',
+            'listener = day2_demo.listener:main',
+        ],
+    },
+)</code></pre>
+    <div class="table-wrap">
+    <table>
+      <tr><th>项</th><th>作用</th><th>写错的症状</th></tr>
+      <tr><td><code>packages</code></td>
+          <td>哪些目录是要安装的 Python 包</td>
+          <td>漏了 → <code>ModuleNotFoundError</code></td></tr>
+      <tr><td><code>data_files</code></td>
+          <td><strong>代码之外</strong>还要安装什么、装到哪。
+              launch、YAML、地图、URDF 全靠它</td>
+          <td>编译不报错，<code>ros2 launch</code> 时才炸（见第四节实测）</td></tr>
+      <tr><td><code>entry_points</code></td>
+          <td>把"函数"变成"可执行名"：<code>talker = day2_demo.talker:main</code>
+              读作"可执行 <code>talker</code> = 模块 <code>day2_demo/talker.py</code> 里的
+              <code>main</code> 函数"</td>
+          <td><code>No executable found</code></td></tr>
+    </table>
+    </div>
+    <p><code>data_files</code> 每一项是一个二元组 <code>(装到哪, [装什么])</code>。
+    <code>glob('launch/*.launch.py')</code> 把 <code>launch/</code> 下所有 launch 文件列出来，
+    以后加新文件不用改 <code>setup.py</code>。</p>
+    <p class="callout">为什么装进 <code>share/</code>？约定：<code>lib/</code> 放可执行，
+    <code>share/</code> 放随包分发的数据文件。<code>ros2 launch</code> 只会去
+    <code>share/&lt;包名&gt;/</code> 底下找。</p>
+
+    <p class="milestone">阶段成果：能对着 <code>setup.py</code> 的每一行说出
+    "删了它会出什么错"。</p>
+  </section>
+
+  <section class="block" id="library">
+    <h2>二、把逻辑抽成 library</h2>
+    <p>Day 1 的 listener 把"乘 2"写在回调里。逻辑一复杂（滤波、坐标变换、协议解析），
+    这么写的代码既没法给第二个节点复用，也没法单独测试。
+    解法：<strong>与 ROS2 无关的逻辑放进普通 Python 模块</strong>。</p>
+<pre><code>day2_demo/
+├── __init__.py
+├── math_lib.py      ← 纯逻辑，不 import rclpy
+├── talker.py        ← 节点，薄薄一层
+└── listener.py      ← 节点，薄薄一层</code></pre>
+    <p><code>math_lib.py</code>：</p>
+<pre><code>def scale(value: int, factor: int) -&gt; int:
+    """把 value 放大 factor 倍。"""
+    return value * factor
+
+
+def period_of(hz: float) -&gt; float:
+    """频率(Hz) 换算成定时器周期(秒)。"""
+    if hz &lt;= 0:
+        raise ValueError(f"频率必须为正数，收到 {hz}")
+    return 1.0 / hz</code></pre>
+    <p>节点里导入。注意路径是<strong>包名.模块名</strong>，跟文件在同一目录也要这么写——
+    运行时代码在 <code>install/</code> 里，相对导入会断：</p>
+<pre><code>from day2_demo.math_lib import scale, period_of</code></pre>
+    <p>好处立刻兑现：不启动任何 ROS2 的东西就能验证逻辑（在 workspace 根目录，
+    build 并 source 之后）：</p>
+<pre><code>python3 -c "from day2_demo.math_lib import scale; print(scale(21, 2))"</code></pre>
+    <div class="expected">
+<pre><code>42</code></pre>
+    </div>
+    <p class="milestone">阶段成果：<code>math_lib.py</code> 进包，两个节点都从它导入，
+    命令行一句话可验证。</p>
+  </section>
+
+  <section class="block" id="params">
+    <h2>三、参数：把"会变的数"搬出代码</h2>
+    <p>发布频率、倍数、串口波特率、雷达 IP——这些值今天是 A 明天是 B。
+    写死在代码里，每改一次都要重新编译。ROS2 的答案是<strong>参数（parameter）</strong>：
+    节点声明"我有哪些可调项"，值从外部喂进来。</p>
+
+    <h3>3.1 节点侧：先声明，再读取</h3>
+<pre><code>class Talker(Node):
+    def __init__(self):
+        super().__init__('talker')
+        # declare_parameter(名字, 默认值)：没有这行，外部传进来的参数会被拒收
+        self.declare_parameter('publish_hz', 2.0)
+        hz = self.get_parameter('publish_hz').value
+
+        self.pub = self.create_publisher(Int32, 'counter', 10)
+        self.count = 0
+        self.timer = self.create_timer(period_of(hz), self.on_timer)
+        self.get_logger().info(f'talker 已启动，publish_hz={hz}')</code></pre>
+    <p>三个要点：</p>
+    <ul>
+      <li><strong>默认值同时定了类型。</strong><code>2.0</code> 声明的是浮点参数，
+          外部喂整数 <code>5</code> 会被拒。频率这类值一律写成 <code>5.0</code></li>
+      <li><strong>默认值别写你想要的值。</strong>YAML 没生效时节点会拿默认值继续跑、
+          不报任何错；默认值和目标值一样，你就发现不了。示例里故意用 2.0，
+          考核要求 5 Hz——频率不对立刻暴露</li>
+      <li>忘了 <code>declare_parameter</code> 就去 <code>get_parameter</code>，节点启动即崩：</li>
+    </ul>
+    <div class="expected">
+<pre><code>rclpy.exceptions.ParameterNotDeclaredException: ('Invalid access to undeclared parameter(s)', 'multiplier')</code></pre>
+    </div>
+
+    <h3>3.2 文件侧：<code>config/params.yaml</code></h3>
+<pre><code>/day2/talker:
+  ros__parameters:
+    publish_hz: 5.0
+/day2/listener:
+  ros__parameters:
+    multiplier: 2</code></pre>
+    <p>结构固定三层：<strong>节点全名 → <code>ros__parameters</code>（两个下划线）→ 参数表</strong>。</p>
+    <p class="callout danger"><strong>顶层键必须是节点的完整名字，包括 namespace。</strong>
+    节点在 <code>/day2</code> 下，键就必须是 <code>/day2/talker</code>。
+    写成 <code>talker:</code> 或 <code>/talker:</code> <strong>不报任何错</strong>，
+    参数被静默忽略，节点拿默认值继续跑。这是今天最隐蔽的坑，实测现象见 4.5。</p>
+
+    <p class="milestone">阶段成果：频率、倍数都进了 YAML，改它们不再碰代码。</p>
+  </section>
+
+  <section class="block" id="launch">
+    <h2>四、launch：一条命令拉起整个系统</h2>
+
+    <h3>4.1 launch 文件的三要素</h3>
+    <p>launch 文件是一段 Python：定义一个 <code>generate_launch_description()</code> 函数，
+    返回要启动的节点列表。</p>
+<pre><code>import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    params = os.path.join(
+        get_package_share_directory('day2_demo'), 'config', 'params.yaml')
+
+    return LaunchDescription([
+        Node(package='day2_demo', executable='talker', name='talker',
+             namespace='day2', parameters=[params], output='screen'),
+        Node(package='day2_demo', executable='listener', name='listener',
+             namespace='day2', parameters=[params], output='screen'),
+    ])</code></pre>
+    <div class="table-wrap">
+    <table>
+      <tr><th>要素</th><th>干什么</th></tr>
+      <tr><td><code>generate_launch_description()</code></td>
+          <td>固定入口，<code>ros2 launch</code> 找的就是这个函数名</td></tr>
+      <tr><td><code>Node(...)</code></td>
+          <td>描述一个要启动的节点：哪个包、哪个可执行、叫什么、
+              在哪个 namespace、喂什么参数。<code>output='screen'</code>
+              让节点日志打到当前终端</td></tr>
+      <tr><td><code>get_package_share_directory()</code></td>
+          <td>按包名找到它<strong>安装后</strong>的 share 目录——
+              参数文件的路径不能写死，每台机器不一样</td></tr>
+    </table>
+    </div>
+    <p><code>ros2 launch day2_demo day2.launch.py</code> 的完整查找链：</p>
+<pre class="mermaid">
+flowchart TD
+    A["ros2 launch day2_demo day2.launch.py"] --> B["按包名找 share 目录&lt;br/&gt;install/day2_demo/share/day2_demo"]
+    B --> C{"里面有 day2.launch.py 吗"}
+    C -- "没有（data_files 没写）" --> X["was not found in the share directory&lt;br/&gt;见 4.4"]
+    C -- 有 --> D["执行 generate_launch_description()"]
+    D --> E["逐个拉起 Node&lt;br/&gt;套 namespace，喂参数文件"]
+    E --> F["节点各自 declare_parameter&lt;br/&gt;从 YAML 里认领自己的段落"]
+</pre>
+
+    <h3>4.2 namespace 与相对话题名</h3>
+    <p>launch 里给了 <code>namespace='day2'</code>。它对节点名和话题名的影响不一样：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>代码里写的</th><th>实际结果</th><th>为什么</th></tr>
+      <tr><td>节点名 <code>talker</code></td><td><code>/day2/talker</code></td>
+          <td>节点名总是被 namespace 加前缀</td></tr>
+      <tr><td>话题 <code>counter</code>（相对名）</td><td><code>/day2/counter</code></td>
+          <td><strong>相对名跟着 namespace 走</strong></td></tr>
+      <tr><td>话题 <code>/day1/counter</code>（绝对名）</td><td><code>/day1/counter</code></td>
+          <td><strong>绝对名无视 namespace</strong>，写哪是哪</td></tr>
+    </table>
+    </div>
+    <p class="callout danger">所以今天必须把 Day 1 代码里的 <code>/day1/counter</code>
+    改成相对的 <code>counter</code>。不改的话 launch 照样能跑，
+    但话题跑在 <code>/day1/...</code> 下面，namespace 形同虚设——评分脚本按
+    <code>/day2/counter</code> 找，一分拿不到。namespace 的价值 Day 3 会真正兑现：
+    两台机器人各占一个 namespace，同一套代码互不打架。</p>
+
+    <h3>4.3 跑起来看</h3>
+<pre><code>cd ~/ws_demo
+colcon build --packages-select day2_demo
+source install/setup.bash
+ros2 launch day2_demo day2.launch.py</code></pre>
+    <div class="expected">
+<pre><code>[INFO] [launch]: All log files can be found below /home/agx/.ros/log/2026-07-30-08-12-09-073855-ubuntu-29894
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [talker-1]: process started with pid [29896]
+[INFO] [listener-2]: process started with pid [29898]
+[talker-1] [INFO] [1785391929.702292911] [day2.talker]: talker 已启动，publish_hz=5.0
+[listener-2] [INFO] [1785391929.702427950] [day2.listener]: listener 已启动，multiplier=2</code></pre>
+    </div>
+    <p>读这段输出：launch 先报自己拉起了两个进程，然后是<strong>节点自己的日志</strong>——
+    方括号里的 <code>day2.talker</code> 已经带上了 namespace；
+    <code>publish_hz=5.0</code> 说明 YAML 生效（代码默认是 2.0）。</p>
+    <p>另开一个终端逐项核对（记得先 source）：</p>
+<pre><code>ros2 node list</code></pre>
+    <div class="expected">
+<pre><code>/day2/listener
+/day2/talker</code></pre>
+    </div>
+<pre><code>ros2 topic list</code></pre>
+    <div class="expected">
+<pre><code>/day2/counter
+/day2/counter_doubled
+/parameter_events
+/rosout</code></pre>
+    </div>
+<pre><code>ros2 topic hz /day2/counter</code></pre>
+    <div class="expected">
+<pre><code>WARNING: topic [/day2/counter] does not appear to be published yet
+average rate: 5.001
+	min: 0.199s max: 0.200s std dev: 0.00028s window: 7</code></pre>
+    </div>
+    <p>开头的 <code>WARNING</code> 是正常的（Day 1 讲过：发现需要时间）。
+    5.0 Hz——参数确实从 YAML 来。</p>
+    <p>参数也可以直接问：</p>
+<pre><code>ros2 param get /day2/listener multiplier
+ros2 param get /day2/talker publish_hz</code></pre>
+    <div class="expected">
+<pre><code>Integer value is: 2
+Double value is: 5.0</code></pre>
+    </div>
+    <p class="callout"><code>ros2 param list</code> 能列出每个节点的全部参数。
+    你会看到除了自己声明的，还有 <code>use_sim_time</code> 等内置参数——那是每个节点都有的。</p>
+
+    <h3>4.4 实测：把 <code>data_files</code> 两行删掉会怎样</h3>
+    <p>把 <code>setup.py</code> 里 launch/config 那两行注释掉，
+    <strong>删干净 build/install 再重编</strong>（原因见下面的警告）：</p>
+<pre><code>rm -rf build/day2_demo install/day2_demo
+colcon build --packages-select day2_demo
+source install/setup.bash
+ros2 launch day2_demo day2.launch.py</code></pre>
+    <div class="expected">
+<pre><code>file 'day2.launch.py' was not found in the share directory of package 'day2_demo' which is at '/home/agx/ws_demo/install/day2_demo/share/day2_demo'</code></pre>
+    </div>
+    <p>注意时间差：<strong><code>colcon build</code> 全程无报错</strong>，
+    问题在 <code>ros2 launch</code> 时才暴露。报错信息其实把答案说全了——
+    它去 share 目录找过了，没有。谁负责把文件放进 share？<code>data_files</code>。</p>
+    <p class="callout danger"><strong>为什么必须先删 build/install：</strong>
+    如果这个包<strong>以前成功装过</strong> launch 文件，旧副本会一直留在
+    <code>install/</code> 里——删掉 <code>data_files</code> 再普通重编，
+    <code>ros2 launch</code> 依然能跑（用的是旧文件），你完全看不出 <code>setup.py</code>
+    已经坏了。实测确认过这个现象。遇到任何"改了配置没反应"，
+    第一招都是删干净重编。</p>
+
+    <h3>4.5 实测：YAML 键写错会怎样</h3>
+    <p>把 <code>params.yaml</code> 顶层键从 <code>/day2/talker</code> 改成
+    <code>/talker</code>，重编重启，<strong>没有任何报错</strong>。然后：</p>
+<pre><code>ros2 param get /day2/talker publish_hz
+ros2 topic hz /day2/counter</code></pre>
+    <div class="expected">
+<pre><code>Double value is: 2.0
+average rate: 2.000</code></pre>
+    </div>
+    <p>节点拿着<strong>代码里的默认值 2.0</strong> 在跑——YAML 那段被静默跳过了。
+    这就是 3.1 说"默认值别写目标值"的原因：默认值要是也写 5.0，
+    这个错误今天不炸，留到某天你改参数发现怎么改都没反应。</p>
+
+    <p class="milestone">阶段成果：一条命令启动全系统；两类"不报错的错"
+    （data_files 残留、YAML 键失配）都亲手复现过，知道怎么查。</p>
+  </section>
+
+  <section class="block" id="errors">
+    <h2>常见报错对照表</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>现象 / 报错</th><th>原因</th><th>解决</th></tr>
+      <tr>
+        <td><code>file 'day2.launch.py' was not found in the share directory of package ...</code></td>
+        <td><code>setup.py</code> 的 <code>data_files</code> 没把 <code>launch/</code> 装进去</td>
+        <td>补上 <code>(os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py'))</code>，
+            重新 build</td>
+      </tr>
+      <tr>
+        <td><code>PackageNotFoundError: "package 'day2_dem0' not found, searching: [...]"</code></td>
+        <td>包名拼错，或没 source 装了这个包的 workspace</td>
+        <td>报错里列出了它搜过的全部路径——你的 workspace 不在列表里就是没 source；
+            在列表里就是包名拼错了</td>
+      </tr>
+      <tr>
+        <td>参数怎么改都不生效，<code>ros2 param get</code> 一直返回默认值</td>
+        <td>YAML 顶层键与节点全名不匹配（少了 namespace、名字拼错），参数被静默忽略</td>
+        <td>键必须一字不差等于 <code>ros2 node list</code> 里的名字，如 <code>/day2/listener</code></td>
+      </tr>
+      <tr>
+        <td><code>ParameterNotDeclaredException: ('Invalid access to undeclared parameter(s)', 'multiplier')</code></td>
+        <td>没 <code>declare_parameter</code> 就 <code>get_parameter</code></td>
+        <td>先声明后读取，声明写在 <code>__init__</code> 最前面</td>
+      </tr>
+      <tr>
+        <td>改了 <code>launch/</code>、<code>config/</code> 里的文件，行为没变化</td>
+        <td><code>ros2 launch</code> 用的是 <code>install/</code> 里的副本，不是 <code>src/</code> 里你改的那份</td>
+        <td>重新 <code>colcon build</code>；怀疑残留时 <code>rm -rf build/包名 install/包名</code> 再编</td>
+      </tr>
+      <tr>
+        <td>launch 正常、话题却不在 <code>/day2/</code> 下</td>
+        <td>代码里写了绝对话题名（以 <code>/</code> 开头），namespace 对它无效</td>
+        <td>话题名改成相对的 <code>counter</code> / <code>counter_doubled</code></td>
+      </tr>
+      <tr>
+        <td><code>InvalidParameterTypeException: Trying to set parameter 'publish_hz' to '5' of type 'INTEGER', expecting type 'DOUBLE'</code></td>
+        <td>声明时默认值是 <code>2.0</code>（浮点），YAML 里写了 <code>5</code>（整数）</td>
+        <td>YAML 里写 <code>5.0</code>；反过来整型参数就别写小数点</td>
+      </tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="block" id="review">
+    <h2>课后回顾</h2>
+    <p>几道典型选择题，先作答再展开答案；答错的回到括号里的小节重读。
+    考核题面由带教老师另行下发。</p>
+    <ol class="quiz">
+      <li>
+        <p><code>setup.py</code> 里 <code>data_files</code> 没写 launch 那一行，现象是？</p>
+        <ol type="A">
+        <li><code>colcon build</code> 报错</li>
+        <li><code>ros2 launch</code> 报 <code>file '…launch.py' was not found in the share directory</code>，而 build 全程无报错</li>
+        <li>launch 能跑但节点起不来</li>
+        <li><code>ros2 pkg list</code> 里看不到这个包</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>build 只按说明书办事，说明书漏了它不检查；错误在 ros2 launch 去 share 目录找文件时才暴露（4.4 实测）。</p>
+        </details>
+      </li>
+      <li>
+        <p>launch 里 <code>namespace='day2'</code>，代码里写 <code>create_publisher(Int32, '/day1/counter', 10)</code>。实际话题是？</p>
+        <ol type="A">
+        <li><code>/day2/day1/counter</code></li>
+        <li><code>/day2/counter</code></li>
+        <li><code>/day1/counter</code></li>
+        <li>启动报错</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C。</strong>以 <code>/</code> 开头的绝对名无视 namespace，写哪是哪；只有相对名 <code>counter</code> 才会被加上 <code>/day2</code> 前缀（4.2）。</p>
+        </details>
+      </li>
+      <li>
+        <p><code>params.yaml</code> 顶层键写成了 <code>listener:</code>（节点实际在 <code>/day2</code> 下）。会发生什么？</p>
+        <ol type="A">
+        <li>ros2 launch 报错</li>
+        <li>节点启动时报参数文件无效</li>
+        <li>什么错都不报，节点拿 <code>declare_parameter</code> 的默认值继续跑</li>
+        <li>参数变成字符串类型</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C。</strong>键必须一字不差等于节点全名 <code>/day2/listener</code>，不匹配的段落被静默跳过（4.5 实测）。这也是「默认值别写目标值」的原因。</p>
+        </details>
+      </li>
+      <li>
+        <p>节点里没写 <code>declare_parameter('multiplier', …)</code> 就调用 <code>get_parameter('multiplier')</code>，结果是？</p>
+        <ol type="A">
+        <li>返回 None</li>
+        <li>返回 YAML 里的值</li>
+        <li>抛 <code>ParameterNotDeclaredException</code>，节点启动即崩</li>
+        <li>自动声明一个空参数</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C。</strong>先声明后读取是硬规则；声明的默认值同时定了参数类型（3.1）。</p>
+        </details>
+      </li>
+      <li>
+        <p><code>ros2launch</code> 在 <code>package.xml</code> 里应该用哪个标签声明？</p>
+        <ol type="A">
+        <li><code>&lt;build_depend&gt;</code></li>
+        <li><code>&lt;exec_depend&gt;</code></li>
+        <li><code>&lt;test_depend&gt;</code></li>
+        <li>不用声明</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B。</strong>编译用不上它，跑 <code>ros2 launch</code> 时才需要——只在运行期需要的依赖用 <code>exec_depend</code>；编译运行都要的（rclpy、std_msgs）用 <code>depend</code>（1.1）。</p>
+        </details>
+      </li>
+    </ol>
+    <p class="callout">配套 notebook：<code>lessons/lesson2.ipynb</code>，在 notebook 里拆解参数声明与 YAML 匹配的每一步。</p>
+  </section>
+
+  <section class="block" id="further">
+    <h2>延伸阅读</h2>
+    <ul>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Intermediate/Launch/Creating-Launch-Files.html">官方：Creating launch files</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Intermediate/Launch/Using-ROS2-Launch-For-Large-Projects.html">官方：Using ROS 2 launch for large projects</a>（namespace 与参数文件的进阶用法）</li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Using-Parameters-In-A-Class-Python.html">官方：Using parameters in a class (Python)</a></li>
+      <li><a href="https://docs.ros.org/en/humble/How-To-Guides/Developing-a-ROS-2-Package.html">官方：Developing a ROS 2 package</a>（setup.py 与 data_files）</li>
+    </ul>
+    <p class="callout danger">参考教程站按 Ubuntu 24.04 + ROS2 Jazzy 写的，命令与本课程有出入。
+    <strong>概念看它，命令照本课程。</strong></p>
+  </section>
+
+  <footer class="page-foot">
+    评分 60 以上 → <a href="day3.html">Day 3 · 话题深入与实机</a>
+  </footer>
+</main>
+</div>
+
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/site.js"></script>

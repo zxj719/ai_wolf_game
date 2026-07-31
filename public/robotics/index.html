@@ -1,0 +1,138 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROS2 入门 · 第 1 周 · 总览</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<div class="layout">
+<nav class="sidebar">
+  <strong>ROS2 入门 · 第 1 周</strong>
+  <a href="index.html">总览</a>
+  <a href="day0.html">Day 0 · 课前预习</a>
+  <a href="day1.html">Day 1 · 建包与话题</a>
+  <a href="day2.html">Day 2 · 包结构与 launch</a>
+  <a href="day3.html">Day 3 · 话题深入与实机</a>
+  <a href="day4.html">Day 4 · Gazebo 与 URDF</a>
+  <a href="day5.html">Day 5 · 综合考核</a>
+  <a href="appendix-livox.html">附录 · Livox 实机</a>
+</nav>
+
+<main class="page">
+  <h1>ROS2 入门 · 第 1 周</h1>
+  <p>这是一份给<strong>零基础实习生</strong>的全自学课程。你不需要有 ROS2、Linux 或 Python 经验，
+  但需要按顺序一天一天走完——每一天都建立在前一天的产出之上。</p>
+
+  <section class="block">
+    <h2>你会学到什么</h2>
+    <ul>
+      <li>独立创建、编译、source 一个 ROS2 workspace，并说清楚 package 里每个文件干什么用</li>
+      <li><strong>独立编写 launch 文件</strong>，熟练使用 namespace 与 remap</li>
+      <li>深入理解 Topic：类型体系、message 结构、发布频率、QoS；会用 rosbag 录制与回放</li>
+      <li>接通真实的 Livox Mid-360 激光雷达，在 rviz2 里看到点云</li>
+      <li>手写 URDF/xacro 描述一台带 2D lidar 与 IMU 的差速小车，并在 Gazebo 中跑起来</li>
+    </ul>
+    <p>第 2 周会在你自己造的这台小车上，做 slam_toolbox 建图与 Nav2 导航。</p>
+  </section>
+
+  <section class="block">
+    <h2>学习路径</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>天</th><th>主题</th><th>今日产出</th><th>考核</th></tr>
+      <tr>
+        <td><a href="day0.html">Day 0</a></td>
+        <td>课前预习：Linux 终端、Python 速通、装 ROS2</td>
+        <td>能跑通的 ROS2 环境</td>
+        <td>自测，不计分</td>
+      </tr>
+      <tr>
+        <td><a href="day1.html">Day 1</a></td>
+        <td>建 package、包结构、第一个 Publisher / Subscriber</td>
+        <td><code>day1_exam</code> 包</td>
+        <td><strong>限时计分</strong></td>
+      </tr>
+      <tr>
+        <td><a href="day2.html">Day 2</a></td>
+        <td>写 library、<code>setup.py</code> 与 <code>package.xml</code>、launch 文件、参数</td>
+        <td><code>day2_exam</code> 包 + launch</td>
+        <td>累加式计分</td>
+      </tr>
+      <tr>
+        <td><a href="day3.html">Day 3</a></td>
+        <td>Topic 深入、message 结构、QoS、namespace 与 remap、rosbag、实机雷达</td>
+        <td><code>day3_exam</code> 包 + bag</td>
+        <td>累加式计分</td>
+      </tr>
+      <tr>
+        <td><a href="day4.html">Day 4</a></td>
+        <td>Gazebo Fortress、URDF/xacro、TF 树、传感器插件、<code>ros_gz_bridge</code></td>
+        <td>能被遥控的小车模型</td>
+        <td>无考核，有自检脚本</td>
+      </tr>
+      <tr>
+        <td><a href="day5.html">Day 5</a></td>
+        <td>综合考核：按给定尺寸/质量/惯量写小车 xacro，接入仿真</td>
+        <td><code>exam_car.urdf.xacro</code></td>
+        <td><strong>计分大考</strong></td>
+      </tr>
+    </table>
+    </div>
+    <p class="callout">Day 4 没有考核，但它是全周工作量最大、也最决定 Day 5 成败的一天。
+    务必用当天的自检脚本确认自己没走偏。</p>
+  </section>
+
+  <section class="block">
+    <h2>环境要求</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>项</th><th>要求</th></tr>
+      <tr><td>操作系统</td><td>Ubuntu 22.04（x86_64），非虚拟机优先</td></tr>
+      <tr><td>ROS2 发行版</td><td>Humble</td></tr>
+      <tr><td>仿真器</td><td>Gazebo Fortress (Ignition)，Day 4 才需要</td></tr>
+      <tr><td>编程语言</td><td>Python（rclpy）。本课程不写 C++</td></tr>
+    </table>
+    </div>
+    <p class="callout danger">本课程<strong>只针对 ROS2 Humble</strong>。网上大量教程是 Jazzy 或
+    Foxy 的，命令与写法都有差异，照抄会出错。遇到冲突时以本课程和
+    <a href="https://docs.ros.org/en/humble/index.html">Humble 官方文档</a>为准。</p>
+  </section>
+
+  <section class="block">
+    <h2>仓库里都有什么</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>目录</th><th>给谁看</th><th>作用</th></tr>
+      <tr><td><code>docs/</code></td><td>学员</td><td>就是你正在读的这个教程站</td></tr>
+      <tr><td><code>examples/</code></td><td>学员</td><td>教程正文里每个示例的完整可运行源码，跑不通时拿来对照</td></tr>
+      <tr><td><code>starter/ws_intern/</code></td><td>学员</td><td>起手工作空间骨架，练习包里留了 <code>TODO</code></td></tr>
+      <tr><td><code>exams/</code></td><td>学员 + 教师</td><td>每日考卷、规则、Day 5 考卷包</td></tr>
+      <tr><td><code>grading/</code></td><td>学员 + 教师</td><td>自动评分脚本，你可以自己先跑一遍看看能拿几分</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>怎么用评分脚本</h2>
+    <p>评分脚本<strong>不会替你启动节点</strong>。正确的顺序是：你先把自己的节点跑起来，
+    然后<strong>另开一个终端</strong>执行脚本。脚本会连上 ROS2 网络，检查话题、类型、频率、
+    节点名等是否符合考卷要求。</p>
+<pre><code># 终端 1：先启动你自己的节点
+cd ~/ws_intern
+source install/setup.bash
+ros2 run day1_exam talker
+
+# 终端 2：再跑评分
+cd ~/ws_intern
+source install/setup.bash
+python3 ~/Tutorials4intern/grading/grade_day1.py</code></pre>
+    <p>脚本失败时不会只告诉你扣分，而是会打印<strong>期望什么、实际测到什么、建议怎么查</strong>。
+    先读这三行，再去改代码。</p>
+  </section>
+
+  <footer class="page-foot">
+    从 <a href="day0.html">Day 0 · 课前预习</a> 开始。Day 0 的自测四项全绿之后再进 Day 1。
+  </footer>
+</main>
+</div>
+
+<script src="assets/site.js"></script>

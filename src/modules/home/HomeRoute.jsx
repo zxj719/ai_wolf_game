@@ -35,6 +35,7 @@ export default function HomeRoute() {
   const onEnterSites = useCallback(() => navigate(ROUTES.SITES), [navigate]);
   const onEnterChords = useCallback(() => navigate(ROUTES.CHORDS), [navigate]);
   const onEnterTennis = useCallback(() => navigate(ROUTES.TENNIS), [navigate]);
+  const onEnterRobotics = useCallback(() => navigate(ROUTES.ROBOTICS), [navigate]);
   const onEnterNovel = useCallback(() => navigate(ROUTES.NOVEL), [navigate]);
   const onEnterChat = useCallback(() => navigate(ROUTES.CHAT), [navigate]);
   const onEnterThinkingLibrary = useCallback(() => {
@@ -62,6 +63,7 @@ export default function HomeRoute() {
           onEnterSites={onEnterSites}
           onEnterChords={onEnterChords}
           onEnterTennis={onEnterTennis}
+          onEnterRobotics={onEnterRobotics}
           onEnterNovel={onEnterNovel}
           onEnterChat={onEnterChat}
           onEnterThinkingLibrary={onEnterThinkingLibrary}
