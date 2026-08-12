@@ -107,16 +107,25 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
       const resp = await fetch(buildApiUrl('/api/queue/heartbeat'), {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify({ leaseId: leaseRef.current }),
+        body: JSON.stringify({ leaseId: leaseRef.current, resource }),
       });
       const data = await resp.json();
-      if (!data.renewed) {
+      if (data.renewed) return;
+
+      // 租约到期后被清理表扫掉（后台标签页 setInterval 被节流是最常见成因），
+      // 资源当下无人持有 → 静默补回租约，不打断进行中的对局。
+      if (data.reason === 'expired') {
+        leaseRef.current = null;
         clearQueueLease();
-        setStatus('preempted');
-        onPreempted?.();
+        await acquire();
+        return;
       }
+
+      clearQueueLease();
+      setStatus('preempted');
+      onPreempted?.();
     } catch {}
-  }, [headers, onPreempted]);
+  }, [headers, onPreempted, resource, acquire]);
 
   const pollStatus = useCallback(async () => {
     if (status === 'active' && leaseRef.current) {
@@ -125,7 +134,9 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
           headers: headers(),
         });
         const data = await resp.json();
-        if (data.occupied && data.lock && !data.lock.lease_id?.startsWith(leaseRef.current?.slice(0, 10))) {
+        // 资源空出来（自己的租约刚过期被清掉）不是被抢占，交给 heartbeat 补租约。
+        if (!data.occupied || !data.lock) return;
+        if (!data.lock.lease_id?.startsWith(leaseRef.current?.slice(0, 10))) {
           clearQueueLease();
           setStatus('preempted');
           onPreempted?.();
@@ -157,6 +168,15 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
       clearInterval(pollRef.current);
     };
   }, [status, heartbeat, pollStatus]);
+
+  // 标签页重新可见时立刻补一次心跳：后台期间 setInterval 被浏览器节流，
+  // 等下一个 30s 周期可能已经超过 5 分钟租约窗口。
+  useEffect(() => {
+    if (status !== 'active') return;
+    const onVisible = () => { if (!document.hidden) heartbeat(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [status, heartbeat]);
 
   if (status === 'acquiring') {
     return (

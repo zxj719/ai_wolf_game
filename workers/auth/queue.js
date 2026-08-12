@@ -117,11 +117,17 @@ export async function handleQueueRelease(request, env) {
 
 /**
  * POST /api/queue/heartbeat — 续租
- * Body: { leaseId }
+ * Body: { leaseId, resource }
+ *
+ * changes===0 有两种截然不同的情况，前端需要区分对待：
+ * - 'preempted'：resource 上现在挂着别人的 lease_id（真的被抢占了，通常是 admin）。
+ * - 'expired'：resource 上已经没有任何 lease（自己的租约过期后被清理表扫掉了，
+ *   常见于后台标签页 setInterval 被浏览器节流导致心跳没按时发出）。这不是被抢，
+ *   资源当下是空闲的，前端应该静默重新 acquire，而不是提示"管理员已接管"。
  */
 export async function handleQueueHeartbeat(request, env) {
   const body = await request.json().catch(() => ({}));
-  const { leaseId } = body;
+  const { leaseId, resource } = body;
   if (!leaseId) return errorResponse('Missing leaseId', 400);
 
   const newExpiry = new Date(Date.now() + LEASE_DURATION_MS).toISOString();
@@ -130,7 +136,18 @@ export async function handleQueueHeartbeat(request, env) {
   ).bind(newExpiry, leaseId).run();
 
   if (result.meta.changes === 0) {
-    return errorResponse('Lease not found or expired', 404);
+    let reason = 'expired';
+    let holderRole = null;
+    if (resource) {
+      const current = await env.DB.prepare(
+        'SELECT holder_role FROM resource_locks WHERE resource = ?'
+      ).bind(resource).first();
+      if (current) {
+        reason = 'preempted';
+        holderRole = current.holder_role;
+      }
+    }
+    return jsonResponse({ renewed: false, reason, holderRole }, 404);
   }
   return jsonResponse({ renewed: true, expiresAt: newExpiry });
 }

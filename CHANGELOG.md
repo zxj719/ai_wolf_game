@@ -2,6 +2,33 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-08-12] 修复：对局中途被误判"管理员已接管"而中断
+
+### 修复
+
+- **心跳掉线被当成抢占**：`QueueGate` 每 30s 续租一次，租约有效期 5 分钟。后端 `/api/queue/heartbeat` 只回一个 `renewed: false`，前端无法区分「别人抢走了锁」和「自己的锁过期后被清理表扫掉、资源其实空着」，一律按最坏情况判定为被抢占 → 弹「👋 管理员已接管」→ `endGame()` + 跳回 `/werewolf/setup`，对局中断。
+
+  最容易踩中的是**全 AI 观战**：玩家不需要操作，很容易切到别的标签页，而浏览器对后台标签页的 `setInterval` 有节流，30s 的心跳可能被拖过 5 分钟租约窗口。用户看到的现象是「游戏进行中突然跳到设置界面」，与是否配置 ModelScope 令牌无关。
+
+  修法是给这个二义性信号补上区分维度：heartbeat 在 `changes === 0` 时回查 `resource` 上还有没有别人的锁，有 → `reason: 'preempted'`（真被抢），没有 → `reason: 'expired'`（自己掉线，资源空闲）。前端拿到 `'expired'` 静默重新 `acquire()`，不打断对局；只有 `'preempted'` 才走原来的保存快照 + 退出流程。
+
+- **轮询同样的假阳性**：`pollStatus` 原本在资源空闲（`occupied === false`）时也会落进抢占分支，一并修正为交给 heartbeat 补租约。
+
+- **切回前台立即补心跳**：新增 `visibilitychange` 监听，标签页重新可见时立刻发一次心跳，而不是干等下一个 30s 周期——后台期间可能已经超出租约窗口。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `workers/auth/queue.js` | 修改 | heartbeat 返回 `reason: 'expired' \| 'preempted'` + `holderRole` |
+| `src/components/QueueGate.jsx` | 修改 | 按 reason 分流；轮询不再误判空闲为抢占；可见性变化补心跳 |
+
+### 验证
+
+- `npm run build` 通过，`check-build.mjs` 报告 26 个 bundle 无 localhost 泄漏。
+- 测试套件改动前后一致（50 failed / 2425 passed），失败项为既有的 prompt-round 与 tennis 日期测试，与本次改动无关。
+- ECS 侧排查记录：`bt-server` 在线 27 天、重启 0 次，14 次顺序 + 3×3 并发 `/bt/session/ask` 压测全部 200，无 OOM 记录——排除了「服务器进程停止」这一初始假设。
+
 ## [2026-07-31] 机器人讲义：图配色跟随主题 + 边框可见性 + 返回主页按钮
 
 ### 修复
