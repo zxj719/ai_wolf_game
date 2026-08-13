@@ -2,6 +2,33 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-08-13] 严重修复：非管理员开局约 15 秒必被踢回设置页
+
+### 修复
+
+- **轮询恒判"被抢占"（真凶）**：`QueueGate` 每 15s 轮询 `/api/queue/status`，拿返回的 `lock.lease_id` 和本地租约比对来判断是否被抢占。但 `handleQueueStatus` 只 `SELECT resource, holder_role, acquired_at, expires_at`，**从不返回 `lease_id`**——这是有意为之：该接口无需鉴权、任何人可读，泄露 `lease_id` 等于把 `X-Lease-Id` 送人，可直接绕过队列白嫖 ECS。
+
+  字段恒为 `undefined`，于是 `!undefined?.startsWith(...)` 恒为 `true`，**第一个 15s 轮询就把正常对局判成「管理员已接管」**，触发 `endGame()` + 跳转，用户看到的就是开局十几秒闪退回设置页。
+
+  管理员从来复现不到：`QueueGate` 第 35 行 `if (isAdmin) return children` 让 admin 完全绕过该组件。受影响的是**全部游客与普通注册用户**。
+
+  修法：抢占检测只认 heartbeat（它把 `leaseId` 交给服务端判定，是唯一可靠信号），轮询不再做任何抢占判断。检测延迟从 15s 变 30s，换取正确性。
+
+- **排队页从不自动重试**：轮询定时器挂在 `status === 'active'` 分支，而 `pollStatus` 内部只处理 `'waiting'`，两个条件永不同时成立——「系统会自动检查可用性，无需手动刷新」这句话此前从未生效。改为 `waiting` 时才启动轮询。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/components/QueueGate.jsx` | 修改 | 轮询移除失效的 lease_id 比对；定时器按 status 正确分流 |
+| `src/components/__tests__/queueGatePreemption.test.jsx` | 新建 | 4 条回归测试，含生产真实 status 返回形状 |
+
+### 验证
+
+- 回归测试对照实验：回退修复后第 1 条用例失败（`onPreempted` 被调用 1 次），恢复后 4 条全过。
+- 生产接口取证：`/api/queue/status?resource=werewolf` 实际返回 `{"lock":{"resource","holder_role","acquired_at","expires_at"}}`，确认无 `lease_id`。
+- 游客全链路 API 验证：无 token `acquire` → `heartbeat` renewed → 带 `X-Lease-Id` 调 `session/ask` 拿到真实 AI 发言 → `release`，全部通过。
+
 ## [2026-08-12] 修复：对局中途被误判"管理员已接管"而中断
 
 ### 修复

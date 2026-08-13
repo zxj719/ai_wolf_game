@@ -127,26 +127,20 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
     } catch {}
   }, [headers, onPreempted, resource, acquire]);
 
+  // 抢占检测只认 heartbeat：它把 leaseId 交给服务端判定，是唯一可靠信号。
+  //
+  // 这里曾经拿 /api/queue/status 的 lock.lease_id 和本地租约比对，但那个接口
+  // 从不返回 lease_id —— 它无需鉴权、任何人都能读，泄露 lease_id 等于把
+  // X-Lease-Id 送人，可以直接绕开队列白嫖 ECS。字段既然永远是 undefined，
+  // `!undefined?.startsWith(...)` 就恒为 true，于是每 15s 轮询都把正常对局
+  // 判成「管理员已接管」，开局十几秒就被踢回设置页。管理员因为整个 QueueGate
+  // 都走 bypass，从来复现不到。
+  //
+  // 现在这里只负责排队中的自动重试。
   const pollStatus = useCallback(async () => {
-    if (status === 'active' && leaseRef.current) {
-      try {
-        const resp = await fetch(buildApiUrl(`/api/queue/status?resource=${resource}`), {
-          headers: headers(),
-        });
-        const data = await resp.json();
-        // 资源空出来（自己的租约刚过期被清掉）不是被抢占，交给 heartbeat 补租约。
-        if (!data.occupied || !data.lock) return;
-        if (!data.lock.lease_id?.startsWith(leaseRef.current?.slice(0, 10))) {
-          clearQueueLease();
-          setStatus('preempted');
-          onPreempted?.();
-        }
-      } catch {}
-    } else if (status === 'waiting') {
-      const success = await acquire();
-      if (success) setStatus('active');
-    }
-  }, [status, resource, headers, acquire, onPreempted]);
+    if (status !== 'waiting') return;
+    await acquire();
+  }, [status, acquire]);
 
   useEffect(() => {
     markQueueAcquiring();
@@ -158,9 +152,13 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
     };
   }, []);
 
+  // 轮询只在排队时跑。此前它挂在 status === 'active' 分支下，而 pollStatus
+  // 内部只处理 'waiting'，两个条件永不同时成立 —— 排队页那句「系统会自动检查
+  // 可用性，无需手动刷新」其实从来没生效过。
   useEffect(() => {
     if (status === 'active') {
       heartbeatRef.current = setInterval(heartbeat, HEARTBEAT_INTERVAL);
+    } else if (status === 'waiting') {
       pollRef.current = setInterval(pollStatus, POLL_INTERVAL);
     }
     return () => {
