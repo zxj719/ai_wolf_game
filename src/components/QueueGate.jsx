@@ -64,6 +64,10 @@ function QueueGateInner({ resource, onPreempted, isGuest, children }) {
   }, []);
 
   const acquire = useCallback(async () => {
+    // 每次取租约都先宣告状态：等待方（werewolfSessionClient.waitForQueueLease）
+    // 在 'acquiring' 下用 8s 预算，在 'idle' 下只给 600ms。心跳因租约过期重新
+    // acquire 时若不标记，这个窗口里发出的 AI 请求会不带 X-Lease-Id 而被 401。
+    markQueueAcquiring();
     try {
       const resp = await fetch(buildApiUrl('/api/queue/acquire'), {
         method: 'POST',

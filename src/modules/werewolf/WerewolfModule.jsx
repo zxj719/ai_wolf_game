@@ -44,6 +44,7 @@ import { useShell } from '../../shell/ShellContext';
 import { useAuthNav } from '../../shell/useAuthNav';
 import { ROUTES } from '../../shell/paths';
 import { QueueGate } from '../../components/QueueGate';
+import { markQueueAcquiring } from '../../services/queueLease';
 
 const SetupScreen = lazy(() =>
   import('../../components/SetupScreen').then((m) => ({ default: m.SetupScreen }))
@@ -293,6 +294,13 @@ export default function WerewolfModule() {
     if (gameMode) {
       resetAbortController();
       gameActiveRef.current = true;
+      // 首夜的守卫/狼/预言家/女巫四次 AI 调用在 initGame 里几乎立刻发出，而
+      // QueueGate 是独立 chunk：要先下载、挂载，才会 markQueueAcquiring() 并
+      // 去 acquire 租约。在那之前租约状态是 idle，waitForQueueLease 只给
+      // 600ms 宽限就放弃，于是这四次请求不带 X-Lease-Id 发出 → 代理 401 →
+      // 全部落到兜底决策（空守/随机刀/随机验/默认救）。
+      // 这里在开局瞬间就宣告「正在取租约」，让等待方改用 8s 预算。
+      if (!isAdmin) markQueueAcquiring();
       if (restoringSnapshotRef.current) {
         restoringSnapshotRef.current = false;
         return;

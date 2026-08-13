@@ -53,6 +53,7 @@ import {
   handleSaveGameAsset,
   handleSaveReplay,
   handleGetReplays,
+  handleGetStrategyEvolution,
 } from './handlers.js';
 import {
   handleUserSearch,
@@ -300,6 +301,12 @@ export default {
       }
       if (path === '/api/game/assets/save' && request.method === 'POST') {
         return handleSaveGameAsset(request, env);
+      }
+
+      // 策略进化数据（handlers.js 里一直有实现，但从未注册路由 → 线上 404，
+      // 每个角色每回合刷一串控制台报错）
+      if (path === '/api/game/strategy-evolution' && request.method === 'GET') {
+        return handleGetStrategyEvolution(request, env);
       }
 
       // 游戏回放

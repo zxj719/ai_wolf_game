@@ -2,6 +2,27 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-08-13] 修复：首夜四个 AI 决策全部走兜底（401 缺少租约）+ 补注册 404 路由
+
+### 修复
+
+- **首夜 AI 决策全部失败走兜底**：控制台实证 `POST /api/werewolf/session/ask 401`。401（区别于 403）在代理端专指 **`X-Lease-Id` 请求头完全缺失**。
+
+  成因是开局竞态：`initGame` 会几乎立刻发出守卫/狼人/预言家/女巫四次 AI 调用，而 `QueueGate` 是独立 chunk，需要先下载、挂载，才会 `markQueueAcquiring()` 并去 `acquire` 租约。在那之前 `leaseState` 是 `'idle'`，`waitForQueueLease` 只给 **600ms** 宽限就放弃，于是这四次请求不带租约头发出 → 全部 401 → 落到兜底决策（强制空守 / 随机刀 / 随机查验 / 默认救人），正好对应用户看到的四条日志。
+
+  修法：开局瞬间（非 admin）就调 `markQueueAcquiring()`，让等待方改用 8s 预算；同时把 `markQueueAcquiring()` 下沉进 `QueueGate.acquire()` 内部，覆盖心跳因租约过期重新取租约的窗口。
+
+- **`/api/game/strategy-evolution` 恒 404**：`handleGetStrategyEvolution` 在 `handlers.js` 里一直有完整实现，但 `index.js` 既没 import 也没注册路由。每个角色每回合都会刷一串控制台报错。补上 import 与路由。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/werewolf/WerewolfModule.jsx` | 修改 | 开局即 `markQueueAcquiring()`（非 admin） |
+| `src/components/QueueGate.jsx` | 修改 | `acquire()` 内部自行 `markQueueAcquiring()` |
+| `workers/auth/index.js` | 修改 | 注册 `/api/game/strategy-evolution` |
+| `src/components/__tests__/queueGatePreemption.test.jsx` | 修改 | 新增第 5 条：acquire 前必须宣告 acquiring |
+
 ## [2026-08-13] 严重修复：非管理员开局约 15 秒必被踢回设置页
 
 ### 修复

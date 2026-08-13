@@ -199,6 +199,42 @@ describe('QueueGate 抢占误判回归', () => {
     expect(container.textContent).toContain('对局进行中');
   });
 
+  it('每次 acquire 前都 markQueueAcquiring —— 否则窗口内的 AI 请求会漏掉 X-Lease-Id', async () => {
+    const { markQueueAcquiring } = await import('../../services/queueLease');
+    installFetch();
+
+    await act(async () => {
+      root = createRoot(container);
+      root.render(
+        <QueueGate resource="werewolf" onPreempted={vi.fn()}>
+          <div>对局进行中</div>
+        </QueueGate>
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // 挂载时的首次 acquire
+    const afterMount = markQueueAcquiring.mock.calls.length;
+    expect(afterMount).toBeGreaterThan(0);
+
+    // 心跳发现租约过期 → 重新 acquire，这一次同样必须先宣告 acquiring，
+    // 否则 waitForQueueLease 只按 idle 的 600ms 预算等待就放弃。
+    globalThis.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes('/api/queue/heartbeat')) {
+        return { ok: true, json: async () => ({ renewed: false, reason: 'expired', holderRole: null }) };
+      }
+      if (u.includes('/api/queue/acquire')) {
+        return { ok: true, json: async () => ({ acquired: true, leaseId: LEASE_ID }) };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    await advance(35_000);
+    expect(markQueueAcquiring.mock.calls.length).toBeGreaterThan(afterMount);
+  });
+
   it('admin 完全绕过队列，不发任何 queue 请求', async () => {
     const calls = installFetch();
     mockUseAuth.mockReturnValue({ isAdmin: true });
