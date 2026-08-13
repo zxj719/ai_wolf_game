@@ -1,4 +1,38 @@
-# WebRTC e2e regression test
+# e2e regression tests
+
+Two headless suites that drive the **real production stack**:
+
+| 命令 | 覆盖 |
+|---|---|
+| `npm run verify` | WebRTC 视频通话（见下文） |
+| `npm run verify:werewolf` | 游客模式狼人杀队列租约握手 |
+
+---
+
+## Werewolf guest-mode test (`werewolf-guest-verify.cjs`)
+
+游客身份走完 登录页 → 游客模式 → setup → 开局，然后观察 75s（可用 `E2E_WATCH_MS`
+调整），跨过 15s 轮询与 30s 心跳两道坎，断言：
+
+- 没有被弹回 `/werewolf/setup`
+- 没有出现「管理员已接管」
+- 所有 `/api/werewolf/session/*` 都是 200（**401 = 缺 `X-Lease-Id`**）
+- 页面日志里没有「兜底 / 决策无效 / 决策失败」
+
+**必须以游客身份跑**：`QueueGate` 开头就是 `if (isAdmin) return children`，admin
+完全绕过队列，这一整类 bug 在 admin 会话下不可复现。2026-08 连续两个线上事故
+（15s 闪退、首夜全兜底）都是因为只用 admin 账号验证而漏掉的。
+
+每次跑都用全新 `createBrowserContext()` + `setCacheEnabled(false)`，避免像手动
+测试那样测到浏览器缓存里的旧 chunk。输出会打印实际加载的 `WerewolfModule-*.js`
+文件名——**核对它和 `dist/assets/` 一致，再相信结果**。
+
+注意：浏览器被强杀时不会触发 `release()`，队列锁会挂到 5 分钟后自然过期。跑完
+如果别人要用，手动 release 一下。
+
+---
+
+## WebRTC e2e regression test
 
 Headless two-browser test for the chat **video call**. It drives the **real production
 stack** — CF Worker auth, ECS WebSocket signaling, browser-to-browser P2P media — with
