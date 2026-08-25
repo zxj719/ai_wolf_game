@@ -38,6 +38,7 @@ export default function HomeRoute() {
   const onEnterRobotics = useCallback(() => navigate(ROUTES.ROBOTICS), [navigate]);
   const onEnterGames = useCallback(() => navigate(ROUTES.GAMES), [navigate]);
   const onEnterNovel = useCallback(() => navigate(ROUTES.NOVEL), [navigate]);
+  const onEnterBacktest = useCallback(() => navigate(ROUTES.BACKTEST), [navigate]);
   const onEnterChat = useCallback(() => navigate(ROUTES.CHAT), [navigate]);
   const onEnterThinkingLibrary = useCallback(() => {
     window.location.assign('/site/index.html');
@@ -67,6 +68,7 @@ export default function HomeRoute() {
           onEnterRobotics={onEnterRobotics}
           onEnterGames={onEnterGames}
           onEnterNovel={onEnterNovel}
+          onEnterBacktest={onEnterBacktest}
           onEnterChat={onEnterChat}
           onEnterThinkingLibrary={onEnterThinkingLibrary}
           onLogout={handleLogout}

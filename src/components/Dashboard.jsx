@@ -12,6 +12,7 @@ import {
   Gamepad2,
   Globe,
   Key,
+  LineChart,
   LogIn,
   LogOut,
   Medal,
@@ -56,6 +57,7 @@ export function Dashboard({
   onEnterRobotics,
   onEnterGames,
   onEnterNovel,
+  onEnterBacktest,
   onEnterChat,
   onEnterThinkingLibrary,
   onLogout,
@@ -230,6 +232,10 @@ export function Dashboard({
                 <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
                   <PenLine size={16} />
                   小说工作台
+                </button>
+                <button type="button" onClick={onEnterBacktest} className="mac-button mac-button-secondary">
+                  <LineChart size={16} />
+                  反向T回测
                 </button>
                 <button type="button" onClick={onEnterGames} className="mac-button mac-button-secondary">
                   <Puzzle size={16} />
