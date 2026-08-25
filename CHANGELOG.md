@@ -2,6 +2,30 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-08-25] 新增：小游戏模块 + 数独求解可视化
+
+### 新功能
+
+- **小游戏入口**：首页新增与狼人杀/家网赛/小说工作台平级的"小游戏"按钮，游客无需登录直接可玩（纯前端运行，不接资源队列、不接 D1）。
+- **`/games` 大厅**：卡片式游戏目录，`gamesList.js` 里加一项即可接入下一个小游戏，不用改大厅页面。
+- **`/games/sudoku` 数独求解可视化**：将独立的 `sudoku_solver_visualizer.html` 移植为 React 组件。约束传播求解引擎按原逻辑整段搬迁（`sudokuEngine.js`，不改算法只改导出方式，避免重构引入求解错误）；UI 用项目既有 `mac-*` 深色设计系统重写，颜色直接复用 `tokens.css` 里的 `--success`/`--state-thinking`/`--warning`/`--danger` 语义色（正好对应原版青绿/紫/橙/红配色），支持难度生成、逐步/自动回放、推理面板、统计与推理日志。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/shell/paths.js` | 修改 | 新增 `ROUTES.GAMES` / `ROUTES.GAMES_SUDOKU` |
+| `src/shell/ModuleRegistry.js` | 修改 | 注册 `games` 模块 |
+| `src/modules/home/HomeRoute.jsx` | 修改 | 新增 `onEnterGames` 并透传给 Dashboard |
+| `src/components/Dashboard.jsx` | 修改 | 新增"小游戏"入口按钮 |
+| `src/modules/games/index.js` | 新建 | 模块描述符（dark 主题，游客免登录） |
+| `src/modules/games/gamesList.js` | 新建 | 游戏目录数据 |
+| `src/modules/games/GamesRoute.jsx` | 新建 | 小游戏大厅页 |
+| `src/modules/games/sudoku/sudokuEngine.js` | 新建 | 求解引擎（原样移植的纯函数） |
+| `src/modules/games/sudoku/explainStep.js` | 新建 | 推理面板文案生成（译成中文） |
+| `src/modules/games/sudoku/SudokuRoute.jsx` | 新建 | 数独游戏页面 |
+| `src/modules/games/sudoku/sudoku.css` | 新建 | 棋盘网格与高亮动画（scoped，参照 tennis.css 先例） |
+
 ## [2026-08-13] 修复：首夜四个 AI 决策全部走兜底（401 缺少租约）+ 补注册 404 路由
 
 ### 修复

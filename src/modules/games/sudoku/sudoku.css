@@ -1,0 +1,123 @@
+/* ================================================================
+   数独求解可视化 — 棋盘网格与高亮动画。
+   Tailwind 撑不住的部分（3x3 粗分隔线、格子高亮 keyframes）单独放这里，
+   参照 modules/tennis/tennis.css 的先例：scoped 类名，不进全局
+   styles/game-animations.css（那个文件是狼人杀专属，正在被逐步拆分）。
+   颜色全部取自 styles/tokens.css 的既有 token，不新造色值。
+   ================================================================ */
+
+.sudoku-board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg-sunken);
+  border: 2px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sudoku-cell {
+  position: relative;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.sudoku-cell.box-right { border-right: 2px solid var(--border-strong); }
+.sudoku-cell.box-bottom { border-bottom: 2px solid var(--border-strong); }
+.sudoku-cell.col8 { border-right: none; }
+.sudoku-cell.row8 { border-bottom: none; }
+
+.sudoku-cell-input {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  text-align: center;
+  color: var(--ink);
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  font-weight: 700;
+  font-size: clamp(15px, 3.2vw, 24px);
+  caret-color: var(--success);
+}
+.sudoku-cell-input::placeholder { color: transparent; }
+
+.sudoku-cell-value {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  font-weight: 700;
+  font-size: clamp(15px, 3.2vw, 24px);
+}
+
+.sudoku-pencil {
+  position: absolute;
+  inset: 6%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+.sudoku-pencil span {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  font-size: clamp(6px, 1.15vw, 9.5px);
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sudoku-pencil span.is-hidden { visibility: hidden; }
+
+.sudoku-cell.active-now { animation: sudokuFlashCurrent 0.7s ease-out; }
+.sudoku-cell.active-peer { animation: sudokuFlashPeer 0.7s ease-out; }
+.sudoku-cell.active-fail { animation: sudokuFlashFail 0.7s ease-out; }
+@keyframes sudokuFlashCurrent {
+  0% { background: color-mix(in srgb, var(--ink) 26%, transparent); }
+  100% { background: transparent; }
+}
+@keyframes sudokuFlashPeer {
+  0% { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+  100% { background: transparent; }
+}
+@keyframes sudokuFlashFail {
+  0% { background: color-mix(in srgb, var(--danger) 38%, transparent); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sudoku-cell.active-now,
+  .sudoku-cell.active-peer,
+  .sudoku-cell.active-fail {
+    animation: none;
+  }
+}
+
+.sudoku-trace-log {
+  max-height: 230px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  font-size: 11px;
+}
+.sudoku-log-line {
+  padding: 5px 7px;
+  border-left: 2px solid var(--border-strong);
+  cursor: pointer;
+  color: var(--ink-muted);
+  border-radius: 3px;
+  line-height: 1.4;
+}
+.sudoku-log-line:hover { background: var(--bg-sunken); }
+.sudoku-log-line.is-current { background: var(--bg-sunken); color: var(--ink); }
+.sudoku-log-line.type-naked_single { border-left-color: var(--success); }
+.sudoku-log-line.type-hidden_single { border-left-color: var(--state-thinking); }
+.sudoku-log-line.type-guess { border-left-color: var(--warning); }
+.sudoku-log-line.type-backtrack,
+.sudoku-log-line.type-contradiction { border-left-color: var(--danger); }
+.sudoku-log-line.type-solved { border-left-color: var(--success); font-weight: 600; color: var(--success); }
+.sudoku-log-line.type-start { border-left-color: var(--border-strong); }

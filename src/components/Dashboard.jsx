@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Music4,
   PenLine,
+  Puzzle,
   Ticket,
   Trophy,
   User,
@@ -53,6 +54,7 @@ export function Dashboard({
   onEnterChords,
   onEnterTennis,
   onEnterRobotics,
+  onEnterGames,
   onEnterNovel,
   onEnterChat,
   onEnterThinkingLibrary,
@@ -228,6 +230,10 @@ export function Dashboard({
                 <button type="button" onClick={onEnterNovel} className="mac-button mac-button-secondary">
                   <PenLine size={16} />
                   小说工作台
+                </button>
+                <button type="button" onClick={onEnterGames} className="mac-button mac-button-secondary">
+                  <Puzzle size={16} />
+                  小游戏
                 </button>
                 {!isGuestMode && (
                   <button type="button" onClick={onEnterChat} className="mac-button mac-button-secondary">
