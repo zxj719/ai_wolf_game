@@ -9,6 +9,20 @@
 module.exports = {
   apps: [
     {
+      name: 'backtest-server',
+      script: './venv/bin/uvicorn',
+      args: 'main:app --host 127.0.0.1 --port 8001',
+      interpreter: 'none',
+      cwd: '/var/www/wolfgame/server-bt',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '256M',
+      out_file: '/var/log/wolfgame/backtest-server-out.log',
+      error_file: '/var/log/wolfgame/backtest-server-err.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name: 'bt-server',
       script: './server/index.js',
       cwd: '/var/www/wolfgame',
