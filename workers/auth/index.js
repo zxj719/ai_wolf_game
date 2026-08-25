@@ -17,6 +17,7 @@ import {
 } from './chords.js';
 import { handleNovelProxy } from './novel.js';
 import { handleWerewolfSessionProxy } from './werewolf.js';
+import { handleBacktestProxy } from './backtest.js';
 import {
   handleGetMe,
   handleQueueAcquire,
@@ -284,6 +285,10 @@ export default {
 
       if (path.startsWith('/api/werewolf/session/') && request.method === 'POST') {
         return handleWerewolfSessionProxy(request, env, path);
+      }
+
+      if (path.startsWith('/api/backtest/') && ['GET', 'POST'].includes(request.method)) {
+        return handleBacktestProxy(request, env, path);
       }
 
       // 头像相关（公开接口）
