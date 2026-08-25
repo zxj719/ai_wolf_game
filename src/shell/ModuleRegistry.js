@@ -30,12 +30,13 @@ import werewolf from '../modules/werewolf';
 import chords from '../modules/chords';
 import sites from '../modules/sites';
 import novel from '../modules/novel';
+import backtest from '../modules/backtest';
 import chat from '../modules/chat';
 import tennis from '../modules/tennis';
 import robotics from '../modules/robotics';
 import games from '../modules/games';
 
-const modules = [home, auth, werewolf, novel, chat, tennis, robotics, games, chords, sites];
+const modules = [home, auth, werewolf, novel, backtest, chat, tennis, robotics, games, chords, sites];
 
 export default modules;
 

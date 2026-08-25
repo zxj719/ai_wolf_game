@@ -26,6 +26,7 @@ export const ROUTES = {
   STOCK:  '/stock',
   BLOG:   '/blog',
   NOVEL:  '/novel',
+  BACKTEST: '/backtest',
   CHAT:   '/chat',
 
   // 小游戏模块
