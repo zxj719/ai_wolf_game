@@ -1,0 +1,7 @@
+akshare
+pandas
+numpy
+fastapi
+uvicorn[standard]
+pytest
+httpx
