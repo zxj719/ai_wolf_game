@@ -567,6 +567,29 @@ app.get('/novel/jobs/:jobId', (req, res) => {
   res.json({ success: true, job });
 });
 
+// 反向T策略回测。这台 ECS 只有 novel-origin.zhaxiaoji.com 这一个 Cloudflare Tunnel
+// public hostname 指向 localhost:3001（Tunnel 路由在 Cloudflare 控制台配置，绕过本机
+// nginx，无法从这里新增第二个 hostname 指到 8001）。所以在这里内部转发到跑 FastAPI
+// 的 server-bt/（127.0.0.1:8001），而不是新开一个 Tunnel hostname。
+app.all('/backtest-api/*', async (req, res) => {
+  try {
+    const upstreamPath = req.originalUrl.replace(/^\/backtest-api/, '') || '/';
+    const upstreamRes = await fetch(`http://127.0.0.1:8001${upstreamPath}`, {
+      method: req.method,
+      headers: { 'Content-Type': 'application/json' },
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
+    });
+    const text = await upstreamRes.text();
+    res
+      .status(upstreamRes.status)
+      .set('Content-Type', upstreamRes.headers.get('Content-Type') || 'application/json')
+      .send(text);
+  } catch (err) {
+    console.error('[Backtest internal proxy]', err.message);
+    res.status(502).json({ error: 'Backtest service unavailable: ' + err.message });
+  }
+});
+
 // ── 启动 ─────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 const httpServer = createServer(app);
