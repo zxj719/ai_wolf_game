@@ -2,6 +2,29 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-08-25] 新增：反向T策略回测工具
+
+### 新功能
+
+- **`/backtest` 反向T策略回测**：首页新增与狼人杀/小说工作台平级的入口，Admin + Guest 均可用，不接资源队列（纯历史计算，不调 LLM）。将独立 Streamlit Demo（`autoT/app.py`）的 akshare 取数 + 前复权 + 三套策略模板（VWAP回归/开盘缺口回补/动量衰退）回测逻辑原样迁移为 `server-bt/`（FastAPI）微服务，UI 用现有 `mac-*` 深色设计系统全部重写，视觉风格与其余模块统一。
+- **部署踩坑**：`novel-origin.zhaxiaoji.com` 走 Cloudflare Tunnel，Public Hostname 直接映射到 `localhost:3001`（bt-server），绕过本机 nginx——一开始按 nginx location 转发的方案完全不生效（Worker fetch 一直 404/502）。改为在 bt-server 内部加一条 `/backtest-api/*` 转发路由到 `127.0.0.1:8001`，复用已验证可达的 Tunnel 路径，不需要新增 Cloudflare 侧配置。另外，grey-cloud 直连域名（`origin-bt.zhaxiaoji.com`）从 Worker `fetch()` 里连会 SSL 握手失败（Cloudflare 525），即使 curl/openssl 直连验证证书完全正常——Cloudflare-proxied 域名对 Worker 出站请求明显更可靠。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `server-bt/data.py`、`strategies.py`、`backtest.py`、`main.py` | 新建 | FastAPI 服务：取数/前复权（TTL 缓存替代 `st.cache_data`）、策略判定、回测循环、`/health` `/daily-trend` `/run` 路由 |
+| `server-bt/requirements.txt`、`tests/` | 新建 | 依赖清单 + pytest 单测（17 个，覆盖策略判定/回测汇总/API 路由） |
+| `server/index.js` | 修改 | 新增 `/backtest-api/*` 内部转发路由（→ 127.0.0.1:8001），绕开 Cloudflare Tunnel 只映射到 3001 的限制 |
+| `workers/auth/backtest.js` | 新建 | Worker 代理 `/api/backtest/*` → ECS，公开无鉴权（Admin+Guest 都能用） |
+| `workers/auth/index.js`、`wrangler.toml` | 修改 | 注册路由 + `ECS_BACKTEST_URL` 环境变量 |
+| `src/shell/paths.js`、`ModuleRegistry.js` | 修改 | 新增 `ROUTES.BACKTEST`，注册 `backtest` 模块 |
+| `src/modules/backtest/index.js`、`BacktestRoute.jsx` | 新建 | 模块描述符 + 路由壳（不接 QueueGate） |
+| `src/services/backtestService.js` | 新建 | API 客户端 |
+| `src/components/BacktestTool.jsx` | 新建 | 主页面（`BacktestToolView` 展示 + `BacktestTool` 容器分离，便于测试） |
+| `src/components/Dashboard.jsx`、`src/modules/home/HomeRoute.jsx` | 修改 | 首页入口按钮 + 路由跳转 |
+| `ecosystem.config.cjs` | 修改 | 新增 `backtest-server` pm2 进程（venv + uvicorn，端口 8001） |
+
 ## [2026-08-25] 新增：小游戏模块 + 数独求解可视化
 
 ### 新功能
