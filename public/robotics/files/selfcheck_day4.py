@@ -58,7 +58,10 @@ def main() -> int:
         }, 10))
 
     with Probe() as p:
-        types = p.topic_types()
+        # 同 grade_day5：门槛要轮询等待，避免发现未完成时误判
+        types = p.wait_for_topic('/odom', timeout=20.0)
+        if '/odom' not in types:
+            types = p.wait_for_topic('/scan', timeout=10.0)
         if '/scan' not in types and '/odom' not in types:
             print(rep.render_terminal())
             print('\n仿真话题一个都没有——先用 '

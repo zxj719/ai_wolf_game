@@ -83,7 +83,12 @@ def grade_l1(rep: Report) -> None:
 def grade_l2(rep: Report) -> None:
     """仿真可用性，40 分。需要仿真在跑。"""
     with Probe() as p:
-        types = p.topic_types()
+        # 门槛判断必须轮询等待，不能用单次快照。
+        # DDS 的发现是渐进的：仿真明明在跑，Probe 刚建好的那一瞬间也可能
+        # 一个话题都看不到，那样会把正确作业判成 0 分（CLAUDE.md §7.3）。
+        types = p.wait_for_topic('/odom', timeout=20.0)
+        if '/odom' not in types:
+            types = p.wait_for_topic('/scan', timeout=10.0)
         if '/scan' not in types and '/odom' not in types:
             rep.add(CheckResult(
                 name='L2 仿真可用性', max_points=40, passed=False,

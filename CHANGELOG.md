@@ -2,6 +2,38 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-09-07] 机器人学习：同步教程上游更新（Day 1 重生成 + 两个评分脚本）
+
+上游 `Tutorials4intern` 的 `d82f24b`「fix: repair three defects found by the
+full-week walkthrough」把三处缺陷修掉了，站点同步过来。
+
+### 内容变更
+
+- **Day 1 改为从 markdown 生成**（此前是手写 HTML，已落后于源文件）。带来三处上游修复：
+  - 新增 §6.4「让 listener 也发布」——考卷要求 `/counter_doubled` 并占 40 分，`grade_day1.py` 也在查它，但讲义此前从没教过，五分之二的考点是没教的。
+  - 全篇 2 Hz → **5 Hz**，与考卷、评分脚本、Day 2 的 `params.yaml` 对齐；时序相关的输出是重新跑出来的，不是手改的。
+  - 修好一张 `sequenceDiagram`（`Note` 文本此前被折成两行，mermaid 解析不了）。线上实测 Day 1 的 7 张图全部渲染成功。
+  - 顺带消掉包名漂移：Day 1 从 `day1_demo` 改为与 Day 3–5 一致的 `my_robot` / `~/ros2_lab`。
+- **`grade_day5.py` / `selfcheck_day4.py` 更新**：L2 门槛此前用单次 `topic_types()` 快照，DDS 发现还没传播开时会把**正确作业判成 0 分**；改为 `wait_for_topic` 轮询等待。zip 与直链都已更新。
+
+### 技术细节
+
+- **反向转换是有损的，不能盲目重生成**。`day0/1/2.md` 是当初从手写 HTML 反转出来的，那次转换**丢掉了内嵌 SVG**——`day1.md` 里只剩一段占位（`> **图：ament_python 包目录结构说明图**` + 「原为手绘 SVG…待重做可视化」）和一段压平的 text 兜底。直接按 markdown 重生成会把这张手绘图永久丢掉。
+  转换器因此加了 `HTML_ONLY_FIGURES`：按图名把原 SVG 接回原位，并吃掉后面那段兜底文本。图存放在 `scripts/robotics-assets/`，用 `currentColor` 上色所以必须内联（走 `<img>` 就跟不了明暗主题）。同时把图里的包名一并更新成 `my_robot`。
+- **测验解析的两种写法**。`day3+` 的解析在末尾的 `<details>` 里；`day0/1/2` 因为反向转换，解析被内联进了题干那一行（`… 答案与解析 **B。**…`）。转换器两种都认，输出统一是每题一个 `<details>`。
+- **顺带修掉一个转换器 bug**：测验小节此前靠 `</details>` 判断结束，而 `day1.md` 整节没有 `<details>`，`findIndex` 返回 −1 导致最后一题把后面的 `> [!NOTE] 配套 notebook…` 整段吞进了解析里。改为「`</details>` 或第一个引用块/表格/代码块」双重边界。
+- **回归验证**：转换器改动后重新生成 day3/4/5，输出与改动前逐字节一致。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `scripts/robotics-md2html.mjs` | 修改 | 新增 `HTML_ONLY_FIGURES` 接图机制、内联式测验解析、测验边界修复、`Python 补给站` 章节 id |
+| `scripts/robotics-assets/day1-package-layout.svg` | 新建 | 从旧 `day1.html` 抢救出的手绘包结构图，包名更新为 `my_robot` |
+| `public/robotics/day1.html` | 重写 | 改为由 `day1.md` 生成 |
+| `public/robotics/files/grade_day5.py`、`selfcheck_day4.py` | 修改 | 上游 DDS 发现修复 |
+| `public/robotics/files/day{1,4,5}-materials.zip` 等 | 修改 | 随脚本重新打包 |
+
 ## [2026-09-07] 机器人学习：补齐 Day 3–5 讲义 + 全周考卷/评分脚本下载
 
 ### 新功能

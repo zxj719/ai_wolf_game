@@ -46,6 +46,21 @@ const SECTION_IDS = {
   惯量自查: 'inertia',
   常见丢分点: 'pitfalls',
   做完之后: 'next',
+  'Python 补给站': 'python',
+};
+
+/**
+ * 只存在于 HTML 里的手绘图。
+ *
+ * day0/1/2 的 markdown 是从当初手写的 HTML 反向转出来的，那次转换丢掉了内嵌
+ * SVG，只在原地留下一段占位引用（`> **图：<名字>**` + 一段压平的 text 兜底）。
+ * 直接按 markdown 重新生成会把图永久丢掉，所以这里按图名把原图接回去。
+ * 图用 currentColor 上色，必须内联——走 <img> 就跟不了明暗主题了。
+ *
+ * 将来作者要是在 markdown 里重做了可视化，把占位段删掉即可，转换器自然不再插图。
+ */
+const HTML_ONLY_FIGURES = {
+  'ament_python 包目录结构说明图': 'scripts/robotics-assets/day1-package-layout.svg',
 };
 const CN_NUM = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
 
@@ -230,21 +245,31 @@ function renderQuiz(lines) {
       continue;
     }
     if (isBlank(line)) continue;
+    if (/^(>|\||```|#)/.test(line)) continue; // 别把别的块吸进题干
     cur.text.push(line.trim());
   }
 
   const out = ['    <ol class="quiz">'];
   questions.forEach((q, i) => {
+    // day0/1/2 的 markdown 是从 HTML 反转出来的，解析被塞进了题干那一行
+    // （`… 答案与解析 **B。**…`）。day3+ 是正常写的，解析在末尾的 <details> 里。
+    let stem = q.text.join(' ');
+    let answer = answers[i] ? answers[i].text.join(' ') : '';
+    const split = stem.indexOf('答案与解析');
+    if (split !== -1) {
+      answer = stem.slice(split + '答案与解析'.length).trim();
+      stem = stem.slice(0, split).trim();
+    }
+
     out.push('      <li>');
-    out.push(`        <p>${inline(q.text.join(' '))}</p>`);
+    out.push(`        <p>${inline(stem)}</p>`);
     out.push('        <ol type="A">');
     for (const o of q.options) out.push(`        <li>${inline(o)}</li>`);
     out.push('        </ol>');
-    const a = answers[i];
-    if (a) {
+    if (answer) {
       out.push('        <details class="aside">');
       out.push('          <summary>答案与解析</summary>');
-      out.push(`          <p>${inline(a.text.join(' '))}</p>`);
+      out.push(`          <p>${inline(answer)}</p>`);
       out.push('        </details>');
     }
     out.push('      </li>');
@@ -260,10 +285,20 @@ function renderBlocks(lines, { inQuizSection = false } = {}) {
     const firstQ = lines.findIndex((l) => /^\d+\.\s/.test(l));
     const head = firstQ === -1 ? lines : lines.slice(0, firstQ);
     const rest = firstQ === -1 ? [] : lines.slice(firstQ);
-    // <details> 之后的内容（配套 notebook 提示）不属于测验，照常渲染
-    const endIdx = rest.findIndex((l) => /^<\/details>/.test(l));
-    const quizPart = endIdx === -1 ? rest : rest.slice(0, endIdx + 1);
-    const tailPart = endIdx === -1 ? [] : rest.slice(endIdx + 1);
+    // 测验之后的内容（配套 notebook 提示等）不属于测验，照常渲染。
+    // 收尾标志有两种，因为两种 markdown 写法不一样：
+    //   day3+：解析装在末尾的 </details> 里，到它为止
+    //   day0/1/2：解析被内联进题干，整节没有 <details>——这时必须退回到
+    //             "第一个引用块/表格/代码块" 作为边界，否则题目会把后面的
+    //             `> [!NOTE] 配套 notebook…` 一起吞进最后一题的解析里
+    let endIdx = rest.findIndex((l) => /^<\/details>/.test(l));
+    if (endIdx !== -1) endIdx += 1;
+    else {
+      const stop = rest.findIndex((l) => /^(>|\||```|#)/.test(l));
+      endIdx = stop === -1 ? rest.length : stop;
+    }
+    const quizPart = rest.slice(0, endIdx);
+    const tailPart = rest.slice(endIdx);
     return [
       ...renderBlocks(head),
       quizPart.length ? renderQuiz(quizPart) : '',
@@ -319,6 +354,22 @@ function renderBlocks(lines, { inQuizSection = false } = {}) {
         q.push(lines[i].replace(/^>\s?/, ''));
         i += 1;
       }
+
+      // 手绘图的占位段：把原 SVG 接回来，并吃掉后面那段压平的 text 兜底
+      const fig = /^\*\*图：(.+?)\*\*\s*$/.exec(q[0] ?? '');
+      const figPath = fig && HTML_ONLY_FIGURES[fig[1]];
+      if (figPath) {
+        out.push(readFileSync(resolve(process.cwd(), figPath), 'utf8').trimEnd());
+        let j = i;
+        while (j < lines.length && isBlank(lines[j])) j += 1;
+        if (j < lines.length && isFence(lines[j])) {
+          j += 1;
+          while (j < lines.length && !isFence(lines[j])) j += 1;
+          i = j + 1;
+        }
+        continue;
+      }
+
       const html = renderQuote(q);
       if (html) out.push(html);
       continue;
