@@ -57,6 +57,27 @@
     </ul>
   </section>
 
+  <section class="block" id="materials">
+    <h2>本日材料下载</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>材料</th><th>说明</th><th>下载</th></tr>
+      <tr><td>评分脚本</td><td>环境自检，四项全绿再进 Day 1</td><td><a href="files/selfcheck_day0.py" download>selfcheck_day0.py</a></td></tr>
+      <tr><td>打包下载</td><td>上面各项 + <code>graderlib/</code> + 考试规则，解压即可运行</td><td><a href="files/day0-materials.zip" download>day0-materials.zip</a></td></tr>
+    </table>
+    </div>
+    <p class="callout danger">评分脚本依赖同目录下的 <code>graderlib/</code>。单独下载 <code>selfcheck_day0.py</code> 直接运行会报 <code>ModuleNotFoundError: No module named 'graderlib'</code>——要真的跑脚本，请下载 zip。</p>
+<pre><code>cd ~/Downloads
+unzip day0-materials.zip -d ~/day0_materials
+
+# 终端 1：先把你自己的节点跑起来
+# 终端 2：再评分
+cd ~/day0_materials
+python3 selfcheck_day0.py</code></pre>
+    <p>也可以直接用仓库里的原件：<code>~/Tutorials4intern/grading/selfcheck_day0.py</code>，两者内容一致。</p>
+  </section>
+
+
   <section class="block" id="overview">
     <h2>今日全景与主线任务</h2>
 

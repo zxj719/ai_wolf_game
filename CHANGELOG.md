@@ -2,6 +2,50 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-09-07] 机器人学习：补齐 Day 3–5 讲义 + 全周考卷/评分脚本下载
+
+### 新功能
+
+- **Day 3 / Day 4 / Day 5 讲义上线**：`Tutorials4intern/docs/day{3,4,5}.md` 转成静态 HTML 放进 `public/robotics/`。此前 `index.html` 侧栏已经链到这三页，但文件不存在（404），现在补齐，第 1 周六天全通。
+- **每日材料下载**：每个日页（含既有的 Day 0–2）新增「本日材料下载」小节，index 上另有一张全周汇总表。提供考卷 `.md`、评分脚本 `.py`，以及**打包 zip**。
+
+### 技术细节
+
+- **转换器而非手写**：讲义 markdown 是一套固定的写法约定，每条约定对应 `assets/style.css` 里已有的一个类，所以写了 `scripts/robotics-md2html.mjs` 做机械映射，而不是手敲 ~70KB HTML：
+
+  | markdown | HTML |
+  |---|---|
+  | `> [!NOTE]` / `> [!WARNING]` | `<p class="callout">` / `.callout.danger` |
+  | `> **阶段成果**` | `<p class="milestone">`（标题由 `::before` 画） |
+  | `**预期输出**` + 代码块 | `<div class="expected">` |
+  | `- [ ]` 条目 | `<ul class="goals">`（可勾选，存 localStorage） |
+  | `## 课后回顾` | `<ol class="quiz">`（选项可点选） |
+
+- **课后回顾要拆开**：markdown 里是「6 道题 + 一个装 6 条解析的 `<details>`」，但 `site.js` 的选项点选绑在 `ol.quiz > li > ol > li` 上，必须拆成每题各带一个 `<details>`，否则选项静默失去交互。已在线上实测点选生效。
+- **内容完整性校验**：比对 md 与 HTML 的中日韩字符多重集，唯一被丢掉的是 `预期输出` 与 `阶段成果` 两个短语——它们由 CSS `::before` 重新画出，属预期行为。其余逐字保留。
+- **zip 必须自己写，不能用 `Compress-Archive`**：两个坑叠在一起，都会让下载下来的脚本在学员的 Ubuntu 上跑不起来。
+  1. `grade_dayN.py` 全都 `from graderlib import ...`，单独下一个 `.py` 必然 `ModuleNotFoundError`，所以 zip 里要带 `graderlib/`。
+  2. Windows PowerShell 5.1 的 `Compress-Archive` 把嵌套路径写成反斜杠（`graderlib\checks.py`）。ZIP 规范要求正斜杠，Linux `unzip` 会解出一个**名叫 `graderlib\checks.py` 的普通文件**而不是目录，`import graderlib` 照样挂。它也不设 UTF-8 文件名标志位，中文名在 Linux 下是乱码。
+  改用 `scripts/zip-dir.ps1`（`System.IO.Compression.ZipArchive` + 显式正斜杠条目名 + 全 ASCII 文件名），并实测解压后 `import graderlib` 通过。
+- **线上校验**：7 个页面逐字节比对 prod 与本地（差异仅 Cloudflare 边缘注入的 bot 脚本 + CR）；6 个 zip 逐字节一致、`unzip -t` 无错、反斜杠条目数为 0；11 个直链全部 200。
+
+### 文件变更
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `scripts/robotics-md2html.mjs` | 新建 | markdown → 讲义 HTML 转换器；`--inject` 模式给手写的 Day 0–2 补下载小节 |
+| `scripts/robotics-materials.mjs` | 新建 | 把考卷/评分脚本搬进 `public/robotics/files/` 并打 zip |
+| `scripts/zip-dir.ps1` | 新建 | 正斜杠条目名的 zip 打包，绕开 `Compress-Archive` 的反斜杠与编码问题 |
+| `public/robotics/day3.html`、`day4.html`、`day5.html` | 新建 | 生成产物 |
+| `public/robotics/day0.html`、`day1.html`、`day2.html` | 修改 | 插入「本日材料下载」小节 |
+| `public/robotics/index.html` | 修改 | 新增全周考卷/脚本下载汇总表 |
+| `public/robotics/files/` | 新建 | 4 份考卷 + 6 个脚本 + 考试规则 + 6 个 zip |
+| `src/modules/robotics/index.js` | 修改 | 首页 blurb 从「Day 0 课前预习」改为「第 1 周 Day 0–5 · 附考卷与评分脚本」 |
+
+### 已知不一致（未修，超出本次范围）
+
+`day0/1/2.html` 用的是 `day1_demo` / `day2_demo` / `~/ws_demo` 这套包名，而 `day{2,3,4,5}.md` 源文件用的是单个演进的 `my_robot` / `~/ros2_lab`。Day 3 正文写着「Day 2 的 `my_robot`」，学员从 Day 2 页面走过来会对不上号。要消掉的话得按 md 重新生成 Day 0–2。
+
 ## [2026-08-25] 新增：反向T策略回测工具
 
 ### 新功能

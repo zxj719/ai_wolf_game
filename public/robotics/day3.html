@@ -1,0 +1,748 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 3 · 话题深入、QoS 与数据记录 · ROS2 入门</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<div class="layout">
+<nav class="sidebar">
+  <strong>ROS2 入门 · 第 1 周</strong>
+  <a href="index.html">总览</a>
+  <a href="day0.html">Day 0 · 课前预习</a>
+  <a href="day1.html">Day 1 · 建包与话题</a>
+  <a href="day2.html">Day 2 · 包结构与 launch</a>
+  <a href="day3.html">Day 3 · 话题深入与实机</a>
+  <a href="day4.html">Day 4 · Gazebo 与 URDF</a>
+  <a href="day5.html">Day 5 · 综合考核</a>
+</nav>
+
+<main class="page">
+  <h1>Day 3 · 话题深入、QoS 与数据记录</h1>
+    <p class="callout">预计 4 小时。Day 1 让两个节点通上话，Day 2 把它们变成正规工程。 今天换一类数据：<strong>传感器</strong>。IMU 的消息比 <code>Int32</code> 复杂得多， 而且会带出一个前两天不会遇到的问题——两个节点都在跑，话题名和类型也对， 就是收不到消息。</p>
+
+  <section class="block" id="goals">
+    <h2>今日目标</h2>
+    <p>六条，与下面六节一一对应。做完一条勾一个。</p>
+    <ul class="goals">
+      <li><strong>一、</strong>给 <code>my_robot</code> 加一条 IMU 链路：一个节点发 <code>sensor_msgs/msg/Imu</code>，另一个订阅后算出模长再发布</li>
+      <li><strong>二、</strong>看懂带 <code>Header</code> 的传感器消息：<code>stamp</code> 与 <code>frame_id</code> 各是什么、为什么每条传感器数据都要带</li>
+      <li><strong>三、</strong>用 <code>ros2 topic</code> 全家桶把一个运行中的系统看清楚：类型、频率、带宽、两端是谁</li>
+      <li><strong>四、</strong>说清 QoS 三要素与兼容规则，能自己复现并诊断一次「收不到消息」</li>
+      <li><strong>五、</strong>用 <code>ros2 bag</code> 把数据录下来、回放，理解它为什么是调试机器人的基本功</li>
+      <li><strong>六、</strong>知道 <code>rviz2</code> 能做什么，以及看不到数据时先查哪里</li>
+    </ul>
+  </section>
+
+  <section class="block" id="materials">
+    <h2>本日材料下载</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>材料</th><th>说明</th><th>下载</th></tr>
+      <tr><td>考卷</td><td>考核题面、评分标准与提交要求</td><td><a href="files/day3_exam.md" download>day3_exam.md</a></td></tr>
+      <tr><td>评分脚本</td><td>累加式计分，60 分及格</td><td><a href="files/grade_day3.py" download>grade_day3.py</a></td></tr>
+      <tr><td>打包下载</td><td>上面各项 + <code>graderlib/</code> + 考试规则，解压即可运行</td><td><a href="files/day3-materials.zip" download>day3-materials.zip</a></td></tr>
+    </table>
+    </div>
+    <p class="callout danger">评分脚本依赖同目录下的 <code>graderlib/</code>。单独下载 <code>grade_day3.py</code> 直接运行会报 <code>ModuleNotFoundError: No module named 'graderlib'</code>——要真的跑脚本，请下载 zip。</p>
+<pre><code>cd ~/Downloads
+unzip day3-materials.zip -d ~/day3_materials
+
+# 终端 1：先把你自己的节点跑起来
+# 终端 2：再评分
+cd ~/day3_materials
+python3 grade_day3.py</code></pre>
+    <p>也可以直接用仓库里的原件：<code>~/Tutorials4intern/grading/grade_day3.py</code>，两者内容一致。</p>
+  </section>
+
+  <section class="block" id="overview">
+    <h2>今日全景与主线任务</h2>
+    <p>前两天的数据是自己造的计数器。今天开始处理<strong>传感器数据</strong>——它有时间戳、有坐标系、 有固定频率、允许丢帧。这些特性决定了后面每一天的做法。</p>
+<pre class="mermaid">
+flowchart TD
+    S(["Day 2 的 my_robot：talker / listener / launch / params"]) --&gt; A["第一节　加 IMU 链路"]
+    A --&gt; A1["成果：imu_talker 与 imu_listener 跑起来"]
+    A1 --&gt; B["第二节　消息结构"]
+    B --&gt; B1["成果：看懂 Imu 的 header 与嵌套字段"]
+    B1 --&gt; C["第三节　话题内省"]
+    C --&gt; C1["成果：能查出类型、频率、带宽、两端节点"]
+    C1 --&gt; D["第四节　QoS"]
+    D --&gt; D1["成果：能复现并诊断一次收不到消息"]
+    D1 --&gt; E["第五节　rosbag"]
+    E --&gt; E1["成果：录下 bag 并回放，话题重新出现"]
+    E1 --&gt; F["第六节　rviz2"]
+    F --&gt; G(["数据链路可录、可放、可视，进入 Day 4"])
+</pre>
+    <p class="milestone">今天结束时，<code>my_robot</code> 里会多出 <code>imu_talker.py</code>、<code>imu_listener.py</code>， <code>math_lib.py</code> 多一个 <code>magnitude()</code>，launch 一次拉起四个节点， 并且你手上会有一个可以回放的 <code>.db3</code> 数据包。</p>
+  </section>
+
+  <section class="block" id="sec-1">
+    <h2>一、先把 IMU 链路做出来</h2>
+    <p>先写出来跑通，再回头讲每一处为什么这么写。</p>
+    <h3>1.1 给 <code>math_lib</code> 加一个函数</h3>
+    <p>Day 2 已经建立了「纯逻辑放 library」的习惯。模长计算与 ROS2 无关，照例放这里。 在 <code>my_robot/math_lib.py</code> 顶部加上 <code>import math</code>，末尾追加：</p>
+<pre><code>def magnitude(x: float, y: float, z: float) -&gt; float:
+    """三维向量的模长。IMU 的线加速度、角速度都用得上。"""
+    return math.sqrt(x * x + y * y + z * z)</code></pre>
+    <h3>1.2 发布端 <code>my_robot/imu_talker.py</code></h3>
+    <p>新建这个文件。真实 IMU 驱动做的事和它一样：读硬件、填消息、发布； 这里用算出来的数代替硬件读数，其余部分没有区别。</p>
+<pre><code>import math
+
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Imu
+
+from my_robot.math_lib import period_of
+
+GRAVITY = 9.81
+
+
+class ImuTalker(Node):
+    def __init__(self):
+        super().__init__('imu_talker')
+
+        self.declare_parameter('imu_hz', 50.0)
+        self.declare_parameter('frame_id', 'imu_link')
+        hz = self.get_parameter('imu_hz').value
+        self.frame_id = self.get_parameter('frame_id').value
+
+        # 这段 QoS 先照抄，第四节专门讲它
+        qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+        )
+        self.pub = self.create_publisher(Imu, 'imu/data', qos)
+
+        self.dt = period_of(hz)
+        self.elapsed = 0.0
+        self.timer = self.create_timer(self.dt, self.on_timer)
+        self.get_logger().info(
+            f'imu_talker 已启动：{hz} Hz，frame_id={self.frame_id}')
+
+    def on_timer(self):
+        self.elapsed += self.dt
+        msg = Imu()
+
+        # header 是所有传感器消息的共同前缀：这条数据什么时候、在哪个坐标系测的
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = self.frame_id
+
+        # 静止平放时加速度计测到的是重力反作用力：z 轴约 +9.81
+        # 叠一个慢速正弦模拟轻微晃动
+        wobble = 0.5 * math.sin(self.elapsed)
+        msg.linear_acceleration.x = wobble
+        msg.linear_acceleration.y = 0.0
+        msg.linear_acceleration.z = GRAVITY
+
+        msg.angular_velocity.x = 0.0
+        msg.angular_velocity.y = 0.0
+        msg.angular_velocity.z = 0.2 * math.cos(self.elapsed)
+
+        # 本节点不估计姿态。按 Imu 消息的约定，
+        # 协方差矩阵第 0 个元素填 -1 表示「这一项没有数据」
+        msg.orientation_covariance[0] = -1.0
+
+        self.pub.publish(msg)
+
+
+def main():
+    rclpy.init()
+    node = ImuTalker()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()</code></pre>
+    <p><code>period_of</code> 是 Day 2 写进 <code>math_lib</code> 的，这里直接复用——<strong>同一个包里的东西越用越顺手， 这正是把逻辑抽出来的回报。</strong></p>
+    <h3>1.3 订阅端 <code>my_robot/imu_listener.py</code></h3>
+    <p>Day 1 的 <code>listener</code> 只订阅不发布。从这个节点开始，<strong>节点处在数据链路的中间</strong>： 订阅一个话题，加工，再发布另一个话题。这是实际项目里最常见的形态。</p>
+<pre><code>import rclpy
+from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Imu
+from std_msgs.msg import Float64
+
+from my_robot.math_lib import magnitude
+
+
+class ImuListener(Node):
+    def __init__(self):
+        super().__init__('imu_listener')
+
+        # 订阅端的 QoS 必须与发布端兼容。这里和 imu_talker 用同一套配置
+        qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+        )
+        self.sub = self.create_subscription(Imu, 'imu/data', self.on_imu, qos)
+
+        # 输出是一个普通的数，用默认 QoS（可靠传输）即可
+        self.pub = self.create_publisher(Float64, 'imu/magnitude', 10)
+
+        self.count = 0
+        self.get_logger().info('imu_listener 已启动，正在订阅 imu/data')
+
+    def on_imu(self, msg: Imu):
+        a = msg.linear_acceleration
+        out = Float64()
+        out.data = magnitude(a.x, a.y, a.z)
+        self.pub.publish(out)
+
+        # 50 Hz 全打日志会刷屏，每 50 条打一次
+        self.count += 1
+        if self.count % 50 == 0:
+            self.get_logger().info(
+                f'已处理 {self.count} 条，最新模长 {out.data:.3f} m/s^2'
+                f'（frame_id={msg.header.frame_id}）')
+
+
+def main():
+    rclpy.init()
+    node = ImuListener()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()</code></pre>
+    <p class="callout">话题名照旧写<strong>相对名</strong> <code>imu/data</code>，不带开头的 <code>/</code>。 Day 2 讲过：带 <code>/</code> 的绝对名不吃 namespace，launch 里给的 <code>robot1</code> 会失效。</p>
+    <h3>1.4 四处登记</h3>
+    <p>新节点要在四个地方登记，漏一处就跑不起来。这是 Day 1、Day 2 建立的流程，今天照做。</p>
+    <p><strong><code>package.xml</code></strong> 新增依赖（用到了 <code>sensor_msgs</code>）：</p>
+<pre><code>  &lt;depend&gt;sensor_msgs&lt;/depend&gt;</code></pre>
+    <p><strong><code>setup.py</code></strong> 的 <code>entry_points</code> 新增两个可执行：</p>
+<pre><code>            'imu_talker = my_robot.imu_talker:main',
+            'imu_listener = my_robot.imu_listener:main',</code></pre>
+    <p><strong><code>config/params.yaml</code></strong> 末尾追加。键必须是节点的完整名字，含 namespace：</p>
+<pre><code>/robot1/imu_talker:
+  ros__parameters:
+    imu_hz: 50.0
+    frame_id: imu_link</code></pre>
+    <p><strong><code>launch/robot.launch.py</code></strong> 的列表里加两项：</p>
+<pre><code>        Node(package='my_robot', executable='imu_talker', name='imu_talker',
+             namespace='robot1', parameters=[params], output='screen'),
+        Node(package='my_robot', executable='imu_listener', name='imu_listener',
+             namespace='robot1', parameters=[params], output='screen'),</code></pre>
+    <h3>1.5 编译并跑起来</h3>
+<pre><code>cd ~/ros2_lab
+colcon build --packages-select my_robot
+source install/setup.bash
+ros2 launch my_robot robot.launch.py</code></pre>
+    <div class="expected">
+<pre><code>[INFO] [launch]: All log files can be found below /home/nvidia/.ros/log/...
+[INFO] [talker-1]: process started with pid [777580]
+[INFO] [listener-2]: process started with pid [777582]
+[INFO] [imu_talker-3]: process started with pid [777584]
+[INFO] [imu_listener-4]: process started with pid [777586]
+[imu_talker-3] [INFO] [...] [robot1.imu_talker]: imu_talker 已启动：50.0 Hz，frame_id=imu_link
+[imu_listener-4] [INFO] [...] [robot1.imu_listener]: imu_listener 已启动，正在订阅 imu/data
+[imu_listener-4] [INFO] [...] [robot1.imu_listener]: 已处理 50 条，最新模长 9.819 m/s^2（frame_id=imu_link）
+[imu_listener-4] [INFO] [...] [robot1.imu_listener]: 已处理 100 条，最新模长 9.821 m/s^2（frame_id=imu_link）</code></pre>
+    </div>
+    <p>四个进程都起来了，模长稳定在 9.81 附近——因为 z 轴是重力 9.81，x 轴的晃动只有 ±0.5。</p>
+    <p class="callout">上面的日志路径 <code>/home/nvidia/...</code> 和进程号 <code>pid [777580]</code> 都是抓取环境的， <strong>你机器上是你自己的用户名和另一组进程号</strong>。要核对的是节点名、参数值和模长， 不是这些数字。</p>
+    <p class="callout">日志里节点名显示成 <code>robot1.imu_talker</code>（点号），而话题名是 <code>/robot1/imu/data</code>（斜杠）。 这只是日志的写法差异，指的是同一个 namespace。</p>
+    <p>现在系统里跑着两条互不相干的数据链路，共四个节点：</p>
+<pre class="mermaid">
+flowchart LR
+    T["talker&lt;br/&gt;Day 1 写的"] --&gt;|"/robot1/counter&lt;br/&gt;Int32, 5 Hz"| L["listener&lt;br/&gt;Day 2 加了参数"]
+    L --&gt;|"/robot1/counter_doubled&lt;br/&gt;Int32"| O1["暂无订阅者"]
+
+    IT["imu_talker&lt;br/&gt;今天新增"] --&gt;|"/robot1/imu/data&lt;br/&gt;Imu, 50 Hz, BEST_EFFORT"| IL["imu_listener&lt;br/&gt;今天新增"]
+    IL --&gt;|"/robot1/imu/magnitude&lt;br/&gt;Float64, RELIABLE"| O2["第五节的 rosbag&lt;br/&gt;会订阅这里"]
+</pre>
+    <p>上半条是前两天的成果，下半条是今天加的。<strong>两条链路形状一样</strong>—— 定时发布 → 订阅加工 → 再发布，只是数据类型和 QoS 不同。 后面三节都对着下半条操作。</p>
+    <p class="milestone"><code>ros2 node list</code> 应该看到四个节点，全部在 <code>/robot1</code> 下。<strong>保持它们运行</strong>， 后面三节都要对着这个系统操作。</p>
+  </section>
+
+  <section class="block" id="sec-2">
+    <h2>二、消息结构：<code>Imu</code> 比 <code>Int32</code> 复杂在哪</h2>
+    <p><code>Int32</code> 只有一个 <code>data</code> 字段。传感器消息不一样。<strong>另开一个终端</strong>（记得先 <code>cd ~/ros2_lab &amp;&amp; source install/setup.bash</code>）：</p>
+<pre><code>ros2 interface show sensor_msgs/msg/Imu</code></pre>
+    <p>去掉开头的大段注释，结构是这样：</p>
+    <div class="expected">
+<pre><code>std_msgs/Header header
+	builtin_interfaces/Time stamp
+		int32 sec
+		uint32 nanosec
+	string frame_id
+
+geometry_msgs/Quaternion orientation
+	float64 x 0
+	float64 y 0
+	float64 z 0
+	float64 w 1
+float64[9] orientation_covariance # Row major about x, y, z axes
+
+geometry_msgs/Vector3 angular_velocity
+	float64 x
+	float64 y
+	float64 z
+float64[9] angular_velocity_covariance # Row major about x, y, z axes
+
+geometry_msgs/Vector3 linear_acceleration
+	float64 x
+	float64 y
+	float64 z
+float64[9] linear_acceleration_covariance # Row major x, y z</code></pre>
+    </div>
+    <p>三件事值得注意。</p>
+    <p><strong>第一，消息是可以嵌套的。</strong> <code>Imu</code> 里装着 <code>Header</code>、<code>Quaternion</code>、三个 <code>Vector3</code>， 而 <code>Header</code> 里又装着 <code>Time</code>。缩进就是嵌套层级。所以代码里写 <code>msg.linear_acceleration.x</code>——先取字段，再取字段。</p>
+    <p><strong>第二，<code>float64[9]</code> 是定长数组。</strong> 协方差矩阵是 3×3 按行铺平的 9 个数。 代码里 <code>msg.orientation_covariance[0] = -1.0</code> 就是在改第一个元素。</p>
+    <p><strong>第三，注释是消息定义的一部分。</strong> 上面被我省掉的注释里写着一条约定：</p>
+    <p class="callout">如果你没有某一项的估计值（比如你的 IMU 不输出姿态）， 把对应协方差矩阵的第 0 个元素设成 -1。</p>
+    <p>这就是 <code>imu_talker</code> 里那行 <code>orientation_covariance[0] = -1.0</code> 的来历—— <strong>它不是随便填的，是在按消息约定声明「姿态这一项我没有数据，别用」。</strong> 读别人的传感器数据时也要检查这个 -1。</p>
+    <h3>2.1 <code>Header</code>：每条传感器数据都要回答的两个问题</h3>
+<pre><code>ros2 interface show std_msgs/msg/Header</code></pre>
+    <div class="expected">
+<pre><code># Two-integer timestamp that is expressed as seconds and nanoseconds.
+builtin_interfaces/Time stamp
+	int32 sec
+	uint32 nanosec
+
+# Transform frame with which this data is associated.
+string frame_id</code></pre>
+    </div>
+    <p>只有两个字段，但它们回答了传感器数据最关键的两个问题：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>字段</th><th>回答什么</th><th>不填会怎样</th></tr>
+      <tr><td><code>stamp</code></td><td><strong>这条数据是什么时候测的</strong></td><td>多个传感器的数据没法对齐；rviz2 会认为数据过期而不显示</td></tr>
+      <tr><td><code>frame_id</code></td><td><strong>这条数据在哪个坐标系里测的</strong></td><td>系统不知道雷达装在车的哪个位置，点云无法与底盘对上</td></tr>
+    </table>
+    </div>
+    <p><code>stamp</code> 必须用 ROS2 的时钟取，不要用 Python 的 <code>time.time()</code>：</p>
+<pre><code>msg.header.stamp = self.get_clock().now().to_msg()</code></pre>
+    <p><code>frame_id</code> 是一个坐标系的名字。<strong>Day 4 会把这些名字连成一棵 TF 树</strong>， 到时候 <code>imu_link</code> 这个名字就会和小车模型上的具体位置对应起来。今天先记住： 传感器数据必须声明自己属于哪个坐标系。</p>
+    <details class="aside">
+      <summary>补充：快速看一条消息的骨架</summary>
+    <p><code>interface show</code> 给的是定义。想直接看一条「空消息」长什么样，用 <code>proto</code>：</p>
+<pre><code>ros2 interface proto sensor_msgs/msg/Imu</code></pre>
+    <div class="expected">
+      <p><em>（节选）</em></p>
+<pre><code>"header:
+  stamp:
+    sec: 0
+    nanosec: 0
+  frame_id: ''
+orientation:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+  w: 1.0
+orientation_covariance:
+- 0.0
+...</code></pre>
+    </div>
+    <p>这个格式可以直接拿去填 <code>ros2 topic pub</code> 的参数（见第三节）。</p>
+    <p>想知道系统里有哪些传感器消息类型：</p>
+<pre><code>ros2 interface list | grep sensor_msgs</code></pre>
+    <p>本机共 27 种，常见的有 <code>Imu</code>、<code>LaserScan</code>、<code>PointCloud2</code>、<code>Image</code>、<code>JointState</code>、 <code>BatteryState</code>。Day 4 会用到 <code>LaserScan</code>。</p>
+    </details>
+  </section>
+
+  <section class="block" id="sec-3">
+    <h2>三、把运行中的系统看清楚</h2>
+    <p>Day 1 用过 <code>ros2 topic list</code> 和 <code>echo</code>。今天把这套工具补全—— <strong>它们是排查机器人问题的第一道手段</strong>，后面每天都要用。</p>
+    <h3>3.1 有哪些话题，各是什么类型</h3>
+<pre><code>ros2 topic list -t</code></pre>
+    <div class="expected">
+<pre><code>/parameter_events [rcl_interfaces/msg/ParameterEvent]
+/robot1/counter [std_msgs/msg/Int32]
+/robot1/counter_doubled [std_msgs/msg/Int32]
+/robot1/imu/data [sensor_msgs/msg/Imu]
+/robot1/imu/magnitude [std_msgs/msg/Float64]
+/rosout [rcl_interfaces/msg/Log]</code></pre>
+    </div>
+    <p><code>-t</code> 是 <code>--show-types</code>，把类型一起列出来。四个业务话题都带着 <code>/robot1</code> 前缀—— 这是 launch 里 <code>namespace='robot1'</code> 加上的。</p>
+    <p class="callout">刚启动时列表可能不全。DDS 的发现是渐进的，节点之间要花几秒互相认识。 <strong>看到话题少了，先等几秒再查一次</strong>，不要立刻怀疑代码。</p>
+    <h3>3.2 这个话题两端是谁</h3>
+<pre><code>ros2 topic info /robot1/imu/data</code></pre>
+    <p>加上 <code>--verbose</code>（简写 <code>-v</code>）能看到每一端的节点名和完整 QoS：</p>
+<pre><code>ros2 topic info /robot1/imu/data --verbose</code></pre>
+    <div class="expected">
+      <p><em>（节选）</em></p>
+<pre><code>Type: sensor_msgs/msg/Imu
+
+Publisher count: 1
+
+Node name: imu_talker
+Node namespace: /robot1
+Endpoint type: PUBLISHER
+QoS profile:
+  Reliability: BEST_EFFORT
+  Durability: VOLATILE
+  ...
+
+Subscription count: 1
+
+Node name: imu_listener
+Node namespace: /robot1
+Endpoint type: SUBSCRIPTION
+QoS profile:
+  Reliability: BEST_EFFORT
+  Durability: VOLATILE</code></pre>
+    </div>
+    <p><strong>这条命令是排查「收不到消息」的核心工具</strong>：发布者和订阅者各有几个、分别是哪个节点、 两端的 QoS 是否一致，一次全看到。第四节会用它诊断故障。</p>
+    <h3>3.3 看数据内容</h3>
+<pre><code>ros2 topic echo /robot1/imu/data --once</code></pre>
+    <p><code>--once</code> 只打一条就退出，不加会一直刷。<code>Imu</code> 一条就有三十多行， 只想看某个字段时用 <code>--field</code>：</p>
+<pre><code>ros2 topic echo /robot1/imu/data --once --field linear_acceleration.z</code></pre>
+    <div class="expected">
+<pre><code>9.81
+---</code></pre>
+    </div>
+    <p>嵌套字段用点号连接，和代码里写 <code>msg.linear_acceleration.z</code> 是同一套写法。</p>
+    <h3>3.4 频率与带宽</h3>
+<pre><code>ros2 topic hz /robot1/imu/data</code></pre>
+    <div class="expected">
+<pre><code>average rate: 50.010
+	min: 0.020s max: 0.020s std dev: 0.00014s window: 52</code></pre>
+    </div>
+    <p>50 Hz，与参数 <code>imu_hz: 50.0</code> 一致。<strong>开头那行 <code>WARNING: topic ... does not appear to be published yet</code> 是正常的</strong>， 它只是说还没收到第一条，等一下就好。</p>
+<pre><code>ros2 topic bw /robot1/imu/data</code></pre>
+    <div class="expected">
+<pre><code>16.53 KB/s from 49 messages
+	Message size mean: 0.32 KB min: 0.32 KB max: 0.32 KB</code></pre>
+    </div>
+    <p>一条 <code>Imu</code> 约 0.32 KB，50 Hz 就是每秒 16 KB。这个数字现在看着不大， 但换成 <code>PointCloud2</code>（激光点云）会是每秒几十 MB——<strong>带宽是选 QoS 和设计系统时的真实约束</strong>。</p>
+    <h3>3.5 不写节点也能发消息</h3>
+    <p>调试时经常需要「手动发一条试试」。<code>ros2 topic pub</code> 可以：</p>
+<pre><code>ros2 topic pub -r 2 /demo std_msgs/msg/String '{data: hello}'</code></pre>
+    <div class="expected">
+<pre><code>publisher: beginning loop
+publishing #1: std_msgs.msg.String(data='hello')
+
+publishing #2: std_msgs.msg.String(data='hello')</code></pre>
+    </div>
+    <p><code>-r 2</code> 是每秒 2 次。消息内容用 YAML 写，字段名要和 <code>interface show</code> 里的一致。</p>
+    <p class="callout danger"><strong><code>--once</code> 会先等至少一个订阅者。</strong> 没有任何节点订阅那个话题时，它会一直打印 <code>Waiting for at least 1 matching subscription(s)...</code> 然后什么也不发。 这不是卡住，是设计如此——它不想把消息发进虚空。 想单纯测试发布，先开一个 <code>ros2 topic echo</code> 订阅上。</p>
+    <h3>3.6 反查与汇总</h3>
+<pre><code>ros2 topic find sensor_msgs/msg/Imu</code></pre>
+    <p>按类型反查话题，接入陌生机器人时很有用——不知道雷达发在哪个话题上， 按 <code>sensor_msgs/msg/LaserScan</code> 一查就知道。</p>
+<pre><code>ros2 node info /robot1/imu_listener</code></pre>
+    <div class="expected">
+      <p><em>（节选）</em></p>
+<pre><code>/robot1/imu_listener
+  Subscribers:
+    /robot1/imu/data: sensor_msgs/msg/Imu
+  Publishers:
+    /robot1/imu/magnitude: std_msgs/msg/Float64</code></pre>
+    </div>
+    <p>从节点的角度看：它订阅什么、发布什么。<code>topic info</code> 是从话题看两端， <code>node info</code> 是从节点看两侧，<strong>排查时两个换着用</strong>。</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>命令</th><th>回答的问题</th></tr>
+      <tr><td><code>ros2 topic list -t</code></td><td>系统里有哪些话题，各是什么类型</td></tr>
+      <tr><td><code>ros2 topic info &lt;话题&gt; -v</code></td><td>这个话题两端是谁，QoS 是否匹配</td></tr>
+      <tr><td><code>ros2 topic echo &lt;话题&gt; --once</code></td><td>数据长什么样，值对不对</td></tr>
+      <tr><td><code>ros2 topic hz &lt;话题&gt;</code></td><td>发得快不快，稳不稳</td></tr>
+      <tr><td><code>ros2 topic bw &lt;话题&gt;</code></td><td>占多少带宽</td></tr>
+      <tr><td><code>ros2 topic find &lt;类型&gt;</code></td><td>哪个话题在发这种数据</td></tr>
+      <tr><td><code>ros2 topic pub &lt;话题&gt; &lt;类型&gt; '&lt;yaml&gt;'</code></td><td>不写节点，手动发一条</td></tr>
+      <tr><td><code>ros2 node info &lt;节点&gt;</code></td><td>这个节点订阅什么、发布什么</td></tr>
+    </table>
+    </div>
+    <p class="milestone">用上面任意四条命令描述一遍你正在运行的系统：几个节点、几条话题、 IMU 频率多少、带宽多少。说得出来，这一节就过了。</p>
+  </section>
+
+  <section class="block" id="sec-4">
+    <h2>四、QoS：两个节点都在跑，却收不到</h2>
+    <p>这是今天最重要的一节。</p>
+    <p>前两天只要话题名和类型对上就能通。传感器数据不一样——<strong>发布端和订阅端还必须在 「怎么传」上达成一致</strong>。这套约定叫 <strong>QoS</strong>（Quality of Service，服务质量）。</p>
+    <h3>4.1 三个要素</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>要素</th><th>取值</th><th>含义</th></tr>
+      <tr><td><strong>Reliability</strong>&lt;br/&gt;可靠性</td><td><code>RELIABLE</code></td><td>保证送到，丢了重传</td></tr>
+      <tr><td></td><td><code>BEST_EFFORT</code></td><td>尽力而为，丢了就丢了</td></tr>
+      <tr><td><strong>Durability</strong>&lt;br/&gt;持久性</td><td><code>VOLATILE</code></td><td>只发给当前在线的订阅者</td></tr>
+      <tr><td></td><td><code>TRANSIENT_LOCAL</code></td><td>为晚到的订阅者保留最近的消息</td></tr>
+      <tr><td><strong>History + Depth</strong>&lt;br/&gt;历史与队列深度</td><td><code>KEEP_LAST</code> + N</td><td>只保留最近 N 条</td></tr>
+      <tr><td></td><td><code>KEEP_ALL</code></td><td>全部保留（受底层限制）</td></tr>
+    </table>
+    </div>
+    <p>代码里就是 Day 3 §1.2 那段：</p>
+<pre><code>qos = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=10,
+)</code></pre>
+    <p>Day 1、Day 2 里 <code>create_publisher(Int32, 'counter', 10)</code> 的那个 <code>10</code> 其实就是简写：<code>KEEP_LAST</code> + <code>depth=10</code> + 默认 <code>RELIABLE</code>。</p>
+    <h3>4.2 为什么传感器用 <code>BEST_EFFORT</code></h3>
+    <p>50 Hz 的 IMU，每 20 毫秒一条新数据。如果某条丢了：</p>
+    <ul>
+      <li>用 <code>RELIABLE</code>：底层会重传，你在 100 毫秒后收到一条<strong>过期的</strong>数据， 而这期间已经有 5 条新数据了。重传的代价白付，拿到的还是旧值。</li>
+      <li>用 <code>BEST_EFFORT</code>：直接丢掉，等下一条新的。</li>
+    </ul>
+    <p><strong>对连续采样的传感器，新数据总是比旧数据有用。</strong> 所以雷达、IMU、相机一律 <code>BEST_EFFORT</code>。反过来，地图、参数、指令这类「每一条都不能丢」的用 <code>RELIABLE</code>—— <code>imu_listener</code> 输出的 <code>imu/magnitude</code> 用的就是默认的 <code>RELIABLE</code>。</p>
+    <h3>4.3 兼容规则</h3>
+    <p><strong>订阅端的要求不能高于发布端提供的。</strong></p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>发布端提供</th><th>订阅端要求</th><th>能通吗</th></tr>
+      <tr><td><code>RELIABLE</code></td><td><code>RELIABLE</code></td><td>能</td></tr>
+      <tr><td><code>RELIABLE</code></td><td><code>BEST_EFFORT</code></td><td><strong>能</strong>（要求更低，没问题）</td></tr>
+      <tr><td><code>BEST_EFFORT</code></td><td><code>BEST_EFFORT</code></td><td>能</td></tr>
+      <tr><td><code>BEST_EFFORT</code></td><td><code>RELIABLE</code></td><td><strong>不能</strong>（发布端给不了这个保证）</td></tr>
+    </table>
+    </div>
+    <p>Durability 同理：发布端 <code>VOLATILE</code>、订阅端要 <code>TRANSIENT_LOCAL</code> 也通不了。</p>
+    <h3>4.4 亲手复现一次</h3>
+    <p><code>ros2 topic echo</code> 可以指定 QoS，不用改代码就能制造失配。保持系统运行， 在新终端里执行：</p>
+<pre><code>ros2 topic echo /robot1/imu/data --qos-reliability reliable --once</code></pre>
+    <div class="expected">
+<pre><code>[WARN] [...]: New publisher discovered on topic '/robot1/imu/data', offering incompatible QoS. No messages will be received from it. Last incompatible policy: RELIABILITY</code></pre>
+    </div>
+    <p>一条数据也收不到，但<strong>ROS2 明确告诉了你原因</strong>：不兼容的策略是 <code>RELIABILITY</code>。</p>
+    <p>换成兼容的一侧，立刻就有数据：</p>
+<pre><code>ros2 topic echo /robot1/imu/data --qos-reliability best_effort --once --field header.frame_id</code></pre>
+    <div class="expected">
+<pre><code>imu_link
+---</code></pre>
+    </div>
+    <p>反方向也验证一下。<code>imu/magnitude</code> 是 <code>RELIABLE</code> 发布的，用 <code>BEST_EFFORT</code> 订阅—— 要求更低，应该能通：</p>
+<pre><code>ros2 topic echo /robot1/imu/magnitude --qos-reliability best_effort --once</code></pre>
+    <div class="expected">
+<pre><code>data: 9.818498377788176
+---</code></pre>
+    </div>
+    <p>Durability 失配也是同样的表现：</p>
+<pre><code>ros2 topic echo /robot1/counter --qos-durability transient_local --once</code></pre>
+    <div class="expected">
+<pre><code>[WARN] [...]: New publisher discovered on topic '/robot1/counter', offering incompatible QoS. No messages will be received from it. Last incompatible policy: DURABILITY</code></pre>
+    </div>
+    <p class="callout danger"><strong>这条警告可能被淹没。</strong> 你自己写的节点如果 QoS 配错了，同样会打这条 WARN， 但它混在 launch 的一堆输出里很容易被划过去。 <strong>「话题名对、类型对、两边都在跑，就是没数据」时，第一件事是 <code>ros2 topic info &lt;话题&gt; --verbose</code> 对比两端的 QoS。</strong></p>
+    <h3>4.5 排查顺序</h3>
+    <p>Day 1 给过三个条件，今天补全成完整的排查树：</p>
+<pre class="mermaid">
+flowchart TD
+    A["收不到消息"] --&gt; B{"ros2 topic list -t&lt;br/&gt;话题在吗，名字对吗"}
+    B -- 不在 --&gt; B1["发布端没跑，或 namespace 不对&lt;br/&gt;也可能只是发现还没完成，等几秒"]
+    B -- 在 --&gt; C{"类型一致吗"}
+    C -- 不一致 --&gt; C1["Int32 与 Int64 是两种类型&lt;br/&gt;改成一样的"]
+    C -- 一致 --&gt; D{"ros2 topic info -v&lt;br/&gt;两端 QoS 兼容吗"}
+    D -- 不兼容 --&gt; D1["看 WARN 里的 Last incompatible policy&lt;br/&gt;按 4.3 的表调整"]
+    D -- 兼容 --&gt; E{"Publisher/Subscription count&lt;br/&gt;都不为 0 吗"}
+    E -- 有 0 --&gt; E1["有一端根本没建起来&lt;br/&gt;回去看节点日志有没有报错"]
+    E -- 都不为 0 --&gt; F["数据应该是通的&lt;br/&gt;用 echo 确认，再查业务逻辑"]
+</pre>
+    <p class="milestone">能复现一次 QoS 失配，并用 <code>topic info -v</code> 指出是哪一端、哪个策略不兼容。</p>
+  </section>
+
+  <section class="block" id="sec-5">
+    <h2>五、rosbag：把数据录下来</h2>
+    <p>机器人调试有个现实问题：<strong>现象往往不可复现</strong>。雷达在某个角落丢了几帧、 IMU 在过减速带时出了个尖峰——你不可能每次都把机器人推到那个位置再看一遍。</p>
+    <p><code>ros2 bag</code> 解决这个：把话题数据原样录下来，之后随时回放， <strong>回放出来的话题和真机发出来的一模一样</strong>，所有订阅者都分辨不出区别。</p>
+    <h3>5.1 录制</h3>
+<pre><code>ros2 bag record -o ~/ros2_lab/imu_bag /robot1/imu/data /robot1/imu/magnitude</code></pre>
+    <p><code>-o</code> 指定输出目录名。后面跟要录的话题，可以写多个。 录几秒后按 <code>Ctrl+C</code> 停止。</p>
+    <div class="expected">
+<pre><code>[INFO] [rosbag2_recorder]: Subscribed to topic '/robot1/imu/data'
+[INFO] [rosbag2_recorder]: Subscribed to topic '/robot1/imu/magnitude'
+[INFO] [rosbag2_recorder]: All requested topics are subscribed. Stopping discovery...
+[INFO] [rosbag2_cpp]: Writing remaining messages from cache to the bag. It may take a while
+[INFO] [rosbag2_recorder]: Recording stopped</code></pre>
+    </div>
+    <p class="callout">想录全部话题用 <code>-a</code>（<code>--all</code>）。但点云、图像这类话题体积极大， 录几分钟就是几个 GB，<strong>在真机上慎用 <code>-a</code></strong>。</p>
+    <h3>5.2 看看录到了什么</h3>
+<pre><code>ros2 bag info ~/ros2_lab/imu_bag</code></pre>
+    <div class="expected">
+<pre><code>Files:             imu_bag_0.db3
+Bag size:          165.4 KiB
+Storage id:        sqlite3
+Duration:          6.400022535s
+Messages:          642
+Topic information: Topic: /robot1/imu/magnitude | Type: std_msgs/msg/Float64 | Count: 321 | Serialization Format: cdr
+                   Topic: /robot1/imu/data | Type: sensor_msgs/msg/Imu | Count: 321 | Serialization Format: cdr</code></pre>
+    </div>
+    <p>逐项读：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>字段</th><th>含义</th></tr>
+      <tr><td><code>Storage id: sqlite3</code></td><td>存储后端。Humble 默认 sqlite3，数据就在那个 <code>.db3</code> 文件里</td></tr>
+      <tr><td><code>Duration</code></td><td>录了多长时间</td></tr>
+      <tr><td><code>Messages</code></td><td>总消息数</td></tr>
+      <tr><td><code>Count</code>（每话题）</td><td>各话题各录到多少条</td></tr>
+    </table>
+    </div>
+    <p><strong>拿这些数自查一遍</strong>：6.4 秒 × 50 Hz ≈ 320 条，实测 <code>imu/data</code> 321 条，对得上； <code>imu/magnitude</code> 也是 321 条，因为 <code>imu_listener</code> 每收到一条就发一条，两者一一对应。 <strong>数量对不上时说明中间有丢帧或处理跟不上</strong>，这是检查数据链路健康度最直接的办法。</p>
+    <p>目录里有两个文件：</p>
+<pre><code>ls ~/ros2_lab/imu_bag</code></pre>
+    <div class="expected">
+<pre><code>imu_bag_0.db3
+metadata.yaml</code></pre>
+    </div>
+    <p><code>.db3</code> 是数据，<code>metadata.yaml</code> 是索引（话题列表、类型、时间范围）。 <strong>两个都要保留</strong>，只拷贝 <code>.db3</code> 是放不了的。</p>
+    <h3>5.3 回放</h3>
+    <p>先把 launch 停掉（<code>Ctrl+C</code>），让系统里没有任何实时节点。然后：</p>
+<pre><code>ros2 bag play ~/ros2_lab/imu_bag</code></pre>
+    <p>另开终端查看：</p>
+<pre><code>ros2 topic list
+ros2 topic hz /robot1/imu/data</code></pre>
+    <div class="expected">
+<pre><code>/robot1/imu/data
+/robot1/imu/magnitude
+
+average rate: 50.007
+	min: 0.019s max: 0.021s std dev: 0.00031s window: 51</code></pre>
+    </div>
+    <p><strong>没有任何节点在跑，话题却回来了，频率也和录制时一致。</strong> 这就是 rosbag 的价值： 录一次现场，之后在办公室里反复调试算法，不用把机器人搬来搬去。</p>
+    <p>常用选项：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>选项</th><th>作用</th></tr>
+      <tr><td><code>--loop</code></td><td>循环播放</td></tr>
+      <tr><td><code>-r 2</code></td><td>2 倍速</td></tr>
+      <tr><td><code>-r 0.5</code></td><td>半速，看细节</td></tr>
+      <tr><td><code>--topics /robot1/imu/data</code></td><td>只放其中一部分话题</td></tr>
+      <tr><td><code>-p</code></td><td>启动后暂停，按空格开始</td></tr>
+    </table>
+    </div>
+    <p class="callout">通过 SSH 跑 <code>ros2 bag play</code> 时会看到 <code>stdin is not a terminal device. Keyboard handling disabled.</code>—— 这只是说空格暂停之类的快捷键用不了，回放本身正常。</p>
+    <p class="milestone"><code>~/ros2_lab/imu_bag/</code> 下有 <code>.db3</code> 与 <code>metadata.yaml</code>， 停掉所有节点后 <code>ros2 bag play</code> 能让话题重新出现。</p>
+  </section>
+
+  <section class="block" id="sec-6">
+    <h2>六、rviz2：把数据画出来</h2>
+    <p>前面所有工具都是文字的。<code>rviz2</code> 是 ROS2 的三维可视化工具， 用来看点云、坐标系、机器人模型、路径。</p>
+<pre><code>rviz2</code></pre>
+    <p class="callout danger"><strong><code>rviz2</code> 需要图形界面。</strong> 通过 SSH 连到没有显示器的机器上直接运行会失败。 在本机的桌面环境里打开，或者配置 X11 转发。</p>
+    <p>今天数据只有 IMU 的数值，rviz2 里没什么可看的——<strong>它的主场在 Day 4</strong>： 小车模型、TF 坐标系、激光扫描线都要靠它确认。这里只需要记住三个必查项， 因为「rviz2 里看不到东西」是后面最常见的问题：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>症状</th><th>先查什么</th></tr>
+      <tr><td>加了 Display 但一片空白</td><td>左上角 <strong>Fixed Frame</strong> 是否设成了一个真实存在的坐标系</td></tr>
+      <tr><td>点云/激光完全不出现</td><td>Display 的 <strong>Reliability</strong> 是否设成了 <code>Best Effort</code>。传感器话题多是 BEST_EFFORT，rviz2 默认按 Reliable 订阅，就是第四节那个失配</td></tr>
+      <tr><td>数据闪一下就没</td><td>消息的 <code>header.stamp</code> 是否正确。时间戳不对会被当成过期数据丢掉</td></tr>
+    </table>
+    </div>
+    <p>三条全都是今天讲过的知识——<strong>坐标系、QoS、时间戳</strong>。</p>
+  </section>
+
+  <section class="block" id="errors">
+    <h2>常见报错对照表</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>你看到的</th><th>真正的原因</th><th>怎么解决</th></tr>
+      <tr><td><code>No messages will be received from it. Last incompatible policy: RELIABILITY</code></td><td>QoS 可靠性失配，订阅端要求高于发布端</td><td>按 §4.3 调整。传感器话题一般两端都用 <code>BEST_EFFORT</code></td></tr>
+      <tr><td>同上但结尾是 <code>DURABILITY</code></td><td>持久性失配</td><td>订阅端别要 <code>TRANSIENT_LOCAL</code>，除非发布端确实提供</td></tr>
+      <tr><td>节点都在跑，<code>topic list</code> 里话题却不全</td><td>DDS 发现还没完成</td><td>等几秒重查。仍然没有再查 namespace 和节点日志</td></tr>
+      <tr><td><code>Could not determine the type for the passed topic</code></td><td>话题名拼错，或该话题还没有发布者</td><td><code>ros2 topic list</code> 核对全名，注意 <code>/robot1</code> 前缀</td></tr>
+      <tr><td><code>ros2 topic pub</code> 一直打 <code>Waiting for at least 1 matching subscription(s)...</code></td><td>用了 <code>--once</code> 但没有任何订阅者</td><td>先开 <code>ros2 topic echo</code> 订上，或改用 <code>-r</code> 持续发布</td></tr>
+      <tr><td><code>Could not find the interface '.../IMU.idl'</code></td><td>类型名大小写错了</td><td>是 <code>sensor_msgs/msg/Imu</code>，不是 <code>IMU</code></td></tr>
+      <tr><td><code>The passed message type is invalid</code></td><td>消息类型不存在</td><td>用 `ros2 interface list \</td><td>grep &lt;关键词&gt;` 查正确名字</td></tr>
+      <tr><td><code>ros2 bag play</code> 后话题没出现</td><td>bag 目录不完整，或路径错</td><td>确认目录里 <code>.db3</code> 和 <code>metadata.yaml</code> 都在</td></tr>
+      <tr><td><code>ModuleNotFoundError: No module named 'sensor_msgs'</code></td><td><code>package.xml</code> 没加依赖，或没重新 build</td><td>加 <code>&lt;depend&gt;sensor_msgs&lt;/depend&gt;</code> 后 <code>colcon build</code></td></tr>
+      <tr><td>改了 <code>imu_hz</code> 参数但频率没变</td><td><code>params.yaml</code> 的键名与节点完整名字不一致</td><td>键必须是 <code>/robot1/imu_talker</code>，Day 2 §4.5 讲过</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="block" id="review">
+    <h2>课后回顾</h2>
+    <ol class="quiz">
+      <li>
+        <p><code>imu_talker</code> 用 <code>BEST_EFFORT</code> 发布，下面哪个订阅端<strong>收不到</strong>数据？</p>
+        <ol type="A">
+        <li><code>BEST_EFFORT</code></li>
+        <li><code>RELIABLE</code></li>
+        <li>两个都能收到</li>
+        <li>取决于 <code>depth</code> 的大小</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。订阅端要求不能高于发布端提供的；<code>BEST_EFFORT</code> 的发布端给不了 <code>RELIABLE</code> 的保证。见 §4.3。</p>
+        </details>
+      </li>
+      <li>
+        <p><code>msg.header.frame_id</code> 的作用是：</p>
+        <ol type="A">
+        <li>给每条消息编号，防止重复</li>
+        <li>声明这条数据是在哪个坐标系里测的</li>
+        <li>指定这条消息要发给哪个节点</li>
+        <li>记录消息的发送时间</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。<code>frame_id</code> 声明坐标系，<code>stamp</code> 才是时间。见 §2.1。</p>
+        </details>
+      </li>
+      <li>
+        <p><code>ros2 topic pub --once /foo std_msgs/msg/String '{data: hi}'</code> 一直打印 <code>Waiting for at least 1 matching subscription(s)...</code>，原因是：</p>
+        <ol type="A">
+        <li>话题名写错了</li>
+        <li>消息类型不存在</li>
+        <li>没有任何节点订阅 <code>/foo</code>，<code>--once</code> 会等到有订阅者才发</li>
+        <li>QoS 不兼容</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>C</strong>。<code>--once</code> 会等至少一个订阅者才发布，避免把消息发进虚空。见 §3.5。</p>
+        </details>
+      </li>
+      <li>
+        <p>一条 <code>Imu</code> 消息里 <code>orientation_covariance[0]</code> 被设成 <code>-1.0</code>，表示：</p>
+        <ol type="A">
+        <li>姿态数据无效，这一项没有估计值</li>
+        <li>姿态的方差是负一</li>
+        <li>消息损坏</li>
+        <li>需要重新标定</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>A</strong>。这是 <code>Imu</code> 消息定义里写明的约定：没有估计值时把对应协方差的 第 0 个元素设为 -1。见 §2。</p>
+        </details>
+      </li>
+      <li>
+        <p>停掉所有节点后 <code>ros2 bag play</code> 回放，此时 <code>ros2 topic hz</code> 能测到 50 Hz。 这说明：</p>
+        <ol type="A">
+        <li>节点其实没停干净</li>
+        <li>回放进程本身就是一个发布者，对订阅者而言与真机无异</li>
+        <li>hz 是从 bag 文件里直接读的</li>
+        <li>这是异常现象</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。回放进程是一个普通的发布者，订阅端分辨不出数据来自真机还是 bag。见 §5.3。</p>
+        </details>
+      </li>
+      <li>
+        <p>rviz2 里添加了点云 Display 却一片空白，<strong>最先</strong>应该检查：</p>
+        <ol type="A">
+        <li>显卡驱动</li>
+        <li>Fixed Frame 设的坐标系是否存在，以及 Display 的 Reliability 是否为 Best Effort</li>
+        <li>重装 rviz2</li>
+        <li>把点云话题改成 RELIABLE</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。这两条正是今天讲的坐标系与 QoS。见 §6。</p>
+        </details>
+      </li>
+    </ol>
+    <p class="callout">配套 notebook：<code>lessons/lesson3.ipynb</code>。 里面可以不启动完整节点就单独试 QoS 组合、消息字段填充与模长计算。</p>
+  </section>
+
+  <section class="block" id="further">
+    <h2>延伸阅读</h2>
+    <ul>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Understanding-ROS2-Topics/Understanding-ROS2-Topics.html">官方：理解 Topics</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Concepts/Intermediate/About-Quality-of-Service-Settings.html">官方：关于 QoS 设置</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html">官方：录制与回放数据</a></li>
+      <li><a href="https://docs.ros.org/en/humble/p/sensor_msgs/"><code>sensor_msgs</code> 消息定义索引</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Intermediate/RViz/RViz-User-Guide/RViz-User-Guide.html">rviz2 用户指南</a></li>
+    </ul>
+  </section>
+
+  <footer class="page-foot">IMU 链路跑通、bag 能回放之后 → <a href="day4.html">Day 4 · Gazebo 与 URDF</a></footer>
+</main>
+</div>
+
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/site.js"></script>

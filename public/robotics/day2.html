@@ -34,6 +34,28 @@
     </ul>
   </section>
 
+  <section class="block" id="materials">
+    <h2>本日材料下载</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>材料</th><th>说明</th><th>下载</th></tr>
+      <tr><td>考卷</td><td>考核题面、评分标准与提交要求</td><td><a href="files/day2_exam.md" download>day2_exam.md</a></td></tr>
+      <tr><td>评分脚本</td><td>累加式计分，60 分及格</td><td><a href="files/grade_day2.py" download>grade_day2.py</a></td></tr>
+      <tr><td>打包下载</td><td>上面各项 + <code>graderlib/</code> + 考试规则，解压即可运行</td><td><a href="files/day2-materials.zip" download>day2-materials.zip</a></td></tr>
+    </table>
+    </div>
+    <p class="callout danger">评分脚本依赖同目录下的 <code>graderlib/</code>。单独下载 <code>grade_day2.py</code> 直接运行会报 <code>ModuleNotFoundError: No module named 'graderlib'</code>——要真的跑脚本，请下载 zip。</p>
+<pre><code>cd ~/Downloads
+unzip day2-materials.zip -d ~/day2_materials
+
+# 终端 1：先把你自己的节点跑起来
+# 终端 2：再评分
+cd ~/day2_materials
+python3 grade_day2.py</code></pre>
+    <p>也可以直接用仓库里的原件：<code>~/Tutorials4intern/grading/grade_day2.py</code>，两者内容一致。</p>
+  </section>
+
+
   <section class="block" id="overview">
     <h2>今日全景与主线任务</h2>
     <p><strong>主线任务：把 Day 1 的数据链路改造成一条命令能启动的工程。</strong>

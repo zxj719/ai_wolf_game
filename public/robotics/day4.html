@@ -1,0 +1,571 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 4 · Gazebo 与 URDF · ROS2 入门</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<div class="layout">
+<nav class="sidebar">
+  <strong>ROS2 入门 · 第 1 周</strong>
+  <a href="index.html">总览</a>
+  <a href="day0.html">Day 0 · 课前预习</a>
+  <a href="day1.html">Day 1 · 建包与话题</a>
+  <a href="day2.html">Day 2 · 包结构与 launch</a>
+  <a href="day3.html">Day 3 · 话题深入与实机</a>
+  <a href="day4.html">Day 4 · Gazebo 与 URDF</a>
+  <a href="day5.html">Day 5 · 综合考核</a>
+</nav>
+
+<main class="page">
+  <h1>Day 4 · Gazebo 与 URDF</h1>
+    <p class="callout">预计 4 小时。前三天的数据都是自己造的。今天造一台<strong>车</strong>——用 URDF 描述它的 形状、质量、关节，放进 Gazebo 里，让它有轮子能跑、有雷达能扫、有 IMU 能测姿态。 今天没有计分考核，但有自检脚本。<strong>Day 5 的考题就是重写今天这台车</strong>， 所以今天每个数值是怎么来的，都要弄明白。</p>
+
+  <section class="block" id="goals">
+    <h2>今日目标</h2>
+    <ul class="goals">
+      <li><strong>一、</strong>说清 URDF 的 link / joint / origin 三件事，能手画出一台车的 TF 树</li>
+      <li><strong>二、</strong>会写 <code>inertial</code>：三种几何体的惯量公式，以及为什么不能乱填</li>
+      <li><strong>三、</strong>用 xacro 的属性与宏消除重复，改一个数全局生效</li>
+      <li><strong>四、</strong>理解 <code>robot_state_publisher</code> 和 <code>/tf</code> 的关系</li>
+      <li><strong>五、</strong>给模型挂上 Gazebo 插件：差速驱动、激光雷达、IMU</li>
+      <li><strong>六、</strong>说清 <code>ros_gz_bridge</code> 在做什么，能自己写桥接配置</li>
+      <li><strong>七、</strong>一条命令启动整套仿真，用键盘遥控小车跑起来</li>
+    </ul>
+  </section>
+
+  <section class="block" id="materials">
+    <h2>本日材料下载</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>材料</th><th>说明</th><th>下载</th></tr>
+      <tr><td>评分脚本</td><td>不计分，但 Day 5 用同一套检查项</td><td><a href="files/selfcheck_day4.py" download>selfcheck_day4.py</a></td></tr>
+      <tr><td>打包下载</td><td>上面各项 + <code>graderlib/</code> + 考试规则，解压即可运行</td><td><a href="files/day4-materials.zip" download>day4-materials.zip</a></td></tr>
+    </table>
+    </div>
+    <p class="callout danger">评分脚本依赖同目录下的 <code>graderlib/</code>。单独下载 <code>selfcheck_day4.py</code> 直接运行会报 <code>ModuleNotFoundError: No module named 'graderlib'</code>——要真的跑脚本，请下载 zip。</p>
+<pre><code>cd ~/Downloads
+unzip day4-materials.zip -d ~/day4_materials
+
+# 终端 1：先把你自己的节点跑起来
+# 终端 2：再评分
+cd ~/day4_materials
+python3 selfcheck_day4.py</code></pre>
+    <p>也可以直接用仓库里的原件：<code>~/Tutorials4intern/grading/selfcheck_day4.py</code>，两者内容一致。</p>
+  </section>
+
+  <section class="block" id="overview">
+    <h2>今日全景与主线任务</h2>
+<pre class="mermaid">
+flowchart TD
+    S(["Day 3 的 my_robot：节点、话题、参数、launch"]) --&gt; A["第一节　URDF 骨架"]
+    A --&gt; A1["成果：base_link + 两轮 + 万向轮，check_urdf 通过"]
+    A1 --&gt; B["第二节　质量与惯量"]
+    B --&gt; B1["成果：每个 link 都有正确的 inertial"]
+    B1 --&gt; C["第三节　xacro 消除重复"]
+    C --&gt; C1["成果：改一个属性，左右轮同时变"]
+    C1 --&gt; D["第四节　robot_state_publisher"]
+    D --&gt; D1["成果：rviz 里看到完整 TF 树"]
+    D1 --&gt; E["第五节　Gazebo 插件"]
+    E --&gt; E1["成果：/scan /imu /odom 三个话题有数据"]
+    E1 --&gt; F["第六节　ros_gz_bridge"]
+    F --&gt; F1["成果：仿真话题出现在 ROS2 里"]
+    F1 --&gt; G["第七节　遥控"]
+    G --&gt; H(["键盘能开车，进入 Day 5"])
+</pre>
+    <p class="milestone">今天结束时，<code>my_robot</code> 里会多出 <code>urdf/my_robot.urdf.xacro</code>、 <code>worlds/robot_world.sdf</code>、<code>config/bridge.yaml</code> 和 <code>launch/gazebo.launch.py</code>。 一条 <code>ros2 launch my_robot gazebo.launch.py</code> 就能把车放进世界并开起来。</p>
+  </section>
+
+  <section class="block" id="sec-1">
+    <h2>一、URDF：机器人的形状与关节</h2>
+    <h3>1.1 先看一眼要做出什么</h3>
+    <p>一台差速小车，最少五个部件：车身、左右驱动轮、一个万向轮（防止前倾）、 一个雷达。IMU 没有形状，但也要占一个位置。</p>
+<pre class="mermaid">
+flowchart TD
+    B["base_link&lt;br/&gt;车身 0.30 x 0.20 x 0.08"] --&gt;|"left_wheel_joint&lt;br/&gt;continuous 绕 y 轴"| L["left_wheel"]
+    B --&gt;|"right_wheel_joint&lt;br/&gt;continuous 绕 y 轴"| R["right_wheel"]
+    B --&gt;|"caster_joint&lt;br/&gt;fixed"| C["caster_wheel"]
+    B --&gt;|"lidar_joint&lt;br/&gt;fixed"| D["lidar_link"]
+    B --&gt;|"imu_joint&lt;br/&gt;fixed"| I["imu_link"]
+</pre>
+    <p>这张图就是 <strong>TF 树</strong>。Day 3 说过每条传感器数据都要带 <code>frame_id</code>—— 现在这些 <code>frame_id</code> 有了归属：<code>lidar_link</code> 就是雷达装的那个位置。</p>
+    <h3>1.2 三个概念</h3>
+    <p><strong>link（连杆）</strong> 是一个刚体。三个可选子标签：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>子标签</th><th>作用</th><th>不写会怎样</th></tr>
+      <tr><td><code>&lt;visual&gt;</code></td><td>看起来什么样，rviz 和 Gazebo 用它显示</td><td>看不见，但物理照常</td></tr>
+      <tr><td><code>&lt;collision&gt;</code></td><td>碰撞用什么形状，物理引擎用它算接触</td><td>穿模，车会沉进地面</td></tr>
+      <tr><td><code>&lt;inertial&gt;</code></td><td>质量与转动惯量</td><td>Gazebo 里模型行为异常，见第二节</td></tr>
+    </table>
+    </div>
+    <p><code>visual</code> 和 <code>collision</code> 常常写成一样的形状。真实项目里 <code>visual</code> 用精细网格、 <code>collision</code> 用简化的盒子或圆柱，因为碰撞检测比渲染贵得多。</p>
+    <p><strong>joint（关节）</strong> 连接两个 link，说明它们的相对位置和能不能动：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>类型</th><th>含义</th><th>本车用在哪</th></tr>
+      <tr><td><code>fixed</code></td><td>焊死，不能动</td><td>雷达、IMU、万向轮</td></tr>
+      <tr><td><code>continuous</code></td><td>绕轴无限旋转</td><td>两个驱动轮</td></tr>
+      <tr><td><code>revolute</code></td><td>绕轴转，但有角度上下限</td><td>本车没用到，机械臂常用</td></tr>
+      <tr><td><code>prismatic</code></td><td>沿轴平移</td><td>升降结构</td></tr>
+    </table>
+    </div>
+    <p><strong>origin</strong> 说明子 link 相对父 link 的位置和姿态：</p>
+<pre><code>&lt;origin xyz="0 0.1125 -0.04" rpy="0 0 0"/&gt;</code></pre>
+    <p><code>xyz</code> 是平移（米），<code>rpy</code> 是绕 x/y/z 轴的旋转（<strong>弧度</strong>，不是度）。 坐标系遵循 ROS 标准：<strong>x 向前，y 向左，z 向上</strong>。</p>
+    <p class="callout danger"><code>rpy</code> 用弧度。想转 90 度要写 <code>1.5708</code> 或在 xacro 里写 <code>${pi/2}</code>， 写成 <code>90</code> 会转出去十几圈。</p>
+    <h3>1.3 一个 link 长什么样</h3>
+<pre><code>&lt;link name="base_link"&gt;
+  &lt;visual&gt;
+    &lt;geometry&gt;&lt;box size="0.30 0.20 0.08"/&gt;&lt;/geometry&gt;
+    &lt;material name="body_blue"&gt;&lt;color rgba="0.2 0.4 0.8 1"/&gt;&lt;/material&gt;
+  &lt;/visual&gt;
+  &lt;collision&gt;
+    &lt;geometry&gt;&lt;box size="0.30 0.20 0.08"/&gt;&lt;/geometry&gt;
+  &lt;/collision&gt;
+  &lt;inertial&gt;
+    &lt;mass value="3.0"/&gt;
+    &lt;inertia ixx="0.0116" ixy="0" ixz="0" iyy="0.0241" iyz="0" izz="0.0325"/&gt;
+  &lt;/inertial&gt;
+&lt;/link&gt;</code></pre>
+    <p>那三个惯量数是算出来的，不是拍的——下一节讲。</p>
+  </section>
+
+  <section class="block" id="sec-2">
+    <h2>二、<code>inertial</code>：质量与转动惯量</h2>
+    <h3>2.1 为什么必须填对</h3>
+    <p><code>&lt;mass&gt;</code> 好理解。<code>&lt;inertia&gt;</code> 是<strong>转动惯量矩阵</strong>，描述这个刚体绕各轴转动时有多"难转"。 它决定了车的加速、转向、遇到碰撞时的反应。</p>
+    <p>填错的后果不是报错，而是<strong>物理行为诡异</strong>：惯量填得过小，车会像纸片一样被轻微接触弹飞； 填得过大，电机推不动。<strong>这类问题在仿真里最难查，因为一切看起来都"正常运行"。</strong></p>
+    <h3>2.2 三个公式</h3>
+    <p>矩阵是对称的，非对角项（<code>ixy</code>/<code>ixz</code>/<code>iyz</code>）在几何体规则且坐标轴与主轴对齐时都是 0。 本课程只用这三种：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>几何体</th><th><code>ixx</code></th><th><code>iyy</code></th><th><code>izz</code></th></tr>
+      <tr><td><strong>长方体</strong> 边长 x, y, z</td><td><code>m(y²+z²)/12</code></td><td><code>m(x²+z²)/12</code></td><td><code>m(x²+y²)/12</code></td></tr>
+      <tr><td><strong>圆柱</strong> 半径 r, 长 l（绕 z 轴）</td><td><code>m(3r²+l²)/12</code></td><td><code>m(3r²+l²)/12</code></td><td><code>mr²/2</code></td></tr>
+      <tr><td><strong>实心球</strong> 半径 r</td><td><code>2mr²/5</code></td><td><code>2mr²/5</code></td><td><code>2mr²/5</code></td></tr>
+    </table>
+    </div>
+    <p>拿车身验算一遍：长方体 0.30 × 0.20 × 0.08，质量 3.0 kg。</p>
+<pre><code>ixx = 3.0 × (0.20² + 0.08²) / 12 = 3.0 × (0.04 + 0.0064) / 12 = 0.0116
+iyy = 3.0 × (0.30² + 0.08²) / 12 = 3.0 × (0.09 + 0.0064) / 12 = 0.0241
+izz = 3.0 × (0.30² + 0.20²) / 12 = 3.0 × (0.09 + 0.04)   / 12 = 0.0325</code></pre>
+    <p class="callout"><strong>圆柱的 <code>izz</code> 和另外两个不一样。</strong> <code>izz</code> 是绕自身轴（那根中心线）转， 只跟半径有关；<code>ixx</code>/<code>iyy</code> 是绕横着的轴翻滚，跟长度也有关。 Day 5 的考题里，轮子的惯量最容易在这里写错。</p>
+    <h3>2.3 让 xacro 替你算</h3>
+    <p>手算三个 link 六种数值容易错。xacro 支持表达式，把公式写进宏里，一次写对处处正确：</p>
+<pre><code>&lt;xacro:macro name="box_inertia" params="m x y z"&gt;
+  &lt;inertial&gt;
+    &lt;mass value="${m}"/&gt;
+    &lt;inertia ixx="${m*(y*y+z*z)/12}" ixy="0" ixz="0"
+             iyy="${m*(x*x+z*z)/12}" iyz="0"
+             izz="${m*(x*x+y*y)/12}"/&gt;
+  &lt;/inertial&gt;
+&lt;/xacro:macro&gt;</code></pre>
+    <p>用的时候一行：</p>
+<pre><code>&lt;xacro:box_inertia m="${base_m}" x="${base_x}" y="${base_y}" z="${base_z}"/&gt;</code></pre>
+    <p>圆柱和球同理。<strong>Day 5 允许你用宏，但要能说出公式的来历</strong>—— 考卷给公式不给数值，就是要你自己代入。</p>
+  </section>
+
+  <section class="block" id="sec-3">
+    <h2>三、xacro：把重复消掉</h2>
+    <p>纯 URDF 写两个轮子，除了名字和 y 坐标的正负号，其余完全一样。xacro 解决这个。</p>
+    <h3>3.1 属性：给数值起名字</h3>
+<pre><code>&lt;xacro:property name="wheel_r"  value="0.05"/&gt;
+&lt;xacro:property name="wheel_l"  value="0.025"/&gt;
+&lt;xacro:property name="base_y"   value="0.20"/&gt;
+&lt;xacro:property name="wheel_sep" value="${base_y + wheel_l}"/&gt;</code></pre>
+    <p>用 <code>${wheel_r}</code> 引用。属性之间可以互相计算——<code>wheel_sep</code>（轮距）由车身宽度和 轮子厚度算出，改车身宽度时轮距自动跟着变，<strong>不会出现改了一处忘了另一处的错误</strong>。</p>
+    <h3>3.2 宏：把一段结构参数化</h3>
+<pre><code>&lt;xacro:macro name="wheel" params="prefix reflect"&gt;
+  &lt;link name="${prefix}_wheel"&gt;
+    &lt;visual&gt;
+      &lt;origin rpy="${pi/2} 0 0"/&gt;
+      &lt;geometry&gt;&lt;cylinder radius="${wheel_r}" length="${wheel_l}"/&gt;&lt;/geometry&gt;
+    &lt;/visual&gt;
+    ...
+  &lt;/link&gt;
+  &lt;joint name="${prefix}_wheel_joint" type="continuous"&gt;
+    &lt;parent link="base_link"/&gt;
+    &lt;child link="${prefix}_wheel"/&gt;
+    &lt;origin xyz="0 ${reflect * wheel_sep / 2} ${-base_z/2}"/&gt;
+    &lt;axis xyz="0 1 0"/&gt;
+  &lt;/joint&gt;
+&lt;/xacro:macro&gt;
+
+&lt;xacro:wheel prefix="left"  reflect="1"/&gt;
+&lt;xacro:wheel prefix="right" reflect="-1"/&gt;</code></pre>
+    <p><code>reflect</code> 传 <code>1</code> 和 <code>-1</code>，左右轮就分别落在 y 轴正负两侧。</p>
+    <p class="callout">圆柱默认沿 <strong>z 轴</strong>。轮子要绕 y 轴转，所以 <code>visual</code> 和 <code>collision</code> 里 都要加 <code>&lt;origin rpy="${pi/2} 0 0"/&gt;</code> 把它放倒。 忘了这步，车轮会是平躺的圆盘。</p>
+    <h3>3.3 展开看看</h3>
+    <p>xacro 不是运行时解释的，它先展开成纯 URDF：</p>
+<pre><code>cd ~/ros2_lab
+xacro src/my_robot/urdf/my_robot.urdf.xacro &gt; /tmp/my_robot.urdf
+wc -l /tmp/my_robot.urdf</code></pre>
+    <div class="expected">
+<pre><code>217 /tmp/my_robot.urdf</code></pre>
+    </div>
+    <p>打开 <code>/tmp/my_robot.urdf</code> 看一眼，属性和宏都没了，只剩展开后的 link 与 joint。 <strong>调试 xacro 的第一步永远是先展开看结果</strong>，比盯着源文件猜快得多。</p>
+    <p>验证结构是否合法：</p>
+<pre><code>check_urdf /tmp/my_robot.urdf</code></pre>
+    <div class="expected">
+<pre><code>robot name is: my_robot
+---------- Successfully Parsed XML ---------------
+root Link: base_link has 5 child(ren)
+    child(1):  caster_wheel
+    child(2):  imu_link
+    child(3):  left_wheel
+    child(4):  lidar_link
+    child(5):  right_wheel</code></pre>
+    </div>
+    <p>这就是第 1.1 节那张 TF 树，由工具确认过一遍。<strong><code>root Link</code> 必须是 <code>base_link</code> 且只有一个</strong>——出现多个根说明有 link 没被 joint 连上。</p>
+  </section>
+
+  <section class="block" id="sec-4">
+    <h2>四、<code>robot_state_publisher</code>：把 URDF 变成 TF</h2>
+    <p>URDF 描述的是"各部件如何连接"。<strong><code>robot_state_publisher</code> 负责把它翻译成实时的 TF</strong>：</p>
+<pre class="mermaid">
+flowchart LR
+    A["URDF&lt;br/&gt;结构描述"] --&gt; C["robot_state_publisher"]
+    B["/joint_states&lt;br/&gt;各关节当前角度"] --&gt; C
+    C --&gt; D["/tf&lt;br/&gt;会变的变换&lt;br/&gt;比如轮子转了多少"]
+    C --&gt; E["/tf_static&lt;br/&gt;不变的变换&lt;br/&gt;雷达装在哪"]
+    C --&gt; F["/robot_description&lt;br/&gt;把 URDF 原文发出来"]
+</pre>
+    <p><code>fixed</code> 关节进 <code>/tf_static</code>（只发一次，因为永远不变），可动关节进 <code>/tf</code>（持续更新）。</p>
+    <p>启动它：</p>
+<pre><code>ros2 run robot_state_publisher robot_state_publisher \
+  --ros-args -p robot_description:="$(xacro src/my_robot/urdf/my_robot.urdf.xacro)"</code></pre>
+    <div class="expected">
+      <p><em>（节选）</em></p>
+<pre><code>[INFO] [robot_state_publisher]: got segment base_link
+[INFO] [robot_state_publisher]: got segment caster_wheel
+[INFO] [robot_state_publisher]: got segment imu_link
+[INFO] [robot_state_publisher]: got segment left_wheel
+[INFO] [robot_state_publisher]: got segment lidar_link
+[INFO] [robot_state_publisher]: got segment right_wheel</code></pre>
+    </div>
+    <p>六个 link 都认出来了。</p>
+    <p class="callout danger">你还会看到一条警告： <code>The root link base_link has an inertia specified in the URDF, but KDL does not support a root link with an inertia.</code> <strong>这条可以忽略。</strong> 它说的是 <code>robot_state_publisher</code> 内部用的 KDL 库不处理根节点的惯量—— 而惯量本来就是给物理引擎用的，Gazebo 会正常读取。</p>
+  </section>
+
+  <section class="block" id="sec-5">
+    <h2>五、Gazebo 插件：让模型活起来</h2>
+    <p>URDF 只描述了形状。要让轮子能被驱动、雷达能扫描，得挂<strong>插件</strong>。</p>
+    <p><code>&lt;gazebo&gt;</code> 标签里的内容 URDF 本身不认识，是专门给 Gazebo 读的。</p>
+    <h3>5.1 差速驱动</h3>
+<pre><code>&lt;gazebo&gt;
+  &lt;plugin filename="ignition-gazebo-diff-drive-system"
+          name="ignition::gazebo::systems::DiffDrive"&gt;
+    &lt;left_joint&gt;left_wheel_joint&lt;/left_joint&gt;
+    &lt;right_joint&gt;right_wheel_joint&lt;/right_joint&gt;
+    &lt;wheel_separation&gt;0.225&lt;/wheel_separation&gt;
+    &lt;wheel_radius&gt;0.05&lt;/wheel_radius&gt;
+    &lt;odom_publish_frequency&gt;50&lt;/odom_publish_frequency&gt;
+    &lt;topic&gt;cmd_vel&lt;/topic&gt;
+    &lt;odom_topic&gt;odom&lt;/odom_topic&gt;
+    &lt;frame_id&gt;odom&lt;/frame_id&gt;
+    &lt;child_frame_id&gt;base_link&lt;/child_frame_id&gt;
+  &lt;/plugin&gt;
+&lt;/gazebo&gt;</code></pre>
+    <p>它订阅 <code>cmd_vel</code>（线速度 + 角速度），换算成两个轮子各自该转多快， 同时反过来根据轮子实际转了多少推算出车走到哪，发布 <code>odom</code>。</p>
+    <p class="callout danger"><code>wheel_separation</code> 和 <code>wheel_radius</code> <strong>必须和 URDF 里的实际几何一致</strong>。 不一致不会报错，但车会走偏、转向角度不对——这是仿真里最难查的一类问题。 在 xacro 里用 <code>${wheel_sep}</code> 和 <code>${wheel_r}</code> 引用同一个属性，从根上避免。</p>
+    <h3>5.2 激光雷达与 IMU</h3>
+    <p>传感器挂在具体的 link 上，所以 <code>&lt;gazebo&gt;</code> 要带 <code>reference</code>：</p>
+<pre><code>&lt;gazebo reference="lidar_link"&gt;
+  &lt;sensor name="lidar" type="gpu_lidar"&gt;
+    &lt;topic&gt;scan&lt;/topic&gt;
+    &lt;update_rate&gt;10&lt;/update_rate&gt;
+    &lt;always_on&gt;true&lt;/always_on&gt;
+    &lt;lidar&gt;
+      &lt;scan&gt;&lt;horizontal&gt;
+        &lt;samples&gt;360&lt;/samples&gt;
+        &lt;min_angle&gt;-3.14159&lt;/min_angle&gt;
+        &lt;max_angle&gt;3.14159&lt;/max_angle&gt;
+      &lt;/horizontal&gt;&lt;/scan&gt;
+      &lt;range&gt;&lt;min&gt;0.12&lt;/min&gt;&lt;max&gt;10.0&lt;/max&gt;&lt;/range&gt;
+    &lt;/lidar&gt;
+    &lt;gz_frame_id&gt;lidar_link&lt;/gz_frame_id&gt;
+  &lt;/sensor&gt;
+&lt;/gazebo&gt;
+
+&lt;gazebo reference="imu_link"&gt;
+  &lt;sensor name="imu" type="imu"&gt;
+    &lt;topic&gt;imu&lt;/topic&gt;
+    &lt;update_rate&gt;100&lt;/update_rate&gt;
+    &lt;always_on&gt;true&lt;/always_on&gt;
+    &lt;gz_frame_id&gt;imu_link&lt;/gz_frame_id&gt;
+  &lt;/sensor&gt;
+&lt;/gazebo&gt;</code></pre>
+    <p><code>&lt;gz_frame_id&gt;</code> 决定消息里的 <code>header.frame_id</code>——就是 Day 3 讲的那个字段。</p>
+    <h3>5.3 世界文件里也要挂插件</h3>
+    <p>传感器能不能出数据，还取决于<strong>世界</strong>加载了哪些系统插件：</p>
+<pre><code>&lt;plugin filename="ignition-gazebo-sensors-system"
+        name="ignition::gazebo::systems::Sensors"&gt;
+  &lt;render_engine&gt;ogre2&lt;/render_engine&gt;
+&lt;/plugin&gt;
+&lt;plugin filename="ignition-gazebo-imu-system"
+        name="ignition::gazebo::systems::Imu"/&gt;</code></pre>
+    <p class="callout danger"><strong>缺 <code>Sensors</code> 插件，雷达一条数据都不会有，而且不报错。</strong> 缺 <code>Imu</code> 插件同理。查"传感器没数据"时，先看世界文件里这两个插件在不在。</p>
+    <p><code>gpu_lidar</code> 顾名思义要用 GPU 渲染。<strong>没有图形环境时它出不了数据</strong>， 日志里会看到 <code>libEGL warning: failed to create dri2 screen</code> 之类的行。 在带显示器的机器上跑，或者配置离屏渲染。</p>
+  </section>
+
+  <section class="block" id="sec-6">
+    <h2>六、<code>ros_gz_bridge</code>：仿真与 ROS2 之间的翻译</h2>
+    <p>Gazebo 内部有自己的一套消息格式和传输机制，和 ROS2 不是一回事。 两边要通信，需要一个翻译。</p>
+<pre class="mermaid">
+flowchart LR
+    subgraph GZ["Gazebo 内部"]
+        S1["/scan&lt;br/&gt;ignition.msgs.LaserScan"]
+        S2["/imu&lt;br/&gt;ignition.msgs.IMU"]
+        S3["/odom&lt;br/&gt;ignition.msgs.Odometry"]
+        S4["/cmd_vel&lt;br/&gt;ignition.msgs.Twist"]
+    end
+    B["ros_gz_bridge&lt;br/&gt;parameter_bridge"]
+    subgraph ROS["ROS2"]
+        R1["/scan&lt;br/&gt;sensor_msgs/msg/LaserScan"]
+        R2["/imu&lt;br/&gt;sensor_msgs/msg/Imu"]
+        R3["/odom&lt;br/&gt;nav_msgs/msg/Odometry"]
+        R4["/cmd_vel&lt;br/&gt;geometry_msgs/msg/Twist"]
+    end
+    S1 --&gt; B --&gt; R1
+    S2 --&gt; B --&gt; R2
+    S3 --&gt; B --&gt; R3
+    R4 --&gt; B --&gt; S4
+</pre>
+    <p>注意 <code>cmd_vel</code> 的箭头是<strong>反的</strong>：指令从 ROS2 流向 Gazebo，传感器数据从 Gazebo 流向 ROS2。</p>
+    <p>配置写在 <code>config/bridge.yaml</code>：</p>
+<pre><code>- ros_topic_name: "cmd_vel"
+  gz_topic_name: "cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "ignition.msgs.Twist"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "scan"
+  gz_topic_name: "scan"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_type_name: "ignition.msgs.LaserScan"
+  direction: GZ_TO_ROS</code></pre>
+    <p><code>direction</code> 三种取值：<code>ROS_TO_GZ</code>、<code>GZ_TO_ROS</code>、<code>BIDIRECTIONAL</code>。 <strong>写反了不会报错，只是数据不流动。</strong></p>
+    <p>启动：</p>
+<pre><code>ros2 run ros_gz_bridge parameter_bridge --ros-args \
+  -p config_file:=src/my_robot/config/bridge.yaml</code></pre>
+    <div class="expected">
+<pre><code>[INFO] [ros_gz_bridge]: Creating ROS-&gt;GZ Bridge: [cmd_vel (geometry_msgs/msg/Twist) -&gt; cmd_vel (ignition.msgs.Twist)] (Lazy 0)
+[INFO] [ros_gz_bridge]: Creating GZ-&gt;ROS Bridge: [odom (ignition.msgs.Odometry) -&gt; odom (nav_msgs/msg/Odometry)] (Lazy 0)
+[INFO] [ros_gz_bridge]: Creating GZ-&gt;ROS Bridge: [scan (ignition.msgs.LaserScan) -&gt; scan (sensor_msgs/msg/LaserScan)] (Lazy 0)
+[INFO] [ros_gz_bridge]: Creating GZ-&gt;ROS Bridge: [imu (ignition.msgs.IMU) -&gt; imu (sensor_msgs/msg/Imu)] (Lazy 0)</code></pre>
+    </div>
+    <p><strong>每一条桥都要在这里出现。</strong> 少一条就是 YAML 写错了，回去核对类型名拼写。</p>
+  </section>
+
+  <section class="block" id="sec-7">
+    <h2>七、跑起来</h2>
+    <h3>7.1 一条命令</h3>
+    <p>四样东西要按顺序起：Gazebo → robot_state_publisher → spawn 模型 → bridge。 写进一个 launch 文件：</p>
+<pre><code>cd ~/ros2_lab
+colcon build --packages-select my_robot
+source install/setup.bash
+ros2 launch my_robot gazebo.launch.py</code></pre>
+    <p>没有显示器时加 <code>gui:=false</code>，只跑物理不开界面。</p>
+    <h3>7.2 确认都通了</h3>
+<pre><code>ros2 topic list</code></pre>
+    <div class="expected">
+<pre><code>/clock
+/cmd_vel
+/imu
+/joint_states
+/odom
+/robot_description
+/scan
+/tf
+/tf_static</code></pre>
+    </div>
+    <p><code>/clock</code> 是 Gazebo 发的仿真时间。逐个确认有数据：</p>
+<pre><code>ros2 topic echo /scan --once</code></pre>
+    <div class="expected">
+      <p><em>（节选）</em></p>
+<pre><code>  frame_id: lidar_link
+angle_min: -3.141590118408203
+angle_max: 3.141590118408203
+range_min: 0.11999999731779099
+range_max: 10.0</code></pre>
+    </div>
+    <p class="callout"><strong>确认话题有没有数据，用 <code>ros2 topic echo --once</code> 比 <code>ros2 topic hz</code> 可靠。</strong> 实测同一套系统里 <code>hz</code> 会对 <code>/imu</code>、<code>/odom</code> 报 <code>does not appear to be published yet</code>，而 <code>echo --once</code> 立刻就能拿到数据。 <code>hz</code> 需要在它的统计窗口内持续收到消息才给结果。</p>
+    <p>雷达是不是真扫到东西了？世界里在 <code>(0, -2)</code> 放了一个 0.4 米宽的箱子， 车在原点朝 +x，那个箱子应该出现在正右方（−90°）约 1.8 米处：</p>
+    <div class="expected">
+<pre><code>样本数 360  有限值 39 个
+最近 1.800 m  最远 2.125 m
+首个命中: 索引84 角度-95.8° 距离1.809m</code></pre>
+    </div>
+    <p>360 个方向里只有 39 个测到东西，其余是 <code>inf</code>（该方向 10 米内没有障碍）。 最近 1.800 m——箱子中心 2 米，减去半个箱子 0.2 米，<strong>对得上</strong>。</p>
+    <h3>7.3 遥控</h3>
+<pre><code>sudo apt install ros-humble-teleop-twist-keyboard   # 只需装一次
+ros2 run teleop_twist_keyboard teleop_twist_keyboard</code></pre>
+    <p>按 <code>i</code> 前进、<code>,</code> 后退、<code>j</code>/<code>l</code> 转向、<code>k</code> 停。<strong>这个终端必须保持在前台</strong>， 它靠捕获键盘输入工作。</p>
+    <p>不想用键盘，直接发指令也行：</p>
+<pre><code>ros2 topic pub -r 10 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.3}}'</code></pre>
+    <p>另开终端看里程计的变化：</p>
+<pre><code>ros2 topic echo /odom --once</code></pre>
+    <div class="expected">
+      <p><em>（发指令之前）</em></p>
+<pre><code>    position:
+      x: 4.7897525689938354e-14
+      y: -4.714521060521884e-34
+      z: 0.0</code></pre>
+    </div>
+    <div class="expected">
+      <p><em>（以 0.3 m/s 前进 5 秒之后）</em></p>
+<pre><code>    position:
+      x: 1.48988353445536
+      y: -7.928327190682717e-20
+      z: 0.0</code></pre>
+    </div>
+    <p>0.3 × 5 = 1.5 米，实测 1.49 米。差的那一厘米来自启动和停止时的加速过程。 <strong>这个数对得上，说明 URDF 的轮子半径、轮距与插件配置三者是一致的</strong>—— 对不上就回去查 5.1 节那个警告。</p>
+    <h3>7.4 在 rviz2 里看</h3>
+<pre><code>rviz2</code></pre>
+    <p>三个 Display 值得加：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>Display</th><th>Topic</th><th>注意</th></tr>
+      <tr><td><code>RobotModel</code></td><td><code>/robot_description</code></td><td>看到车的模型</td></tr>
+      <tr><td><code>TF</code></td><td>—</td><td>看到各 link 的坐标轴</td></tr>
+      <tr><td><code>LaserScan</code></td><td><code>/scan</code></td><td><strong>Reliability 要设成 Best Effort</strong></td></tr>
+    </table>
+    </div>
+    <p>Fixed Frame 设成 <code>odom</code>。</p>
+    <p class="callout">这三条都是 Day 3 §6 预告过的：坐标系、QoS、时间戳。 看不到东西时按那个顺序查。</p>
+    <p class="milestone"><code>ros2 launch my_robot gazebo.launch.py</code> 之后，<code>/scan</code>、<code>/imu</code>、<code>/odom</code> 三个话题都有数据，键盘能把车开动，<code>/odom</code> 的数值跟着变。</p>
+  </section>
+
+  <section class="block" id="selfcheck">
+    <h2>自检</h2>
+    <p>今天不计分，但有脚本帮你确认没走偏：</p>
+<pre><code># 终端 1
+ros2 launch my_robot gazebo.launch.py gui:=false
+# 终端 2
+python3 ~/Tutorials4intern/grading/selfcheck_day4.py</code></pre>
+    <p>它检查 URDF 结构、TF 树完整性、三个话题是否有数据。 <strong>Day 5 的考题会用同一套检查项计分</strong>，今天全绿等于给 Day 5 铺好了路。</p>
+  </section>
+
+  <section class="block" id="errors">
+    <h2>常见报错对照表</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>你看到的</th><th>真正的原因</th><th>怎么解决</th></tr>
+      <tr><td><code>check_urdf</code> 报多个 root link</td><td>有 link 没被任何 joint 连上</td><td>每个 link 都要有一个 joint 把它连到父 link</td></tr>
+      <tr><td>模型在 Gazebo 里沉进地面</td><td>缺 <code>&lt;collision&gt;</code>，或惯量填成 0</td><td>补上碰撞体与合理的 <code>inertial</code></td></tr>
+      <tr><td>模型被轻轻一碰就飞出去</td><td>惯量或质量太小</td><td>按第二节公式重算</td></tr>
+      <tr><td>车轮是平躺的圆盘</td><td>圆柱默认沿 z 轴，忘了 <code>rpy="${pi/2} 0 0"</code></td><td>给 wheel 的 visual 与 collision 都加上</td></tr>
+      <tr><td><code>/scan</code> 没有数据</td><td>世界文件缺 <code>Sensors</code> 插件；或没有图形环境</td><td>加插件；<code>gpu_lidar</code> 需要 GPU 渲染</td></tr>
+      <tr><td><code>/imu</code> 没有数据</td><td>世界文件缺 <code>Imu</code> 插件</td><td>在世界里加 <code>ignition-gazebo-imu-system</code></td></tr>
+      <tr><td>桥接日志里少一条 <code>Creating ... Bridge</code></td><td><code>bridge.yaml</code> 里那条类型名拼错</td><td>核对 <code>ignition.msgs.*</code> 的拼写</td></tr>
+      <tr><td>话题有了但数据不流动</td><td><code>direction</code> 写反了</td><td>传感器是 <code>GZ_TO_ROS</code>，指令是 <code>ROS_TO_GZ</code></td></tr>
+      <tr><td>车走的距离和指令对不上</td><td>插件里的 <code>wheel_radius</code> / <code>wheel_separation</code> 与 URDF 几何不一致</td><td>在 xacro 里用同一个属性引用</td></tr>
+      <tr><td><code>ros2 topic hz</code> 说没发布，但明明在跑</td><td><code>hz</code> 需要窗口内持续收到消息</td><td>改用 <code>ros2 topic echo --once</code> 确认</td></tr>
+      <tr><td><code>KDL does not support a root link with an inertia</code></td><td><code>robot_state_publisher</code> 的正常提示</td><td>可以忽略，不影响物理</td></tr>
+      <tr><td><code>libEGL warning: failed to create dri2 screen</code></td><td>没有可用的图形/GPU 环境</td><td>在带显示器的机器上跑</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="block" id="review">
+    <h2>课后回顾</h2>
+    <ol class="quiz">
+      <li>
+        <p>圆柱形轮子的 <code>izz</code> 与 <code>ixx</code> 不同，原因是：</p>
+        <ol type="A">
+        <li>计算公式抄错了</li>
+        <li><code>izz</code> 是绕自身轴转，只跟半径有关；<code>ixx</code> 是横着翻滚，跟长度也有关</li>
+        <li>轮子不是标准圆柱</li>
+        <li><code>izz</code> 必须比 <code>ixx</code> 大</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。见 §2.2 的注记。这也是 Day 5 最容易写错的一处。</p>
+        </details>
+      </li>
+      <li>
+        <p><code>check_urdf</code> 报告出现两个 root link，最可能的原因是：</p>
+        <ol type="A">
+        <li>有两个 <code>base_link</code></li>
+        <li>某个 link 没有被任何 joint 连接到树上</li>
+        <li>质量填成了 0</li>
+        <li>xacro 展开失败</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。TF 树必须是单根，孤立的 link 会形成第二个根。见 §3.3。</p>
+        </details>
+      </li>
+      <li>
+        <p>车在仿真里被轻轻碰一下就飞出去，最先该查：</p>
+        <ol type="A">
+        <li>显卡驱动</li>
+        <li><code>&lt;inertial&gt;</code> 里的质量与惯量是否过小</li>
+        <li>世界文件的光照</li>
+        <li>bridge 的 direction</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。惯量过小时任何接触力都会产生巨大角加速度。见 §2.1。</p>
+        </details>
+      </li>
+      <li>
+        <p><code>/scan</code> 在 Gazebo 侧有数据，ROS2 侧没有，最先查：</p>
+        <ol type="A">
+        <li>雷达的 <code>update_rate</code></li>
+        <li><code>bridge.yaml</code> 里这条的类型名与 <code>direction</code></li>
+        <li>URDF 的 <code>lidar_joint</code></li>
+        <li>车的位置</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。Gazebo 侧有数据说明传感器正常，问题在翻译这一层。见 §6。</p>
+        </details>
+      </li>
+      <li>
+        <p>世界文件里漏掉 <code>Sensors</code> 插件的表现是：</p>
+        <ol type="A">
+        <li>Gazebo 启动失败并报错</li>
+        <li>雷达完全没有数据，但不报任何错</li>
+        <li>模型不显示</li>
+        <li>车无法移动</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。缺插件不报错，只是静默无数据——所以要养成先查插件的习惯。见 §5.3。</p>
+        </details>
+      </li>
+      <li>
+        <p>发 <code>/cmd_vel</code> 让车以 0.3 m/s 走 5 秒，<code>/odom</code> 却显示走了 3 米。最可能的原因：</p>
+        <ol type="A">
+        <li>仿真时间不准</li>
+        <li>插件里的 <code>wheel_radius</code> 比 URDF 里实际轮子大一倍</li>
+        <li>IMU 没标定</li>
+        <li><code>odom_publish_frequency</code> 设太低</li>
+        </ol>
+        <details class="aside">
+          <summary>答案与解析</summary>
+          <p><strong>B</strong>。里程计是按轮子转数 × 半径推算的，半径参数错一倍，推算距离就错一倍。见 §5.1。</p>
+        </details>
+      </li>
+    </ol>
+    <p class="callout">配套 notebook：<code>lessons/lesson4.ipynb</code>。 里面可以不启动 Gazebo 就单独算惯量、检查 URDF 结构、验证 TF 树。</p>
+  </section>
+
+  <section class="block" id="further">
+    <h2>延伸阅读</h2>
+    <ul>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Intermediate/URDF/URDF-Main.html">官方：URDF 教程</a></li>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Intermediate/URDF/Using-Xacro-to-Clean-Up-a-URDF-File.html">官方：使用 xacro 精简 URDF</a></li>
+      <li><a href="https://gazebosim.org/docs/fortress/getstarted">Gazebo Fortress 官方文档</a></li>
+      <li><a href="https://github.com/gazebosim/ros_gz/tree/humble/ros_gz_bridge"><code>ros_gz</code> 仓库与桥接类型对照表</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/List_of_moments_of_inertia">转动惯量列表（维基百科）</a></li>
+    </ul>
+  </section>
+
+  <footer class="page-foot">小车能被遥控跑起来之后 → <a href="day5.html">Day 5 · 综合考核</a></footer>
+</main>
+</div>
+
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/site.js"></script>

@@ -1,0 +1,224 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 5 · 综合考核 · ROS2 入门</title>
+<link rel="stylesheet" href="assets/style.css">
+
+<div class="layout">
+<nav class="sidebar">
+  <strong>ROS2 入门 · 第 1 周</strong>
+  <a href="index.html">总览</a>
+  <a href="day0.html">Day 0 · 课前预习</a>
+  <a href="day1.html">Day 1 · 建包与话题</a>
+  <a href="day2.html">Day 2 · 包结构与 launch</a>
+  <a href="day3.html">Day 3 · 话题深入与实机</a>
+  <a href="day4.html">Day 4 · Gazebo 与 URDF</a>
+  <a href="day5.html">Day 5 · 综合考核</a>
+</nav>
+
+<main class="page">
+  <h1>Day 5 · 综合考核</h1>
+    <p class="callout">今天没有新知识点。Day 4 的每一样东西——URDF、惯量、xacro、TF 树、Gazebo 插件、 bridge——今天要独立用一遍，按给定规格重写一台车。 完整题面见 <code>exams/day5_exam.md</code>，本页讲怎么准备、怎么自查。</p>
+
+  <section class="block" id="goals">
+    <h2>今日目标</h2>
+    <ul class="goals">
+      <li>读懂考卷给的规格表，说得出每个数值对应 URDF 里的哪一处</li>
+      <li>自己代入公式算出六个 link 的惯量，不抄 Day 4 的数值</li>
+      <li>一次通过 <code>check_urdf</code>：单根、无孤立 link</li>
+      <li><code>grade_day5.py</code> 的 L1 拿满 60 分</li>
+      <li>起仿真后拿满 100 分，并能用键盘把车开动</li>
+    </ul>
+  </section>
+
+  <section class="block" id="materials">
+    <h2>本日材料下载</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>材料</th><th>说明</th><th>下载</th></tr>
+      <tr><td>考卷</td><td>考核题面、评分标准与提交要求</td><td><a href="files/day5_exam.md" download>day5_exam.md</a></td></tr>
+      <tr><td>评分脚本</td><td>计分大考，L1 60 分 + L2 40 分</td><td><a href="files/grade_day5.py" download>grade_day5.py</a></td></tr>
+      <tr><td>打包下载</td><td>上面各项 + <code>graderlib/</code> + 考试规则，解压即可运行</td><td><a href="files/day5-materials.zip" download>day5-materials.zip</a></td></tr>
+    </table>
+    </div>
+    <p class="callout danger">评分脚本依赖同目录下的 <code>graderlib/</code>。单独下载 <code>grade_day5.py</code> 直接运行会报 <code>ModuleNotFoundError: No module named 'graderlib'</code>——要真的跑脚本，请下载 zip。</p>
+<pre><code>cd ~/Downloads
+unzip day5-materials.zip -d ~/day5_materials
+
+# 终端 1：先把你自己的节点跑起来
+# 终端 2：再评分
+cd ~/day5_materials
+python3 grade_day5.py</code></pre>
+    <p>也可以直接用仓库里的原件：<code>~/Tutorials4intern/grading/grade_day5.py</code>，两者内容一致。</p>
+  </section>
+
+  <section class="block" id="deliverable">
+    <h2>今天要交什么</h2>
+    <p>只改一个文件：</p>
+<pre><code>~/ros2_lab/src/my_robot/urdf/my_robot.urdf.xacro</code></pre>
+    <p>世界文件、<code>bridge.yaml</code>、<code>gazebo.launch.py</code> 都沿用 Day 4 的。 <strong>不要新建包，不要改包名。</strong></p>
+  </section>
+
+  <section class="block" id="diff">
+    <h2>与 Day 4 的差别</h2>
+    <p>两台车形状一样，尺寸全不同——<strong>所以惯量必须重算</strong>：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>部件</th><th>Day 4 示范车</th><th>Day 5 考题车</th></tr>
+      <tr><td>车身</td><td>0.30 × 0.20 × 0.08，3.0 kg</td><td><strong>0.40 × 0.30 × 0.10，5.0 kg</strong></td></tr>
+      <tr><td>驱动轮</td><td>r=0.05，厚 0.025，0.4 kg</td><td><strong>r=0.06，厚 0.03，0.5 kg</strong></td></tr>
+      <tr><td>万向轮</td><td>r=0.025，0.15 kg</td><td><strong>r=0.03，0.2 kg</strong></td></tr>
+      <tr><td>雷达</td><td>—</td><td><strong>0.1 kg，origin z = 0.10</strong></td></tr>
+      <tr><td>IMU</td><td>—</td><td><strong>0.05 kg，origin 全 0</strong></td></tr>
+    </table>
+    </div>
+    <p>Day 4 的 xacro 可以当结构参考，但<strong>每一个 <code>value=</code> 都要改</strong>， 惯量宏算出来的结果也会跟着变。</p>
+  </section>
+
+  <section class="block" id="steps">
+    <h2>动手顺序</h2>
+    <p>一次写完再调试很难定位问题。按这个顺序，每步都有可验证的中间结果：</p>
+<pre class="mermaid">
+flowchart TD
+    A["1. 改属性值&lt;br/&gt;把六组尺寸和质量填进 xacro"] --&gt; B["2. xacro 展开"]
+    B --&gt; C{"展开成功吗"}
+    C -- 否 --&gt; C1["看报错：括号、属性名、宏参数个数"]
+    C1 --&gt; B
+    C -- 是 --&gt; D["3. check_urdf"]
+    D --&gt; E{"单根 base_link 吗"}
+    E -- 否 --&gt; E1["有 link 没被 joint 连上"]
+    E1 --&gt; B
+    E -- 是 --&gt; F["4. 跑 grade_day5.py 的 L1"]
+    F --&gt; G{"60 分了吗"}
+    G -- 否 --&gt; G1["脚本会列出每一处差异&lt;br/&gt;照着改，不用猜"]
+    G1 --&gt; B
+    G -- 是 --&gt; H["5. 起仿真，测 L2"]
+    H --&gt; I["6. 键盘遥控，验证走的距离对得上"]
+</pre>
+    <h3>第 1 步：只改数值</h3>
+<pre><code>cd ~/ros2_lab
+code src/my_robot/urdf/my_robot.urdf.xacro</code></pre>
+    <p>改顶部那几行 <code>&lt;xacro:property&gt;</code> 就够了——如果 Day 4 写得规范， 所有尺寸都是通过属性引用的，改属性就全局生效。<strong>这正是 Day 4 用 xacro 的回报。</strong></p>
+    <p>雷达位置注意看清楚：考卷要的是 <code>lidar_joint</code> 的 <strong>origin z = 0.10</strong>， 相对 <code>base_link</code> 原点，不是"上表面之上 0.10"。</p>
+    <h3>第 2 步：展开看结果</h3>
+<pre><code>xacro src/my_robot/urdf/my_robot.urdf.xacro &gt; /tmp/exam.urdf
+grep -A1 'name="base_link"' /tmp/exam.urdf | head</code></pre>
+    <p><strong>展开成功不代表数值对</strong>，但展开失败一定是语法问题，先解决它。</p>
+    <h3>第 3 步：<code>check_urdf</code></h3>
+<pre><code>check_urdf /tmp/exam.urdf</code></pre>
+    <div class="expected">
+<pre><code>robot name is: my_robot
+---------- Successfully Parsed XML ---------------
+root Link: base_link has 5 child(ren)
+    child(1):  caster_wheel
+    child(2):  imu_link
+    child(3):  left_wheel
+    child(4):  lidar_link
+    child(5):  right_wheel</code></pre>
+    </div>
+    <p>根必须是 <code>base_link</code> 且只有一个。</p>
+    <h3>第 4 步：L1 自测</h3>
+<pre><code>colcon build --packages-select my_robot
+source install/setup.bash
+python3 ~/Tutorials4intern/grading/grade_day5.py</code></pre>
+    <p><strong>L1 不需要起仿真</strong>。全对时前七项满分，L2 会明确说未计分：</p>
+    <div class="expected">
+<pre><code>[通过] xacro 能展开为合法 URDF  (5/5 分)
+[通过] 约定的 link 齐全  (10/10 分)
+[通过] TF 树单根且全连通  (10/10 分)
+[通过] 关节的类型与父子关系正确  (10/10 分)
+[通过] 各 link 质量与题面一致  (10/10 分)
+[通过] 惯量矩阵与公式计算一致  (10/10 分)
+[通过] lidar_joint 的安装位置正确  (5/5 分)
+[未通过] L2 仿真可用性  (0/40 分)
+    期望：仿真运行中，/scan 与 /odom 有数据
+    实际：未检测到任何仿真话题——L2 未计分
+----------------------------------
+总分：60 / 100</code></pre>
+    </div>
+    <p>算错时脚本把每处差异都列出来：</p>
+    <div class="expected">
+<pre><code>[未通过] 惯量矩阵与公式计算一致  (0/10 分)
+    实际：base_link.ixx=0.0116(应为0.0416667)；base_link.iyy=0.0241(应为0.0708333)；left_wheel.izz=0.0005(应为0.0009)
+    建议：圆柱的 izz 只跟半径有关（m·r²/2），ixx/iyy 还跟长度有关——轮子最容易在这里写错</code></pre>
+    </div>
+    <p class="callout"><strong>不要靠猜。</strong> 期望值和实际值都印在上面，差在哪一目了然。 反复出现同一处，说明公式用错了而不是算错了。</p>
+    <h3>第 5 步：仿真</h3>
+<pre><code># 终端 1
+ros2 launch my_robot gazebo.launch.py
+# 终端 2
+python3 ~/Tutorials4intern/grading/grade_day5.py</code></pre>
+    <p>四个话题都在就是满分：</p>
+    <div class="expected">
+<pre><code>[通过] 话题 /scan 存在且类型正确  (15/15 分)
+[通过] 话题 /imu 存在且类型正确  (10/10 分)
+[通过] 话题 /odom 存在且类型正确  (10/10 分)
+[通过] 话题 /cmd_vel 存在且类型正确  (5/5 分)
+----------------------------------
+总分：100 / 100</code></pre>
+    </div>
+    <h3>第 6 步：人工验收</h3>
+    <p>这一项脚本查不了，但<strong>最能暴露隐藏问题</strong>：</p>
+<pre><code>ros2 topic pub -r 10 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.3}}'</code></pre>
+    <p>另开终端，发之前和 5 秒后各看一次：</p>
+<pre><code>ros2 topic echo /odom --once</code></pre>
+    <p>x 应该增加约 <strong>1.5 米</strong>（0.3 × 5）。差得多说明 <code>DiffDrive</code> 插件里的 <code>wheel_radius</code> 与你 URDF 的实际轮子半径不一致——这类错误不报任何错。</p>
+  </section>
+
+  <section class="block" id="inertia">
+    <h2>惯量自查</h2>
+    <p>算完先自己验一遍数量级，比等脚本报错快：</p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>link</th><th><code>ixx</code></th><th><code>iyy</code></th><th><code>izz</code></th></tr>
+      <tr><td><code>base_link</code></td><td>0.0416667</td><td>0.0708333</td><td>0.1041667</td></tr>
+      <tr><td><code>left_wheel</code> / <code>right_wheel</code></td><td>0.0004875</td><td>0.0004875</td><td>0.0009</td></tr>
+      <tr><td><code>caster_wheel</code></td><td>0.000072</td><td>0.000072</td><td>0.000072</td></tr>
+    </table>
+    </div>
+    <p>（写进 xacro 时不必截断到这几位——用宏让它自己算，精度自然是够的。 判定容差是相对误差 1%。）</p>
+    <div class="callout danger">
+      <p>上表是<strong>给你核对量级用的</strong>，不是让你直接抄。 口头抽查会问某个数是怎么来的，答不上来这一项不算过。</p>
+      <p>注意轮子的三个数<strong>不全相同</strong>：<code>izz</code>（绕自身轴）比 <code>ixx</code>/<code>iyy</code> 大得多。 三个数写成一样是最常见的错误。</p>
+    </div>
+  </section>
+
+  <section class="block" id="pitfalls">
+    <h2>常见丢分点</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>现象</th><th>原因</th></tr>
+      <tr><td>惯量项全错</td><td>抄了 Day 4 的数值，尺寸变了没重算</td></tr>
+      <tr><td>轮子惯量三个数相同</td><td>圆柱的 <code>izz</code> 用错公式，<code>izz = m·r²/2</code></td></tr>
+      <tr><td><code>lidar_joint</code> 位置错</td><td>题目要相对 <code>base_link</code> 原点 0.10，不是上表面之上 0.10</td></tr>
+      <tr><td>车轮平躺</td><td>忘了 <code>&lt;origin rpy="1.5708 0 0"/&gt;</code></td></tr>
+      <tr><td>车不动</td><td>驱动轮写成 <code>fixed</code>，或 <code>axis</code> 不是 <code>0 1 0</code></td></tr>
+      <tr><td>走的距离对不上</td><td><code>DiffDrive</code> 的 <code>wheel_radius</code> 与几何不一致</td></tr>
+      <tr><td><code>imu_link</code> 质量项失分</td><td>没写 <code>&lt;inertial&gt;</code> 段</td></tr>
+      <tr><td>改完分数没变</td><td>忘了 <code>colcon build</code></td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="block" id="next">
+    <h2>做完之后</h2>
+    <p>模型交上去之后，带你的人会把它接进一套现成的 slam_toolbox + Nav2 环境， 用键盘遥控它建图。<strong>第 2 周的全部内容都跑在这台车上</strong>—— 今天写对了，下周会顺很多。</p>
+    <p>没做完不要紧，顺延为周末作业，第 2 周开课前交。</p>
+  </section>
+
+  <section class="block" id="further">
+    <h2>延伸阅读</h2>
+    <ul>
+      <li><a href="https://docs.ros.org/en/humble/Tutorials/Intermediate/URDF/URDF-Main.html">官方：URDF 教程</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/List_of_moments_of_inertia">转动惯量列表（维基百科）</a></li>
+      <li><a href="https://gazebosim.org/docs/fortress/sensors">Gazebo Fortress 传感器文档</a></li>
+      <li><a href="https://github.com/gazebosim/ros_gz/tree/humble/ros_gz_bridge"><code>ros_gz</code> 桥接类型对照表</a></li>
+    </ul>
+  </section>
+
+  <footer class="page-foot">第 1 周到此结束。下周见。</footer>
+</main>
+</div>
+
+<script src="assets/vendor/mermaid.min.js"></script>
+<script src="assets/site.js"></script>

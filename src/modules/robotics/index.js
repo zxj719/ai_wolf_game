@@ -13,8 +13,8 @@ const roboticsModule = {
   id: 'robotics',
   title: { zh: '机器人学习', en: 'Robotics Course' },
   blurb: {
-    zh: 'ROS2 入门讲义 · Day 0 课前预习',
-    en: 'ROS2 onboarding course · Day 0 prep',
+    zh: 'ROS2 入门讲义 · 第 1 周 Day 0–5 · 附考卷与评分脚本',
+    en: 'ROS2 onboarding course · Week 1, Day 0–5 · exams included',
   },
   theme: 'light',
   backend: 'cf-workers',
