@@ -6,6 +6,24 @@ import { ROUTES } from '../../shell/paths';
  */
 export const GAMES = [
   {
+    id: 'minesweeper',
+    title: { zh: '扫雷 · 无猜版', en: 'Minesweeper (No-Guess)' },
+    blurb: {
+      zh: '雷区经求解器验证、全程可推理，不会出现被隔断只能硬猜的局面。三档难度全网排行榜。',
+      en: 'Every board is verified solvable by pure logic — no 50/50 guesses. Global leaderboards.',
+    },
+    path: ROUTES.GAMES_MINESWEEPER,
+  },
+  {
+    id: 'mahjong',
+    title: { zh: '麻将消除', en: 'Mahjong Solitaire' },
+    blurb: {
+      zh: '龟、金字塔、堡垒等 6 种布局，每局都有一次清空的解，无需洗牌。每种布局独立排行榜。',
+      en: 'Six layouts, every deal guaranteed solvable without shuffling. Per-layout leaderboards.',
+    },
+    path: ROUTES.GAMES_MAHJONG,
+  },
+  {
     id: 'sudoku',
     title: { zh: '数独求解可视化', en: 'Sudoku Solver Visualizer' },
     blurb: {

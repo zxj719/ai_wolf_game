@@ -77,6 +77,7 @@ import {
   handleTennisDailyRecord,
   handleTennisDailyLeaderboard,
 } from './tennis.js';
+import { handleMinigameScore, handleMinigameLeaderboard } from './minigames.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -258,6 +259,14 @@ export default {
       }
       if (path === '/api/tennis/daily/leaderboard' && request.method === 'GET') {
         return handleTennisDailyLeaderboard(request, env);
+      }
+
+      // 小游戏（扫雷 / 麻将消除）全网排行榜
+      if (path === '/api/minigames/score' && request.method === 'POST') {
+        return handleMinigameScore(request, env);
+      }
+      if (path === '/api/minigames/leaderboard' && request.method === 'GET') {
+        return handleMinigameLeaderboard(request, env);
       }
 
       // 排行榜（公开接口）

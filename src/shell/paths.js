@@ -32,6 +32,8 @@ export const ROUTES = {
   // 小游戏模块
   GAMES:        '/games',
   GAMES_SUDOKU: '/games/sudoku',
+  GAMES_MINESWEEPER: '/games/minesweeper',
+  GAMES_MAHJONG: '/games/mahjong',
 
   // Phase 3 过渡期保留：Phase 4 拆为 chords/stock/blog 三条路由后移除
   SITES: '/sites',

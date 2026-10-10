@@ -3,11 +3,14 @@ import { ROUTES } from '../../shell/paths';
 
 const GamesRoute = lazy(() => import('./GamesRoute'));
 const SudokuRoute = lazy(() => import('./sudoku/SudokuRoute'));
+const MinesweeperRoute = lazy(() => import('./minesweeper/MinesweeperRoute'));
+const MahjongRoute = lazy(() => import('./mahjong/MahjongRoute'));
 
 /**
  * 小游戏模块 — 与狼人杀/家网赛/小说工作台平级的首页板块。
  *
  * 纯前端小工具合集，不调用 ECS/LLM API，不进资源队列，游客可直接玩。
+ * 扫雷 / 麻将消除的成绩走 CF Workers D1 全网排行榜（/api/minigames/*，仅登录用户上榜）。
  */
 const gamesModule = {
   id: 'games',
@@ -21,6 +24,8 @@ const gamesModule = {
   routes: [
     { path: ROUTES.GAMES, component: GamesRoute, requiresAuth: false },
     { path: ROUTES.GAMES_SUDOKU, component: SudokuRoute, requiresAuth: false },
+    { path: ROUTES.GAMES_MINESWEEPER, component: MinesweeperRoute, requiresAuth: false },
+    { path: ROUTES.GAMES_MAHJONG, component: MahjongRoute, requiresAuth: false },
   ],
   home: { visible: true, order: 27 },
 };

@@ -2,6 +2,31 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-10-10] 小游戏：无猜扫雷 + 麻将消除（全网排行榜）
+
+### 新功能
+- **扫雷（无猜版）**：初级 / 中级 / 高级三档。首次点击后才布雷，首击 3×3 必空；生成器用逻辑求解器（单格、子集、边界穷举、全局雷数）验证整盘可推理，卡住时把推不出的边界雷挪进未探索区再验，不会出现被雷隔断只能硬猜的局面。高级平均 ~4ms 生成。
+- **麻将消除**：小花园 / 十字 / 堡垒 / 金字塔 / 龟 / 阶梯塔 6 种布局。先定消除路线再填牌面，每局保证一次清空无需洗牌；支持撤销、重来本局、提示（罚时 30s）。牌面为 SVG 自绘（不依赖 Unicode 麻将字体）。
+- **全网排行榜**：注册用户共享一张 `minigame_scores` 表，扫雷每档难度、麻将每种布局各一个榜（每人取最好成绩 TOP 50，附自己的名次）。游客可玩但不上榜。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/games/minesweeper/mineEngine.js` | 新建 | 无猜生成器 + 逻辑求解器 |
+| `src/modules/games/minesweeper/MinesweeperRoute.jsx` | 新建 | 扫雷页面（右键/长按插旗、数字 chord、插旗模式） |
+| `src/modules/games/mahjong/mahjongEngine.js` | 新建 | 6 种布局、必有解发牌、自由牌判定 |
+| `src/modules/games/mahjong/MahjongRoute.jsx`, `TileFace.jsx` | 新建 | 麻将页面与 SVG 牌面 |
+| `src/modules/games/shared/*` | 新建 | GameFrame / Leaderboard / useStopwatch / minigames.css |
+| `src/modules/games/{index.js,gamesList.js}`, `src/shell/paths.js` | 修改 | 注册 `/games/minesweeper`、`/games/mahjong` |
+| `src/services/minigamesService.js` | 新建 | 排行榜前端 API |
+| `workers/auth/minigames.js`, `minigamesLib.js`, `index.js` | 新建/修改 | `POST /api/minigames/score`、`GET /api/minigames/leaderboard` |
+| `migrations/012_minigame_scores.sql` | 新建 | 成绩表 + 索引 |
+
+### 技术细节
+- 服务端白名单 `MINIGAME_VARIANTS` 与前端难度/布局由单测锁定一致；`Object.hasOwn` 防 `__proto__` 类键。
+- 防刷仅做下限时间校验（不回放验证），排行榜可信度依赖账号体系。
+- 部署前需执行：`npx wrangler d1 execute wolfgame-db --remote --file=migrations/012_minigame_scores.sql`
+
 ## [2026-09-07] 机器人学习：同步教程上游更新（Day 1 重生成 + 两个评分脚本）
 
 上游 `Tutorials4intern` 的 `d82f24b`「fix: repair three defects found by the
