@@ -32,4 +32,22 @@ export const GAMES = [
     },
     path: ROUTES.GAMES_SUDOKU,
   },
+  {
+    id: 'gomoku',
+    title: { zh: '五子棋 · 好友约战', en: 'Gomoku (vs Friends)' },
+    blurb: {
+      zh: '邀请在线好友实时对弈，15×15 黑先、连五即胜，服务器裁判，支持再来一局。',
+      en: 'Play live against an online friend. Server-refereed, five in a row wins.',
+    },
+    path: ROUTES.GAMES_GOMOKU,
+  },
+  {
+    id: 'banqi',
+    title: { zh: '翻翻棋 · 好友约战', en: 'Chinese Dark Chess (vs Friends)' },
+    blurb: {
+      zh: '中国象棋暗棋：翻子定色、大吃小、炮隔子打。暗子只存在服务器，谁也偷看不到。',
+      en: 'Xiangqi banqi: flip to reveal, rank captures, cannon jumps. Hidden pieces stay server-side.',
+    },
+    path: ROUTES.GAMES_BANQI,
+  },
 ];

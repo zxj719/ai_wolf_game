@@ -1,0 +1,110 @@
+/* 好友约战（五子棋 / 翻翻棋）公共样式 — 依赖 shared/stage.css 的 --gs-* 变量 */
+
+.du-center { display: grid; place-items: center; width: 100%; height: 100%; }
+.du-card {
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--gs-surface);
+  box-shadow: var(--gs-shadow-sm), inset 0 0 0 0.5px var(--gs-line);
+}
+.du-hero { width: min(360px, 100%); display: grid; justify-items: center; gap: 10px; padding: 32px 24px; text-align: center; }
+.du-hero svg { color: var(--gs-accent); }
+.du-hero h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.du-hero p { font-size: 14px; color: var(--gs-ink-2); }
+.du-hero .gs-btn { width: 100%; margin-top: 8px; }
+
+.du-lobby { width: min(560px, 100%); margin: 0 auto; display: grid; gap: 22px; padding: 8px 0 24px; }
+.du-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gs-ink-2);
+  text-transform: none;
+}
+.du-link { font-size: 13px; color: var(--gs-accent) !important; font-weight: 500; }
+.du-muted { color: var(--gs-ink-2); font-size: 13px; font-weight: 400; }
+.du-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 8px 6px 0; font-size: 12px; color: var(--gs-ink-2); }
+.du-foot .gs-link { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; }
+.du-rules { font-size: 14px; line-height: 1.7; color: var(--gs-ink-2); }
+.du-rules b { color: var(--gs-ink); }
+.du-rules ul { margin: 0; padding-left: 18px; list-style: disc; }
+
+.du-avatar {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8ec5fc, #5b8def);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+.du-avatar i {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gs-ink-3);
+  box-shadow: 0 0 0 2px var(--gs-surface);
+}
+.du-avatar i.is-on { background: #34c759; }
+
+.du-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--gs-fill);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gs-ink) !important;
+}
+.du-pill.is-primary { background: var(--gs-accent); color: #fff !important; }
+.du-invite { animation: gs-pop 0.5s var(--gs-spring) both; }
+
+.du-spinner {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--gs-fill-2);
+  border-top-color: var(--gs-accent);
+  animation: du-spin 0.9s linear infinite;
+}
+@keyframes du-spin { to { transform: rotate(360deg); } }
+
+/* 对局顶部：双方信息条 */
+.du-players { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; max-width: 720px; }
+.du-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 12px 5px 5px;
+  border-radius: 999px;
+  background: var(--gs-surface);
+  box-shadow: var(--gs-shadow-sm), inset 0 0 0 0.5px var(--gs-line);
+  transition: box-shadow 0.35s var(--gs-ease), transform 0.45s var(--gs-spring);
+}
+.du-chip.is-turn { box-shadow: 0 0 0 2px var(--gs-accent), var(--gs-shadow); transform: scale(1.04); }
+.du-chip-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 9em; }
+.du-turn { flex: none; font-size: 13px; font-weight: 600; color: var(--gs-ink-2); }
+@media (max-width: 640px) {
+  .du-players { gap: 6px; }
+  .du-chip { padding-right: 8px; }
+  .du-chip-name { max-width: 5em; font-size: 13px; }
+  .du-turn { font-size: 12px; }
+}
+
+.du-result-wrap { background: rgba(0, 0, 0, 0.08); }

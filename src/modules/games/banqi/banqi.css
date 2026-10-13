@@ -1,0 +1,146 @@
+/* 翻翻棋 — 圆形棋子 + 浅色棋盘；依赖 shared/stage.css 的 --gs-* 变量 */
+
+.bq-wrap { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+.bq-board {
+  display: grid;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #f6ecd9 0%, #ecdcbc 100%);
+  box-shadow: var(--gs-shadow), inset 0 0 0 1px rgba(120, 80, 20, 0.16);
+}
+.gs[data-gs-theme='dark'] .bq-board { background: linear-gradient(160deg, #3a3328 0%, #2c261d 100%); }
+
+.bq-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(120, 80, 20, 0.12);
+  touch-action: manipulation;
+  cursor: pointer;
+  transition: background 0.2s var(--gs-ease);
+}
+.gs[data-gs-theme='dark'] .bq-cell { background: rgba(255, 255, 255, 0.04); }
+.bq-cell.is-last { background: rgba(0, 113, 227, 0.1); box-shadow: inset 0 0 0 1.5px rgba(0, 113, 227, 0.35); }
+
+/* 可走的空格：中心小圆点 */
+.bq-cell.is-target::after {
+  content: '';
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: var(--gs-accent);
+  opacity: 0.55;
+  animation: gs-pop 0.35s var(--gs-spring) both;
+}
+/* 可吃的子：红色描边环 */
+.bq-cell.is-capture::after {
+  content: '';
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--gs-red);
+  animation: bq-ring 0.9s var(--gs-ease) infinite alternate;
+}
+@keyframes bq-ring { to { box-shadow: 0 0 0 5px rgba(255, 59, 48, 0.55); } }
+
+.bq-piece {
+  display: grid;
+  place-items: center;
+  width: 86%;
+  height: 86%;
+  border-radius: 50%;
+  transition: transform 0.45s var(--gs-spring), box-shadow 0.25s var(--gs-ease);
+}
+.bq-cell:active .bq-piece { transform: scale(0.92); transition-duration: 0.07s; }
+
+/* 背面：青玉色 + 同心环 */
+.bq-piece.is-down {
+  background: radial-gradient(circle at 35% 30%, #8fd3c1 0%, #3f9c86 55%, #2b7564 100%);
+  box-shadow: 0 3px 0 #1f5a4c, 0 6px 12px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.bq-piece.is-down i {
+  width: 56%;
+  height: 56%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+/* 正面：象牙底 + 颜色环 + 宋体字 */
+.bq-piece.is-red, .bq-piece.is-black {
+  background: radial-gradient(circle at 35% 28%, #fffdf6 0%, #f4ead2 70%, #e6d6b1 100%);
+  box-shadow: 0 3px 0 #c9b48a, 0 6px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 #fff;
+}
+.bq-piece b {
+  display: grid;
+  place-items: center;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  font-size: calc(var(--cell) * 0.4);
+  font-weight: 800;
+  line-height: 1;
+}
+.bq-piece.is-red b { color: #c62f2f; box-shadow: inset 0 0 0 2px rgba(198, 47, 47, 0.75); }
+.bq-piece.is-black b { color: #1d1d1f; box-shadow: inset 0 0 0 2px rgba(29, 29, 31, 0.7); }
+
+.bq-cell.is-selected .bq-piece {
+  transform: translateY(-4px) scale(1.06);
+  box-shadow: 0 0 0 3px var(--gs-accent), 0 10px 18px rgba(0, 113, 227, 0.3);
+}
+
+/* 翻面：沿 Y 轴转过来 */
+.bq-piece.is-flipping { animation: bq-flip 0.55s var(--gs-spring) both; }
+@keyframes bq-flip {
+  0% { transform: perspective(400px) rotateY(180deg) scale(1.1); filter: brightness(0.7); }
+  100% { transform: perspective(400px) rotateY(0) scale(1); filter: none; }
+}
+.bq-piece.is-arrived { animation: bq-arrive 0.4s var(--gs-spring) both; }
+@keyframes bq-arrive { from { transform: scale(0.8); } }
+
+.bq-cell.is-nudge-a .bq-piece { animation: bq-nudge-a 0.35s var(--gs-ease); }
+.bq-cell.is-nudge-b .bq-piece { animation: bq-nudge-b 0.35s var(--gs-ease); }
+@keyframes bq-nudge-a { 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }
+@keyframes bq-nudge-b { 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }
+
+/* 吃子托盘 */
+.bq-tray { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px; min-height: 40px; max-width: 100%; padding: 4px 0; }
+.bq-mini {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #fffdf6, #e9dcbc);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.85;
+  animation: gs-pop 0.4s var(--gs-spring) both;
+}
+.bq-mini.is-red { color: #c62f2f; }
+.bq-mini.is-black { color: #1d1d1f; }
+
+.bq-badge {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--gs-fill);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gs-ink-2);
+}
+.bq-badge.is-red { background: #c62f2f; color: #fff; }
+.bq-badge.is-black { background: #1d1d1f; color: #fff; }
+.gs[data-gs-theme='dark'] .bq-badge.is-black { background: #f5f5f7; color: #1d1d1f; }

@@ -20,6 +20,8 @@ const isIOS = typeof navigator !== 'undefined'
 
 export function haptic(kind = 'light') {
   try {
+    // 用户还没点过页面时浏览器会拦截振动（并在控制台报错），由推送触发的反馈直接跳过
+    if (typeof navigator !== 'undefined' && navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function' && !isIOS) {
       navigator.vibrate(PATTERNS[kind] ?? 6);
       return;

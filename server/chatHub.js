@@ -11,6 +11,8 @@
  * 词汇：WS 线协议用 from/to；持久化/历史/前端用 fromUser/toUser（ConversationView 翻译）。
  */
 
+import { createGameRooms } from './games/gameRooms.js';
+
 const FRIEND_CACHE_TTL_MS = 30_000;
 const MAX_SOCKETS_PER_USER = 5;
 const MAX_BODY_CHARS = 4000;
@@ -19,8 +21,9 @@ const RATE_MSG = { capacity: 10, refillPerSec: 5 };       // chat:message 令牌
 const RATE_TYPING = { capacity: 30, refillPerSec: 30 };   // chat:typing 令牌桶
 const RATE_CALL = { capacity: 50, refillPerSec: 25 };     // call:* 令牌桶（吸收 trickle-ICE 突发）
 const CALL_TYPES = new Set(['call:offer', 'call:answer', 'call:ice', 'call:hangup', 'call:screenshare']);
+const RATE_GAME = { capacity: 20, refillPerSec: 8 };     // game:* 令牌桶（落子/翻子不会更快）
 
-export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
+export function createChatHub({ persist, getFriends, now = () => Date.now(), gameRoomsOptions = {} }) {
   const connections = new Map();   // userId -> Set<conn>
   const friendCache = new Map();   // userId -> { set:Set<number>, fetchedAt:number }
 
@@ -66,6 +69,9 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
     return fresh.has(targetId);
   }
 
+  // 好友约战（五子棋 / 翻翻棋）：服务端权威房间，复用本 hub 的连接、好友校验与 presence
+  const games = createGameRooms({ sendTo, online, isFriendOf, now, ...gameRoomsOptions });
+
   async function addConnection(conn) {
     if (!connections.has(conn.userId)) connections.set(conn.userId, new Set());
     const set = connections.get(conn.userId);
@@ -76,6 +82,7 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
     }
     set.add(conn);
     const wasFirst = set.size === 1;
+    if (wasFirst) games.onOnline(conn.userId);
 
     const friends = await friendsOf(conn);
     const onlineFriends = [...friends].filter(online);
@@ -89,6 +96,7 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
     const set = connections.get(conn.userId);
     if (set) { set.delete(conn); if (set.size === 0) connections.delete(conn.userId); }
     if (!online(conn.userId)) {
+      games.onOffline(conn.userId);
       const cached = friendCache.get(conn.userId);
       const friends = cached ? cached.set : await getFriends(conn.userId, conn.token).catch(() => new Set());
       for (const fid of friends) if (online(fid)) sendTo(fid, { type: 'presence', userId: conn.userId, online: false });
@@ -134,6 +142,11 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
       conn.send({ type: 'chat:ack', clientMsgId: msg.clientMsgId, id: saved.id, createdAt: finalCreatedAt });
       return;
     }
+    if (msg.type.startsWith('game:')) {
+      if (!takeToken(conn, 'game', RATE_GAME)) { conn.send({ type: 'game:error', error: '操作太快了' }); return; }
+      await games.handle(conn, msg);
+      return;
+    }
     // call:* (Phase 3 视频信令中继)
     if (CALL_TYPES.has(msg.type)) {
       if (!takeToken(conn, 'call', RATE_CALL)) return;     // 限流（先于好友查，防 ICE flood 放大）
@@ -153,5 +166,5 @@ export function createChatHub({ persist, getFriends, now = () => Date.now() }) {
     }
   }
 
-  return { addConnection, removeConnection, handleMessage, online, _connections: connections, _friendCache: friendCache };
+  return { addConnection, removeConnection, handleMessage, online, _connections: connections, _friendCache: friendCache, _games: games };
 }
