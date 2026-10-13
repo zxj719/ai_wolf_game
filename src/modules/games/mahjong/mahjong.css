@@ -13,12 +13,19 @@
   border: 0;
   border-radius: 7px;
   background: linear-gradient(165deg, #ffffff 0%, #f6f1e4 100%);
-  /* 牌身厚度（左下）+ 柔和投影 */
+  /* 牌身厚度：4 级渐深的左下侧边（象牙 → 骨色 → 竹青底），越往下越暗，像真牌的侧面 */
+  --edge:
+    -2px 2px 0 #ece2c9,
+    -4px 4px 0 #dccca4,
+    -6px 6px 0 #c5ad78,
+    -8px 8px 0 #3f8f78;
+  /* 投影随层数加深加远：高层的牌明显「浮」在低层上面 */
+  --lift: -8px calc(10px + var(--z, 0) * 4px) calc(12px + var(--z, 0) * 5px) rgba(0, 0, 0, calc(0.2 + var(--z, 0) * 0.05));
   box-shadow:
+    inset 1px 1px 0 #fff,
     inset 0 0 0 0.5px rgba(120, 100, 60, 0.35),
-    -1.5px 1.5px 0 #e8dfc8,
-    -3px 3px 0 #cdbf9c,
-    -4px 5px 10px rgba(0, 0, 0, 0.16);
+    var(--edge),
+    var(--lift);
   cursor: default;
   transition: transform 0.45s var(--gs-spring), filter 0.25s var(--gs-ease), box-shadow 0.25s var(--gs-ease);
   touch-action: manipulation;
@@ -39,9 +46,8 @@
   background: linear-gradient(165deg, #f2f8ff 0%, #dcebff 100%);
   box-shadow:
     0 0 0 2.5px var(--gs-accent),
-    -1.5px 1.5px 0 #e8dfc8,
-    -3px 3px 0 #cdbf9c,
-    -6px 12px 20px rgba(0, 113, 227, 0.28);
+    var(--edge),
+    -10px 16px 24px rgba(0, 113, 227, 0.3);
 }
 
 .mj-tile.is-hint { animation: mj-hint 0.9s var(--gs-ease) infinite alternate; }
@@ -49,9 +55,8 @@
   to {
     box-shadow:
       0 0 0 3px var(--gs-green),
-      -1.5px 1.5px 0 #e8dfc8,
-      -3px 3px 0 #cdbf9c,
-      -4px 8px 18px rgba(52, 199, 89, 0.4);
+      var(--edge),
+      -8px 12px 20px rgba(52, 199, 89, 0.45);
     transform: translateY(-3px);
   }
 }
@@ -72,3 +77,13 @@
 .mj-tile.is-nudge-b { animation: mj-nudge-b 0.36s var(--gs-ease); }
 @keyframes mj-nudge-a { 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }
 @keyframes mj-nudge-b { 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }
+
+/* 普通模式：去掉一切「哪张是自由牌」的线索——不变暗、悬停与光标一视同仁 */
+.mj-board.is-plain .mj-tile:not(.is-free),
+.gs[data-gs-theme='dark'] .mj-board.is-plain .mj-tile:not(.is-free) { filter: none; }
+.mj-board.is-plain .mj-tile { cursor: pointer; }
+@media (hover: hover) {
+  .mj-board.is-plain .mj-tile.is-free:hover { transform: none; }
+  .mj-board.is-plain .mj-tile:hover { filter: brightness(1.03); }
+}
+.mj-board.is-plain .mj-tile:active { transform: scale(0.95); transition: transform 0.07s var(--gs-ease); }

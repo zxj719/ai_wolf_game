@@ -7,20 +7,30 @@
  * minMs 是人类可达的下限（远低于世界纪录量级），只挡明显伪造的数据。
  */
 
+/**
+ * 麻将两种模式分开排名：普通（无高亮）用布局 id，简单（高亮可选牌）用 `${id}-easy`。
+ * 与前端 src/modules/games/mahjong/MahjongRoute.jsx 的 mahjongVariant() 对应。
+ */
+function withEasy(layouts) {
+  const out = { ...layouts };
+  for (const [id, cfg] of Object.entries(layouts)) out[`${id}-easy`] = cfg;
+  return out;
+}
+
 export const MINIGAME_VARIANTS = {
   minesweeper: {
     beginner: { minMs: 500 },
     intermediate: { minMs: 3000 },
     expert: { minMs: 10000 },
   },
-  mahjong: {
+  mahjong: withEasy({
     garden: { minMs: 4000 },
     cross: { minMs: 10000 },
     fortress: { minMs: 10000 },
     pyramid: { minMs: 15000 },
     turtle: { minMs: 20000 },
     ziggurat: { minMs: 20000 },
-  },
+  }),
 };
 
 const MAX_MS = 6 * 60 * 60 * 1000;

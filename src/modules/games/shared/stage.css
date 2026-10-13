@@ -214,6 +214,24 @@
 .gs-message.is-warn { color: var(--gs-orange); }
 .gs-message.is-bad { color: var(--gs-red); }
 
+/* ---------- 暂停遮罩：完全盖住棋盘 ---------- */
+.gs-pause {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding-bottom: 80px;
+  background: color-mix(in srgb, var(--gs-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+  animation: gs-fade 0.25s var(--gs-ease) both;
+}
+.gs-pause-card { display: grid; justify-items: center; gap: 6px; animation: gs-pop 0.5s var(--gs-spring) both; }
+.gs-pause-title { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.gs-pause-card p { font-size: 14px; color: var(--gs-ink-2); }
+.gs-pause-card .gs-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 0 28px; }
+
 /* ---------- 底部 dock ---------- */
 .gs-dock {
   position: absolute;
@@ -228,7 +246,7 @@
   -webkit-backdrop-filter: saturate(180%) blur(24px);
   backdrop-filter: saturate(180%) blur(24px);
   box-shadow: var(--gs-shadow), inset 0 0 0 0.5px var(--gs-line);
-  z-index: 3;
+  z-index: 7; /* 高于暂停遮罩（6）：暂停时也能点继续 / 新局 / 排行榜 */
 }
 .gs-dock-btn {
   display: flex;

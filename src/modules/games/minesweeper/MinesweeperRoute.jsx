@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Flag, Pointer, RotateCcw, Timer, Trophy } from 'lucide-react';
+import { Flag, Pause, Play, Pointer, RotateCcw, Timer, Trophy } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useShell } from '../../../shell/ShellContext';
 import { ROUTES } from '../../../shell/paths';
 import { submitMinigameScore } from '../../../services/minigamesService';
-import GameStage, { DockButton, Segmented, WinDialog } from '../shared/GameStage';
+import GameStage, { DockButton, Segmented, WinDialog, useAutoPause } from '../shared/GameStage';
 import Leaderboard, { formatClock, formatMs } from '../shared/Leaderboard';
 import { useStopwatch } from '../shared/useStopwatch';
 import { haptic } from '../shared/haptics';
@@ -172,6 +172,9 @@ export default function MinesweeperRoute() {
   const cancelTouch = () => clearTimeout(longPressRef.current.id);
 
   const flagsUsed = game.flags.reduce((a, b) => a + b, 0);
+  const playing = game.status === 'playing';
+  const isPaused = playing && timer.paused;
+  useAutoPause(playing && !timer.paused, timer.pause);
 
   // ---- 布局：按舞台尺寸算格子大小；竖屏放不下宽棋盘时转置 ----
   const renderBoard = ({ width, height }) => {
@@ -295,8 +298,17 @@ export default function MinesweeperRoute() {
         </>
       )}
       message={message}
+      paused={isPaused}
+      onResume={timer.resume}
       dock={(
         <>
+          <DockButton
+            icon={isPaused ? Play : Pause}
+            label={isPaused ? '继续' : '暂停'}
+            disabled={!playing}
+            on={isPaused}
+            onClick={() => (isPaused ? timer.resume() : timer.pause())}
+          />
           <DockButton icon={RotateCcw} label="新局" onClick={() => reset()} />
           <DockButton
             icon={flagMode ? Flag : Pointer}

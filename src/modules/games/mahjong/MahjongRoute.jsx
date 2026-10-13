@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Layers, Lightbulb, RotateCcw, Shuffle, Timer, Trophy, Undo2 } from 'lucide-react';
+import { Layers, Lightbulb, Pause, Play, RotateCcw, Shuffle, Timer, Trophy, Undo2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useShell } from '../../../shell/ShellContext';
 import { ROUTES } from '../../../shell/paths';
 import { submitMinigameScore } from '../../../services/minigamesService';
-import GameStage, { DockButton, Segmented, WinDialog } from '../shared/GameStage';
+import GameStage, { DockButton, Segmented, WinDialog, useAutoPause } from '../shared/GameStage';
 import Leaderboard, { formatClock, formatMs } from '../shared/Leaderboard';
 import { useStopwatch } from '../shared/useStopwatch';
 import { haptic } from '../shared/haptics';
@@ -14,7 +14,7 @@ import './mahjong.css';
 
 const TW = 44;      // 牌宽（含边框）
 const TH = 58;      // 牌高
-const DEPTH = 6;    // 每层错位像素
+const DEPTH = 10;   // 每层错位像素（越大立体感越强，层次越好认）
 const HINT_PENALTY_MS = 30000;
 const LEAVE_MS = 320;
 
@@ -24,10 +24,22 @@ function newDeal(layout) {
   return { faces, present: new Uint8Array(faces.length).fill(1) };
 }
 
+// 简单：被压住的牌变暗、可选的牌高亮；普通：所有牌一样亮，不给任何提示。两种模式分开排名。
+const MODES = [
+  { value: 'easy', label: '简单', hint: '高亮可选' },
+  { value: 'normal', label: '普通', hint: '无高亮' },
+];
+const MODE_KEY = 'zx_mahjong_mode';
+const loadMode = () => { try { return localStorage.getItem(MODE_KEY) === 'normal' ? 'normal' : 'easy'; } catch { return 'easy'; } };
+/** 排行榜 variant：普通模式用布局 id，简单模式加 -easy 后缀 */
+export const mahjongVariant = (layoutId, mode) => (mode === 'easy' ? `${layoutId}-easy` : layoutId);
+
 export default function MahjongRoute() {
   const { user } = useAuth();
   const { navigate } = useShell();
   const [layoutId, setLayoutId] = useState('turtle');
+  const [mode, setModeState] = useState(loadMode);
+  const easy = mode === 'easy';
   const layout = LAYOUT_MAP[layoutId];
   const geo = useMemo(() => buildGeometry(layout.positions), [layout]);
 
@@ -80,7 +92,7 @@ export default function MahjongRoute() {
     setResult({ timeMs: ms, uploading: !!user });
     later(() => setShowWin(true), LEAVE_MS + 150);
     if (!user) return;
-    const res = await submitMinigameScore('mahjong', layoutId, ms);
+    const res = await submitMinigameScore('mahjong', mahjongVariant(layoutId, mode), ms);
     setResult({ timeMs: ms, ...res });
     setRefreshKey((k) => k + 1);
   };
@@ -163,7 +175,7 @@ export default function MahjongRoute() {
     const scale = Math.min(width / boardW, height / boardH, 1.7);
     return (
       <div style={{ width: boardW * scale, height: boardH * scale }}>
-        <div className="mj-board" style={{ width: boardW, height: boardH, transform: `scale(${scale})` }}>
+        <div className={`mj-board${easy ? "" : " is-plain"}`} style={{ width: boardW, height: boardH, transform: `scale(${scale})` }}>
           {order.map((i) => {
             const isLeaving = !present[i] && leaving.includes(i);
             if (!present[i] && !isLeaving) return null;
@@ -185,6 +197,7 @@ export default function MahjongRoute() {
                   top: y * (TH / 2) + (maxZ - z) * DEPTH + 4,
                   width: TW - 2,
                   height: TH - 2,
+                  '--z': z,
                 }}
                 onClick={() => !isLeaving && clickTile(i)}
                 aria-label={`${faceLabel(faces[i])}${free ? '' : '（被压住）'}`}
@@ -199,10 +212,20 @@ export default function MahjongRoute() {
   };
 
   const displayMs = timer.elapsed + hints * HINT_PENALTY_MS;
+  const playing = status === 'playing';
+  const isPaused = playing && timer.paused;
+  useAutoPause(playing && !timer.paused, timer.pause);
+  // 中途切模式必须重开，否则可以「简单模式玩、普通模式交」
+  const setMode = (m) => {
+    setModeState(m);
+    try { localStorage.setItem(MODE_KEY, m); } catch { /* ignore */ }
+    start();
+  };
+  const modeLabel = easy ? '简单' : '普通';
   const message = stuck
     ? { text: '没有可消的对子了 · 本局必有解，撤销几步换条路', tone: 'warn' }
     : status === 'ready'
-      ? { text: '点两张相同的「自由」牌消除 · 花、季同类互消' }
+      ? { text: easy ? '点两张相同的「自由」牌消除 · 花、季同类互消' : '普通模式：不高亮可选的牌，自己判断哪张是自由的' }
       : null;
 
   const winDetail = !result ? '' : result.uploading ? '正在上传成绩…'
@@ -215,6 +238,7 @@ export default function MahjongRoute() {
       onOpenSheet={() => setSheetOpen(true)}
       controls={(
         <>
+          <Segmented value={mode} onChange={setMode} options={MODES} />
           <Segmented
             value={layoutId}
             onChange={(id) => start(id)}
@@ -223,15 +247,24 @@ export default function MahjongRoute() {
           <div className="gs-hud">
             <span className="gs-stat" title="用时（含提示罚时）"><Timer size={18} />{formatClock(displayMs)}</span>
             <span className="gs-stat" title="剩余牌数"><Layers size={18} />{remaining}</span>
-            <span className="gs-stat" title="当前可消对数"><small>可消</small>{moves.length}</span>
+            {easy && <span className="gs-stat" title="当前可消对数"><small>可消</small>{moves.length}</span>}
           </div>
         </>
       )}
       message={message}
+      paused={isPaused}
+      onResume={timer.resume}
       dock={(
         <>
+          <DockButton
+            icon={isPaused ? Play : Pause}
+            label={isPaused ? '继续' : '暂停'}
+            disabled={!playing}
+            on={isPaused}
+            onClick={() => (isPaused ? timer.resume() : timer.pause())}
+          />
           <DockButton icon={Undo2} label="撤销" onClick={undo} disabled={!history.length || status === 'won'} />
-          <DockButton icon={Lightbulb} label="提示" onClick={showHint} disabled={!moves.length || status === 'won'} title="每次提示罚时 30 秒" />
+          <DockButton icon={Lightbulb} label="提示" onClick={showHint} disabled={!moves.length || status === 'won' || isPaused} title="每次提示罚时 30 秒" />
           <DockButton icon={RotateCcw} label="重来" onClick={restartSame} disabled={status === 'won' || !history.length} title="同一副牌从头来（计时继续）" />
           <DockButton icon={Shuffle} label="新局" onClick={() => start()} />
           <DockButton icon={Trophy} label="排行榜" onClick={() => setSheetOpen(true)} />
@@ -240,16 +273,16 @@ export default function MahjongRoute() {
       sheet={{
         open: sheetOpen,
         onClose: () => setSheetOpen(false),
-        title: `${layout.name} · 排行榜`,
+        title: `${layout.name} · ${modeLabel} · 排行榜`,
         content: (
-          <Leaderboard game="mahjong" variant={layoutId} refreshKey={refreshKey}
+          <Leaderboard game="mahjong" variant={mahjongVariant(layoutId, mode)} refreshKey={refreshKey}
             user={user} onLogin={() => navigate(ROUTES.LOGIN)} />
         ),
       }}
       overlay={showWin && result && (
         <WinDialog
           emoji="🎉"
-          title="全部消除"
+          title={`全部消除 · ${modeLabel}模式`}
           timeText={formatMs(result.timeMs)}
           detail={winDetail}
           onAgain={() => start()}

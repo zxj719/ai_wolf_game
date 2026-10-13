@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BookOpen, Bot, Flag, LogOut, RotateCcw, Undo2 } from 'lucide-react';
+import { BookOpen, Bot, Flag, LogOut, Pause, Play, RotateCcw, Undo2 } from 'lucide-react';
 import {
   GOMOKU_SIZE, UNDO_LIMIT, createGomoku, applyGomoku, takeBack, undoCount,
 } from '../../../../server/games/gomoku.js';
 import DuelRoute from '../duel/DuelRoute';
-import GameStage, { DockButton, Segmented } from '../shared/GameStage';
+import GameStage, { DockButton, Segmented, useAutoPause } from '../shared/GameStage';
 import { haptic } from '../shared/haptics';
 import { LEVELS } from './gomokuAI';
 import './gomoku.css';
@@ -175,6 +175,7 @@ function SoloGame({ level, side, onExit }) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [showResult, setShowResult] = useState(true);
   const [resigned, setResigned] = useState(false);
+  const [paused, setPaused] = useState(false);
   const workerRef = useRef(null);
   const reqId = useRef(0);
 
@@ -188,7 +189,7 @@ function SoloGame({ level, side, onExit }) {
 
   // 轮到电脑就让 Worker 算；悔棋 / 重开会让 reqId 失效，旧结果直接丢弃
   useEffect(() => {
-    if (over || state.turn !== ai || !workerRef.current) return undefined;
+    if (over || paused || state.turn !== ai || !workerRef.current) return undefined;
     const id = ++reqId.current;
     const started = Date.now();
     setThinking(true);
@@ -210,7 +211,7 @@ function SoloGame({ level, side, onExit }) {
     w.addEventListener('message', onMsg);
     w.postMessage({ id, board: state.board, color: ai, level });
     return () => w.removeEventListener('message', onMsg);
-  }, [state, ai, level, over]);
+  }, [state, ai, level, over, paused]);
 
   const place = (i) => {
     const r = applyGomoku(state, side, { type: 'place', i });
@@ -228,11 +229,19 @@ function SoloGame({ level, side, onExit }) {
     reqId.current++;
     setThinking(false);
     setResigned(false);
+    setPaused(false);
     setShowResult(true);
     setState(createGomoku());
   }, []);
 
-  const myTurn = !over && state.turn === side && !thinking;
+  const myTurn = !over && !paused && state.turn === side && !thinking;
+  const pause = () => {
+    if (over) return;
+    reqId.current++; // 正在算的那一手作废，继续后重新算
+    setThinking(false);
+    setPaused(true);
+  };
+  useAutoPause(!over && !paused, pause);
   const left = state.undos[side];
   const canUndo = !over && left > 0 && undoCount(state, side) > 0;
   const iWon = !resigned && state.winner === side;
@@ -256,8 +265,17 @@ function SoloGame({ level, side, onExit }) {
           </div>
         </div>
       )}
+      paused={paused && !over}
+      onResume={() => setPaused(false)}
       dock={(
         <>
+          <DockButton
+            icon={paused ? Play : Pause}
+            label={paused ? '继续' : '暂停'}
+            disabled={over}
+            on={paused}
+            onClick={() => (paused ? setPaused(false) : pause())}
+          />
           <DockButton icon={Undo2} label={`悔棋 ${left}`} disabled={!canUndo} onClick={undo} title={`本局还剩 ${left} 次`} />
           {over
             ? <DockButton icon={RotateCcw} label="再来一局" onClick={restart} />

@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeft, Trophy, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeft, Play, Trophy, X } from 'lucide-react';
 import { useShell } from '../../../shell/ShellContext';
 import { ROUTES } from '../../../shell/paths';
 import { useElementSize } from './useElementSize';
@@ -21,6 +21,8 @@ export default function GameStage({
   sheet,          // { open, onClose, title, content }
   onOpenSheet,
   overlay,        // 结算弹窗等
+  paused = false, // 暂停：盖住棋盘（不能边停表边想），dock 保持可用
+  onResume,
   children,
 }) {
   const { navigate } = useShell();
@@ -55,6 +57,17 @@ export default function GameStage({
 
       <div ref={stageRef} className={`gs-stage${scroll ? ' is-scroll' : ''}`}>
         {size.width > 0 && children(size)}
+        {paused && (
+          <div className="gs-pause" role="dialog" aria-label="已暂停">
+            <div className="gs-pause-card">
+              <div className="gs-pause-title">已暂停</div>
+              <p>计时已停止，棋盘已隐藏</p>
+              <button type="button" className="gs-btn gs-btn-primary gs-press" onClick={() => { haptic(); onResume?.(); }}>
+                <Play size={16} /> 继续
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {message?.text && (
@@ -83,6 +96,18 @@ export default function GameStage({
       {overlay}
     </div>
   );
+}
+
+/** 切到后台（换标签页、锁屏）时自动暂停 */
+export function useAutoPause(active, pause) {
+  const pauseRef = useRef(pause);
+  pauseRef.current = pause;
+  useEffect(() => {
+    if (!active) return undefined;
+    const onVis = () => { if (document.hidden) pauseRef.current(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [active]);
 }
 
 /** 底部 dock 按钮 */

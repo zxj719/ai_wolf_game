@@ -7,6 +7,8 @@ describe('validateMinigameScore', () => {
   it('接受合法成绩', () => {
     expect(validateMinigameScore({ game: 'minesweeper', variant: 'expert', timeMs: 95000 }).ok).toBe(true);
     expect(validateMinigameScore({ game: 'mahjong', variant: 'turtle', timeMs: 300000 }).ok).toBe(true);
+    expect(validateMinigameScore({ game: 'mahjong', variant: 'turtle-easy', timeMs: 300000 }).ok).toBe(true);
+    expect(validateMinigameScore({ game: 'mahjong', variant: 'turtle-hard', timeMs: 300000 }).ok).toBe(false);
   });
 
   it('拒绝未知变体、非整数和过快成绩', () => {
@@ -20,6 +22,7 @@ describe('validateMinigameScore', () => {
 
   it('白名单与前端难度 / 布局完全一致', () => {
     expect(Object.keys(MINIGAME_VARIANTS.minesweeper).sort()).toEqual(Object.keys(DIFFICULTIES).sort());
-    expect(Object.keys(MINIGAME_VARIANTS.mahjong).sort()).toEqual(LAYOUTS.map((l) => l.id).sort());
+    const expected = LAYOUTS.flatMap((l) => [l.id, `${l.id}-easy`]);
+    expect(Object.keys(MINIGAME_VARIANTS.mahjong).sort()).toEqual(expected.sort());
   });
 });
