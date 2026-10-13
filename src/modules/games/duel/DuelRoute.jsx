@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Flag, LogOut, MessageCircle, RefreshCw, Swords, Users } from 'lucide-react';
+import { BookOpen, Flag, LogOut, MessageCircle, RefreshCw, Swords, Users } from 'lucide-react';
 import { useShell } from '../../../shell/ShellContext';
 import { ROUTES } from '../../../shell/paths';
 import GameStage, { DockButton } from '../shared/GameStage';
@@ -42,12 +42,13 @@ function Countdown({ until }) {
  * 具体棋盘由 renderBoard({ room, duel, width, height }) 提供，
  * 状态文案由 describe(room) 提供 { turnText, myBadge, oppBadge }。
  */
-export default function DuelRoute({ game, rules, renderBoard, describe, resultText }) {
+export default function DuelRoute({ game, rules, renderBoard, describe, resultText, extras, lobbyTop }) {
   const { navigate } = useShell();
   const duel = useDuel();
   const { user, room, friends, onlineFriends, incoming, outgoing, toast, status, serverReady } = duel;
   const meta = DUEL_GAMES[game];
   const [hiddenResult, setHiddenResult] = useState(null); // 收起结算卡片看终局的房间 id
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   // 接受了别的游戏的邀请 → 跳到对应页面
   useEffect(() => {
@@ -60,10 +61,11 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
     return (
       <GameStage title={meta.name}>
         {() => (
-          <div className="du-center">
+          <div className="du-center du-stack">
+            {lobbyTop}
             <div className="du-card du-hero">
               <Swords size={36} />
-              <h2>和好友来一局{meta.name}</h2>
+              <h2>和好友对战{meta.name}</h2>
               <p>对战需要登录，并通过好友系统邀请对手。</p>
               <button type="button" className="gs-btn gs-btn-primary gs-press" onClick={() => navigate(ROUTES.LOGIN)}>登录 / 注册</button>
             </div>
@@ -78,12 +80,13 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
     const oppId = room.players[room.seat === 1 ? 1 : 0];
     const myTurn = room.status === 'playing' && room.state.turn === room.seat;
     const info = describe(room);
+    const ext = extras ? extras(room, duel) : {};
     const iWon = room.result && room.result.winner === room.seat;
     const draw = room.result && room.result.winner === 0;
     const iAskedRematch = room.rematch?.includes(Number(user.id));
     const oppAskedRematch = room.rematch?.includes(oppId);
 
-    let message = toast;
+    let message = toast ?? ext.message ?? null;
     if (!message && room.status === 'playing' && !room.opponentOnline) message = { text: '对手掉线了 · 60 秒内未回来判你胜', tone: 'warn' };
     if (!message && room.status === 'over' && oppAskedRematch && !iAskedRematch) message = { text: `${duel.nameOf(oppId)} 想再来一局` };
 
@@ -107,14 +110,20 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
         )}
         message={message}
         dock={room.status === 'playing' ? (
-          <DockButton icon={Flag} label="认输" onClick={() => { if (window.confirm('确定认输吗？')) duel.resign(); }} />
+          <>
+            {ext.dock}
+            <DockButton icon={BookOpen} label="规则" onClick={() => setRulesOpen(true)} />
+            <DockButton icon={Flag} label="认输" onClick={() => { if (window.confirm('确定认输吗？')) duel.resign(); }} />
+          </>
         ) : (
           <>
+            <DockButton icon={BookOpen} label="规则" onClick={() => setRulesOpen(true)} />
             <DockButton icon={RefreshCw} label={iAskedRematch ? '等待对方' : oppAskedRematch ? '接受再来一局' : '再来一局'} on={iAskedRematch || oppAskedRematch} disabled={iAskedRematch} onClick={duel.rematch} />
             <DockButton icon={LogOut} label="离开" onClick={duel.leave} />
           </>
         )}
-        overlay={room.status === 'over' && hiddenResult !== room.id && (
+        sheet={{ open: rulesOpen, onClose: () => setRulesOpen(false), title: `${meta.name}规则`, content: <div className="du-card du-rules">{rules}</div> }}
+        overlay={room.status === 'playing' ? ext.banner : room.status === 'over' && hiddenResult !== room.id && (
           <div className="gs-dialog-wrap du-result-wrap">
             <div className="gs-dialog" role="dialog">
               <div className="gs-dialog-emoji">{draw ? '🤝' : iWon ? '🏆' : '🌧️'}</div>
@@ -155,6 +164,7 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
     >
       {() => (
         <div className="du-lobby">
+          {lobbyTop}
           {incoming.length > 0 && (
             <section>
               <h3 className="du-section">对战邀请</h3>
@@ -222,7 +232,7 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
               </div>
             )}
             <p className="du-foot">
-              <Users size={13} /> 在线 = 好友此刻开着小游戏或聊天页。也可以先在
+              <Users size={13} /> 在线 = 好友此刻在首页、小游戏或聊天页。也可以先在
               <button type="button" className="gs-link" onClick={() => navigate(ROUTES.CHAT)}><MessageCircle size={13} /> 聊天</button>
               里叫上对方。
             </p>

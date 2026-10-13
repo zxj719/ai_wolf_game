@@ -1,0 +1,58 @@
+/* 全站约战邀请卡片（渲染在模块外，用站点 token，明暗主题自动适配） */
+
+.gi-stack {
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 90; /* 高于首页浮动工具栏（z-70）：邀请是临时且需要立即响应的 */
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  width: min(440px, calc(100vw - 24px));
+}
+
+.gi-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-raised, #fff) 86%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  color: var(--ink, #1d1d1f);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18), inset 0 0 0 0.5px var(--border, rgba(0, 0, 0, 0.1));
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 14px;
+  animation: gi-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes gi-in { from { opacity: 0; transform: translateY(-18px) scale(0.96); } }
+
+.gi-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #5ac8fa, #0071e3);
+  color: #fff;
+}
+.gi-text { flex: 1; min-width: 0; line-height: 1.35; }
+.gi-text b { font-weight: 600; }
+.gi-count { margin-left: 6px; color: var(--ink-muted, #6e6e73); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.gi-btn {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink, #1d1d1f) 8%, transparent);
+  color: var(--ink, #1d1d1f);
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+.gi-btn:active { transform: scale(0.93); transition-duration: 0.08s; }
+.gi-btn.is-primary { background: #0071e3; color: #fff; }

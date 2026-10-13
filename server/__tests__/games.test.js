@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGomoku, applyGomoku, GOMOKU_SIZE } from '../games/gomoku.js';
+import { createGomoku, applyGomoku, takeBack, GOMOKU_SIZE } from '../games/gomoku.js';
 import { createBanqi, applyBanqi, banqiView, targetsFrom, canCapture, BANQI_COLS } from '../games/banqi.js';
 import { createGameRooms, RECONNECT_GRACE_MS } from '../games/gameRooms.js';
 import { createChatHub } from '../chatHub.js';
@@ -26,6 +26,54 @@ describe('gomoku', () => {
     const r = applyGomoku({ ...s0, board }, 1, { type: 'place', i: at(4, 4) });
     expect(r.state.winner).toBe(1);
     expect(r.state.winLine).toHaveLength(6);
+  });
+
+  it('悔棋：对方同意后退回，次数 -1；拒绝不扣次数', () => {
+    let s = createGomoku();
+    s = applyGomoku(s, 1, { type: 'place', i: 0 }).state;
+    s = applyGomoku(s, 2, { type: 'place', i: 1 }).state;
+    // 轮到黑，黑请求悔棋 → 退两手（白的和自己的）
+    s = applyGomoku(s, 1, { type: 'undo-request' }).state;
+    expect(s.undoRequest).toEqual({ seat: 1, count: 2 });
+    expect(applyGomoku(s, 1, { type: 'undo-request' }).ok).toBe(false); // 不能重复请求
+    const declined = applyGomoku(s, 2, { type: 'undo-respond', accept: false }).state;
+    expect(declined.undos[1]).toBe(3);
+    expect(declined.undoEvent).toMatchObject({ seat: 1, accepted: false });
+    const accepted = applyGomoku(s, 2, { type: 'undo-respond', accept: true }).state;
+    expect(accepted.moves).toEqual([]);
+    expect(accepted.board[0]).toBe(0);
+    expect(accepted.turn).toBe(1);
+    expect(accepted.undos[1]).toBe(2);
+  });
+
+  it('悔棋：刚下完只退自己一手；用完 3 次后被拒；对方落子视为拒绝', () => {
+    let s = createGomoku();
+    s = applyGomoku(s, 1, { type: 'place', i: 0 }).state;
+    s = applyGomoku(s, 1, { type: 'undo-request' }).state;
+    expect(s.undoRequest.count).toBe(1);
+    const ignored = applyGomoku(s, 2, { type: 'place', i: 5 }).state;
+    expect(ignored.undoRequest).toBeNull();
+    expect(ignored.undoEvent).toMatchObject({ seat: 1, accepted: false });
+    for (let k = 0; k < 3; k++) {
+      s = applyGomoku(s, 2, { type: 'undo-respond', accept: true }).state;
+      s = applyGomoku(s, 1, { type: 'place', i: 0 }).state;
+      if (k < 2) s = applyGomoku(s, 1, { type: 'undo-request' }).state;
+    }
+    expect(s.undos[1]).toBe(0);
+    expect(applyGomoku(s, 1, { type: 'undo-request' }).error).toBe('悔棋次数已用完');
+    // 白还没下过子
+    expect(applyGomoku(createGomoku(), 2, { type: 'undo-request' }).ok).toBe(false);
+  });
+
+  it('单人悔棋 takeBack 立即生效并轮回自己', () => {
+    let s = createGomoku();
+    s = applyGomoku(s, 1, { type: 'place', i: 0 }).state;
+    s = applyGomoku(s, 2, { type: 'place', i: 1 }).state;
+    const r = takeBack(s, 1);
+    expect(r.ok).toBe(true);
+    expect(r.state.moves).toEqual([]);
+    expect(r.state.turn).toBe(1);
+    expect(r.state.undos[1]).toBe(2);
   });
 
   it('拒绝非本方回合、重复落子、越界', () => {
@@ -74,18 +122,34 @@ describe('banqi', () => {
     expect(canCapture(N, R)).toBe(false);
   });
 
-  it('炮隔一子打：暗子可作炮架，只能打明子，不能吃相邻', () => {
+  it('炮隔一子打：暗子可作炮架也可被打，不能吃相邻', () => {
     const s = banqiWith({ [bq(0, 0)]: 'rC', [bq(0, 2)]: '?bK', [bq(0, 4)]: 'bK', [bq(1, 0)]: 'bA', [bq(2, 0)]: '?rP', [bq(3, 0)]: '?bN' });
     const t = targetsFrom(s.cells, bq(0, 0));
     expect(t).toContain(bq(0, 4));         // 隔暗子打远处的明将
     expect(t).toContain(bq(0, 1));         // 空格照常走一步
     expect(t).not.toContain(bq(1, 0));     // 相邻不能吃
-    expect(t).not.toContain(bq(0, 2));     // 暗子不能被打
-    expect(t).not.toContain(bq(3, 0));     // 隔子后是暗子：不能打
+    expect(t).not.toContain(bq(0, 2));     // 与炮之间没有炮架：打不到
+    expect(t).toContain(bq(2, 0));         // 隔 1,0 打暗子（是自己的红兵也能打）
+    expect(t).not.toContain(bq(3, 0));     // 隔了两个子
 
     // 两个炮架：打不到
     const s2 = banqiWith({ [bq(0, 0)]: 'rC', [bq(0, 1)]: 'bP', [bq(0, 2)]: '?bK', [bq(0, 4)]: 'bK' });
     expect(targetsFrom(s2.cells, bq(0, 0))).not.toContain(bq(0, 4));
+  });
+
+  it('炮打暗子：揭晓并移除，打到自己的子算自己损失', () => {
+    const s = banqiWith({ [bq(0, 0)]: 'rC', [bq(0, 1)]: 'bP', [bq(0, 2)]: '?rN', [bq(3, 7)]: 'bR', [bq(2, 7)]: 'rK' });
+    const r = applyBanqi(s, 1, { type: 'move', from: bq(0, 0), to: bq(0, 2) });
+    expect(r.ok).toBe(true);
+    expect(r.state.cells[bq(0, 2)]).toMatchObject({ c: 'r', t: 'C', up: true });
+    expect(r.state.captured.r).toEqual(['N']);
+    expect(r.state.last.hidden).toEqual({ c: 'r', t: 'N' });
+    expect(r.state.quiet).toBe(0);
+  });
+
+  it('非炮的子不能吃暗子', () => {
+    const s = banqiWith({ [bq(1, 1)]: 'rK', [bq(1, 2)]: '?bP' });
+    expect(targetsFrom(s.cells, bq(1, 1))).not.toContain(bq(1, 2));
   });
 
   it('吃光对方即胜', () => {

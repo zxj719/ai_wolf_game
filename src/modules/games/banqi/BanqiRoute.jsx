@@ -27,6 +27,30 @@ function Tray({ color, types }) {
   );
 }
 
+const LADDER = ['K', 'A', 'E', 'R', 'N', 'C', 'P'];
+
+/** 常驻的吃子顺序条：大吃小 + 两条例外 */
+function RankLegend({ color }) {
+  const c = color || 'r';
+  return (
+    <div className="bq-legend" aria-label="吃子顺序">
+      <div className="bq-ladder">
+        {LADDER.map((t, k) => (
+          <span key={t} className="bq-ladder-item">
+            <span className={`bq-mini ${c === 'r' ? 'is-red' : 'is-black'}`}>{PIECE_NAMES[c][t]}</span>
+            {k < LADDER.length - 1 && <i>›</i>}
+          </span>
+        ))}
+      </div>
+      <div className="bq-legend-notes">
+        <span>大吃小 · 同级互吃</span>
+        <span><b>{PIECE_NAMES.r.P}{PIECE_NAMES.b.P}</b> 可吃 <b>{PIECE_NAMES.r.K}{PIECE_NAMES.b.K}</b>，反之不行</span>
+        <span><b>炮</b> 隔一子打，任意距离、任意子，<b>暗子也能打</b></span>
+      </div>
+    </div>
+  );
+}
+
 function BanqiBoard({ room, duel, width, height }) {
   const { cells, colors, last, captured } = room.state;
   const myColor = colors[room.seat];
@@ -69,11 +93,12 @@ function BanqiBoard({ room, duel, width, height }) {
   const vRows = transpose ? BANQI_COLS : BANQI_ROWS;
   const vCols = transpose ? BANQI_ROWS : BANQI_COLS;
   const trayH = 40;
+  const legendH = width < 560 ? 92 : 64;
   const gap = 6;
   const pad = 12;
   const cell = Math.floor(Math.min(
     (width - pad * 2 - gap * (vCols - 1)) / vCols,
-    (height - trayH * 2 - pad * 2 - gap * (vRows - 1)) / vRows,
+    (height - trayH * 2 - legendH - pad * 2 - gap * (vRows - 1)) / vRows,
     110,
   ));
 
@@ -108,8 +133,18 @@ function BanqiBoard({ room, duel, width, height }) {
         })}
       </div>
       {myColor ? <Tray color={myColor} types={captured[myColor]} /> : <div className="bq-tray is-empty" />}
+      <RankLegend color={myColor} />
     </div>
   );
+}
+
+/** 炮打暗子时提示打掉的是什么（可能是自己的子） */
+function extras(room) {
+  const last = room.state.last;
+  if (!last?.hidden) return {};
+  const { c, t } = last.hidden;
+  const mine = c === room.state.colors[room.seat];
+  return { message: { text: `炮打暗子：打掉了${mine ? '你' : '对方'}的${PIECE_NAMES[c][t]}`, tone: mine ? 'bad' : undefined } };
 }
 
 function badge(color) {
@@ -136,8 +171,8 @@ const RULES = (
     <li>4×8 棋盘，32 枚棋子<b>背面朝上</b>随机摆放；先手随机。</li>
     <li>每回合三选一：<b>翻开</b>一枚暗子、己方明子<b>走一步</b>（上下左右）、或<b>吃子</b>。首个翻子的人执所翻棋子的颜色。</li>
     <li>大小：<b>帅将 &gt; 仕士 &gt; 相象 &gt; 车 &gt; 马 &gt; 炮 &gt; 兵卒</b>，大吃小、同级互吃；兵卒可吃帅将，帅将不能吃兵卒。</li>
-    <li><b>炮</b>平时走一步；吃子须隔且只隔一枚棋子（明暗都能当炮架），可打任意距离、任意大小的对方明子。</li>
-    <li>暗子不能被吃。吃光对方或让对方无路可走即胜；连续 50 步无翻无吃判和。</li>
+    <li><b>炮</b>平时走一步；吃子须<b>隔且只隔一枚</b>棋子（明暗都能当炮架），沿直线打任意距离的目标：对方任意大小的明子，或<b>任意暗子</b>——翻开若是自己的子，照样被打掉。</li>
+    <li>除炮以外，只能吃对方明子。吃光对方或让对方无路可走即胜；连续 50 步无翻无吃判和。</li>
   </ul>
 );
 
@@ -147,6 +182,7 @@ export default function BanqiRoute() {
       game="banqi"
       rules={RULES}
       describe={describe}
+      extras={extras}
       resultText={(room) => (room.result.reason === 'win' ? '对方无子可走 · ' : room.result.reason === 'draw' ? '50 步无翻无吃 · ' : '')}
       renderBoard={(props) => <BanqiBoard {...props} />}
     />

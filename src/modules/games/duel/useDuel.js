@@ -116,6 +116,7 @@ export function useDuel() {
     incoming,
     outgoing,
     toast,
+    say,
     reloadFriends: loadFriends,
     nameOf: (id) => (Number(id) === meRef.current ? (user?.username ?? '我') : friends.find((f) => f.id === Number(id))?.username ?? `#${id}`),
     invite: (to, game) => send({ type: 'game:invite', to, game }),

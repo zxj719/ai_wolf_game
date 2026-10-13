@@ -144,3 +144,20 @@
 .bq-badge.is-red { background: #c62f2f; color: #fff; }
 .bq-badge.is-black { background: #1d1d1f; color: #fff; }
 .gs[data-gs-theme='dark'] .bq-badge.is-black { background: #f5f5f7; color: #1d1d1f; }
+
+/* 常驻吃子顺序条 */
+.bq-legend { display: grid; justify-items: center; gap: 6px; margin-top: 6px; }
+.bq-ladder {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--gs-surface);
+  box-shadow: var(--gs-shadow-sm), inset 0 0 0 0.5px var(--gs-line);
+}
+.bq-ladder-item { display: inline-flex; align-items: center; gap: 2px; }
+.bq-ladder-item i { font-style: normal; color: var(--gs-ink-3); font-size: 13px; }
+.bq-ladder .bq-mini { width: 24px; height: 24px; font-size: 12px; opacity: 1; animation: none; }
+.bq-legend-notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; font-size: 12px; color: var(--gs-ink-2); }
+.bq-legend-notes b { color: var(--gs-ink); font-weight: 700; }

@@ -7,8 +7,9 @@
  *   - 等级：帅将 7 > 仕士 6 > 相象 5 > 车 4 > 马 3 > 炮 2 > 兵卒 1。
  *     大吃小、同级互吃；例外：兵卒可吃帅将，帅将不能吃兵卒。
  *   - 炮：走法同其它子（一步）；吃子须隔且只隔一枚棋子（明暗皆可作炮架），
- *     沿直线吃任意距离、任意等级的对方明子；炮不能直接吃相邻的子。
- *   - 只能吃对方「明子」，暗子不能被吃。
+ *     沿直线打任意距离的目标：对方明子（任意等级）或任意暗子（翻开后可能是自己的，
+ *     照样被打掉）；炮不能直接吃相邻的子。
+ *   - 除炮以外，只能吃对方明子；暗子只有炮能打。
  *   - 胜负：轮到某方时其已无棋子、或无任何合法操作 → 该方负。
  *     连续 50 步（双方合计）无翻子无吃子 → 和棋。
  *
@@ -84,7 +85,7 @@ export function targetsFrom(cells, from) {
         const q = cells[idx(r, c)];
         if (q) {
           if (screens === 1) {
-            if (q.up && q.c !== p.c) out.push(idx(r, c));
+            if (!q.up || q.c !== p.c) out.push(idx(r, c)); // 暗子（不论颜色）或对方明子
             break;
           }
           screens++;
@@ -123,6 +124,7 @@ export function applyBanqi(state, seat, action) {
   const captured = { r: state.captured.r.slice(), b: state.captured.b.slice() };
   let quiet = state.quiet + 1;
   let last;
+  let hit = null;
   const valid = (i) => Number.isInteger(i) && i >= 0 && i < cells.length;
 
   if (action.type === 'flip') {
@@ -143,11 +145,12 @@ export function applyBanqi(state, seat, action) {
     if (!targetsFrom(cells, from).includes(to)) return { ok: false, error: '这步棋不合规则' };
     if (cells[to]) {
       captured[cells[to].c].push(cells[to].t);
+      if (!cells[to].up) hit = { c: cells[to].c, t: cells[to].t }; // 炮打暗子：揭晓被打掉的是什么
       quiet = 0;
     }
     cells[to] = p;
     cells[from] = null;
-    last = { type: 'move', from, to, capture: quiet === 0 };
+    last = { type: 'move', from, to, capture: quiet === 0, ...(hit ? { hidden: hit } : {}) };
   } else {
     return { ok: false, error: '无效操作' };
   }
@@ -155,7 +158,8 @@ export function applyBanqi(state, seat, action) {
   const next = { ...state, cells, colors, captured, quiet, last, turn: seat === 1 ? 2 : 1 };
   const oppSeat = next.turn;
   const oppColor = colors[oppSeat];
-  if (oppColor && (remaining(next, oppColor) === 0 || !hasAnyAction(next, oppSeat))) next.winner = seat;
+  if (colors[seat] && remaining(next, colors[seat]) === 0) next.winner = oppSeat; // 炮打暗子打掉了自己最后一子
+  else if (oppColor && (remaining(next, oppColor) === 0 || !hasAnyAction(next, oppSeat))) next.winner = seat;
   else if (quiet >= QUIET_LIMIT) next.draw = true;
   return { ok: true, state: next };
 }

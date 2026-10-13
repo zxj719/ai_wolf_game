@@ -108,3 +108,26 @@
 }
 
 .du-result-wrap { background: rgba(0, 0, 0, 0.08); }
+
+.du-stack { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+
+/* 对局中的请求卡片（悔棋等）：浮在棋盘上方，不挡 dock */
+.du-banner {
+  position: absolute;
+  left: 50%;
+  top: 120px;
+  z-index: 15;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 18px;
+  background: var(--gs-surface);
+  box-shadow: var(--gs-shadow-lg), inset 0 0 0 0.5px var(--gs-line);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  animation: du-drop 0.5s var(--gs-spring) both;
+}
+@keyframes du-drop { from { opacity: 0; transform: translate(-50%, -14px) scale(0.96); } }

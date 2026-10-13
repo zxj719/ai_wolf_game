@@ -2,6 +2,33 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-10-13] 五子棋悔棋 + 人机模式；翻翻棋炮打暗子与规则展示；全站约战邀请
+
+### 新功能
+- **五子棋悔棋**：每人每局 3 次。好友对战需对方同意（拒绝不扣次数，对方直接落子视为拒绝）；轮到自己时退 2 手、刚下完退 1 手。单人模式立即生效。
+- **五子棋单人模式**：无需登录，简单 / 中等 / 困难三档，可选执黑或执白。算法为「五元组窗口」棋型估值 + Alpha-Beta（Negamax、迭代加深、威胁优先排序、强制着法剪枝），困难档先做 VCF（连续冲四）必胜搜索；在 Web Worker 里计算不卡界面。自对弈：困难 6:0 简单、4:2 中等；中等 6:0 简单；困难每手平均 ~0.2s、最长 ~1.1s。
+- **翻翻棋炮的规则**：炮隔且只隔一子打，可以打暗子（翻开是自己的子也照样被打掉，记为己方损失）；打暗子时提示被打掉的是什么。
+- **翻翻棋规则展示**：对局界面常驻吃子顺序条（帥 › 仕 › 相 › 俥 › 傌 › 炮 › 兵 + 兵吃帥、炮打暗子两条例外），dock「规则」按钮打开完整规则（五子棋同样有）。
+- **全站约战邀请**：在首页、小游戏、聊天（好友）页都能收到好友的对战邀请通知卡片，接受直接进入对局页。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `server/games/gomoku.js` | 修改 | 悔棋请求/回应、takeBack、undoCount |
+| `server/games/banqi.js` | 修改 | 炮可打暗子；自己最后一子被炮打掉判负；last.hidden |
+| `src/modules/games/gomoku/gomokuAI.js`, `gomokuAI.worker.js` | 新建 | 人机算法与 Worker |
+| `src/modules/games/gomoku/GomokuRoute.jsx` | 重写 | 棋盘复用、悔棋 UI、单人模式 |
+| `src/modules/games/banqi/*` | 修改 | 吃子顺序条、规则文案、炮打暗子提示 |
+| `src/modules/games/duel/DuelRoute.jsx`, `useDuel.js`, `duel.css` | 修改 | 规则 sheet、extras（悔棋按钮/请求卡片）、lobbyTop |
+| `src/modules/games/duel/GameInviteListener.jsx`, `inviteToast.css` | 新建 | 全站邀请通知 |
+| `src/shell/GlobalOverlays.jsx` | 修改 | 懒加载挂载邀请监听 |
+| `server/__tests__/games.test.js`, `src/modules/games/__tests__/gomokuAI.test.js` | 修改/新建 | 悔棋、炮打暗子、AI 行为测试 |
+
+### 技术细节
+- 邀请监听只在首页 / 小游戏 / 聊天页连接 WS（狼人杀等模块不占连接）；五子棋/翻翻棋页自带大厅，不重复弹卡片。
+- 「在线」的含义随之扩大为：好友此刻在首页、小游戏或聊天页。
+- 需要 ECS `git pull` + `pm2 restart bt-server`（规则引擎在服务端），会中断进行中的对局与视频通话。
+
 ## [2026-10-13] 小游戏：五子棋 + 翻翻棋（好友约战）
 
 ### 新功能
