@@ -32,7 +32,7 @@ export function explainStep({ step, currentSnap, prevSnap, grid }) {
     for (const row of grid) for (const v of row) if (v !== 0) clues++;
     return {
       title: '开始',
-      colorVar: 'var(--ink-muted)',
+      colorVar: 'var(--gs-ink-2)',
       dofText: `首轮传播后剩余候选值总数：${totalDoF(currentSnap)}`,
       lines: [
         `已放置 ${clues} 个已知数。其余每个格子起始都持有全部 9 个候选值 {1..9}。`,
@@ -44,7 +44,7 @@ export function explainStep({ step, currentSnap, prevSnap, grid }) {
     const affected = peersLostValue(meta.row, meta.col, meta.value);
     return {
       title: '唯一余数',
-      colorVar: 'var(--success)',
+      colorVar: 'var(--gs-green)',
       dofText: dofText(),
       lines: [
         `${rcLabel(meta.row, meta.col)} 的候选值已收窄到只剩一个：${meta.value}。其余 8 个数字已被更早的同伴约束逐一排除——候选集大小为 1，直接确定取值。`,
@@ -63,12 +63,12 @@ export function explainStep({ step, currentSnap, prevSnap, grid }) {
     ];
     if (ownBefore.length > 1) lines.push(`<i>注意：这一步之前 ${rcLabel(meta.row, meta.col)} 自己还列着 {${ownBefore.join(',')}}，并不是唯一余数——是整个单元内的计数逼出了这个结果，仅看单个格子会漏掉这一步。</i>`);
     if (affected.length) lines.push(`落定 ${rcLabel(meta.row, meta.col)} = ${meta.value} 后，从 ${affected.length} 个同伴格子中移除了它：${fmtCellList(affected, 6)}。`);
-    return { title: '隐性唯一', colorVar: 'var(--state-thinking)', dofText: dofText(), lines };
+    return { title: '隐性唯一', colorVar: '#5e5ce6', dofText: dofText(), lines };
   }
   if (meta.type === 'guess') {
     return {
       title: `试探猜测 · 深度 ${meta.depth}`,
-      colorVar: 'var(--warning)',
+      colorVar: 'var(--gs-orange)',
       dofText: dofText(),
       lines: [
         `传播已经停滞：棋盘上再也找不到唯一余数或隐性唯一了。`,
@@ -80,7 +80,7 @@ export function explainStep({ step, currentSnap, prevSnap, grid }) {
   if (meta.type === 'backtrack') {
     return {
       title: `回溯 · 深度 ${meta.depth}`,
-      colorVar: 'var(--danger)',
+      colorVar: 'var(--gs-red)',
       dofText: dofText(),
       lines: [
         `猜测 ${rcLabel(meta.row, meta.col)} = ${meta.value} 在更深的搜索里最终导致了矛盾。`,
@@ -92,7 +92,7 @@ export function explainStep({ step, currentSnap, prevSnap, grid }) {
   if (meta.type === 'contradiction') {
     return {
       title: '矛盾',
-      colorVar: 'var(--danger)',
+      colorVar: 'var(--gs-red)',
       dofText: dofText(),
       lines: [
         `${rcLabel(meta.row, meta.col)} 刚刚失去了最后一个候选值。候选集为空意味着 1-9 里没有一个数字能合法填入这里。`,
@@ -103,12 +103,12 @@ export function explainStep({ step, currentSnap, prevSnap, grid }) {
   if (meta.type === 'solved') {
     return {
       title: '已求解',
-      colorVar: 'var(--success)',
+      colorVar: 'var(--gs-green)',
       dofText: '剩余候选值：0',
       lines: [
         `全部 81 个格子都只剩一个候选值，且根据构造过程，每行、每列、每宫都恰好各出现一次 1-9。`,
       ],
     };
   }
-  return { title: '', colorVar: 'var(--ink-muted)', dofText: '', lines: [] };
+  return { title: '', colorVar: 'var(--gs-ink-2)', dofText: '', lines: [] };
 }

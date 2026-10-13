@@ -1,0 +1,91 @@
+/* 扫雷棋盘 — 依赖 shared/stage.css 的 --gs-* 变量 */
+
+.ms-scroll { overflow: auto; border-radius: 24px; }
+
+.ms-board {
+  display: grid;
+  border-radius: 24px;
+  background: var(--gs-surface);
+  box-shadow: var(--gs-shadow), inset 0 0 0 0.5px var(--gs-line);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+.ms-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r);
+  /* 未翻开：柔和的凸起方块 */
+  background: linear-gradient(180deg, #eef0f4 0%, #e1e4ea 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 1.5px rgba(0, 0, 0, 0.1);
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.45s var(--gs-spring), background 0.2s var(--gs-ease), box-shadow 0.2s;
+}
+.gs[data-gs-theme='dark'] .ms-cell {
+  background: linear-gradient(180deg, #3a3a3e 0%, #2e2e32 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 1.5px rgba(0, 0, 0, 0.5);
+}
+@media (hover: hover) {
+  .ms-cell:not(.is-open):hover { background: linear-gradient(180deg, #f5f6f9 0%, #e8ebf0 100%); }
+  .gs[data-gs-theme='dark'] .ms-cell:not(.is-open):hover { background: linear-gradient(180deg, #45454a, #38383c); }
+}
+.ms-cell:not(.is-open):active {
+  transform: scale(0.86);
+  transition: transform 0.07s var(--gs-ease);
+}
+
+/* 已翻开：凹进去的浅底 + 从点击处扩散的翻开动效 */
+.ms-cell.is-open {
+  background: var(--gs-fill);
+  box-shadow: none;
+  cursor: default;
+  animation: ms-open 0.42s var(--gs-spring) var(--d, 0ms) both;
+}
+@keyframes ms-open {
+  0% { transform: scale(0.55); opacity: 0.2; background: var(--gs-accent-soft); }
+  60% { background: var(--gs-accent-soft); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ms-n {
+  font-weight: 700;
+  font-family: 'SF Pro Rounded', ui-rounded, -apple-system, 'PingFang SC', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.ms-n1 { color: #0071e3; }
+.ms-n2 { color: #28a745; }
+.ms-n3 { color: #ff3b30; }
+.ms-n4 { color: #5e5ce6; }
+.ms-n5 { color: #c93400; }
+.ms-n6 { color: #0a9396; }
+.ms-n7 { color: var(--gs-ink); }
+.ms-n8 { color: var(--gs-ink-2); }
+.gs[data-gs-theme='dark'] .ms-n1 { color: #409cff; }
+.gs[data-gs-theme='dark'] .ms-n2 { color: #30d158; }
+.gs[data-gs-theme='dark'] .ms-n4 { color: #7d7aff; }
+.gs[data-gs-theme='dark'] .ms-n5 { color: #ff9f0a; }
+.gs[data-gs-theme='dark'] .ms-n6 { color: #40c8e0; }
+
+.ms-icon { width: 62%; height: 62%; color: var(--gs-ink); }
+.ms-flag { animation: ms-flag 0.45s var(--gs-spring) both; transform-origin: 30% 100%; }
+@keyframes ms-flag { from { transform: scale(0) rotate(-25deg); } }
+
+.ms-cell.is-mine { animation: ms-mine 0.4s var(--gs-spring) var(--d, 0ms) both; }
+@keyframes ms-mine { from { transform: scale(0.4); opacity: 0; } }
+.ms-cell.is-exploded { background: var(--gs-red) !important; box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.25); }
+.ms-cell.is-exploded .ms-icon { color: #fff; }
+.ms-wrong { color: var(--gs-red); font-weight: 700; font-size: 1.4em; }
+
+/* 通关：一道对角线波纹 */
+.ms-cell.is-won { animation: ms-wave 0.6s var(--gs-spring) var(--d, 0ms) both; }
+@keyframes ms-wave {
+  0% { transform: scale(1); }
+  35% { transform: scale(0.8); background: rgba(52, 199, 89, 0.25); }
+  100% { transform: scale(1); }
+}

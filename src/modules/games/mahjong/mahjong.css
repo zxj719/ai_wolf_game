@@ -1,0 +1,74 @@
+/* 麻将消除 — 依赖 shared/stage.css 的 --gs-* 变量。牌面象牙色是游戏自带固定色。 */
+
+.mj-board {
+  position: relative;
+  transform-origin: 0 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mj-tile {
+  position: absolute;
+  padding: 3px;
+  border: 0;
+  border-radius: 7px;
+  background: linear-gradient(165deg, #ffffff 0%, #f6f1e4 100%);
+  /* 牌身厚度（左下）+ 柔和投影 */
+  box-shadow:
+    inset 0 0 0 0.5px rgba(120, 100, 60, 0.35),
+    -1.5px 1.5px 0 #e8dfc8,
+    -3px 3px 0 #cdbf9c,
+    -4px 5px 10px rgba(0, 0, 0, 0.16);
+  cursor: default;
+  transition: transform 0.45s var(--gs-spring), filter 0.25s var(--gs-ease), box-shadow 0.25s var(--gs-ease);
+  touch-action: manipulation;
+}
+.mj-tile:not(.is-free) { filter: brightness(0.9) saturate(0.85); }
+.gs[data-gs-theme='dark'] .mj-tile:not(.is-free) { filter: brightness(0.72) saturate(0.8); }
+.mj-tile.is-free { cursor: pointer; }
+@media (hover: hover) {
+  .mj-tile.is-free:hover { transform: translateY(-2px); }
+}
+.mj-tile.is-free:active {
+  transform: translateY(0) scale(0.93);
+  transition: transform 0.07s var(--gs-ease);
+}
+
+.mj-tile.is-selected {
+  transform: translateY(-5px) scale(1.04);
+  background: linear-gradient(165deg, #f2f8ff 0%, #dcebff 100%);
+  box-shadow:
+    0 0 0 2.5px var(--gs-accent),
+    -1.5px 1.5px 0 #e8dfc8,
+    -3px 3px 0 #cdbf9c,
+    -6px 12px 20px rgba(0, 113, 227, 0.28);
+}
+
+.mj-tile.is-hint { animation: mj-hint 0.9s var(--gs-ease) infinite alternate; }
+@keyframes mj-hint {
+  to {
+    box-shadow:
+      0 0 0 3px var(--gs-green),
+      -1.5px 1.5px 0 #e8dfc8,
+      -3px 3px 0 #cdbf9c,
+      -4px 8px 18px rgba(52, 199, 89, 0.4);
+    transform: translateY(-3px);
+  }
+}
+
+/* 消除：先微微弹起再缩小淡出 */
+.mj-tile.is-leaving {
+  pointer-events: none;
+  animation: mj-leave 0.32s var(--gs-ease) forwards;
+}
+@keyframes mj-leave {
+  0% { transform: translateY(-5px) scale(1.04); opacity: 1; }
+  35% { transform: translateY(-9px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-4px) scale(0.55); opacity: 0; }
+}
+
+/* 点到被压住的牌：轻摇（a/b 交替保证连点也能重播） */
+.mj-tile.is-nudge-a { animation: mj-nudge-a 0.36s var(--gs-ease); }
+.mj-tile.is-nudge-b { animation: mj-nudge-b 0.36s var(--gs-ease); }
+@keyframes mj-nudge-a { 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }
+@keyframes mj-nudge-b { 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }

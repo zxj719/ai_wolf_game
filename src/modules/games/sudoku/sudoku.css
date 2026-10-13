@@ -1,38 +1,41 @@
 /* ================================================================
-   数独求解可视化 — 棋盘网格与高亮动画。
-   Tailwind 撑不住的部分（3x3 粗分隔线、格子高亮 keyframes）单独放这里，
-   参照 modules/tennis/tennis.css 的先例：scoped 类名，不进全局
-   styles/game-animations.css（那个文件是狼人杀专属，正在被逐步拆分）。
-   颜色全部取自 styles/tokens.css 的既有 token，不新造色值。
+   数独求解可视化 — 全屏舞台版（依赖 shared/stage.css 的 --gs-* 变量）。
+   棋盘尺寸由 JS 按舞台算好，字号全部按 --cell（单格边长）缩放。
    ================================================================ */
 
+.sd-layout { display: flex; gap: 24px; width: 100%; max-width: 1200px; margin: 0 auto; }
+.sd-layout.is-stacked { flex-direction: column; align-items: center; overflow-y: auto; padding-bottom: 80px; }
+.sd-board-col { flex: none; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.sd-panel { flex: 1; min-width: 0; max-width: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+.sd-layout.is-stacked .sd-panel { width: 100%; overflow: visible; }
+
 .sudoku-board {
+  --line: rgba(0, 0, 0, 0.09);
+  --line-strong: rgba(0, 0, 0, 0.32);
   display: grid;
   grid-template-columns: repeat(9, 1fr);
   grid-template-rows: repeat(9, 1fr);
-  aspect-ratio: 1;
-  width: 100%;
-  max-width: 480px;
-  margin: 0 auto;
-  background: var(--bg-sunken);
-  border: 2px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: 20px;
+  background: var(--gs-surface);
+  box-shadow: var(--gs-shadow), 0 0 0 1.5px var(--line-strong);
   overflow: hidden;
 }
+.gs[data-gs-theme='dark'] .sudoku-board { --line: rgba(255, 255, 255, 0.1); --line-strong: rgba(255, 255, 255, 0.34); }
 
 .sudoku-cell {
   position: relative;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   overflow: hidden;
+  transition: background 0.2s var(--gs-ease);
 }
-.sudoku-cell.box-right { border-right: 2px solid var(--border-strong); }
-.sudoku-cell.box-bottom { border-bottom: 2px solid var(--border-strong); }
+.sudoku-cell.box-right { border-right: 1.5px solid var(--line-strong); }
+.sudoku-cell.box-bottom { border-bottom: 1.5px solid var(--line-strong); }
 .sudoku-cell.col8 { border-right: none; }
 .sudoku-cell.row8 { border-bottom: none; }
+.sudoku-cell:focus-within { background: var(--gs-accent-soft); }
 
 .sudoku-cell-input {
   width: 100%;
@@ -41,83 +44,85 @@
   border: none;
   outline: none;
   text-align: center;
-  color: var(--ink);
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
-  font-weight: 700;
-  font-size: clamp(15px, 3.2vw, 24px);
-  caret-color: var(--success);
+  color: var(--gs-ink);
+  font-family: 'SF Pro Rounded', ui-rounded, -apple-system, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: calc(var(--cell) * 0.52);
+  caret-color: transparent;
+  cursor: pointer;
 }
-.sudoku-cell-input::placeholder { color: transparent; }
+.sudoku-cell-input:not(:placeholder-shown) { animation: sd-pop 0.35s var(--gs-spring); }
 
 .sudoku-cell-value {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
-  font-weight: 700;
-  font-size: clamp(15px, 3.2vw, 24px);
+  font-family: 'SF Pro Rounded', ui-rounded, -apple-system, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: calc(var(--cell) * 0.52);
+  animation: sd-pop 0.4s var(--gs-spring);
 }
+@keyframes sd-pop { from { transform: scale(0.4); opacity: 0; } }
 
 .sudoku-pencil {
   position: absolute;
-  inset: 6%;
+  inset: 7%;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
 }
 .sudoku-pencil span {
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
-  font-size: clamp(6px, 1.15vw, 9.5px);
-  color: var(--ink-faint);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--cell) * 0.2);
+  font-variant-numeric: tabular-nums;
+  color: var(--gs-ink-3);
 }
 .sudoku-pencil span.is-hidden { visibility: hidden; }
 
-.sudoku-cell.active-now { animation: sudokuFlashCurrent 0.7s ease-out; }
-.sudoku-cell.active-peer { animation: sudokuFlashPeer 0.7s ease-out; }
-.sudoku-cell.active-fail { animation: sudokuFlashFail 0.7s ease-out; }
-@keyframes sudokuFlashCurrent {
-  0% { background: color-mix(in srgb, var(--ink) 26%, transparent); }
-  100% { background: transparent; }
-}
-@keyframes sudokuFlashPeer {
-  0% { background: color-mix(in srgb, var(--ink) 10%, transparent); }
-  100% { background: transparent; }
-}
-@keyframes sudokuFlashFail {
-  0% { background: color-mix(in srgb, var(--danger) 38%, transparent); }
-  100% { background: transparent; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sudoku-cell.active-now,
-  .sudoku-cell.active-peer,
-  .sudoku-cell.active-fail {
-    animation: none;
-  }
-}
+.sudoku-cell.active-now { animation: sd-now 0.8s var(--gs-ease); }
+.sudoku-cell.active-peer { animation: sd-peer 0.8s var(--gs-ease); }
+.sudoku-cell.active-fail { animation: sd-fail 0.8s var(--gs-ease); }
+@keyframes sd-now { 0% { background: var(--gs-accent-soft); box-shadow: inset 0 0 0 2px var(--gs-accent); } }
+@keyframes sd-peer { 0% { background: var(--gs-fill); } }
+@keyframes sd-fail { 0% { background: rgba(255, 59, 48, 0.22); box-shadow: inset 0 0 0 2px var(--gs-red); } }
+
+.sd-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 12px; color: var(--gs-ink-2); }
+.sd-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sd-legend i { width: 7px; height: 7px; border-radius: 50%; }
+
+/* 面板：iOS 分组卡片 */
+.sd-card { padding: 14px 16px; border-radius: 16px; background: var(--gs-surface); box-shadow: var(--gs-shadow-sm), inset 0 0 0 0.5px var(--gs-line); }
+.sd-card-title { margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--gs-ink-2); }
+.sd-card p { font-size: 14px; line-height: 1.6; color: var(--gs-ink-2); }
+.sd-card p b, .sd-card p strong { color: var(--gs-ink); }
+.sd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.sd-stats b { display: block; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sd-stats span { font-size: 11px; color: var(--gs-ink-2); }
+.sd-speed { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--gs-ink-2); }
+.sd-speed input { flex: 1; accent-color: var(--gs-accent); }
+.sd-error { font-size: 14px; color: var(--gs-red); text-align: center; }
 
 .sudoku-trace-log {
-  max-height: 230px;
+  max-height: 260px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
-  font-size: 11px;
+  font-size: 12.5px;
 }
 .sudoku-log-line {
-  padding: 5px 7px;
-  border-left: 2px solid var(--border-strong);
-  cursor: pointer;
-  color: var(--ink-muted);
-  border-radius: 3px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--gs-line);
+  border-radius: 6px;
+  color: var(--gs-ink-2);
   line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.15s;
 }
-.sudoku-log-line:hover { background: var(--bg-sunken); }
-.sudoku-log-line.is-current { background: var(--bg-sunken); color: var(--ink); }
-.sudoku-log-line.type-naked_single { border-left-color: var(--success); }
-.sudoku-log-line.type-hidden_single { border-left-color: var(--state-thinking); }
-.sudoku-log-line.type-guess { border-left-color: var(--warning); }
+.sudoku-log-line:hover { background: var(--gs-fill); }
+.sudoku-log-line.is-current { background: var(--gs-accent-soft); color: var(--gs-ink); }
+.sudoku-log-line.type-naked_single { border-left-color: var(--gs-green); }
+.sudoku-log-line.type-hidden_single { border-left-color: #5e5ce6; }
+.sudoku-log-line.type-guess { border-left-color: var(--gs-orange); }
 .sudoku-log-line.type-backtrack,
-.sudoku-log-line.type-contradiction { border-left-color: var(--danger); }
-.sudoku-log-line.type-solved { border-left-color: var(--success); font-weight: 600; color: var(--success); }
-.sudoku-log-line.type-start { border-left-color: var(--border-strong); }
+.sudoku-log-line.type-contradiction { border-left-color: var(--gs-red); }
+.sudoku-log-line.type-solved { border-left-color: var(--gs-green); font-weight: 600; color: var(--gs-green); }
+.sd-status { font-size: 13px; font-weight: 600; }

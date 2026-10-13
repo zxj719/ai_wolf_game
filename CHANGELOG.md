@@ -2,6 +2,28 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-10-13] 小游戏：扫雷 / 麻将 / 数独 全屏 Apple 风格重做
+
+### 新功能
+- **全屏舞台**：三个游戏统一改为占满视口的 `GameStage`——玻璃顶栏（‹ 小游戏 / 标题 / 排行榜）、iOS 分段控件（弹簧滑块）、按舞台宽高自适应的棋盘、底部悬浮玻璃 dock；排行榜改为右侧（手机为底部）sheet，通关弹出结算卡片。
+- **Apple 式点击反馈**：按下 80ms 快速缩小、松开弹簧回弹；Android `navigator.vibrate`、iOS 18 Safari `<input switch>` 触感；扫雷翻开从点击处向外波纹展开、插旗弹入、踩雷全盘震动、通关对角波纹；麻将选中抬起 + 蓝圈、消除弹起缩小淡出、点被压住的牌轻摇；数独填数弹入。
+- **简约清新配色**：Apple 系统色（#f5f5f7 底、#0071e3 蓝），跟随站点明暗主题；小游戏模块默认改为浅色。
+- **手机适配**：扫雷高级在竖屏自动转置为 16×30；面板/控件在 ≤640px 收紧。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/modules/games/shared/GameStage.jsx` | 新建 | 舞台 + DockButton / Segmented / WinDialog |
+| `src/modules/games/shared/stage.css`, `haptics.js`, `useElementSize.js` | 新建 | 设计系统、触感、尺寸监听 |
+| `src/modules/games/shared/GameFrame.jsx`, `minigames.css` | 删除 | 被 GameStage / stage.css 取代 |
+| `src/modules/games/shared/Leaderboard.jsx` | 修改 | 改为 sheet 内的分组列表 |
+| `src/modules/games/{minesweeper,mahjong,sudoku}/*` | 修改/新建 | 三个页面接入舞台，新增 minesweeper.css / mahjong.css，重写 sudoku.css |
+| `src/modules/games/index.js` | 修改 | 模块默认主题 dark → light |
+
+### 技术细节
+- 明暗判定读取最近的 `[data-theme]` 写入 `data-gs-theme`，避免 `[data-theme=dark] .gs` 误匹配 `<html>`。
+- 扫雷翻开动画延迟 = 与点击格的切比雪夫距离 × 24ms（上限 520ms），只在 `is-open` 首次挂上时播放一次。
+
 ## [2026-10-10] 小游戏：无猜扫雷 + 麻将消除（全网排行榜）
 
 ### 新功能

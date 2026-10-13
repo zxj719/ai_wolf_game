@@ -19,7 +19,7 @@ const gamesModule = {
     zh: '轻量小工具与可视化玩具，随时打开随时玩。',
     en: 'Lightweight tools and visual toys, playable anytime.',
   },
-  theme: 'dark',
+  theme: 'light',
   backend: 'cf-workers',
   routes: [
     { path: ROUTES.GAMES, component: GamesRoute, requiresAuth: false },

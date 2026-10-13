@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Eraser, Pause, PencilLine, Play } from 'lucide-react';
-import { useShell } from '../../../shell/ShellContext';
-import { ROUTES } from '../../../shell/paths';
+import { ChevronLeft, ChevronRight, Eraser, Pause, PencilLine, Play, Shuffle, Sparkles } from 'lucide-react';
+import GameStage, { DockButton, Segmented } from '../shared/GameStage';
+import { haptic } from '../shared/haptics';
 import {
   countSolutions,
   emptyGrid,
@@ -33,10 +33,10 @@ function boxExtraClass(r, c) {
 
 function originColor(type) {
   switch (type) {
-    case 'naked_single': return 'var(--success)';
-    case 'hidden_single': return 'var(--state-thinking)';
-    case 'guess': return 'var(--warning)';
-    default: return 'var(--ink)';
+    case 'naked_single': return 'var(--gs-green)';
+    case 'hidden_single': return '#5e5ce6';
+    case 'guess': return 'var(--gs-orange)';
+    default: return 'var(--gs-ink)';
   }
 }
 
@@ -64,8 +64,6 @@ function logLineText(meta, grid, notUnique) {
 }
 
 export default function SudokuRoute() {
-  const { navigate } = useShell();
-
   const [mode, setMode] = useState('input');
   const [grid, setGrid] = useState(emptyGrid);
   const [result, setResult] = useState(null);
@@ -75,6 +73,7 @@ export default function SudokuRoute() {
   const [speedIndex, setSpeedIndex] = useState(2);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [lastDifficulty, setLastDifficulty] = useState('medium');
 
   const inputRefs = useRef([]);
   const busyTimeoutRef = useRef(null);
@@ -199,18 +198,18 @@ export default function SudokuRoute() {
   }, [currentSnapshot]);
 
   const statusInfo = useMemo(() => {
-    if (busy && mode === 'input') return { text: '生成中…', colorVar: 'var(--warning)' };
-    if (mode === 'input') return { text: '就绪', colorVar: 'var(--ink-muted)' };
-    if (busy) return { text: '求解中…', colorVar: 'var(--warning)' };
-    if (!result) return { text: '就绪', colorVar: 'var(--ink-muted)' };
+    if (busy && mode === 'input') return { text: '生成中…', colorVar: 'var(--gs-orange)' };
+    if (mode === 'input') return { text: '就绪', colorVar: 'var(--gs-ink-2)' };
+    if (busy) return { text: '求解中…', colorVar: 'var(--gs-orange)' };
+    if (!result) return { text: '就绪', colorVar: 'var(--gs-ink-2)' };
     const total = trace.length;
     const atEnd = step === total - 1;
     const lastType = total > 0 ? trace[total - 1].meta.type : null;
-    if (!result.success) return { text: result.aborted ? '过于复杂' : '无解', colorVar: 'var(--danger)' };
-    if (atEnd && lastType === 'solved') return { text: '已求解', colorVar: 'var(--success)' };
-    if (playing) return { text: '求解中…', colorVar: 'var(--warning)' };
-    if (step === -1) return { text: '可单步演算', colorVar: 'var(--ink-muted)' };
-    return { text: '已暂停', colorVar: 'var(--warning)' };
+    if (!result.success) return { text: result.aborted ? '过于复杂' : '无解', colorVar: 'var(--gs-red)' };
+    if (atEnd && lastType === 'solved') return { text: '已求解', colorVar: 'var(--gs-green)' };
+    if (playing) return { text: '求解中…', colorVar: 'var(--gs-orange)' };
+    if (step === -1) return { text: '可单步演算', colorVar: 'var(--gs-ink-2)' };
+    return { text: '已暂停', colorVar: 'var(--gs-orange)' };
   }, [busy, mode, result, step, trace, playing]);
 
   const cluesCount = useMemo(() => grid.reduce((sum, row) => sum + row.filter((v) => v !== 0).length, 0), [grid]);
@@ -220,10 +219,10 @@ export default function SudokuRoute() {
     const upto = trace.slice(0, step + 1);
     const count = (t) => upto.filter((s) => s.meta.type === t).length;
     return [
-      { label: '唯一余数', value: count('naked_single'), colorVar: 'var(--success)' },
-      { label: '隐性唯一', value: count('hidden_single'), colorVar: 'var(--state-thinking)' },
-      { label: '试探猜测', value: count('guess'), colorVar: 'var(--warning)' },
-      { label: '回溯次数', value: count('backtrack'), colorVar: 'var(--danger)' },
+      { label: '唯一余数', value: count('naked_single'), colorVar: 'var(--gs-green)' },
+      { label: '隐性唯一', value: count('hidden_single'), colorVar: '#5e5ce6' },
+      { label: '试探猜测', value: count('guess'), colorVar: 'var(--gs-orange)' },
+      { label: '回溯次数', value: count('backtrack'), colorVar: 'var(--gs-red)' },
     ];
   }, [result, trace, step]);
 
@@ -241,278 +240,181 @@ export default function SudokuRoute() {
 
   const generateDisabled = busy;
   const solveDisabled = busy || mode === 'solved';
+  const atEnd = step >= trace.length - 1;
 
-  return (
-    <div className="px-4 py-16 md:px-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mac-window overflow-hidden">
-          <div className="mac-toolbar">
-            <div className="flex items-center gap-4">
-              <div className="mac-window-chrome">
-                <span className="mac-window-dot mac-dot-red" />
-                <span className="mac-window-dot mac-dot-yellow" />
-                <span className="mac-window-dot mac-dot-green" />
-              </div>
-              <div>
-                <div className="mac-eyebrow">Sudoku Solver Trace</div>
-                <h1 className="text-base font-semibold text-ink">数独求解可视化</h1>
-              </div>
-            </div>
+  const renderStage = ({ width, height }) => {
+    const wide = width >= 860;
+    const boardSize = Math.floor(wide
+      ? Math.min(height - 40, width - 380 - 24, 720)
+      : Math.min(width, Math.max(280, height * 0.7), 560));
+    const cell = boardSize / 9;
 
-            <div className="flex items-center gap-3">
-              <span
-                className="inline-flex items-center rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-wider"
-                style={{ color: statusInfo.colorVar, borderColor: statusInfo.colorVar }}
-              >
-                {statusInfo.text}
-              </span>
-              <button
-                type="button"
-                onClick={() => navigate(ROUTES.GAMES)}
-                className="mac-button mac-button-secondary"
-              >
-                <ArrowLeft size={15} />
-                返回小游戏
-              </button>
-            </div>
-          </div>
+    return (
+      <div className={`sd-layout${wide ? '' : ' is-stacked'}`} style={{ height }}>
+        <div className="sd-board-col" style={{ flex: wide ? '1' : 'none' }}>
+          <div
+            className={`sudoku-board ${mode === 'solved' ? 'is-solve-mode' : ''}`}
+            style={{ width: boardSize, height: boardSize, '--cell': `${cell}px` }}
+          >
+            {Array.from({ length: 81 }).map((_, idx) => {
+              const r = Math.floor(idx / 9);
+              const c = idx % 9;
+              const extra = boxExtraClass(r, c);
 
-          <main className="grid gap-6 px-6 py-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:px-8">
-            <section className="min-w-0 space-y-4">
-              <div className="mac-panel p-4">
+              if (mode === 'input') {
+                return (
+                  <div key={idx} className={`sudoku-cell${extra}`}>
+                    <input
+                      ref={(el) => { inputRefs.current[idx] = el; }}
+                      className="sudoku-cell-input"
+                      inputMode="numeric"
+                      maxLength={1}
+                      autoComplete="off"
+                      placeholder=" "
+                      aria-label={`第 ${r + 1} 行第 ${c + 1} 列`}
+                      value={grid[r][c] ? String(grid[r][c]) : ''}
+                      onChange={(e) => { haptic('light'); onCellInput(r, c, e.target.value); }}
+                      onKeyDown={(e) => onCellKeyDown(r, c, e)}
+                      onFocus={(e) => e.target.select()}
+                    />
+                  </div>
+                );
+              }
+
+              const snap = currentSnapshot;
+              const solved = snap?.solved[r][c];
+              const origin = snap?.origins[r][c];
+              const meta = snap?.meta;
+              const isNow = meta && meta.row === r && meta.col === c;
+              const isFail = isNow && (meta.type === 'backtrack' || meta.type === 'contradiction');
+              const isPeer = !isNow && activePeerKeys.has(idx);
+              const cands = snap?.candidates[r][c] ?? [];
+
+              return (
                 <div
-                  className={`sudoku-board ${mode === 'solved' ? 'is-solve-mode' : ''}`}
+                  key={idx}
+                  className={`sudoku-cell${extra}${isFail ? ' active-fail' : isNow ? ' active-now' : isPeer ? ' active-peer' : ''}`}
                 >
-                  {Array.from({ length: 81 }).map((_, idx) => {
-                      const r = Math.floor(idx / 9);
-                      const c = idx % 9;
-                      const extra = boxExtraClass(r, c);
-
-                      if (mode === 'input') {
-                        return (
-                          <div key={idx} className={`sudoku-cell${extra}`}>
-                            <input
-                              ref={(el) => { inputRefs.current[idx] = el; }}
-                              className="sudoku-cell-input"
-                              inputMode="numeric"
-                              maxLength={1}
-                              autoComplete="off"
-                              aria-label={`第 ${r + 1} 行第 ${c + 1} 列`}
-                              value={grid[r][c] ? String(grid[r][c]) : ''}
-                              onChange={(e) => onCellInput(r, c, e.target.value)}
-                              onKeyDown={(e) => onCellKeyDown(r, c, e)}
-                              onFocus={(e) => e.target.select()}
-                            />
-                          </div>
-                        );
-                      }
-
-                      const snap = currentSnapshot;
-                      const solved = snap?.solved[r][c];
-                      const origin = snap?.origins[r][c];
-                      const meta = snap?.meta;
-                      const isNow = meta && meta.row === r && meta.col === c;
-                      const isFail = isNow && (meta.type === 'backtrack' || meta.type === 'contradiction');
-                      const isPeer = !isNow && activePeerKeys.has(idx);
-                      const cands = snap?.candidates[r][c] ?? [];
-
-                      return (
-                        <div
-                          key={idx}
-                          className={`sudoku-cell${extra}${isFail ? ' active-fail' : isNow ? ' active-now' : isPeer ? ' active-peer' : ''}`}
-                        >
-                          {solved ? (
-                            <div className="sudoku-cell-value" style={{ color: originColor(origin?.type) }}>
-                              {cands[0]}
-                            </div>
-                          ) : (
-                            <div className="sudoku-pencil">
-                              {Array.from({ length: 9 }).map((___, i) => (
-                                <span key={i} className={cands.includes(i + 1) ? '' : 'is-hidden'}>{i + 1}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                  })}
-                </div>
-
-                <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-[11px] text-ink-muted">
-                  {[
-                    ['已知数', 'var(--ink)'],
-                    ['唯一余数', 'var(--success)'],
-                    ['隐性唯一', 'var(--state-thinking)'],
-                    ['试探猜测', 'var(--warning)'],
-                    ['回溯', 'var(--danger)'],
-                  ].map(([label, color]) => (
-                    <div key={label} className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-                      {label}
+                  {solved ? (
+                    <div key={cands[0]} className="sudoku-cell-value" style={{ color: originColor(origin?.type) }}>
+                      {cands[0]}
                     </div>
-                  ))}
-                </div>
-
-                {error && <p className="mt-3 text-center text-sm text-danger">{error}</p>}
-              </div>
-
-              {mode === 'solved' && reasoning && (
-                <div className="mac-panel p-4">
-                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: reasoning.colorVar }}>
-                      {reasoning.title}
-                    </span>
-                    <span className="font-mono text-[11px] text-ink-faint">{reasoning.dofText}</span>
-                  </div>
-                  <div className="space-y-2">
-                    {reasoning.lines.map((line, i) => (
-                      <p key={i} className="text-sm leading-6 text-ink-muted" dangerouslySetInnerHTML={{ __html: line }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-
-            <aside className="space-y-4">
-              <div className="mac-panel p-4">
-                <div className="mac-eyebrow mb-3">谜题</div>
-                <div className="grid grid-cols-4 gap-2">
-                  {DIFFICULTIES.map((d) => (
-                    <button
-                      key={d.key}
-                      type="button"
-                      disabled={generateDisabled}
-                      onClick={() => handleGenerate(d.key)}
-                      className="mac-button mac-button-secondary !px-2 !py-2 text-xs"
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={generateDisabled}
-                    onClick={() => goToInputMode(emptyGrid())}
-                    className="mac-button mac-button-secondary text-xs"
-                  >
-                    <Eraser size={14} />
-                    清空
-                  </button>
-                  {mode === 'solved' ? (
-                    <button
-                      type="button"
-                      onClick={() => goToInputMode(grid)}
-                      className="mac-button mac-button-secondary text-xs"
-                    >
-                      <PencilLine size={14} />
-                      编辑题目
-                    </button>
                   ) : (
-                    <button
-                      type="button"
-                      disabled={solveDisabled}
-                      onClick={handleSolve}
-                      className="mac-button mac-button-primary text-xs"
-                    >
-                      求解 ▶
-                    </button>
+                    <div className="sudoku-pencil">
+                      {Array.from({ length: 9 }).map((___, i) => (
+                        <span key={i} className={cands.includes(i + 1) ? '' : 'is-hidden'}>{i + 1}</span>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <p className="mt-3 text-xs leading-5 text-ink-faint">
-                  {mode === 'input'
-                    ? (cluesCount > 0
-                      ? `已有 ${cluesCount} 个已知数。点击求解开始观看，或继续编辑任意格子。`
-                      : '点击格子输入 1–9，或在上方生成一道谜题。')
-                    : null}
-                </p>
+              );
+            })}
+          </div>
+
+          <div className="sd-legend">
+            {[
+              ['已知数', 'var(--gs-ink)'],
+              ['唯一余数', 'var(--gs-green)'],
+              ['隐性唯一', '#5e5ce6'],
+              ['试探猜测', 'var(--gs-orange)'],
+              ['回溯', 'var(--gs-red)'],
+            ].map(([label, color]) => (
+              <span key={label}><i style={{ background: color }} />{label}</span>
+            ))}
+          </div>
+          {error && <div className="sd-error">{error}</div>}
+        </div>
+
+        <div className="sd-panel">
+          {mode === 'input' && (
+            <div className="sd-card">
+              <div className="sd-card-title">怎么玩</div>
+              <p>
+                {cluesCount > 0
+                  ? `已有 ${cluesCount} 个已知数。点「求解」看求解器一步步推理，或继续编辑任意格子。`
+                  : '点格子输入 1–9（方向键移动），或在上方选难度生成一道谜题。'}
+              </p>
+            </div>
+          )}
+
+          {mode === 'solved' && reasoning && (
+            <div className="sd-card">
+              <div className="sd-card-title" style={{ color: reasoning.colorVar }}>
+                {reasoning.title || '推理'} <span style={{ float: 'right', fontWeight: 400 }}>{reasoning.dofText}</span>
               </div>
+              {reasoning.lines.map((line, i) => (
+                <p key={i} dangerouslySetInnerHTML={{ __html: line }} />
+              ))}
+            </div>
+          )}
 
-              {mode === 'solved' && (
-                <div className="mac-panel p-4">
-                  <div className="mac-eyebrow mb-3">回放</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      disabled={step <= -1}
-                      onClick={() => { setPlaying(false); stepBack(); }}
-                      className="mac-button mac-button-secondary text-xs"
-                    >
-                      <ChevronLeft size={14} />
-                      上一步
-                    </button>
-                    <button
-                      type="button"
-                      disabled={step >= trace.length - 1}
-                      onClick={() => { setPlaying(false); stepForward(); }}
-                      className="mac-button mac-button-primary text-xs"
-                    >
-                      下一步
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={step >= trace.length - 1}
-                    onClick={() => setPlaying((p) => !p)}
-                    className={`mac-button mt-2 w-full text-xs ${playing ? 'mac-button-primary' : 'mac-button-secondary'}`}
+          {mode === 'solved' && stats && (
+            <div className="sd-card">
+              <div className="sd-card-title">统计 · 第 {step + 1} / {trace.length} 步</div>
+              <div className="sd-stats">
+                {stats.map((s) => (
+                  <div key={s.label}><b style={{ color: s.colorVar }}>{s.value}</b><span>{s.label}</span></div>
+                ))}
+              </div>
+              <div className="sd-speed" style={{ marginTop: 12 }}>
+                <label htmlFor="sudoku-speed">播放速度</label>
+                <input id="sudoku-speed" type="range" min={0} max={4} step={1} value={speedIndex}
+                  onChange={(e) => setSpeedIndex(Number(e.target.value))} />
+                <span className="tnum" style={{ width: 36, textAlign: 'right' }}>{SPEED_LABELS[speedIndex]}</span>
+              </div>
+            </div>
+          )}
+
+          {mode === 'solved' && logLines.length > 0 && (
+            <div className="sd-card">
+              <div className="sd-card-title">推理日志</div>
+              <div className="sudoku-trace-log">
+                {logLines.map((line) => (
+                  <div
+                    key={line.idx}
+                    onClick={() => { setPlaying(false); setStep(line.idx); }}
+                    className={`sudoku-log-line type-${line.type}${line.idx === step ? ' is-current' : ''}`}
                   >
-                    {playing ? <Pause size={14} /> : <Play size={14} />}
-                    {playing ? '暂停' : '自动播放'}
-                  </button>
-                  <div className="mt-3 flex items-center gap-2">
-                    <label htmlFor="sudoku-speed" className="text-xs text-ink-muted">速度</label>
-                    <input
-                      id="sudoku-speed"
-                      type="range"
-                      min={0}
-                      max={4}
-                      step={1}
-                      value={speedIndex}
-                      onChange={(e) => setSpeedIndex(Number(e.target.value))}
-                      className="flex-1 accent-[var(--accent)]"
-                    />
-                    <span className="w-12 text-right font-mono text-[11px] text-ink-muted">{SPEED_LABELS[speedIndex]}</span>
+                    {line.text}
                   </div>
-                  <div className="mt-2 text-center font-mono text-[11px] text-ink-faint">
-                    第 {step + 1} / {trace.length} 步
-                  </div>
-                </div>
-              )}
-
-              {mode === 'solved' && stats && (
-                <div className="mac-panel p-4">
-                  <div className="mac-eyebrow mb-3">统计</div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {stats.map((s) => (
-                      <div key={s.label}>
-                        <div className="font-mono text-xl font-bold" style={{ color: s.colorVar }}>{s.value}</div>
-                        <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-faint">{s.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {mode === 'solved' && logLines.length > 0 && (
-                <div className="mac-panel p-4">
-                  <div className="mac-eyebrow mb-3">推理日志</div>
-                  <div className="sudoku-trace-log">
-                    {logLines.map((line) => (
-                      <div
-                        key={line.idx}
-                        onClick={() => { setPlaying(false); setStep(line.idx); }}
-                        className={`sudoku-log-line type-${line.type}${line.idx === step ? ' is-current' : ''}`}
-                      >
-                        {line.text}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </aside>
-          </main>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    );
+  };
+
+  return (
+    <GameStage
+      title="数独"
+      controls={(
+        <>
+          <Segmented
+            value={lastDifficulty}
+            onChange={(k) => { setLastDifficulty(k); handleGenerate(k); }}
+            options={DIFFICULTIES.map((d) => ({ value: d.key, label: d.label }))}
+          />
+          <span className="sd-status" style={{ color: statusInfo.colorVar }}>{statusInfo.text}</span>
+        </>
+      )}
+      dock={mode === 'solved' ? (
+        <>
+          <DockButton icon={PencilLine} label="编辑" onClick={() => goToInputMode(grid)} />
+          <DockButton icon={ChevronLeft} label="上一步" disabled={step <= -1} onClick={() => { setPlaying(false); stepBack(); }} />
+          <DockButton icon={playing ? Pause : Play} label={playing ? '暂停' : '播放'} on={playing} disabled={atEnd && !playing} onClick={() => setPlaying((p) => !p)} />
+          <DockButton icon={ChevronRight} label="下一步" disabled={atEnd} onClick={() => { setPlaying(false); stepForward(); }} />
+        </>
+      ) : (
+        <>
+          <DockButton icon={Eraser} label="清空" disabled={generateDisabled} onClick={() => goToInputMode(emptyGrid())} />
+          <DockButton icon={Shuffle} label="换一题" disabled={generateDisabled} onClick={() => handleGenerate(lastDifficulty)} />
+          <DockButton icon={Sparkles} label="求解" disabled={solveDisabled || cluesCount === 0} onClick={handleSolve} on={!solveDisabled && cluesCount > 0} />
+        </>
+      )}
+    >
+      {renderStage}
+    </GameStage>
   );
 }
