@@ -521,9 +521,12 @@ async function serveStaticAsset(request, env) {
     });
   }
 
-  // Dev fallback (inject-html.mjs didn't run)
+  // Fallback when inject-html.mjs didn't run (dev, or a Cloudflare Git-integration
+  // build that only runs `vite build` + `wrangler deploy`). Request "/" rather than
+  // "/index.html": Workers Assets answers /index.html with a 307 → "/", and passing
+  // that through bounced every deep link (/games/gomoku, /tennis…) to the homepage.
   if (env.ASSETS) {
-    const fallbackRequest = new Request(new URL('/index.html', url.origin), request);
+    const fallbackRequest = new Request(new URL('/', url.origin), request);
     return env.ASSETS.fetch(fallbackRequest);
   }
   return new Response('Not found', { status: 404 });
