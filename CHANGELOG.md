@@ -10,7 +10,7 @@
 - **麻将立体感**：每层错位 6px → 10px，牌身侧面 4 级渐深（象牙 → 骨色 → 竹青底），投影随层数加深加远，高层牌明显浮在低层上。
 
 ### 数据迁移
-- 此前所有麻将成绩都是在「高亮可选牌」下打出的，统一迁到简单模式榜：`UPDATE minigame_scores SET variant = variant || '-easy' WHERE game = 'mahjong' AND variant NOT LIKE '%-easy'`。普通模式榜从零开始。
+- 无需迁移：上线时生产库里还没有任何麻将成绩（只有 4 条扫雷成绩）。若将来需要把旧的「高亮下打出」的成绩归入简单榜，用：`UPDATE minigame_scores SET variant = variant || '-easy' WHERE game = 'mahjong' AND variant NOT LIKE '%-easy'`。
 
 ### 文件变更
 | 文件 | 操作 | 说明 |
