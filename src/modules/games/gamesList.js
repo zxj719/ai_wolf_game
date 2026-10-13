@@ -50,4 +50,13 @@ export const GAMES = [
     },
     path: ROUTES.GAMES_BANQI,
   },
+  {
+    id: 'coopmines',
+    title: { zh: '双人扫雷 · 好友合作', en: 'Co-op Minesweeper' },
+    blurb: {
+      zh: '和好友轮流翻格子、共享插旗，一起把无猜雷区扫干净；一人踩雷两人同输。',
+      en: 'Take turns with a friend on one no-guess board. Shared flags, shared fate.',
+    },
+    path: ROUTES.GAMES_COOPMINES,
+  },
 ];

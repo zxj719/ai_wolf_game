@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
-import { BANQI_COLS, BANQI_ROWS, PIECE_NAMES, RANK, targetsFrom } from '../../../../server/games/banqi.js';
+import { useEffect, useRef, useState } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
+import { BANQI_COLS, BANQI_ROWS, PIECE_NAMES, PIECE_SCORE, RANK, targetsFrom } from '../../../../server/games/banqi.js';
 import DuelRoute from '../duel/DuelRoute';
+import { DockButton } from '../shared/GameStage';
 import { haptic } from '../shared/haptics';
+import { isMuted, setMuted, sfxFanfare, sfxFlip, sfxHit, sfxOuch } from '../shared/sfx';
 import './banqi.css';
 
 const COLOR_NAME = { r: '红', b: '黑' };
@@ -25,6 +28,46 @@ function Tray({ color, types }) {
       ))}
     </div>
   );
+}
+
+const SPARKS = Array.from({ length: 10 }, (_, k) => k * 36);
+
+/** 吃子特效：被吃的子碎裂 + 冲击波 + 火花 + 飘分（挂在目标格内，按 ply 只播一次） */
+function KillFx({ victim, kill }) {
+  const big = kill.points >= 25 || kill.combo >= 2;
+  return (
+    <span className={`bq-fx${big ? ' is-big' : ''}${kill.own ? ' is-own' : ''}`} aria-hidden="true">
+      <span className={`bq-ghost bq-piece ${victim.c === 'r' ? 'is-red' : 'is-black'}`}><b>{PIECE_NAMES[victim.c][victim.t]}</b></span>
+      <span className="bq-wave" />
+      {SPARKS.map((a) => <i key={a} className="bq-spark" style={{ '--a': `${a}deg` }} />)}
+      <span className="bq-points">{kill.own ? '误伤' : `+${kill.points}`}</span>
+    </span>
+  );
+}
+
+/** 局面推进时的音效与触感：吃子方「重击」，被吃方「闷哼」 */
+function useBanqiFeedback(room) {
+  const { ply = 0, last, turn } = room.state;
+  const seen = useRef(ply);
+  useEffect(() => {
+    if (ply === seen.current) return;
+    seen.current = ply;
+    if (!last) return;
+    if (last.type === 'flip') { sfxFlip(); return; }
+    if (!last.kill) return;
+    const attacker = turn === 1 ? 2 : 1;
+    const k = last.kill;
+    if (k.own) { sfxOuch(); if (attacker === room.seat) haptic('error'); return; }
+    if (attacker === room.seat) {
+      sfxHit(Math.min(1, k.points / 60));
+      haptic('heavy');
+      if (k.combo >= 2 || last.victim?.t === 'K') sfxFanfare(Math.min(5, 2 + k.combo));
+    } else {
+      sfxHit(0.3);
+      sfxOuch();
+      haptic('medium');
+    }
+  }, [ply, last, turn, room.seat]);
 }
 
 const LADDER = ['K', 'A', 'E', 'R', 'N', 'C', 'P'];
@@ -58,6 +101,9 @@ function BanqiBoard({ room, duel, width, height }) {
   const myTurn = room.status === 'playing' && room.state.turn === room.seat;
   const [sel, setSel] = useState(-1);
   const [nudge, setNudge] = useState({ i: -1, n: 0 });
+  useBanqiFeedback(room);
+  const ply = room.state.ply ?? 0;
+  const kill = last?.kill;
 
   // 每次局面推进都清掉选择
   useEffect(() => { setSel(-1); }, [room.state]);
@@ -74,9 +120,10 @@ function BanqiBoard({ room, duel, width, height }) {
       return;
     }
     if (p && !p.up) {
+      // 已选中棋子时点到打不到的暗子：只取消选择，绝不顺手翻开（不能白白浪费一手）
+      if (sel >= 0) { haptic('light'); setNudge((v) => ({ i, n: v.n + 1 })); setSel(-1); return; }
       haptic('medium');
       duel.act({ type: 'flip', i });
-      setSel(-1);
       return;
     }
     if (p && p.up && p.c === myColor) {
@@ -111,7 +158,16 @@ function BanqiBoard({ room, duel, width, height }) {
   return (
     <div className="bq-wrap" style={{ '--cell': `${cell}px` }}>
       {oppColor ? <Tray color={oppColor} types={captured[oppColor]} /> : <div className="bq-tray is-empty" />}
-      <div className="bq-board" style={{ gridTemplateColumns: `repeat(${vCols}, ${cell}px)`, gap, padding: pad }}>
+      <div className="bq-board-wrap">
+      {kill && kill.labels.length > 0 && (
+        <div key={`shout-${ply}`} className={`bq-shout${kill.own ? ' is-own' : ''}`} aria-live="polite">
+          {kill.labels.map((l) => <span key={l}>{l}</span>)}
+        </div>
+      )}
+      <div
+        className={`bq-board${kill ? (ply % 2 ? ' is-shake-a' : ' is-shake-b') : ''}${kill && (kill.points >= 25 || kill.combo >= 2) ? ' is-heavy' : ''}`}
+        style={{ gridTemplateColumns: `repeat(${vCols}, ${cell}px)`, gap, padding: pad }}
+      >
         {order.map((i) => {
           const p = cells[i];
           let cls = 'bq-cell';
@@ -128,9 +184,11 @@ function BanqiBoard({ room, duel, width, height }) {
                   arrived={last?.type === 'move' && last.to === i}
                 />
               )}
+              {kill && last.to === i && <KillFx key={`fx-${ply}`} victim={last.victim} kill={kill} />}
             </button>
           );
         })}
+      </div>
       </div>
       {myColor ? <Tray color={myColor} types={captured[myColor]} /> : <div className="bq-tray is-empty" />}
       <RankLegend color={myColor} />
@@ -138,18 +196,32 @@ function BanqiBoard({ room, duel, width, height }) {
   );
 }
 
-/** 炮打暗子时提示打掉的是什么（可能是自己的子） */
-function extras(room) {
+/** 音效开关 + 炮打暗子时提示打掉的是什么（可能是自己的子） */
+function extras(room, duel) {
+  const muted = isMuted();
+  const dock = (
+    <DockButton
+      icon={muted ? VolumeX : Volume2}
+      label={muted ? '静音' : '音效'}
+      onClick={() => { setMuted(!muted); duel.say(muted ? '音效已开启' : '音效已关闭'); }}
+    />
+  );
   const last = room.state.last;
-  if (!last?.hidden) return {};
+  if (!last?.hidden) return { dock };
   const { c, t } = last.hidden;
   const mine = c === room.state.colors[room.seat];
-  return { message: { text: `炮打暗子：打掉了${mine ? '你' : '对方'}的${PIECE_NAMES[c][t]}`, tone: mine ? 'bad' : undefined } };
+  return { dock, message: { text: `炮打暗子：打掉了${mine ? '你' : '对方'}的${PIECE_NAMES[c][t]}`, tone: mine ? 'bad' : undefined } };
 }
 
-function badge(color) {
-  if (!color) return <span className="bq-badge">?</span>;
-  return <span className={`bq-badge ${color === 'r' ? 'is-red' : 'is-black'}`}>{COLOR_NAME[color]}</span>;
+function badge(color, score) {
+  return (
+    <>
+      {color
+        ? <span className={`bq-badge ${color === 'r' ? 'is-red' : 'is-black'}`}>{COLOR_NAME[color]}</span>
+        : <span className="bq-badge">?</span>}
+      <span key={score} className="bq-score" title="得分">{score}</span>
+    </>
+  );
 }
 
 function describe(room) {
@@ -161,8 +233,8 @@ function describe(room) {
       if (!mine) return myTurn ? '翻一枚棋子定颜色' : '等对方翻第一枚…';
       return myTurn ? '轮到你' : '对方思考中…';
     },
-    myBadge: badge(mine),
-    oppBadge: badge(opp),
+    myBadge: badge(mine, room.state.scores?.[room.seat] ?? 0),
+    oppBadge: badge(opp, room.state.scores?.[room.seat === 1 ? 2 : 1] ?? 0),
   };
 }
 
@@ -173,6 +245,7 @@ const RULES = (
     <li>大小：<b>帅将 &gt; 仕士 &gt; 相象 &gt; 车 &gt; 马 &gt; 炮 &gt; 兵卒</b>，大吃小、同级互吃；兵卒可吃帅将，帅将不能吃兵卒。</li>
     <li><b>炮</b>平时走一步；吃子须<b>隔且只隔一枚</b>棋子（明暗都能当炮架），沿直线打任意距离的目标：对方任意大小的明子，或<b>任意暗子</b>——翻开若是自己的子，照样被打掉。</li>
     <li>除炮以外，只能吃对方明子。吃光对方或让对方无路可走即胜；连续 50 步无翻无吃判和。</li>
+    <li><b>得分</b>（荣誉用，不影响胜负）：帅将 {PIECE_SCORE.K}、仕士 {PIECE_SCORE.A}、相象 {PIECE_SCORE.E}、炮 {PIECE_SCORE.C}、车 {PIECE_SCORE.R}、马 {PIECE_SCORE.N}、兵卒 {PIECE_SCORE.P}；以小博大 +10、炮轰暗子 +5、连杀每多一杀 +5；炮打到自己的暗子算误伤，不得分。</li>
   </ul>
 );
 
@@ -183,7 +256,11 @@ export default function BanqiRoute() {
       rules={RULES}
       describe={describe}
       extras={extras}
-      resultText={(room) => (room.result.reason === 'win' ? '对方无子可走 · ' : room.result.reason === 'draw' ? '50 步无翻无吃 · ' : '')}
+      resultText={(room) => {
+        const sc = room.state.scores ?? { 1: 0, 2: 0 };
+        const why = room.result.reason === 'win' ? '对方无子可走 · ' : room.result.reason === 'draw' ? '50 步无翻无吃 · ' : '';
+        return `${why}得分 ${sc[room.seat]} : ${sc[room.seat === 1 ? 2 : 1]} · `;
+      }}
       renderBoard={(props) => <BanqiBoard {...props} />}
     />
   );

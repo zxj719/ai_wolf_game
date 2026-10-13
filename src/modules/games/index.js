@@ -7,6 +7,7 @@ const MinesweeperRoute = lazy(() => import('./minesweeper/MinesweeperRoute'));
 const MahjongRoute = lazy(() => import('./mahjong/MahjongRoute'));
 const GomokuRoute = lazy(() => import('./gomoku/GomokuRoute'));
 const BanqiRoute = lazy(() => import('./banqi/BanqiRoute'));
+const CoopMinesRoute = lazy(() => import('./coopmines/CoopMinesRoute'));
 
 /**
  * 小游戏模块 — 与狼人杀/家网赛/小说工作台平级的首页板块。
@@ -31,6 +32,7 @@ const gamesModule = {
     { path: ROUTES.GAMES_MAHJONG, component: MahjongRoute, requiresAuth: false },
     { path: ROUTES.GAMES_GOMOKU, component: GomokuRoute, requiresAuth: false },
     { path: ROUTES.GAMES_BANQI, component: BanqiRoute, requiresAuth: false },
+    { path: ROUTES.GAMES_COOPMINES, component: CoopMinesRoute, requiresAuth: false },
   ],
   home: { visible: true, order: 27 },
 };

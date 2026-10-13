@@ -2,6 +2,32 @@
 
 本文件记录项目的重要变更，包括功能更新、Bug 修复和数据库迁移等。
 
+## [2026-10-13] 翻翻棋分数与吃子特效；双人合作扫雷
+
+### 新功能
+- **翻翻棋分数系统**（服务端计算，双方一致，不影响胜负）：帅将 50 / 仕士 25 / 相象 20 / 炮 20 / 车 15 / 马 10 / 兵卒 5；以小博大 +10、炮轰暗子 +5、连杀每多一杀 +5；炮打到自己的暗子为「误伤友军」不得分。分数显示在双方头像旁并在结算里展示。
+- **翻翻棋吃子反馈**：被吃的子碎裂、冲击波、火花、落点飘分，攻击方棋子重砸落位，棋盘震动（大招更猛），顶部称号横幅（斩将 / 以小博大 / 炮轰暗子 / 连杀 ×N）；Web Audio 合成重击 / 连杀音效（dock 可静音），攻击方与被吃方触感不同。
+- **翻翻棋操作**：选中棋子后点到打不到的暗子只会取消选择，不会误翻浪费一手；炮隔一子点暗子直接打掉。
+- **双人合作扫雷**（`/games/coopmines`）：邀请时选难度，两人轮流翻格（一次翻开或 chord 算一回合），插旗不占回合且双方共享（红旗自己、橙旗队友）；无猜雷区由服务端生成和保管；通关一起赢、踩雷一起输，结算显示双方翻开格数与谁踩了雷；再来一局沿用难度并交换先手。
+
+### 文件变更
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `server/games/banqi.js` | 修改 | PIECE_SCORE、scoreKill、scores/streak/ply、last.victim/kill |
+| `server/games/coopMines.js` | 新建 | 合作扫雷规则与视图（不下发雷区和种子） |
+| `server/games/mineEngine.js` | 移动 | 原 `src/modules/games/minesweeper/mineEngine.js`，原路径保留 re-export |
+| `server/games/gameRooms.js` | 修改 | 邀请携带 options（难度）、coop 结果、再来一局沿用 options |
+| `src/modules/games/banqi/*` | 修改 | 吃子特效、分数徽标、音效开关、选中时不误翻 |
+| `src/modules/games/shared/sfx.js` | 新建 | Web Audio 合成音效 |
+| `src/modules/games/coopmines/*` | 新建 | 合作扫雷页面 |
+| `src/modules/games/duel/*` | 修改 | inviteOptions、resultOverride、邀请显示难度 |
+| `server/__tests__/games.test.js` | 修改 | 分数、视图层炮目标、合作扫雷引擎与房间流程 |
+
+### 技术细节
+- 特效按 `state.ply` 去重：同一步不会因为在线状态推送等重渲染而重播；双方屏幕都会播放。
+- 合作扫雷视图同时去掉了 `seed`：拿到种子 + 首击位置就能在本地复现整个雷区。
+- 需要 ECS `git pull` + `pm2 restart bt-server`。
+
 ## [2026-10-13] 五子棋悔棋 + 人机模式；翻翻棋炮打暗子与规则展示；全站约战邀请
 
 ### 新功能

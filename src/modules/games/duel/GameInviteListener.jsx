@@ -8,11 +8,13 @@ import { haptic } from '../shared/haptics';
 import './inviteToast.css';
 
 const GAME_META = {
-  gomoku: { name: '五子棋', path: ROUTES.GAMES_GOMOKU },
-  banqi: { name: '翻翻棋', path: ROUTES.GAMES_BANQI },
+  gomoku: { name: '五子棋', path: ROUTES.GAMES_GOMOKU, verb: '下' },
+  banqi: { name: '翻翻棋', path: ROUTES.GAMES_BANQI, verb: '下' },
+  coopmines: { name: '双人扫雷', path: ROUTES.GAMES_COOPMINES, verb: '玩' },
 };
-// 这两个页面自己有完整的大厅（含邀请列表），不重复弹
-const DUEL_PAGES = new Set([ROUTES.GAMES_GOMOKU, ROUTES.GAMES_BANQI]);
+const DIFF_LABEL = { beginner: '初级', intermediate: '中级', expert: '高级' };
+// 这些页面自己有完整的大厅（含邀请列表），不重复弹
+const DUEL_PAGES = new Set([ROUTES.GAMES_GOMOKU, ROUTES.GAMES_BANQI, ROUTES.GAMES_COOPMINES]);
 
 function isListeningPath(path) {
   if (DUEL_PAGES.has(path)) return false;
@@ -101,7 +103,8 @@ export default function GameInviteListener() {
         <div key={inv.id} className="gi-card" role="alertdialog">
           <span className="gi-icon"><Swords size={18} /></span>
           <div className="gi-text">
-            <b>{names[inv.from] ?? `#${inv.from}`}</b> 邀请你下{GAME_META[inv.game].name}
+            <b>{names[inv.from] ?? `#${inv.from}`}</b> 邀请你{GAME_META[inv.game].verb}{GAME_META[inv.game].name}
+            {DIFF_LABEL[inv.options?.difficulty] ? `（${DIFF_LABEL[inv.options.difficulty]}）` : ''}
             <Countdown until={inv.expiresAt} />
           </div>
           <button type="button" className="gi-btn" onClick={() => respond(inv, false)}>拒绝</button>

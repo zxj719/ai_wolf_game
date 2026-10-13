@@ -22,6 +22,15 @@ export const BANQI_COLS = 8;
 export const QUIET_LIMIT = 50;
 
 export const RANK = { K: 7, A: 6, E: 5, R: 4, N: 3, C: 2, P: 1 };
+
+/**
+ * 分数系统（只做展示与荣誉，不影响胜负判定）：
+ *   吃掉对方一子得 PIECE_SCORE 分，另有加成：
+ *   斩将（吃帅将）、以小博大 +10（低级吃高级：兵吃将 / 炮打大子）、
+ *   炮轰暗子 +5、连杀（连续几个回合都吃子）每多一杀 +5。
+ *   炮打暗子打到自己的子：误伤友军，不得分并中断连杀。
+ */
+export const PIECE_SCORE = { K: 50, A: 25, E: 20, C: 20, R: 15, N: 10, P: 5 };
 const COUNTS = { K: 1, A: 2, E: 2, R: 2, N: 2, C: 2, P: 5 };
 export const PIECE_NAMES = {
   r: { K: '帥', A: '仕', E: '相', R: '俥', N: '傌', C: '炮', P: '兵' },
@@ -46,6 +55,9 @@ export function createBanqi(rand = Math.random) {
     draw: false,
     last: null,                 // { type, from?, to?, i? }
     captured: { r: [], b: [] }, // 被吃掉的子（按颜色）
+    scores: { 1: 0, 2: 0 },
+    streak: { 1: 0, 2: 0 },     // 连续吃子的回合数
+    ply: 0,                     // 每步 +1，前端用来给特效去重
   };
 }
 
@@ -125,6 +137,9 @@ export function applyBanqi(state, seat, action) {
   let quiet = state.quiet + 1;
   let last;
   let hit = null;
+  let kill = null;
+  const scores = { ...(state.scores ?? { 1: 0, 2: 0 }) };
+  const streak = { ...(state.streak ?? { 1: 0, 2: 0 }) };
   const valid = (i) => Number.isInteger(i) && i >= 0 && i < cells.length;
 
   if (action.type === 'flip') {
@@ -136,6 +151,7 @@ export function applyBanqi(state, seat, action) {
       colors[seat === 1 ? 2 : 1] = cells[i].c === 'r' ? 'b' : 'r';
     }
     quiet = 0;
+    streak[seat] = 0;
     last = { type: 'flip', i };
   } else if (action.type === 'move') {
     const { from, to } = action;
@@ -143,25 +159,51 @@ export function applyBanqi(state, seat, action) {
     const p = cells[from];
     if (!colors[seat] || !p || !p.up || p.c !== colors[seat]) return { ok: false, error: '只能走自己的明子' };
     if (!targetsFrom(cells, from).includes(to)) return { ok: false, error: '这步棋不合规则' };
-    if (cells[to]) {
-      captured[cells[to].c].push(cells[to].t);
-      if (!cells[to].up) hit = { c: cells[to].c, t: cells[to].t }; // 炮打暗子：揭晓被打掉的是什么
+    const victim = cells[to];
+    if (victim) {
+      captured[victim.c].push(victim.t);
+      if (!victim.up) hit = { c: victim.c, t: victim.t }; // 炮打暗子：揭晓被打掉的是什么
       quiet = 0;
+      kill = scoreKill(p, victim, colors[seat], streak[seat]);
+      streak[seat] = kill.own ? 0 : streak[seat] + 1;
+      scores[seat] += kill.points;
+    } else {
+      streak[seat] = 0;
     }
     cells[to] = p;
     cells[from] = null;
-    last = { type: 'move', from, to, capture: quiet === 0, ...(hit ? { hidden: hit } : {}) };
+    last = {
+      type: 'move', from, to, capture: !!victim,
+      ...(hit ? { hidden: hit } : {}),
+      ...(victim ? { victim: { c: victim.c, t: victim.t }, kill } : {}),
+    };
   } else {
     return { ok: false, error: '无效操作' };
   }
 
-  const next = { ...state, cells, colors, captured, quiet, last, turn: seat === 1 ? 2 : 1 };
+  const next = {
+    ...state, cells, colors, captured, quiet, last, scores, streak,
+    ply: (state.ply ?? 0) + 1, turn: seat === 1 ? 2 : 1,
+  };
   const oppSeat = next.turn;
   const oppColor = colors[oppSeat];
   if (colors[seat] && remaining(next, colors[seat]) === 0) next.winner = oppSeat; // 炮打暗子打掉了自己最后一子
   else if (oppColor && (remaining(next, oppColor) === 0 || !hasAnyAction(next, oppSeat))) next.winner = seat;
   else if (quiet >= QUIET_LIMIT) next.draw = true;
   return { ok: true, state: next };
+}
+
+/** 一次吃子的得分与称号 */
+export function scoreKill(attacker, victim, myColor, prevStreak) {
+  if (victim.c === myColor) return { points: 0, labels: ['误伤友军'], combo: 0, own: true };
+  const labels = [];
+  let points = PIECE_SCORE[victim.t];
+  if (victim.t === 'K') labels.push('斩将');
+  if (RANK[attacker.t] < RANK[victim.t]) { points += 10; labels.push('以小博大'); }
+  if (!victim.up) { points += 5; labels.push('炮轰暗子'); }
+  const combo = prevStreak + 1;
+  if (combo >= 2) { points += 5 * (combo - 1); labels.push(`连杀 ×${combo}`); }
+  return { points, labels, combo, own: false };
 }
 
 /** 给某一方的视图：暗子不透露颜色与兵种 */

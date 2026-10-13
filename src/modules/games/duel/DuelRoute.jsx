@@ -10,7 +10,16 @@ import './duel.css';
 export const DUEL_GAMES = {
   gomoku: { name: '五子棋', path: ROUTES.GAMES_GOMOKU },
   banqi: { name: '翻翻棋', path: ROUTES.GAMES_BANQI },
+  coopmines: { name: '双人扫雷', path: ROUTES.GAMES_COOPMINES },
 };
+
+const DIFF_LABEL = { beginner: '初级', intermediate: '中级', expert: '高级' };
+/** 邀请里的游戏名（带难度等选项） */
+export function inviteGameName(inv) {
+  const base = DUEL_GAMES[inv.game]?.name ?? inv.game;
+  const d = inv.options?.difficulty;
+  return d && DIFF_LABEL[d] ? `${base}（${DIFF_LABEL[d]}）` : base;
+}
 
 const REASON_TEXT = {
   win: null,
@@ -42,7 +51,7 @@ function Countdown({ until }) {
  * 具体棋盘由 renderBoard({ room, duel, width, height }) 提供，
  * 状态文案由 describe(room) 提供 { turnText, myBadge, oppBadge }。
  */
-export default function DuelRoute({ game, rules, renderBoard, describe, resultText, extras, lobbyTop }) {
+export default function DuelRoute({ game, rules, renderBoard, describe, resultText, extras, lobbyTop, inviteOptions, resultOverride }) {
   const { navigate } = useShell();
   const duel = useDuel();
   const { user, room, friends, onlineFriends, incoming, outgoing, toast, status, serverReady } = duel;
@@ -65,7 +74,7 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
             {lobbyTop}
             <div className="du-card du-hero">
               <Swords size={36} />
-              <h2>和好友对战{meta.name}</h2>
+              <h2>和好友一起玩{meta.name}</h2>
               <p>对战需要登录，并通过好友系统邀请对手。</p>
               <button type="button" className="gs-btn gs-btn-primary gs-press" onClick={() => navigate(ROUTES.LOGIN)}>登录 / 注册</button>
             </div>
@@ -83,6 +92,7 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
     const ext = extras ? extras(room, duel) : {};
     const iWon = room.result && room.result.winner === room.seat;
     const draw = room.result && room.result.winner === 0;
+    const ov = room.result && resultOverride ? resultOverride(room, duel) : null;
     const iAskedRematch = room.rematch?.includes(Number(user.id));
     const oppAskedRematch = room.rematch?.includes(oppId);
 
@@ -126,12 +136,16 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
         overlay={room.status === 'playing' ? ext.banner : room.status === 'over' && hiddenResult !== room.id && (
           <div className="gs-dialog-wrap du-result-wrap">
             <div className="gs-dialog" role="dialog">
-              <div className="gs-dialog-emoji">{draw ? '🤝' : iWon ? '🏆' : '🌧️'}</div>
-              <h3>{draw ? '和棋' : iWon ? '你赢了' : '你输了'}</h3>
+              <div className="gs-dialog-emoji">{ov?.emoji ?? (draw ? '🤝' : iWon ? '🏆' : '🌧️')}</div>
+              <h3>{ov?.title ?? (draw ? '和棋' : iWon ? '你赢了' : '你输了')}</h3>
               <p>
-                {resultText?.(room) ?? ''}
-                {room.result.reason !== 'win' && REASON_TEXT[room.result.reason]
-                  ? `${iWon ? '对方' : '你'}${REASON_TEXT[room.result.reason]}` : ''}
+                {ov ? ov.detail : (
+                  <>
+                    {resultText?.(room) ?? ''}
+                    {room.result.reason !== 'win' && REASON_TEXT[room.result.reason]
+                      ? `${iWon ? '对方' : '你'}${REASON_TEXT[room.result.reason]}` : ''}
+                  </>
+                )}
               </p>
               <p>{oppAskedRematch ? `${duel.nameOf(oppId)} 想再来一局` : ''}</p>
               <div className="gs-dialog-actions">
@@ -172,7 +186,7 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
                 {incoming.map((inv) => (
                   <div key={inv.id} className="gs-row du-invite">
                     <Avatar name={duel.nameOf(inv.from)} online />
-                    <span className="gs-name"><b>{duel.nameOf(inv.from)}</b> 邀请你下{DUEL_GAMES[inv.game]?.name}</span>
+                    <span className="gs-name"><b>{duel.nameOf(inv.from)}</b> 邀请你{inv.game === 'coopmines' ? '玩' : '下'}{inviteGameName(inv)}</span>
                     <span className="du-muted"><Countdown until={inv.expiresAt} /></span>
                     <button type="button" className="du-pill gs-press" onClick={() => { haptic(); duel.respond(inv.id, false); }}>拒绝</button>
                     <button type="button" className="du-pill is-primary gs-press" onClick={() => { haptic(); duel.respond(inv.id, true); }}>接受</button>
@@ -189,7 +203,7 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
                 {outgoing.map((inv) => (
                   <div key={inv.id} className="gs-row">
                     <span className="du-spinner" />
-                    <span className="gs-name">等待 <b>{duel.nameOf(inv.to)}</b> 回应 · {DUEL_GAMES[inv.game]?.name}</span>
+                    <span className="gs-name">等待 <b>{duel.nameOf(inv.to)}</b> 回应 · {inviteGameName(inv)}</span>
                     <span className="du-muted"><Countdown until={inv.expiresAt} /></span>
                     <button type="button" className="du-pill gs-press" onClick={() => { haptic(); duel.cancelInvite(inv.id); }}>取消</button>
                   </div>
@@ -222,7 +236,7 @@ export default function DuelRoute({ game, rules, renderBoard, describe, resultTe
                         type="button"
                         className="du-pill is-primary gs-press"
                         disabled={!on || pendingTo.has(f.id) || status !== 'open' || serverReady === false}
-                        onClick={() => { haptic(); duel.invite(f.id, game); }}
+                        onClick={() => { haptic(); duel.invite(f.id, game, inviteOptions); }}
                       >
                         <Swords size={14} /> 约战
                       </button>

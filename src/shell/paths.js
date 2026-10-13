@@ -36,6 +36,7 @@ export const ROUTES = {
   GAMES_MAHJONG: '/games/mahjong',
   GAMES_GOMOKU: '/games/gomoku',
   GAMES_BANQI: '/games/banqi',
+  GAMES_COOPMINES: '/games/coopmines',
 
   // Phase 3 过渡期保留：Phase 4 拆为 chords/stock/blog 三条路由后移除
   SITES: '/sites',

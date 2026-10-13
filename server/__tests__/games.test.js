@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGomoku, applyGomoku, takeBack, GOMOKU_SIZE } from '../games/gomoku.js';
-import { createBanqi, applyBanqi, banqiView, targetsFrom, canCapture, BANQI_COLS } from '../games/banqi.js';
+import { createBanqi, applyBanqi, banqiView, targetsFrom, canCapture, BANQI_COLS, PIECE_SCORE } from '../games/banqi.js';
 import { createGameRooms, RECONNECT_GRACE_MS } from '../games/gameRooms.js';
 import { createChatHub } from '../chatHub.js';
 
@@ -145,6 +145,41 @@ describe('banqi', () => {
     expect(r.state.captured.r).toEqual(['N']);
     expect(r.state.last.hidden).toEqual({ c: 'r', t: 'N' });
     expect(r.state.quiet).toBe(0);
+  });
+
+  it('炮的目标在前端视图（暗子无颜色信息）上同样成立', () => {
+    const s = banqiWith({ [bq(0, 0)]: 'rC', [bq(0, 1)]: '?bP', [bq(0, 2)]: '?rN', [bq(2, 0)]: 'bA', [bq(3, 0)]: '?bK' });
+    const view = banqiView(s);
+    const t = targetsFrom(view.cells, bq(0, 0));
+    expect(t).toEqual(expect.arrayContaining([bq(0, 2), bq(3, 0)]));
+    expect(t).toEqual(targetsFrom(s.cells, bq(0, 0)).sort((a, b) => a - b).filter((x) => t.includes(x)));
+  });
+
+  it('分数：吃子得分、以小博大、炮轰暗子、连杀、误伤友军', () => {
+    // 兵吃将：50 + 10
+    let s = banqiWith({ [bq(1, 1)]: 'rP', [bq(1, 2)]: 'bK', [bq(3, 7)]: 'bR', [bq(0, 0)]: 'rC', [bq(0, 2)]: 'bN', [bq(0, 3)]: '?bA', [bq(2, 0)]: 'rN', [bq(2, 4)]: '?rE' });
+    s = { ...s, cells: s.cells.map((p, i) => (i === bq(0, 1) ? { c: 'b', t: 'P', up: true } : p)) };
+    let r = applyBanqi(s, 1, { type: 'move', from: bq(1, 1), to: bq(1, 2) });
+    expect(r.state.last.kill).toMatchObject({ points: PIECE_SCORE.K + 10, labels: ['斩将', '以小博大'], combo: 1 });
+    expect(r.state.scores[1]).toBe(60);
+    // 黑走一步，红再吃：炮隔 0,1 打 0,2 的黑马 → 炮(2)打马(3) 以小博大 + 连杀 ×2（10 + 10 + 5）
+    r = applyBanqi(r.state, 2, { type: 'move', from: bq(3, 7), to: bq(3, 6) });
+    r = applyBanqi(r.state, 1, { type: 'move', from: bq(0, 0), to: bq(0, 2) });
+    expect(r.state.last.kill).toMatchObject({ points: PIECE_SCORE.N + 10 + 5, combo: 2 });
+    expect(r.state.last.kill.labels).toEqual(['以小博大', '连杀 ×2']);
+    expect(r.state.scores[1]).toBe(85);
+    // 翻子会中断连杀
+    r = applyBanqi(r.state, 2, { type: 'move', from: bq(3, 6), to: bq(3, 5) });
+    r = applyBanqi(r.state, 1, { type: 'flip', i: bq(2, 4) });
+    expect(r.state.streak[1]).toBe(0);
+    expect(r.state.ply).toBe(5);
+  });
+
+  it('误伤友军：炮打到自己的暗子不得分', () => {
+    const s = banqiWith({ [bq(0, 0)]: 'rC', [bq(0, 1)]: 'bP', [bq(0, 2)]: '?rN', [bq(3, 7)]: 'bR', [bq(2, 7)]: 'rK' });
+    const r = applyBanqi(s, 1, { type: 'move', from: bq(0, 0), to: bq(0, 2) });
+    expect(r.state.last.kill).toMatchObject({ points: 0, own: true, labels: ['误伤友军'] });
+    expect(r.state.scores[1]).toBe(0);
   });
 
   it('非炮的子不能吃暗子', () => {
@@ -292,5 +327,121 @@ describe('chatHub 接入 game:*', () => {
     await hub.addConnection(mk(2));
     await hub.handleMessage(mk(1), JSON.stringify({ type: 'game:invite', to: 2, game: 'banqi' }));
     expect(sent[2].some((m) => m.type === 'game:invited' && m.invite.from === 1)).toBe(true);
+  });
+});
+
+// ---------- 双人合作扫雷 ----------
+import { createCoopMines, applyCoopMines, coopMinesView } from '../games/coopMines.js';
+
+describe('coopMines', () => {
+  const start = (difficulty = 'beginner') => {
+    const s = createCoopMines(() => 0.42, { difficulty });
+    const center = Math.floor(s.rows / 2) * s.cols + Math.floor(s.cols / 2);
+    return { s, center };
+  };
+
+  it('首击生成无猜雷区并翻开一片，回合交给队友', () => {
+    const { s, center } = start();
+    const r = applyCoopMines(s, 1, { type: 'reveal', i: center });
+    expect(r.ok).toBe(true);
+    expect(r.state.mines.filter(Boolean)).toHaveLength(10);
+    expect(r.state.revealed[center]).toBe(1);
+    expect(r.state.turn).toBe(2);
+    expect(r.state.revealedBy[1]).toBeGreaterThan(0);
+    expect(applyCoopMines(r.state, 1, { type: 'reveal', i: 0 }).error).toBe('还没轮到你');
+  });
+
+  it('插旗不占回合、谁都能插；插了旗的格子不能直接翻', () => {
+    const { s, center } = start();
+    let st = applyCoopMines(s, 1, { type: 'reveal', i: center }).state;
+    const mine = st.mines.findIndex(Boolean);
+    st = applyCoopMines(st, 1, { type: 'flag', i: mine }).state; // 不是 seat 1 的回合也能插
+    expect(st.flags[mine]).toBe(1);
+    expect(st.turn).toBe(2);
+    expect(applyCoopMines(st, 2, { type: 'reveal', i: mine }).ok).toBe(false);
+  });
+
+  it('踩雷一起输，记录是谁踩的；结束后视图才公开雷位', () => {
+    const { s, center } = start();
+    const st = applyCoopMines(s, 1, { type: 'reveal', i: center }).state;
+    const mine = st.mines.findIndex(Boolean);
+    expect(coopMinesView(st).mineList).toBeNull();
+    const r = applyCoopMines(st, 2, { type: 'reveal', i: mine });
+    expect(r.state.coopResult).toBe('lost');
+    expect(r.state.explodedBy).toBe(2);
+    expect(coopMinesView(r.state).mineList).toContain(mine);
+  });
+
+  it('视图不泄露雷区与种子', () => {
+    const { s, center } = start('intermediate');
+    const st = applyCoopMines(s, 1, { type: 'reveal', i: center }).state;
+    const v = coopMinesView(st);
+    expect(v.mines).toBeUndefined();
+    expect(v.nums).toBeUndefined();
+    expect(v.seed).toBeUndefined();
+    expect(v.cells.filter((c) => c === -1).length).toBe(v.revealed.filter((x) => !x).length);
+  });
+
+  it('两人轮流只翻安全格可以一起通关（逐格翻开所有非雷格）', () => {
+    const { s, center } = start();
+    let st = applyCoopMines(s, 1, { type: 'reveal', i: center }).state;
+    for (let i = 0; i < st.mines.length && !st.coopResult; i++) {
+      if (st.mines[i] || st.revealed[i]) continue;
+      st = applyCoopMines(st, st.turn, { type: 'reveal', i }).state;
+    }
+    expect(st.coopResult).toBe('won');
+    expect(st.revealedBy[1] + st.revealedBy[2]).toBe(81 - 10);
+  });
+
+  it('chord：旗数等于数字时翻开周围（算一回合）', () => {
+    const { s, center } = start();
+    let st = applyCoopMines(s, 1, { type: 'reveal', i: center }).state;
+    // 找一个已翻开、周围有未翻开格子的数字，插满它周围的雷再 chord
+    const nb = (i) => { const r = Math.floor(i / 9); const c = i % 9; const o = []; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr; const cc = c + dc; if ((dr || dc) && rr >= 0 && rr < 9 && cc >= 0 && cc < 9) o.push(rr * 9 + cc); } return o; };
+    const k = st.revealed.findIndex((v, i) => v && st.nums[i] > 0 && nb(i).some((j) => !st.revealed[j] && !st.mines[j]));
+    expect(k).toBeGreaterThanOrEqual(0);
+    for (const j of nb(k)) if (st.mines[j]) st = applyCoopMines(st, 1, { type: 'flag', i: j }).state;
+    const before = st.revealed.filter(Boolean).length;
+    const r = applyCoopMines(st, 2, { type: 'reveal', i: k });
+    expect(r.ok).toBe(true);
+    expect(r.state.revealed.filter(Boolean).length).toBeGreaterThan(before);
+    expect(r.state.turn).toBe(1);
+  });
+});
+
+describe('gameRooms：双人合作扫雷', () => {
+  it('邀请带难度、合作通关以 coop-won 结束、再来一局沿用难度', async () => {
+    const h = harness();
+    await h.rooms.handle(h.conn(1), { type: 'game:invite', to: 2, game: 'coopmines', options: { difficulty: 'beginner' } });
+    const inv = h.last(2, 'game:invited').invite;
+    expect(inv.options).toEqual({ difficulty: 'beginner' });
+    await h.rooms.handle(h.conn(2), { type: 'game:respond', inviteId: inv.id, accept: true });
+    let room = h.last(1, 'game:room').room;
+    expect(room.state.rows).toBe(9);
+    expect(room.state.cells.every((c) => c === -1)).toBe(true);
+
+    const internal = h.rooms._rooms.get(room.id);
+    await h.rooms.handle(h.conn(room.players[0]), { type: 'game:action', roomId: room.id, action: { type: 'reveal', i: 40 } });
+    while (internal.status === 'playing') {
+      const st = internal.state;
+      const i = st.mines.findIndex((m, k) => !m && !st.revealed[k]);
+      await h.rooms.handle(h.conn(internal.players[st.turn - 1]), { type: 'game:action', roomId: room.id, action: { type: 'reveal', i } });
+    }
+    room = h.last(1, 'game:room').room;
+    expect(room.result).toEqual({ winner: 0, reason: 'coop-won' });
+    expect(room.state.mineList).toHaveLength(10);
+
+    await h.rooms.handle(h.conn(1), { type: 'game:rematch', roomId: room.id });
+    await h.rooms.handle(h.conn(2), { type: 'game:rematch', roomId: room.id });
+    const next = h.last(1, 'game:room').room;
+    expect(next.id).not.toBe(room.id);
+    expect(next.state.difficulty).toBe('beginner');
+    expect(next.players).toEqual([...room.players].reverse());
+  });
+
+  it('非法难度回落到中级；未知游戏被拒', async () => {
+    const h = harness();
+    await h.rooms.handle(h.conn(1), { type: 'game:invite', to: 2, game: 'coopmines', options: { difficulty: '__proto__' } });
+    expect(h.last(2, 'game:invited').invite.options).toEqual({ difficulty: 'intermediate' });
   });
 });

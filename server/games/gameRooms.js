@@ -22,10 +22,18 @@
 
 import { createGomoku, applyGomoku, gomokuView } from './gomoku.js';
 import { createBanqi, applyBanqi, banqiView } from './banqi.js';
+import { createCoopMines, applyCoopMines, coopMinesView, normalizeCoopOptions } from './coopMines.js';
 
 export const GAMES = {
   gomoku: { create: () => createGomoku(), apply: applyGomoku, view: gomokuView },
   banqi: { create: (rand) => createBanqi(rand), apply: applyBanqi, view: banqiView },
+  // 双人合作：共同胜负（coopResult），邀请时可带难度
+  coopmines: {
+    create: (rand, opts) => createCoopMines(rand, opts),
+    apply: applyCoopMines,
+    view: coopMinesView,
+    options: normalizeCoopOptions,
+  },
 };
 
 export const INVITE_TTL_MS = 60_000;
@@ -50,7 +58,7 @@ export function createGameRooms({
   }
 
   const err = (conn, error) => conn.send({ type: 'game:error', error });
-  const inviteDto = (inv) => ({ id: inv.id, from: inv.from, to: inv.to, game: inv.game, expiresAt: inv.expiresAt });
+  const inviteDto = (inv) => ({ id: inv.id, from: inv.from, to: inv.to, game: inv.game, options: inv.options, expiresAt: inv.expiresAt });
 
   function closeInvite(inv, reason) {
     if (!invites.has(inv.id)) return;
@@ -90,10 +98,10 @@ export function createGameRooms({
   }
 
   /** keepOrder=true 时 playerA 固定为 seat 1（再来一局交换先后手用），否则先后手随机 */
-  function startRoom(game, playerA, playerB, keepOrder = false) {
+  function startRoom(game, playerA, playerB, keepOrder = false, options = null) {
     const players = keepOrder || rand() < 0.5 ? [playerA, playerB] : [playerB, playerA];
     const room = {
-      id: newId('r'), game, players, state: GAMES[game].create(rand),
+      id: newId('r'), game, players, options, state: GAMES[game].create(rand, options ?? undefined),
       status: 'playing', result: null, rematch: [], graceTimers: new Map(),
     };
     rooms.set(room.id, room);
@@ -138,7 +146,8 @@ export function createGameRooms({
         const mine = [...invites.values()].filter((i) => i.from === me);
         if (mine.some((i) => i.to === to)) return err(conn, '已经邀请过了，等对方回应');
         if (mine.length >= MAX_OUTGOING_INVITES) return err(conn, '同时邀请的人太多了');
-        const inv = { id: newId('i'), from: me, to, game: msg.game, expiresAt: now() + INVITE_TTL_MS };
+        const options = GAMES[msg.game].options ? GAMES[msg.game].options(msg.options) : null;
+        const inv = { id: newId('i'), from: me, to, game: msg.game, options, expiresAt: now() + INVITE_TTL_MS };
         inv.timer = setTimer(() => closeInvite(inv, 'expired'), INVITE_TTL_MS);
         invites.set(inv.id, inv);
         sendTo(to, { type: 'game:invited', invite: inviteDto(inv) });
@@ -157,7 +166,7 @@ export function createGameRooms({
         if (busy(me) || busy(inv.from)) return closeInvite(inv, 'busy');
         if (!online(inv.from)) return closeInvite(inv, 'offline');
         closeInvite(inv, 'accepted');
-        startRoom(inv.game, inv.from, inv.to);
+        startRoom(inv.game, inv.from, inv.to, false, inv.options);
         return undefined;
       }
       case 'game:action': {
@@ -168,7 +177,8 @@ export function createGameRooms({
         const res = GAMES[room.game].apply(room.state, seat, msg.action);
         if (!res.ok) return err(conn, res.error);
         room.state = res.state;
-        if (res.state.winner) finish(room, res.state.winner, 'win');
+        if (res.state.coopResult) finish(room, 0, `coop-${res.state.coopResult}`);
+        else if (res.state.winner) finish(room, res.state.winner, 'win');
         else if (res.state.draw) finish(room, 0, 'draw');
         else push(room);
         return undefined;
@@ -189,7 +199,7 @@ export function createGameRooms({
           if (!online(other)) return err(conn, '对方已离线');
           if (userRoom.get(other) !== room.id) return err(conn, '对方已经离开');
           closeRoom(room);
-          startRoom(room.game, room.players[1], room.players[0], true);
+          startRoom(room.game, room.players[1], room.players[0], true, room.options);
         } else {
           push(room);
         }
