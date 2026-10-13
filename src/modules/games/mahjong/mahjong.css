@@ -87,3 +87,9 @@
   .mj-board.is-plain .mj-tile:hover { filter: brightness(1.03); }
 }
 .mj-board.is-plain .mj-tile:active { transform: scale(0.95); transition: transform 0.07s var(--gs-ease); }
+
+/* 洗牌：在场的牌翻转一下换上新牌面（a/b 交替，连续洗牌也能重播） */
+.mj-board.shuf-a .mj-tile:not(.is-leaving) { animation: mj-shuffle-a 0.55s var(--gs-spring) both; }
+.mj-board.shuf-b .mj-tile:not(.is-leaving) { animation: mj-shuffle-b 0.55s var(--gs-spring) both; }
+@keyframes mj-shuffle-a { 0% { transform: perspective(300px) rotateY(90deg) scale(0.9); } 100% { transform: none; } }
+@keyframes mj-shuffle-b { 0% { transform: perspective(300px) rotateY(90deg) scale(0.9); } 100% { transform: none; } }

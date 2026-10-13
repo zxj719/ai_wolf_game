@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Layers, Lightbulb, Pause, Play, RotateCcw, Shuffle, Timer, Trophy, Undo2 } from 'lucide-react';
+import { Layers, Lightbulb, Pause, Play, Plus, RotateCcw, Shuffle, Timer, Trophy, Undo2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useShell } from '../../../shell/ShellContext';
 import { ROUTES } from '../../../shell/paths';
@@ -8,7 +8,7 @@ import GameStage, { DockButton, Segmented, WinDialog, useAutoPause } from '../sh
 import Leaderboard, { formatClock, formatMs } from '../shared/Leaderboard';
 import { useStopwatch } from '../shared/useStopwatch';
 import { haptic } from '../shared/haptics';
-import { LAYOUTS, LAYOUT_MAP, buildGeometry, dealSolvable, findMoves, isFree, matchKey } from './mahjongEngine';
+import { LAYOUTS, LAYOUT_MAP, buildGeometry, dealSolvable, findMoves, isFree, matchKey, reshuffleSolvable } from './mahjongEngine';
 import TileFace, { faceLabel } from './TileFace';
 import './mahjong.css';
 
@@ -16,6 +16,7 @@ const TW = 44;      // 牌宽（含边框）
 const TH = 58;      // 牌高
 const DEPTH = 10;   // 每层错位像素（越大立体感越强，层次越好认）
 const HINT_PENALTY_MS = 30000;
+const SHUFFLE_PENALTY_MS = 60000;
 const LEAVE_MS = 320;
 
 function newDeal(layout) {
@@ -48,6 +49,16 @@ export default function MahjongRoute() {
   const [selected, setSelected] = useState(-1);
   const [hint, setHint] = useState(null);
   const [hints, setHints] = useState(0);
+  const [shuffles, setShuffles] = useState(0);
+  const [shuffleKey, setShuffleKey] = useState(0); // 洗牌动画重播用
+  const [flash, setFlashState] = useState(null);
+  const flashTimer = useRef(null);
+  const setFlash = (text) => {
+    clearTimeout(flashTimer.current);
+    setFlashState(text);
+    flashTimer.current = setTimeout(() => setFlashState(null), 3500);
+  };
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
   const [status, setStatus] = useState('ready'); // ready | playing | won
   const [result, setResult] = useState(null);
   const [showWin, setShowWin] = useState(false);
@@ -67,6 +78,7 @@ export default function MahjongRoute() {
     setSelected(-1);
     setHint(null);
     setHints(0);
+    setShuffles(0);
     setStatus('ready');
     setResult(null);
     setShowWin(false);
@@ -86,7 +98,7 @@ export default function MahjongRoute() {
   }, [layout]);
 
   const finishWin = async (penaltyHints) => {
-    const ms = timer.stop() + penaltyHints * HINT_PENALTY_MS;
+    const ms = timer.stop() + penaltyHints * HINT_PENALTY_MS + shuffles * SHUFFLE_PENALTY_MS;
     setStatus('won');
     haptic('success');
     setResult({ timeMs: ms, uploading: !!user });
@@ -175,7 +187,7 @@ export default function MahjongRoute() {
     const scale = Math.min(width / boardW, height / boardH, 1.7);
     return (
       <div style={{ width: boardW * scale, height: boardH * scale }}>
-        <div className={`mj-board${easy ? "" : " is-plain"}`} style={{ width: boardW, height: boardH, transform: `scale(${scale})` }}>
+        <div className={`mj-board${easy ? "" : " is-plain"}${shuffleKey ? (shuffleKey % 2 ? ' shuf-a' : ' shuf-b') : ''}`} style={{ width: boardW, height: boardH, transform: `scale(${scale})` }}>
           {order.map((i) => {
             const isLeaving = !present[i] && leaving.includes(i);
             if (!present[i] && !isLeaving) return null;
@@ -211,7 +223,22 @@ export default function MahjongRoute() {
     );
   };
 
-  const displayMs = timer.elapsed + hints * HINT_PENALTY_MS;
+  const displayMs = timer.elapsed + hints * HINT_PENALTY_MS + shuffles * SHUFFLE_PENALTY_MS;
+
+  /** 无路可走时洗牌：只重排在场的牌，保证洗完仍有完整解；每次罚时 60 秒 */
+  const reshuffle = () => {
+    const r = reshuffleSolvable(layout, faces, present, (Math.random() * 2 ** 32) >>> 0);
+    if (!r) {
+      setFlash('剩下的牌叠在一起，怎么洗都解不开 —— 请撤销几步');
+      return;
+    }
+    haptic('medium');
+    setSelected(-1);
+    setHint(null);
+    setDeal({ faces: r.faces, present });
+    setShuffles((n) => n + 1);
+    setShuffleKey((k) => k + 1);
+  };
   const playing = status === 'playing';
   const isPaused = playing && timer.paused;
   useAutoPause(playing && !timer.paused, timer.pause);
@@ -222,14 +249,14 @@ export default function MahjongRoute() {
     start();
   };
   const modeLabel = easy ? '简单' : '普通';
-  const message = stuck
-    ? { text: '没有可消的对子了 · 本局必有解，撤销几步换条路', tone: 'warn' }
+  const message = flash ? { text: flash, tone: 'warn' } : stuck
+    ? { text: `没有可消的对子了 · 点「洗牌」（+${SHUFFLE_PENALTY_MS / 1000}s）或撤销几步换条路`, tone: 'warn' }
     : status === 'ready'
       ? { text: easy ? '点两张相同的「自由」牌消除 · 花、季同类互消' : '普通模式：不高亮可选的牌，自己判断哪张是自由的' }
       : null;
 
   const winDetail = !result ? '' : result.uploading ? '正在上传成绩…'
-    : result.success ? `全网第 ${result.rank} 名${result.personalBest ? ' · 个人新纪录' : ''}${hints ? ` · 含 ${hints} 次提示罚时` : ''}`
+    : result.success ? `全网第 ${result.rank} 名${result.personalBest ? ' · 个人新纪录' : ''}${hints ? ` · ${hints} 次提示` : ''}${shuffles ? ` · ${shuffles} 次洗牌` : ''}`
     : user ? '成绩上传失败' : '登录后成绩可上榜';
 
   return (
@@ -266,7 +293,10 @@ export default function MahjongRoute() {
           <DockButton icon={Undo2} label="撤销" onClick={undo} disabled={!history.length || status === 'won'} />
           <DockButton icon={Lightbulb} label="提示" onClick={showHint} disabled={!moves.length || status === 'won' || isPaused} title="每次提示罚时 30 秒" />
           <DockButton icon={RotateCcw} label="重来" onClick={restartSame} disabled={status === 'won' || !history.length} title="同一副牌从头来（计时继续）" />
-          <DockButton icon={Shuffle} label="新局" onClick={() => start()} />
+          {stuck && (
+            <DockButton icon={Shuffle} label={`洗牌 +${SHUFFLE_PENALTY_MS / 1000}s`} on onClick={reshuffle} title="只重排剩下的牌，保证洗完仍有解" />
+          )}
+          <DockButton icon={Plus} label="新局" onClick={() => start()} />
           <DockButton icon={Trophy} label="排行榜" onClick={() => setSheetOpen(true)} />
         </>
       )}

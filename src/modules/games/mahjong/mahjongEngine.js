@@ -155,17 +155,18 @@ export function validateLayout(positions) {
  * 发牌：返回 { faces: string[], solution: [i, j][] }，faces[i] 对应 positions[i]。
  * solution 是一条从满盘到清空的合法消除序列。
  */
-export function dealSolvable(layout, seed = Date.now(), maxTries = 500) {
-  const rand = mulberry32(seed);
-  const { positions } = layout;
+/**
+ * 从给定局面（present 为在场位置）出发，找一个「每步拿走两张同时自由的位置」直到清空的顺序。
+ * 只看几何，与牌面无关；找不到返回 null（例如最后两张上下叠着，怎么配牌都无解）。
+ */
+function removalOrder(positions, geo, startPresent, rand, maxTries) {
   const n = positions.length;
-  const geo = buildGeometry(positions);
-
+  const remaining = startPresent.reduce((a, b) => a + b, 0);
   for (let attempt = 0; attempt < maxTries; attempt++) {
-    const present = new Uint8Array(n).fill(1);
+    const present = Uint8Array.from(startPresent);
     const order = [];
     let ok = true;
-    for (let step = 0; step < n / 2; step++) {
+    for (let step = 0; step < remaining / 2; step++) {
       const free = [];
       for (let i = 0; i < n; i++) if (isFree(i, present, geo)) free.push(i);
       if (free.length < 2) { ok = false; break; }
@@ -186,23 +187,73 @@ export function dealSolvable(layout, seed = Date.now(), maxTries = 500) {
       present[b] = 0;
       order.push([a, b]);
     }
-    if (!ok) continue;
-
-    // 分配牌面：洗牌后的对子依次给每一步
-    const pairs = allPairs();
-    for (let k = pairs.length - 1; k > 0; k--) {
-      const j = Math.floor(rand() * (k + 1));
-      [pairs[k], pairs[j]] = [pairs[j], pairs[k]];
-    }
-    const faces = new Array(n);
-    order.forEach(([a, b], k) => {
-      faces[a] = pairs[k][0];
-      faces[b] = pairs[k][1];
-    });
-    // 从满盘按 order 依次消除，每一步两张都自由且牌面相配 —— order 本身就是正向解
-    return { faces, solution: order };
+    if (ok) return order;
   }
-  throw new Error(`failed to deal layout ${layout.id}`);
+  return null;
+}
+
+function shuffleInPlace(arr, rand) {
+  for (let k = arr.length - 1; k > 0; k--) {
+    const j = Math.floor(rand() * (k + 1));
+    [arr[k], arr[j]] = [arr[j], arr[k]];
+  }
+  return arr;
+}
+
+/**
+ * 发牌：返回 { faces: string[], solution: [i, j][] }，faces[i] 对应 positions[i]。
+ * solution 是一条从满盘到清空的合法消除序列。
+ */
+export function dealSolvable(layout, seed = Date.now(), maxTries = 500) {
+  const rand = mulberry32(seed);
+  const { positions } = layout;
+  const geo = buildGeometry(positions);
+  const order = removalOrder(positions, geo, new Uint8Array(positions.length).fill(1), rand, maxTries);
+  if (!order) throw new Error(`failed to deal layout ${layout.id}`);
+  // 分配牌面：洗牌后的对子依次给每一步
+  const pairs = shuffleInPlace(allPairs(), rand);
+  const faces = new Array(positions.length);
+  order.forEach(([a, b], k) => {
+    faces[a] = pairs[k][0];
+    faces[b] = pairs[k][1];
+  });
+  // 从满盘按 order 依次消除，每一步两张都自由且牌面相配 —— order 本身就是正向解
+  return { faces, solution: order };
+}
+
+/**
+ * 洗牌：只重排在场的牌，且保证洗完后仍有完整解。
+ * 在场的牌一定能两两配对（每次消除都拿走一对），按配对键分组后重新按可解顺序填回。
+ * @returns {{ faces, solution } | null} null 表示这些位置怎么摆都无解（只能撤销）
+ */
+export function reshuffleSolvable(layout, faces, present, seed = Date.now(), maxTries = 300) {
+  const rand = mulberry32(seed);
+  const { positions } = layout;
+  const geo = buildGeometry(positions);
+  const order = removalOrder(positions, geo, present, rand, maxTries);
+  if (!order) return null;
+
+  const groups = new Map();
+  for (let i = 0; i < positions.length; i++) {
+    if (!present[i]) continue;
+    const k = matchKey(faces[i]);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(faces[i]);
+  }
+  const pairs = [];
+  for (const list of groups.values()) {
+    shuffleInPlace(list, rand);
+    for (let k = 0; k + 1 < list.length; k += 2) pairs.push([list[k], list[k + 1]]);
+  }
+  if (pairs.length !== order.length) return null; // 理论上不会发生：在场牌数必为成对
+  shuffleInPlace(pairs, rand);
+
+  const next = faces.slice();
+  order.forEach(([a, b], k) => {
+    next[a] = pairs[k][0];
+    next[b] = pairs[k][1];
+  });
+  return { faces: next, solution: order };
 }
 
 /** 当前局面所有可消除的对子 */

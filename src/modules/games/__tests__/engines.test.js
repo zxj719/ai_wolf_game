@@ -3,7 +3,7 @@ import {
   DIFFICULTIES, generateNoGuessBoard, solveLogically, buildNeighbors, computeNumbers,
 } from '../minesweeper/mineEngine';
 import {
-  LAYOUTS, validateLayout, dealSolvable, buildGeometry, isFree, matchKey, findMoves,
+  LAYOUTS, validateLayout, dealSolvable, reshuffleSolvable, buildGeometry, isFree, matchKey, findMoves,
 } from '../mahjong/mahjongEngine';
 
 describe('mineEngine', () => {
@@ -67,5 +67,37 @@ describe('mahjongEngine', () => {
 
   it('龟布局正好 144 张', () => {
     expect(LAYOUTS.find((l) => l.id === 'turtle').positions.length).toBe(144);
+  });
+});
+
+
+describe('mahjong reshuffle', () => {
+  for (const layout of LAYOUTS) {
+    it(`${layout.id}: 打到一半洗牌，剩余牌不变且仍有完整解`, () => {
+      const geo = buildGeometry(layout.positions);
+      for (let s = 1; s <= 10; s++) {
+        const { faces, solution } = dealSolvable(layout, s * 13);
+        const present = new Uint8Array(faces.length).fill(1);
+        // 按解走掉前 40%
+        solution.slice(0, Math.floor(solution.length * 0.4)).forEach(([a, b]) => { present[a] = 0; present[b] = 0; });
+        const before = faces.filter((_, i) => present[i]).sort();
+        const r = reshuffleSolvable(layout, faces, present, s * 31);
+        expect(r).not.toBeNull();
+        expect(r.faces.filter((_, i) => present[i]).sort()).toEqual(before);   // 牌没变，只是换了位置
+        faces.forEach((f, i) => { if (!present[i]) expect(r.faces[i]).toBe(f); }); // 已消除位置不动（撤销仍成立）
+        const p = Uint8Array.from(present);
+        for (const [a, b] of r.solution) {
+          expect(isFree(a, p, geo) && isFree(b, p, geo)).toBe(true);
+          expect(matchKey(r.faces[a])).toBe(matchKey(r.faces[b]));
+          p[a] = 0; p[b] = 0;
+        }
+        expect(p.every((v) => v === 0)).toBe(true);
+      }
+    });
+  }
+
+  it('两张上下叠着时怎么洗都无解 → 返回 null', () => {
+    const layout = { id: 'stack', positions: [[0, 0, 0], [0, 0, 1]] };
+    expect(reshuffleSolvable(layout, ['m1', 'm1'], new Uint8Array([1, 1]), 7)).toBeNull();
   });
 });
