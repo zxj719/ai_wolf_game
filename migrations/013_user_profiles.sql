@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL DEFAULT '',
+  bio TEXT NOT NULL DEFAULT '',
+  location TEXT NOT NULL DEFAULT '',
+  website TEXT NOT NULL DEFAULT '',
+  avatar_color TEXT NOT NULL DEFAULT 'clay'
+);

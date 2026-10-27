@@ -17,8 +17,8 @@ export function MessageList({ meId, messages }) {
           <div key={key} className={mine ? 'flex justify-end' : 'flex justify-start'}>
             <span
               className={[
-                'inline-block max-w-[75%] px-3 py-2 rounded-lg text-sm',
-                mine ? 'bg-accent text-white' : 'bg-bg-raised text-ink',
+                'message-bubble',
+                mine ? 'message-mine' : 'message-theirs',
                 m.pending ? 'opacity-60' : '',
               ].join(' ')}
             >

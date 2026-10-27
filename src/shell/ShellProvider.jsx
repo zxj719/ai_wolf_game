@@ -25,7 +25,8 @@ export function ShellProvider({ children }) {
 
   const [locale, setLocaleState] = useState(() => readStoredLocale());
   const [themePref, setThemePrefState] = useState(() => readStoredThemePref());
-  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [guestMode, setIsGuestMode] = useState(true);
+  const isGuestMode = !user && guestMode;
   const [showTokenManager, setShowTokenManager] = useState(false);
   const [showStats, setShowStats] = useState(false);
 
@@ -125,6 +126,7 @@ export function ShellProvider({ children }) {
     () => ({
       // 身份
       user,
+      authLoading: auth.loading,
       isGuestMode,
       setIsGuestMode,
       // 国际化
@@ -148,6 +150,7 @@ export function ShellProvider({ children }) {
     }),
     [
       user,
+      auth.loading,
       isGuestMode,
       locale,
       setLocale,

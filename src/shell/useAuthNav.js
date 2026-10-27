@@ -29,8 +29,8 @@ export function useAuthNav({ navigate, logout, setIsGuestMode }) {
 
   const handleLogout = useCallback(async () => {
     await logout?.();
-    setIsGuestMode(false);
-    navigate(ROUTES.LOGIN, { replace: true });
+    setIsGuestMode(true);
+    navigate(ROUTES.HOME, { replace: true });
   }, [logout, navigate, setIsGuestMode]);
 
   return { enterGuestMode, exitGuestMode, handleLoginSuccess, handleLogout };

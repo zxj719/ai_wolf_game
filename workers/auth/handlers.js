@@ -3,6 +3,7 @@
  */
 
 import { signToken } from './jwt.js';
+import { validatePublicProfile } from './profileLib.js';
 import { hashPassword, verifyPassword } from './password.js';
 import {
   jsonResponse,
@@ -170,7 +171,9 @@ export async function handleLogin(request, env) {
 
     // 查找用户
     const user = await env.DB.prepare(
-      'SELECT id, username, email, password_hash, email_verified FROM users WHERE email = ?'
+      `SELECT u.id, u.username, u.email, u.password_hash, u.email_verified,
+              p.display_name, p.bio, p.location, p.website, p.avatar_color
+       FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id WHERE u.email = ?`
     ).bind(email.toLowerCase()).first();
 
     if (!user) {
@@ -206,7 +209,12 @@ export async function handleLogin(request, env) {
         id: user.id,
         username: user.username,
         email: user.email,
-        emailVerified: user.email_verified === 1
+        emailVerified: user.email_verified === 1,
+        displayName: user.display_name || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        website: user.website || '',
+        avatarColor: user.avatar_color || 'clay'
       },
       token
     }, 200, env, request);
@@ -245,9 +253,11 @@ export async function handleGetProfile(request, env) {
     const userInfo = await env.DB.prepare(
       `SELECT u.id, u.username, u.email, u.email_verified, u.created_at, u.last_login,
               u.modelscope_token, u.token_verified_at,
+              p.display_name, p.bio, p.location, p.website, p.avatar_color,
               s.total_games, s.wins, s.losses, s.win_rate
        FROM users u
        LEFT JOIN user_stats s ON u.id = s.user_id
+       LEFT JOIN user_profiles p ON u.id = p.user_id
        WHERE u.id = ?`
     ).bind(user.sub).first();
 
@@ -260,6 +270,11 @@ export async function handleGetProfile(request, env) {
       user: {
         id: userInfo.id,
         username: userInfo.username,
+        displayName: userInfo.display_name || '',
+        bio: userInfo.bio || '',
+        location: userInfo.location || '',
+        website: userInfo.website || '',
+        avatarColor: userInfo.avatar_color || 'clay',
         email: userInfo.email,
         emailVerified: userInfo.email_verified === 1,
         createdAt: userInfo.created_at,
@@ -294,6 +309,9 @@ export async function handleUpdateProfile(request, env) {
 
     const body = await request.json();
     const { username, password, currentPassword } = body;
+    let publicProfile;
+    try { publicProfile = validatePublicProfile(body); }
+    catch (error) { return errorResponse(error.message, 400, env, request); }
 
     // 如果要更改密码，需要验证当前密码
     if (password) {
@@ -350,9 +368,21 @@ export async function handleUpdateProfile(request, env) {
       ).bind(username, user.sub).run();
     }
 
+    if (Object.keys(publicProfile).length) {
+      const columns = { displayName: 'display_name', bio: 'bio', location: 'location', website: 'website', avatarColor: 'avatar_color' };
+      const entries = Object.entries(publicProfile);
+      const names = entries.map(([key]) => columns[key]);
+      await env.DB.prepare(
+        `INSERT INTO user_profiles (user_id, ${names.join(', ')}) VALUES (?, ${names.map(() => '?').join(', ')})
+         ON CONFLICT(user_id) DO UPDATE SET ${names.map(name => `${name} = excluded.${name}`).join(', ')}`
+      ).bind(user.sub, ...entries.map(([, value]) => value)).run();
+    }
+
     // 返回更新后的用户信息
     const updatedUser = await env.DB.prepare(
-      'SELECT id, username, email, email_verified FROM users WHERE id = ?'
+      `SELECT u.id, u.username, u.email, u.email_verified,
+              p.display_name, p.bio, p.location, p.website, p.avatar_color
+       FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id WHERE u.id = ?`
     ).bind(user.sub).first();
 
     return jsonResponse({
@@ -360,6 +390,11 @@ export async function handleUpdateProfile(request, env) {
       user: {
         id: updatedUser.id,
         username: updatedUser.username,
+        displayName: updatedUser.display_name || '',
+        bio: updatedUser.bio || '',
+        location: updatedUser.location || '',
+        website: updatedUser.website || '',
+        avatarColor: updatedUser.avatar_color || 'clay',
         email: updatedUser.email,
         emailVerified: updatedUser.email_verified === 1
       }

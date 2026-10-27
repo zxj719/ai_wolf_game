@@ -7,10 +7,10 @@ import { ROUTES } from '../../shell/paths';
 export const GAMES = [
   {
     id: 'minesweeper',
-    title: { zh: '扫雷 · 无猜版', en: 'Minesweeper (No-Guess)' },
+    title: { zh: '地下回响 · 探索试玩', en: 'Underground Echoes · Preview' },
     blurb: {
-      zh: '雷区经求解器验证、全程可推理，不会出现被隔断只能硬猜的局面。三档难度全网排行榜。',
-      en: 'Every board is verified solvable by pure logic — no 50/50 guesses. Global leaderboards.',
+      zh: '扫开废土，回收物资，带幸存者回家。内含九宫格教学与经典扫雷。',
+      en: 'Explore the underground. Recover supplies. Bring survivors home.',
     },
     path: ROUTES.GAMES_MINESWEEPER,
   },

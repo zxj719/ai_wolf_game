@@ -19,7 +19,7 @@ function HomeLoader() {
  * 桥接层把 Shell 能力映射成 Dashboard 期望的 props。
  */
 export default function HomeRoute() {
-  const { locale, user, isGuestMode, setIsGuestMode, navigate } = useShell();
+  const { locale, setLocale, themePref, setThemePref, user, isGuestMode, setIsGuestMode, navigate } = useShell();
   const { logout } = useAuth();
   const { enterGuestMode, handleLogout } = useAuthNav({ navigate, logout, setIsGuestMode });
 
@@ -57,10 +57,13 @@ export default function HomeRoute() {
   }, [enterGuestMode]);
 
   return (
-    <div className="mac-app-shell">
+    <div>
       <Suspense fallback={<HomeLoader />}>
         <Dashboard
           locale={locale}
+          onLocaleChange={setLocale}
+          themePref={themePref}
+          onThemeChange={setThemePref}
           onEnterWolfgame={onEnterWolfgame}
           onEnterSites={onEnterSites}
           onEnterChords={onEnterChords}

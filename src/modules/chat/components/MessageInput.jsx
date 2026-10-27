@@ -31,7 +31,7 @@ export function MessageInput({ value, onChange, onSend, onTyping, disabled }) {
   };
 
   return (
-    <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
+    <form className="message-input-form" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
       <input
         type="text"
         value={value}
@@ -39,9 +39,11 @@ export function MessageInput({ value, onChange, onSend, onTyping, disabled }) {
         onChange={(e) => handleChange(e.target.value)}
         onBlur={stopTyping}
         placeholder={disabled ? '连接中…' : '输入消息'}
-        className="flex-1 px-3 py-2 rounded border border-line bg-bg-raised text-ink disabled:opacity-50"
+        aria-label="输入消息"
+        maxLength={4000}
+        onKeyDown={e => { if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault(); }}
       />
-      <button type="submit" disabled={disabled} className="px-4 py-2 rounded bg-accent hover:bg-accent-hover text-white disabled:opacity-50">发送</button>
+      <button type="submit" disabled={disabled || !value.trim()}>发送 <span aria-hidden="true">↗</span></button>
     </form>
   );
 }

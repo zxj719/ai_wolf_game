@@ -1,102 +1,72 @@
-import { ArrowUpRight, ChevronLeft, Puzzle } from 'lucide-react';
-import { useShell } from '../../shell/ShellContext';
-import { ROUTES } from '../../shell/paths';
-import { GAMES } from './gamesList';
-
-function localized(field, locale) {
-  if (!field) return undefined;
-  if (typeof field === 'string') return field;
-  return field[locale] ?? field.zh ?? field.en;
-}
-
-function getCopy(locale) {
-  if (locale === 'en') {
-    return {
-      title: 'Mini Games',
-      subtitle: 'Lightweight tools and visual toys',
-      description: 'A small arcade of client-side toys — no login, no queue, just open and play.',
-      back: 'Back',
-      cta: 'Open',
-    };
-  }
-  return {
-    title: '小游戏',
-    subtitle: '轻量小工具与可视化玩具',
-    description: '纯前端运行的小玩具合集，不占资源队列，随时打开随时玩。',
-    back: '返回',
-    cta: '打开',
-  };
-}
+import { ArrowUpRight, ArrowLeft } from "lucide-react";
+import { useShell } from "../../shell/ShellContext";
+import { ROUTES } from "../../shell/paths";
+import { GAMES } from "./gamesList";
 
 export default function GamesRoute() {
-  const { locale = 'zh', navigate } = useShell();
-  const copy = getCopy(locale);
-
+  const { locale = "zh", navigate } = useShell();
+  const en = locale === "en";
+  const title = (field) => field[locale] || field.zh;
   return (
-    <div className="px-4 py-16 md:px-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mac-window overflow-hidden">
-          <div className="mac-toolbar">
-            <div className="flex items-center gap-4">
-              <div className="mac-window-chrome">
-                <span className="mac-window-dot mac-dot-red" />
-                <span className="mac-window-dot mac-dot-yellow" />
-                <span className="mac-window-dot mac-dot-green" />
-              </div>
-              <div>
-                <div className="mac-eyebrow">Zhaxiaoji Studio</div>
-                <h1 className="text-base font-semibold text-ink">{copy.title}</h1>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate(ROUTES.HOME)}
-              className="mac-button mac-button-secondary"
-            >
-              <ChevronLeft size={15} />
-              {copy.back}
-            </button>
-          </div>
-
-          <main className="grid gap-8 px-6 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
-            <section className="space-y-4">
-              <div className="mac-eyebrow">{copy.subtitle}</div>
-              <h2 className="text-[clamp(2.25rem,5vw,3.5rem)] font-semibold tracking-tight text-ink">
-                {copy.title}
-              </h2>
-              <p className="max-w-2xl text-base leading-7 text-ink-muted">{copy.description}</p>
-            </section>
-
-            <section className="space-y-3">
-              {GAMES.map((game) => (
-                <button
-                  key={game.id}
-                  type="button"
-                  onClick={() => navigate(game.path)}
-                  className="mac-list-row w-full text-left transition-colors hover:bg-bg-sunken"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="mac-icon-tile h-10 w-10 rounded-[16px]">
-                        <Puzzle size={17} />
-                      </span>
-                      <div>
-                        <div className="text-sm font-semibold text-ink">{localized(game.title, locale)}</div>
-                        <div className="text-sm text-ink-muted">{localized(game.blurb, locale)}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm font-medium text-ink-muted">
-                      {copy.cta}
-                      <ArrowUpRight size={15} />
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </section>
-          </main>
+    <main className="studio-home games-room">
+      <div className="studio-container">
+        <header className="games-room-header">
+          <button onClick={() => navigate(ROUTES.HOME)}>
+            <ArrowLeft size={16} />
+            {en ? "Home" : "主页"}
+          </button>
+          <span className="studio-kicker">
+            THE PLAY ROOM / WORK IN PROGRESS
+          </span>
+        </header>
+        <div className="games-room-title">
+          <h1>{en ? "One more round." : "再玩一会儿。"}</h1>
+          <span>{en ? "Worlds in the making" : "一些正在长大的世界"}</span>
         </div>
+        <button
+          className="games-story"
+          onClick={() => navigate(ROUTES.GAMES_MINESWEEPER)}
+        >
+          <div className="story-map" aria-hidden="true">
+            {Array.from({ length: 81 }, (_, i) => (
+              <i key={i} className={i < 45 && i % 9 < 7 ? "explored" : ""}>
+                {i < 45 && i % 9 < 7 && i % 4 === 0 ? (i % 3) + 1 : ""}
+              </i>
+            ))}
+            <span className="story-crosshair" />
+          </div>
+          <div className="story-copy">
+            <span className="studio-kicker">
+              CHAPTER 01 · {en ? "PLAYABLE PREVIEW" : "探索试玩"}
+            </span>
+            <h2>{en ? "Underground Echoes" : "地下回响"}</h2>
+            <p>
+              {en
+                ? "Find supplies. Bring them home."
+                : "扫开废土，带他们回家。"}
+            </p>
+            <span className="story-enter">
+              {en ? "Enter the underground" : "进入地下"}
+              <ArrowUpRight size={20} />
+            </span>
+          </div>
+        </button>
+        <h2 className="room-shelf-label">
+          {en ? "A few familiar games" : "休息室"}
+        </h2>
+        <section
+          className="room-shelf"
+          aria-label={en ? "Other games" : "其他游戏"}
+        >
+          {GAMES.filter((g) => g.id !== "minesweeper").map((g, i) => (
+            <button key={g.id} onClick={() => navigate(g.path)}>
+              <span className="room-game-number">0{i + 1}</span>
+              <strong>{title(g.title)}</strong>
+              <ArrowUpRight size={17} />
+            </button>
+          ))}
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,62 +1,63 @@
-import React from 'react';
-import { getUiCopy } from '../../i18n/locale.js';
+import { ArrowLeft, Sparkles } from "lucide-react";
 
-export function AuthShell({ locale = 'zh', title, subtitle, children, footer }) {
-  const authCopy = getUiCopy(locale).auth;
-  const notes = locale === 'en'
-    ? [
-        'Minimal interface, bilingual shell.',
-        'Sign in to save stats and manage your token.',
-      ]
-    : [
-        '极简界面，支持中英切换。',
-        '登录后可保存战绩并管理令牌。',
-      ];
-
+export function AuthShell({
+  locale = "zh",
+  title,
+  subtitle,
+  children,
+  footer,
+}) {
+  const en = locale === "en";
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-16 md:px-6">
-      <div className="mac-window w-full max-w-5xl overflow-hidden">
-        <div className="grid lg:grid-cols-[0.82fr_1.18fr]">
-          <section className="hidden border-r border-line bg-bg-raised px-8 py-10 lg:flex lg:flex-col lg:justify-between">
-            <div className="space-y-5">
-              <div className="mac-window-chrome">
-                <span className="mac-window-dot mac-dot-red" />
-                <span className="mac-window-dot mac-dot-yellow" />
-                <span className="mac-window-dot mac-dot-green" />
-              </div>
-              <div>
-                <div className="mac-eyebrow">{authCopy.productName}</div>
-                <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-ink">
-                  {authCopy.heroTitle}
-                </h1>
-                <p className="mt-4 text-base leading-7 text-ink-muted">{authCopy.heroBody}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {notes.map((note) => (
-                <div key={note} className="mac-muted-card text-sm leading-6 text-ink-muted">
-                  {note}
-                </div>
-              ))}
+    <div className="studio-home studio-auth">
+      <div className="studio-container">
+        <header className="studio-header">
+          <a href="/" className="studio-brand">
+            <span className="brand-mark">
+              z<span>✳</span>
+            </span>
+            <span>
+              zhaxiaoji<span className="brand-domain">.com</span>
+            </span>
+          </a>
+          <a href="/" className="auth-home-link">
+            <ArrowLeft size={14} />
+            {en ? "Back to the playground" : "回游乐场"}
+          </a>
+        </header>
+        <div className="auth-layout">
+          <section className="auth-intro">
+            <span className="studio-kicker">A SPACE FOR CURIOUS MINDS</span>
+            <h1>
+              {en ? (
+                <>
+                  Good things
+                  <br />
+                  start with <em>hello.</em>
+                </>
+              ) : (
+                <>
+                  好玩的事，
+                  <br />
+                  从相遇开始<span>。</span>
+                </>
+              )}
+            </h1>
+            <p>
+              {en
+                ? "Save your stories, find your people, and make this little corner of the internet your own."
+                : "把喜欢的东西留下，把聊得来的人找到。\n这里，也有属于你的小小角落。"}
+            </p>
+            <div className="auth-postcard" aria-hidden="true">
+              <Sparkles size={45} strokeWidth={1} />
+              <span>glad you’re here.</span>
+              <small>ZHAXIAOJI / THE PLAYGROUND</small>
             </div>
           </section>
-
-          <section className="px-6 py-8 md:px-10 md:py-10">
-            <div className="mb-8 lg:hidden">
-              <div className="mac-window-chrome">
-                <span className="mac-window-dot mac-dot-red" />
-                <span className="mac-window-dot mac-dot-yellow" />
-                <span className="mac-window-dot mac-dot-green" />
-              </div>
-            </div>
-
-            <div className="mb-8">
-              <div className="mac-eyebrow">{authCopy.productName}</div>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-ink-muted">{subtitle}</p>
-            </div>
-
+          <section className="auth-form-panel">
+            <div className="studio-kicker">MAKE YOURSELF AT HOME</div>
+            <h2>{title}</h2>
+            <p className="auth-subtitle">{subtitle}</p>
             {children}
             {footer && <div className="mt-8">{footer}</div>}
           </section>

@@ -3,7 +3,7 @@ import { ROUTES } from '../../shell/paths';
 
 const GamesRoute = lazy(() => import('./GamesRoute'));
 const SudokuRoute = lazy(() => import('./sudoku/SudokuRoute'));
-const MinesweeperRoute = lazy(() => import('./minesweeper/MinesweeperRoute'));
+const MinesweeperRoute = lazy(() => import('./expedition/ExpeditionRoute'));
 const MahjongRoute = lazy(() => import('./mahjong/MahjongRoute'));
 const GomokuRoute = lazy(() => import('./gomoku/GomokuRoute'));
 const BanqiRoute = lazy(() => import('./banqi/BanqiRoute'));

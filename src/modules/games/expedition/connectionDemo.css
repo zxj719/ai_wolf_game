@@ -1,0 +1,71 @@
+.connection-demo { padding: 24px 32px; background: radial-gradient(ellipse at 75% 0, #29433d50, transparent 60%), var(--echo-bg); }
+.connection-demo header { font-size: 11px; }
+.connection-demo header button { color: var(--echo-muted); }
+.connection-demo nav { display: flex; gap: 8px; margin: 20px 0 26px; }
+.connection-demo nav button { flex: 1; text-align: left; padding: 10px 0; border-top: 2px solid var(--echo-line); color: var(--echo-muted); font-size: 12px; }
+.connection-demo nav small { display: block; font: 10px Consolas, monospace; margin-bottom: 6px; opacity: .7; }
+.connection-demo nav button[aria-current] { border-color: var(--echo-amber); color: #e9ce98; }
+.connection-demo .demo-caption { min-height: 100px; border-left: 2px solid var(--echo-amber); padding: 6px 22px; background: #1d343444; }
+.connection-demo .demo-caption h2 { font: 22px/1.5 "Songti SC", SimSun, serif; margin: 0 0 9px; color: #eee9da; }
+.connection-demo .demo-caption p { font-size: 13px; line-height: 1.8; color: var(--echo-muted); margin: 0; }
+.demo-boards { display: flex; gap: 26px; justify-content: center; margin: 20px 0 12px; }
+.demo-board { flex: 1; max-width: 350px; min-width: 0; }
+.demo-board h3 { font-size: 12px; font-weight: 400; color: var(--echo-muted); margin: 0 0 12px; }
+.demo-board.is-active h3 { color: var(--echo-amber); }
+.demo-map { position: relative; width: 100%; max-width: 330px; margin: auto; }
+.connection-practice .demo-map .world-grid { width: 100%; max-width: none; margin: 0; }
+.connection-practice .demo-map .world-cell { cursor: default; }
+.demo-board > p { min-height: 20px; margin: 13px 0 0; font-size: 12px; color: var(--echo-amber); }
+.demo-cursor { position: absolute; z-index: 7; pointer-events: none; color: #fff4d5; filter: drop-shadow(0 2px 3px #000a); transition: left 1000ms ease-in-out, top 1000ms ease-in-out; }
+.demo-cursor > svg { transform: translate(-3px, -3px); }
+.demo-cursor.is-clicking > i { position: absolute; width: 34px; height: 34px; margin: -17px; border: 2px solid #ffdb91; border-radius: 50%; animation: demo-tap 1.2s ease-out infinite; }
+@keyframes demo-tap { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(1.5); } }
+.connection-demo footer { border-top: 1px solid var(--echo-line); padding: 17px 0 0; position: static; background: transparent; }
+.demo-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.demo-controls button { display: flex; align-items: center; gap: 5px; min-height: 40px; padding: 8px 10px; color: var(--echo-muted); border: 1px solid var(--echo-line); border-radius: 3px; }
+.demo-controls button:hover { color: var(--echo-ink); background: var(--echo-raised); }
+.demo-progress { font: 11px Consolas, monospace; color: var(--echo-muted); }
+.narrative-practice .practice-watch { display: inline-flex; gap: 7px; align-items: center; color: var(--echo-amber); border: 1px solid #8e8365; border-radius: 3px; padding: 8px 12px; font-size: 12px; margin: 0 0 12px; }
+.narrative-practice .practice-mini-steps { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.practice-mini-steps li { flex: 1; padding: 10px 12px; color: var(--echo-muted); font-size: 12px; border: 1px solid var(--echo-line); }
+.practice-mini-steps li[aria-current] { color: var(--echo-amber); background: #463d272f; border-color: #ae9365; }
+.practice-mini-steps li.complete { color: var(--echo-friendly); }
+.practice-boards[data-placing] .tactical-grid [data-cell="25"] { animation: lesson-target 1.5s ease-in-out infinite; }
+@keyframes lesson-target { 50% { box-shadow: inset 0 0 0 2px #f8d795, 0 0 20px #e4ba6b55; } }
+@media (max-height: 800px) and (min-width: 651px) {
+  .connection-demo { padding: 20px 32px; }
+  .connection-demo nav { margin: 16px 0 20px; }
+  .connection-demo .demo-caption { min-height: 90px; }
+  .connection-demo .demo-map { max-width: clamp(180px, calc(100dvh - 440px), 330px); }
+  .narrative-practice .practice-work { padding: 16px 28px; }
+  .narrative-practice .practice-steps { margin: 12px 0 14px; }
+  .narrative-practice .practice-prompt { grid-template-columns: 32px 1fr; padding: 10px 14px; gap: 12px; margin-bottom: 8px; }
+  .narrative-practice .practice-portrait { width: 32px; height: 42px; }
+  .narrative-practice .practice-prompt h2 { margin: 1px 0; font-size: 17px; line-height: 1.5; }
+  .narrative-practice .practice-prompt p { line-height: 1.5; margin: 0; }
+  .narrative-practice .practice-boards { padding: 10px 0 6px; }
+  .connection-practice.narrative-practice .practice-boards .world-grid { max-width: clamp(180px, calc(100dvh - 500px), 280px); }
+  .narrative-practice .practice-feedback { margin: 10px 0; padding: 8px 12px; }
+  .narrative-practice .practice-work > footer { margin-top: 8px; padding-top: 8px; }
+}
+@media (max-width: 650px) {
+  .connection-demo { padding: 18px 14px; }
+  .connection-demo nav { gap: 7px; margin: 14px 0; }
+  .connection-demo nav button { font-size: 11px; }
+  .connection-demo .demo-caption { min-height: 120px; padding: 10px 14px; }
+  .connection-demo .demo-caption h2 { font-size: 18px; }
+  .demo-boards { gap: 12px; }
+  .demo-board h3, .demo-board > p { font-size: 10px; }
+  .demo-boards.dual .world-cell { font-size: 13px; }
+  .demo-boards.dual .world-cell strong { font-size: 13px; }
+  .demo-boards.dual .node-glyph { font-size: 8px; }
+  .demo-controls { gap: 5px; }
+  .demo-controls button { font-size: 11px; padding: 8px; }
+  .demo-progress { display: none; }
+  .connection-demo footer { gap: 8px; flex-wrap: wrap; }
+  .practice-mini-steps li { font-size: 11px; padding: 9px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-cursor { transition: none; }
+  .demo-cursor.is-clicking > i, .practice-boards[data-placing] .tactical-grid [data-cell="25"] { animation: none; }
+}

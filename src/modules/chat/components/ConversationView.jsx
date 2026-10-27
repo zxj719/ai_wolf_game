@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { friendService } from '../../../services/friendService';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { Video } from 'lucide-react';
+import { Avatar } from '../../../components/Personal/Avatar';
 
 let _cid = 0;
 const nextClientId = () => `c${Date.now()}_${_cid++}`;
@@ -110,22 +112,21 @@ export function ConversationView({ api, meId, friend, chat, onStartCall }) {
   }, [draft, send, friendId, meId]);
 
   return (
-    <div className="flex flex-col h-[60vh] border border-line rounded">
-      <div className="px-3 py-2 border-b border-line text-sm font-semibold text-ink flex items-center gap-2">
-        {friend.username}
-        <span className={`inline-block w-2 h-2 rounded-full ${onlineFriends.has(friendId) ? 'bg-success' : 'bg-ink-faint'}`} />
-        {status !== 'open' && <span className="text-xs text-ink-muted font-normal">（连接中…）</span>}
+    <div className="conversation-view">
+      <div className="conversation-header">
+        <Avatar name={friend.displayName || friend.username} color={friend.avatarColor} />
+        <div><strong>{friend.displayName || friend.username}</strong><small>{status !== 'open' ? '正在连接…' : onlineFriends.has(friendId) ? '在线 · 可以聊聊' : '当前离线'}{friend.bio ? ` · ${friend.bio}` : ''}</small></div>
         {onStartCall && (
-          <button type="button" onClick={onStartCall} className="ml-auto text-sm text-accent">视频通话</button>
+          <button type="button" onClick={onStartCall} disabled={status !== 'open'} aria-label="视频通话"><Video size={17} /><span>视频通话</span></button>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="conversation-messages">
         {error && <p className="text-sm text-danger">{error}</p>}
         <MessageList meId={meId} messages={messages} />
         {peerTyping && <p className="text-xs text-ink-muted mt-2">对方正在输入…</p>}
         <div ref={endRef} />
       </div>
-      <div className="p-2 border-t border-line">
+      <div className="conversation-compose">
         <MessageInput
           value={draft}
           disabled={status !== 'open'}

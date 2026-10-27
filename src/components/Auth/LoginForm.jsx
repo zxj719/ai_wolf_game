@@ -39,7 +39,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
   };
 
   return (
-    <AuthShell locale={locale} title={authCopy.loginTitle} subtitle={authCopy.guestDescription}>
+    <AuthShell locale={locale} title={authCopy.loginTitle} subtitle={locale === 'en' ? 'Make this space yours. Your people and projects are waiting.' : '有自己的名字，有聊得来的朋友。欢迎回来。'}>
       {(localError || error) && (
         <div className="mb-6 rounded-[22px] border border-danger bg-danger-soft p-4 text-sm text-danger">
           {localError || error}
@@ -64,9 +64,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
           />
         </label>
 
-        <label className="block">
+        <div className="block">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.password}</span>
+            <label htmlFor="login-password" className="text-xs font-medium uppercase tracking-[0.2em] text-ink-muted">{authCopy.password}</label>
             {onForgotPassword && (
               <button type="button" onClick={onForgotPassword} className="text-sm font-medium text-accent hover:text-accent-hover">
                 {authCopy.forgotPassword}
@@ -93,7 +93,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword, locale = 'zh' 
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-        </label>
+        </div>
 
         <button type="submit" disabled={isLoading} className="mac-button mac-button-primary w-full justify-center py-3">
           {isLoading ? (

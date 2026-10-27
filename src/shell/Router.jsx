@@ -26,8 +26,8 @@ function DefaultLoader() {
  *      <ThemeScope theme={theme}><Suspense>{Component}</Suspense></ThemeScope>
  */
 export function Router({ authRoutes = [], homeRoute, fallback = <DefaultLoader /> }) {
-  const { currentPath, user, isGuestMode, navigate, locale, themePref } = useShell();
-  const isAuthed = Boolean(user) || isGuestMode;
+  const { currentPath, user, isGuestMode, authLoading, navigate, locale, themePref } = useShell();
+  const isAuthed = Boolean(user);
 
   const match = useMemo(() => {
     const hit = findRoute(currentPath);
@@ -44,14 +44,15 @@ export function Router({ authRoutes = [], homeRoute, fallback = <DefaultLoader /
   const decision = resolveNavigation({
     route: match?.route ?? null,
     isAuthed,
+    isGuestMode,
     normalizedPath: currentPath,
   });
 
   useEffect(() => {
-    if (decision.kind === 'redirect') {
+    if (!authLoading && decision.kind === 'redirect') {
       navigate(decision.to, { replace: decision.replace });
     }
-  }, [decision, navigate]);
+  }, [decision, navigate, authLoading]);
 
   // onLeave: 前一个 route 离场时调用（给 werewolf endGame 这类清理留口子）
   const prevRef = useRef(null);
@@ -75,7 +76,7 @@ export function Router({ authRoutes = [], homeRoute, fallback = <DefaultLoader /
     pathname: currentPath,
   });
 
-  if (decision.kind === 'redirect') return fallback;
+  if (authLoading || decision.kind === 'redirect') return fallback;
   if (!match) return fallback;
 
   const Component = match.route.component;

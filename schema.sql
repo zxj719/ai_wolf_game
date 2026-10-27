@@ -13,6 +13,16 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- 索引
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL DEFAULT '',
+  bio TEXT NOT NULL DEFAULT '',
+  location TEXT NOT NULL DEFAULT '',
+  website TEXT NOT NULL DEFAULT '',
+  avatar_color TEXT NOT NULL DEFAULT 'clay'
+);
+
+-- 索引
 CREATE UNIQUE INDEX IF NOT EXISTS idx_username ON users(username);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_email ON users(email);
 

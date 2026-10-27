@@ -45,9 +45,9 @@ export function AuthPage({ onGuestPlay, locale = 'zh' }) {
   };
 
   const guestFooter = onGuestPlay && (view === 'login' || view === 'register') ? (
-    <div className="px-4 pb-10 text-center">
+    <div className="auth-guest-footer">
       <button type="button" onClick={onGuestPlay} className="mac-button mac-button-secondary">
-        {authCopy.guestEnter}
+        {locale === 'en' ? 'Keep exploring as a guest' : '先随意逛逛，暂不登录'}
       </button>
       <p className="mt-4 text-xs leading-6 text-ink-faint">
         {authCopy.guestTermsPrefix}{' '}
@@ -80,11 +80,11 @@ export function AuthPage({ onGuestPlay, locale = 'zh' }) {
   };
 
   if (!guestFooter) {
-    return <main aria-label={authCopy.productName}>{renderView()}</main>;
+    return <main aria-label="Zhaxiaoji account">{renderView()}</main>;
   }
 
   return (
-    <main aria-label={authCopy.productName}>
+    <main aria-label="Zhaxiaoji account">
       {renderView()}
       {guestFooter}
     </main>

@@ -1,0 +1,519 @@
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  margin-top: 27px;
+}
+.hero-actions .hero-explore {
+  margin-top: 0;
+}
+.surprise-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--studio-muted);
+  padding-bottom: 6px;
+}
+.surprise-button:hover {
+  color: var(--studio-red);
+}
+.surprise-button svg {
+  transition: transform 0.3s;
+}
+.surprise-button:hover svg {
+  transform: rotate(25deg);
+}
+.product-questions {
+  display: flex;
+  flex-direction: column;
+  margin-top: 28px;
+  border-top: 1px solid var(--studio-line);
+  padding-top: 20px;
+}
+.product-questions > .studio-kicker {
+  margin-bottom: 10px;
+}
+.product-questions > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  text-align: left;
+  padding: 11px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--studio-line);
+  color: var(--studio-muted);
+}
+.product-questions > button:hover {
+  color: var(--studio-red);
+}
+.product-questions > button > svg {
+  flex-shrink: 0;
+}
+.studio-hero {
+  padding-top: 66px;
+  padding-bottom: 59px;
+}
+.studio-footer {
+  flex-wrap: wrap;
+}
+.studio-footer .studio-preferences {
+  width: 100%;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+.studio-preferences .mac-segmented-control {
+  box-shadow: none;
+  background: transparent;
+  border: 1px solid var(--studio-line);
+}
+.studio-preferences > button {
+  box-shadow: none;
+  background: transparent;
+  border-color: var(--studio-line);
+}
+body:has(.studio-dialog[open]) {
+  overflow: hidden;
+}
+@media (max-width: 650px) {
+  .friends-container:has(.has-conversation) .friends-title,
+  .friends-container:has(.has-conversation) .friends-footer {
+    display: none;
+  }
+  .friends-container:has(.has-conversation) .friends-header {
+    height: 65px;
+  }
+  .friends-workspace.has-conversation {
+    margin-top: 14px;
+    min-height: 0;
+  }
+  .friends-workspace.has-conversation .conversation-view {
+    height: calc(100dvh - 145px);
+    min-height: 350px;
+  }
+}
+@media (max-width: 760px) {
+  .studio-hero {
+    padding-top: 42px;
+    padding-bottom: 40px;
+  }
+  .hero-actions {
+    gap: 19px;
+  }
+  .surprise-button {
+    font-size: 10px;
+  }
+  .studio-header {
+    height: auto;
+    min-height: 84px;
+    flex-wrap: wrap;
+    padding-top: 21px;
+    gap: 17px 10px;
+  }
+  .studio-header .studio-brand {
+    order: 1;
+  }
+  .studio-header .studio-account {
+    order: 2;
+    margin-left: auto;
+  }
+  .studio-header nav {
+    display: flex;
+    order: 3;
+    justify-content: center;
+    width: 100%;
+    gap: 34px;
+    padding: 1px 0 16px;
+    font-size: 11px;
+  }
+  .studio-footer {
+    padding-bottom: 30px;
+  }
+  .studio-auth .studio-header {
+    padding-bottom: 21px;
+  }
+  .studio-auth .auth-home-link {
+    order: 2;
+  }
+  .studio-footer .studio-preferences {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 520px) {
+  .hero-actions {
+    margin-top: 24px;
+  }
+  .product-questions > button {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  .studio-hero {
+    padding-top: 43px;
+    padding-bottom: 39px;
+  }
+}
+.workshop-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 48px 0 32px;
+}
+.workshop-intro h1 {
+  font-size: clamp(36px, 5vw, 62px);
+  letter-spacing: -2px;
+  line-height: 1.3;
+  margin: 12px 0 0;
+  font-weight: 600;
+}
+.workshop-intro h1 i {
+  color: var(--studio-red);
+  font-style: normal;
+  display: inline-block;
+  margin-left: 20px;
+  transition: transform 0.5s;
+}
+.workshop-intro h1:hover i {
+  transform: rotate(90deg);
+}
+.workshop-heading {
+  font-size: 12px;
+  color: var(--studio-muted);
+  font-weight: 400;
+  margin-bottom: 15px;
+}
+.workshop-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.workshop-grid .featured-project {
+  grid-column: span 3;
+}
+.workshop-grid .compact-project {
+  grid-column: span 2;
+}
+.workshop-grid .featured-project .project-art {
+  height: 290px;
+}
+.project-wip {
+  font:
+    9px Consolas,
+    monospace;
+  letter-spacing: 0;
+  font-style: normal;
+  display: inline-block;
+  margin-left: 8px;
+  color: var(--studio-green);
+}
+.art-novel {
+  background: #d4b79f;
+  position: relative;
+  overflow: hidden;
+}
+.novel-page {
+  position: absolute;
+  background: #f7f0dc;
+  width: 45%;
+  height: 87%;
+  top: 21%;
+  left: 29%;
+  border: 1px solid #d3c4a9;
+  box-shadow: 1px 4px 20px #5d3f2720;
+  border-radius: 3px;
+  transition: transform 0.6s;
+}
+.page-back {
+  transform: rotate(11deg);
+  background: #a66a50;
+  left: 35%;
+}
+.page-front {
+  transform: rotate(-8deg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: #55392e;
+}
+.page-front > span {
+  font:
+    10px Georgia,
+    serif;
+  letter-spacing: 3px;
+}
+.page-front b {
+  font:
+    italic 27px/1.5 Georgia,
+    "Microsoft YaHei",
+    serif;
+  margin: 13px 0;
+}
+.page-front i {
+  width: 100%;
+  height: 1px;
+  background: #c2b197;
+  margin: 6px 0;
+}
+.page-front i:nth-last-child(2) {
+  width: 60%;
+}
+.page-front small {
+  font: 8px Consolas;
+  letter-spacing: 1px;
+  margin-top: auto;
+}
+.novel-cursor {
+  position: absolute;
+  bottom: 25px;
+  right: 30px;
+  color: #825b44;
+  font-size: 24px;
+}
+.project-card:hover .page-front,
+.project-card:focus-visible .page-front {
+  transform: translate(-12px, -12px) rotate(-13deg);
+}
+.project-card:hover .page-back,
+.project-card:focus-visible .page-back {
+  transform: translate(12px, -8px) rotate(17deg);
+}
+.studio-workshop .studio-connect {
+  padding: 26px 0;
+  align-items: center;
+  grid-template-columns: 1fr 1fr;
+}
+.studio-workshop .studio-connect h2 {
+  font-size: 21px;
+  margin: 0 0 14px;
+}
+.studio-workshop .connect-note {
+  font-size: 10px;
+}
+.workshop-feedback summary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 15px 0;
+}
+.workshop-feedback .feedback-form {
+  margin-top: 8px;
+}
+.studio-workshop .personal-corner {
+  padding: 20px 0;
+}
+@media (max-width: 850px) {
+  .workshop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workshop-grid .featured-project,
+  .workshop-grid .compact-project {
+    grid-column: span 1;
+  }
+  .workshop-grid .featured-project .project-art {
+    height: 230px;
+  }
+  .page-front {
+    padding: 17px;
+  }
+  .page-front b {
+    font-size: 22px;
+  }
+}
+@media (max-width: 560px) {
+  .workshop-intro {
+    padding: 29px 0 25px;
+    align-items: flex-end;
+  }
+  .workshop-intro h1 {
+    font-size: 36px;
+  }
+  .workshop-intro h1 i {
+    margin-left: 10px;
+    font-size: 27px;
+  }
+  .workshop-intro .surprise-button {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .workshop-grid {
+    grid-template-columns: 1fr;
+  }
+  .workshop-grid .featured-project .project-art {
+    height: 240px;
+  }
+  .studio-workshop .studio-connect {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .studio-workshop .playground-section {
+    padding-bottom: 30px;
+  }
+}
+.games-room {
+  padding-bottom: 65px;
+}
+.games-room-header {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--studio-line);
+  gap: 20px;
+}
+.games-room-header button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.games-room-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 45px 0 30px;
+  gap: 15px;
+}
+.games-room-title h1 {
+  font-size: 42px;
+  letter-spacing: -2px;
+}
+.games-room-title > span {
+  font-size: 12px;
+  color: var(--studio-muted);
+}
+.games-story {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #2d4439;
+  color: #f1ead9;
+  text-align: left;
+}
+.story-map {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+  background: #b6be9f;
+  padding: 36px;
+  transform: scale(1.01);
+}
+.story-map > i {
+  aspect-ratio: 1;
+  background: #a2ad8d;
+  border-radius: 3px;
+  font: 15px/1 Consolas;
+  display: grid;
+  place-items: center;
+  color: #3b503c;
+  font-style: normal;
+}
+.story-map > i.explored {
+  background: #dde0bd;
+}
+.story-crosshair {
+  position: absolute;
+  width: 29%;
+  height: 29%;
+  top: 28%;
+  left: 28%;
+  border: 2px solid #f0f1d5;
+  border-radius: 6px;
+  transition: transform 0.4s;
+}
+.games-story:hover .story-crosshair {
+  transform: translate(15px, 15px);
+}
+.story-copy {
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.story-copy .studio-kicker {
+  color: #b2c1aa;
+}
+.story-copy h2 {
+  font-size: 43px;
+  font-weight: 500;
+  letter-spacing: -2px;
+  margin: 20px 0 12px;
+}
+.story-copy p {
+  font-size: 13px;
+  color: #c6cdbb;
+}
+.story-enter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 17px;
+  border-top: 1px solid #607366;
+  font-size: 13px;
+}
+.room-shelf-label {
+  font-size: 12px;
+  color: var(--studio-muted);
+  margin: 35px 0 15px;
+}
+.room-shelf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 32px;
+}
+.room-shelf button {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--studio-line);
+  text-align: left;
+}
+.room-shelf button strong {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+}
+.room-game-number {
+  font: 11px Consolas;
+  color: var(--studio-muted);
+}
+@media (max-width: 650px) {
+  .games-room-title {
+    padding: 30px 0 24px;
+  }
+  .games-room-title h1 {
+    font-size: 30px;
+  }
+  .games-room-title > span {
+    display: none;
+  }
+  .games-story {
+    grid-template-columns: 1fr;
+  }
+  .story-map {
+    padding: 25px 50px;
+    max-height: 300px;
+    overflow: hidden;
+  }
+  .story-copy {
+    padding: 26px;
+  }
+  .story-copy h2 {
+    font-size: 34px;
+    margin: 12px 0 8px;
+  }
+  .story-enter {
+    margin-top: 20px;
+  }
+  .room-shelf {
+    grid-template-columns: 1fr;
+  }
+  .games-room-header .studio-kicker {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+}

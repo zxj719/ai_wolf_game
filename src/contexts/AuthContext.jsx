@@ -63,6 +63,9 @@ export function AuthProvider({ children }) {
               console.error('Failed to load modelscope token:', tokenErr);
             }
           }
+        } else {
+          clearAuth();
+          setUser(null);
         }
       } catch (err) {
         console.error('Auth init error:', err);

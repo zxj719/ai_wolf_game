@@ -1,0 +1,23 @@
+.journey-prompt { display: flex; align-items: center; gap: 18px; padding: 20px 22px; margin: 0 0 22px; border: 1px solid var(--echo-line); border-left: 2px solid var(--echo-amber); background: #15262cf0; }
+.journey-prompt > svg { color: var(--echo-amber); flex-shrink: 0; }
+.journey-prompt > div:first-of-type { flex: 1; }
+.journey-prompt h2 { font: 20px/1.5 "Songti SC", SimSun, serif; margin: 0 0 7px; }
+.journey-prompt p { color: var(--echo-muted); font-size: 12px; line-height: 1.8; margin: 0; }
+.journey-prompt-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; }
+.connected-world[data-play-mode="survey"] .connected-workspace,
+.connected-world[data-play-mode="defense"] .connected-workspace { grid-template-columns: minmax(0, 1fr); max-width: 860px; margin: 0 auto; }
+.connected-world[data-play-mode="survey"] .survey-stage .world-grid,
+.connected-world[data-play-mode="defense"] .network-stage .world-grid { max-width: 460px; margin: 0 auto; }
+.journey-defense-turn { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px; border-top: 1px solid var(--echo-line); background: #1a302f; }
+.journey-defense-turn span, .journey-defense-turn p { color: var(--echo-muted); font-size: 12px; }
+.journey-role { display: flex; gap: 18px; padding: 14px 18px; color: var(--echo-friendly); font-size: 13px; }
+.journey-role span:last-child { margin-left: auto; color: var(--echo-muted); }
+.journey-step-demo { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 15px 0; }
+.journey-step-demo button { border: 1px solid var(--echo-amber); padding: 10px 18px; color: var(--echo-amber); background: #453e272f; }
+.journey-step-demo.is-active button { box-shadow: 0 0 0 4px #d8b57822; }
+@media (max-width: 650px) {
+  .journey-prompt { flex-wrap: wrap; gap: 10px; padding: 16px; }
+  .journey-prompt h2 { font-size: 18px; }
+  .journey-prompt-actions { width: 100%; padding-left: 28px; }
+  .journey-defense-turn { flex-wrap: wrap; }
+}

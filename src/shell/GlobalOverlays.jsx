@@ -1,9 +1,5 @@
 import { lazy, Suspense } from 'react';
 import { useShell } from './ShellContext';
-import { LanguageToggle } from '../components/LanguageToggle';
-import { ThemeToggle } from '../components/ThemeToggle.jsx';
-import { getUiCopy } from '../i18n/locale.js';
-import { ROUTES } from './paths';
 
 // 全站约战邀请（首页 / 小游戏 / 聊天页）；懒加载，不进主包
 const GameInviteListener = lazy(() => import('../modules/games/duel/GameInviteListener'));
@@ -19,18 +15,10 @@ const GameInviteListener = lazy(() => import('../modules/games/duel/GameInviteLi
  * 这里在那两个路径上不再渲染语言浮层，避免 `.mac-floating-toolbar` 双元素重叠。
  */
 export function GlobalOverlays() {
-  const { locale, setLocale, currentPath, themePref, setThemePref, user } = useShell();
-  const ui = getUiCopy(locale);
-  const label = ui?.app?.localeLabel ?? (locale === 'zh' ? '界面语言' : 'Interface language');
+  const { user } = useShell();
 
   return (
     <>
-      {currentPath === ROUTES.HOME && (
-        <div className="mac-floating-toolbar">
-          <ThemeToggle pref={themePref} onChange={setThemePref} locale={locale} />
-          <LanguageToggle locale={locale} onChange={setLocale} label={label} />
-        </div>
-      )}
       {user && (
         <Suspense fallback={null}>
           <GameInviteListener />

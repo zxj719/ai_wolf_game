@@ -13,7 +13,7 @@ const chatModule = {
   theme: 'light',
   backend: 'cf-workers',
   routes: [
-    { path: ROUTES.CHAT, component: ChatRoute, requiresAuth: true },
+    { path: ROUTES.CHAT, component: ChatRoute, requiresAuth: false },
   ],
   // 游客在首页不显示（Dashboard 用 isGuestMode 控制实际渲染）；
   // 此处保留 visible:true 供未来 registry 卡片墙使用。

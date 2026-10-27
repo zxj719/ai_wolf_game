@@ -30,10 +30,11 @@ export async function handleUserSearch(request, env) {
 
   const like = `%${q}%`;
   const rows = await env.DB.prepare(
-    `SELECT id, username FROM users
-     WHERE (username LIKE ? OR email LIKE ?) AND id != ?
-     ORDER BY username LIMIT 20`
-  ).bind(like, like, me).all();
+    `SELECT u.id, u.username, p.display_name AS displayName, p.bio, p.avatar_color AS avatarColor
+     FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id
+     WHERE (u.username LIKE ? OR u.email LIKE ? OR p.display_name LIKE ?) AND u.id != ?
+     ORDER BY u.username LIMIT 20`
+  ).bind(like, like, like, me).all();
 
   return jsonResponse({ results: rows.results || [] }, 200, env, request);
 }
@@ -90,9 +91,11 @@ export async function handleFriendRequestsList(request, env) {
   if (me == null) return errorResponse('Not authenticated', 401, env, request);
 
   const rows = await env.DB.prepare(
-    `SELECT fr.id, fr.from_user AS fromUser, u.username AS fromUsername, fr.created_at AS createdAt
+    `SELECT fr.id, fr.from_user AS fromUser, u.username AS fromUsername, fr.created_at AS createdAt,
+            p.display_name AS fromDisplayName, p.avatar_color AS avatarColor
      FROM friend_requests fr
      JOIN users u ON u.id = fr.from_user
+     LEFT JOIN user_profiles p ON u.id = p.user_id
      WHERE fr.to_user = ? AND fr.status = 'pending'
      ORDER BY fr.created_at DESC`
   ).bind(me).all();
@@ -139,8 +142,9 @@ export async function handleFriendsList(request, env) {
   if (me == null) return errorResponse('Not authenticated', 401, env, request);
 
   const rows = await env.DB.prepare(
-    `SELECT u.id, u.username FROM friendships f
+    `SELECT u.id, u.username, p.display_name AS displayName, p.bio, p.avatar_color AS avatarColor FROM friendships f
      JOIN users u ON u.id = (CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END)
+     LEFT JOIN user_profiles p ON u.id = p.user_id
      WHERE f.user_a = ? OR f.user_b = ?
      ORDER BY u.username`
   ).bind(me, me, me).all();

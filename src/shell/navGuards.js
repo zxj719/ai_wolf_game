@@ -13,14 +13,14 @@ import { ROUTES, AUTH_PATHS } from './paths';
  * @param {string}  args.normalizedPath 当前归一化路径
  * @returns {{kind: 'render'} | {kind: 'redirect', to: string, replace: boolean}}
  */
-export function resolveNavigation({ route, isAuthed, normalizedPath }) {
+export function resolveNavigation({ route, isAuthed, isGuestMode = false, normalizedPath }) {
   // 未知路径 → 回首页
   if (!route) {
     return { kind: 'redirect', to: ROUTES.HOME, replace: true };
   }
 
   // 需要鉴权但未登录 → 跳登录
-  if (route.requiresAuth && !isAuthed) {
+  if (route.requiresAuth && !isAuthed && !isGuestMode) {
     return { kind: 'redirect', to: ROUTES.LOGIN, replace: true };
   }
 

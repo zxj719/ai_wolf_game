@@ -11,15 +11,15 @@ const HomeRoute = lazy(() => import('./HomeRoute'));
  */
 const homeModule = {
   id: 'home',
-  title: { zh: '个人主页', en: 'Home' },
+  title: { zh: '炸小鸡 · 好奇心游乐场', en: 'Zhaxiaoji · A playground for curiosity' },
   blurb: {
-    zh: '汇总狼人杀、音乐实验室、行情工具与博客的统一入口。',
-    en: 'Unified entry for werewolf, music lab, market tool and blog.',
+    zh: '小说工作台、AI 狼人杀，还有一些正在建设中的好玩东西。',
+    en: 'Writing, AI Werewolf, and a few worlds still in the making.',
   },
   theme: 'light',
   backend: 'cf-workers',
   routes: [
-    { path: ROUTES.HOME, component: HomeRoute, requiresAuth: true },
+    { path: ROUTES.HOME, component: HomeRoute, requiresAuth: false },
   ],
   home: { visible: false }, // 自己就是 home，不需要卡片指回自己
 };

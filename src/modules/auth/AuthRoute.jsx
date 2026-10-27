@@ -27,7 +27,7 @@ export default function AuthRoute() {
   }, [enterGuestMode]);
 
   return (
-    <div className="mac-app-shell">
+    <div>
       <Suspense fallback={<Loader />}>
         <AuthPage onGuestPlay={onGuestPlay} locale={locale} />
       </Suspense>

@@ -16,3 +16,6 @@
 @import './styles/base.css';
 @import './styles/legacy-mac.css';
 @import './styles/game-animations.css';
+@import './styles/studio.css';
+@import './styles/studio-auth.css';
+@import './styles/studio-details.css';
